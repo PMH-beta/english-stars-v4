@@ -881,7 +881,7 @@ body.in-game .mode-progress{display:block;}
   <span id="music-vol-lbl">50%</span>
   <input type="range" min="0" max="100" value="50" id="music-vol-slider" oninput="setMusicVolume(this.value/100)" />
 </div>
-<div style="position:fixed;bottom:4px;right:8px;font-size:.65rem;color:#bbb;font-weight:700;z-index:1000;pointer-events:none;">v3.19</div>
+<div style="position:fixed;bottom:4px;right:8px;font-size:.65rem;color:#bbb;font-weight:700;z-index:1000;pointer-events:none;">v3.22</div>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script>
@@ -1768,9 +1768,9 @@ function startRecording(){
           evaluateWithClaude(_bestAlts.join('|'),currentQ.answer);
         } else {
           result.style.display='block';result.className='pronounce-result heard';
-          result.textContent='⏱️ Nichts erkannt – nochmal versuchen';
+          result.textContent='⏱️ Nichts erkannt – versuchs nochmal oder bewerte selbst';
           resetBtn();
-          if(!answered){answered=true;handleWrong();}
+          showSelfRateButtons();
         }
       }
     },6000);
@@ -1852,11 +1852,21 @@ function startRecording(){
         clearTG(); stopVisualizer(); resetBtn();
         if(e.error==='not-allowed'){
           result.style.display='block'; result.className='pronounce-result';
-          result.textContent='❌ Mikrofon-Zugriff verweigert.';
+          result.textContent='❌ Mikrofon-Zugriff verweigert. Bitte in den Browser-Einstellungen erlauben.';
+        } else if(e.error==='network'||e.error==='service-not-allowed'){
+          // Häufig auf Huawei ohne Google Mobile Services - Spracherkennung läuft auf Google-Servern
+          result.style.display='block'; result.className='pronounce-result';
+          result.innerHTML='⚠️ Spracherkennung nicht verfügbar auf diesem Gerät.<br>'+
+            '<small style="opacity:.8">Häufig bei Huawei ohne Google Services. Tippe unten zur Selbst-Bewertung.</small>';
+          showSelfRateButtons();
+        } else if(e.error==='no-speech'){
+          result.style.display='block'; result.className='pronounce-result heard';
+          result.textContent='🤷 Nichts gehört – nochmal versuchen oder selbst bewerten';
+          showSelfRateButtons();
         } else {
           result.style.display='block'; result.className='pronounce-result heard';
-          result.textContent='🤷 Nichts erkannt – nochmal versuchen';
-          if(!answered){answered=true;handleWrong();}
+          result.textContent='🤷 Nichts erkannt ('+e.error+') – versuchs nochmal oder bewerte selbst';
+          showSelfRateButtons();
         }
       };
 
@@ -1869,8 +1879,8 @@ function startRecording(){
           } else {
             resetBtn();
             result.style.display='block'; result.className='pronounce-result heard';
-            result.textContent='🤷 Nichts erkannt – nochmal versuchen';
-            if(!answered){answered=true;handleWrong();}
+            result.textContent='🤷 Nichts erkannt – versuchs nochmal oder bewerte selbst';
+            showSelfRateButtons();
           }
         }
       };
@@ -1879,12 +1889,44 @@ function startRecording(){
       try{ sr.start(); }catch(e){ resetBtn(); stopVisualizer(); }
 
     } else {
-      // Kein SpeechRecognition → als falsch werten mit Hinweis
+      // Kein SpeechRecognition → Selbst-Bewertung anbieten
       stopVisualizer(); resetBtn();
       result.style.display='block'; result.className='pronounce-result';
-      result.textContent='⚠️ Spracherkennung nicht verfügbar. Bitte Chrome oder Edge verwenden.';
+      result.textContent='⚠️ Spracherkennung nicht verfügbar auf diesem Gerät.';
+      showSelfRateButtons();
     }
   });
+}
+
+// Selbst-Bewertungs-Buttons (Fallback wenn Spracherkennung versagt)
+function showSelfRateButtons(){
+  if(answered) return;
+  const card=document.getElementById('game-card');
+  if(!card) return;
+  // Existierenden Container entfernen falls vorhanden
+  const old=document.getElementById('self-rate-wrap');
+  if(old) old.remove();
+  const wrap=document.createElement('div');
+  wrap.id='self-rate-wrap';
+  wrap.style.cssText='margin-top:14px;display:flex;flex-direction:column;gap:8px;align-items:center;';
+  wrap.innerHTML=`
+    <div style="font-size:.85rem;color:#666;font-weight:700;margin-bottom:4px;">Richtige Antwort: <strong style="color:var(--purple)">${currentQ.answer}</strong></div>
+    <div style="font-size:.78rem;color:#888;">Wie hast du es ausgesprochen?</div>
+    <div style="display:flex;gap:8px;">
+      <button onclick="selfRate(true)" style="font-family:'Fredoka One',cursive;font-size:.9rem;padding:10px 18px;background:linear-gradient(135deg,#06d6a0,#3a9b45);color:#fff;border:none;border-radius:11px;cursor:pointer;box-shadow:0 4px 0 #2a7a35;">✓ Richtig</button>
+      <button onclick="selfRate(false)" style="font-family:'Fredoka One',cursive;font-size:.9rem;padding:10px 18px;background:linear-gradient(135deg,#ff6b6b,#c0001a);color:#fff;border:none;border-radius:11px;cursor:pointer;box-shadow:0 4px 0 #800010;">✗ Falsch</button>
+    </div>
+  `;
+  card.appendChild(wrap);
+}
+function selfRate(ok){
+  if(answered) return;
+  answered=true;
+  const wrap=document.getElementById('self-rate-wrap');
+  if(wrap) wrap.remove();
+  setMicFinalStatus(ok);
+  if(ok) handleCorrect();
+  else handleWrong();
 }
 
 async function evaluateWithClaude(recognizedText, targetWord){
@@ -1978,7 +2020,7 @@ function setMicFinalStatus(ok){
 
 function handlePronounceCorrect(){
   handleCorrect();
-  setTimeout(()=>speakWord(currentQ.answer),600);
+  // speakWord wird jetzt schon in handleCorrect selbst aufgerufen
 }
 
 // ── STAT RECORDING ──
@@ -2064,6 +2106,11 @@ function handleCorrect(){
     if(currentQ&&currentQ.type==='pronounce') setMicFinalStatus(true);
     // Sound: Streak-Sparkle bei 3+, sonst normaler Correct-Sound
     try{ playSfx(streak>=3?'streak':'correct'); }catch(e){}
+    // Wort auf Englisch vorlesen (Wort fest gebunden damit schneller Klick auf Weiter es nicht durcheinander bringt)
+    if(currentQ&&currentQ.answer){
+      const w=currentQ.answer;
+      setTimeout(()=>{ try{ speakWord(w); }catch(e){} }, 150);
+    }
     if(streak===5||streak===10) spawnConfetti();
   }catch(e){
     console.error('handleCorrect:',e);
@@ -2111,6 +2158,11 @@ function handleWrong(){
 
     showFeedback(false,headline,'Richtige Antwort: '+(currentQ&&currentQ.answer||'?'));
     try{ playSfx('wrong'); }catch(e){}
+    // Auch bei Falsch: richtiges Wort vorlesen (Wort fest gebunden)
+    if(currentQ&&currentQ.answer){
+      const w=currentQ.answer;
+      setTimeout(()=>{ try{ speakWord(w); }catch(e){} }, 200);
+    }
   }catch(e){
     console.error('handleWrong:',e);
     try{ showFeedback(false,'❌ Nicht ganz!','Richtige Antwort: '+(currentQ&&currentQ.answer||'?')); }catch(e2){}
@@ -2584,7 +2636,11 @@ function showFeedback(ok,text,sub){
   stopVisualizer();
 }
 function hideFeedback(){document.getElementById('feedback').className='feedback';}
-function nextQuestion(){questionIndex++;showQuestion();}
+function nextQuestion(){
+  // Laufende Aussprache stoppen wenn User weiterklickt
+  try{ if(window.speechSynthesis) window.speechSynthesis.cancel(); }catch(e){}
+  questionIndex++;showQuestion();
+}
 
 // ── END ──
 function saveProgress(){
