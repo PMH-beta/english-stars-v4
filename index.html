@@ -881,7 +881,7 @@ body.in-game .mode-progress{display:block;}
   <span id="music-vol-lbl">50%</span>
   <input type="range" min="0" max="100" value="50" id="music-vol-slider" oninput="setMusicVolume(this.value/100)" />
 </div>
-<div style="position:fixed;bottom:4px;right:8px;font-size:.65rem;color:#bbb;font-weight:700;z-index:1000;pointer-events:none;">v3.18</div>
+<div style="position:fixed;bottom:4px;right:8px;font-size:.65rem;color:#bbb;font-weight:700;z-index:1000;pointer-events:none;">v3.19</div>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script>
@@ -2390,7 +2390,28 @@ document.addEventListener('click',e=>{
 let _pwaPrompt=null;
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
-    navigator.serviceWorker.register('sw.js').catch(e=>console.warn('SW reg failed:',e));
+    navigator.serviceWorker.register('sw.js').then(reg=>{
+      // Bei jedem Seitenaufruf nach Updates suchen
+      reg.update().catch(()=>{});
+      // Wenn ein neuer SW installiert wird → automatisch aktivieren + reload
+      reg.addEventListener('updatefound',()=>{
+        const newSW=reg.installing;
+        if(!newSW) return;
+        newSW.addEventListener('statechange',()=>{
+          if(newSW.state==='installed' && navigator.serviceWorker.controller){
+            // Es gibt eine neue Version. Aktivieren + reload.
+            newSW.postMessage({action:'skipWaiting'});
+          }
+        });
+      });
+      // Wenn der neue SW aktiv wird, lädt die Seite neu
+      let refreshing=false;
+      navigator.serviceWorker.addEventListener('controllerchange',()=>{
+        if(refreshing) return;
+        refreshing=true;
+        window.location.reload();
+      });
+    }).catch(e=>console.warn('SW reg failed:',e));
   });
 }
 window.addEventListener('beforeinstallprompt',(e)=>{
