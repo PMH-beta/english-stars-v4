@@ -645,6 +645,26 @@ body.in-game .mode-progress{display:block;}
 <body>
 
 <!-- ═══ API KEY SCREEN ═══ -->
+<div id="loading-screen" style="display:none;width:100%;max-width:540px;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;">
+  <div style="font-size:4rem;margin-bottom:14px;animation:bounce 1.5s ease-in-out infinite;">⭐</div>
+  <h1 style="margin-bottom:6px">English Stars</h1>
+  <div style="color:#888;font-size:.95rem;margin-bottom:26px;font-weight:600;">Wird vorbereitet…</div>
+  <div style="width:100%;max-width:340px;background:#eee;height:12px;border-radius:50px;overflow:hidden;box-shadow:inset 0 2px 4px rgba(0,0,0,.08);">
+    <div id="loading-bar" style="height:100%;width:5%;background:linear-gradient(90deg,#a86cdb,#ff8fab,#ffd166,#06d6a0);background-size:300% 100%;animation:gradientFlow 4s linear infinite;border-radius:50px;transition:width .5s ease;"></div>
+  </div>
+  <div id="loading-status" style="margin-top:14px;font-size:.85rem;color:#666;font-weight:700;text-align:center;min-height:40px;">Lade App…</div>
+  <div id="loading-hint" style="margin-top:8px;font-size:.72rem;color:#aaa;font-weight:600;text-align:center;max-width:320px;">
+    Beim ersten Start wird die Spracherkennung heruntergeladen (~40 MB). Beim nächsten Mal startet die App sofort.
+  </div>
+</div>
+
+<style>
+@keyframes bounce{
+  0%,100%{transform:translateY(0);}
+  50%{transform:translateY(-12px);}
+}
+</style>
+
 <div id="apikey-screen" class="screen" style="display:none">
   <span class="emoji-big">✅</span>
   <h2>Kein Key nötig!</h2>
@@ -911,7 +931,7 @@ body.in-game .mode-progress{display:block;}
 <!-- ═══ GAME SCREEN ═══ -->
 <div id="game-screen" style="display:none;width:100%;max-width:640px;flex-direction:column;align-items:center;">
   <div class="game-top-row">
-    <button class="home-btn" onclick="confirmHome()">🏠 Menü</button>
+    <button class="back-btn" style="margin:0" onclick="confirmHome()">← Zurück</button>
     <div class="score-bar" style="margin:0">
       <button class="music-btn" id="music-btn" onclick="toggleMusic()" title="Musik an/aus">🎵</button>
       <div class="score-pill streak" id="streak-display">🔥 0</div>
@@ -968,9 +988,31 @@ body.in-game .mode-progress{display:block;}
   <span id="music-vol-lbl">50%</span>
   <input type="range" min="0" max="100" value="50" id="music-vol-slider" oninput="setMusicVolume(this.value/100)" />
 </div>
-<div style="position:fixed;bottom:4px;right:8px;font-size:.65rem;color:#bbb;font-weight:700;z-index:1000;pointer-events:none;">v3.26</div>
+<div style="position:fixed;bottom:4px;right:8px;font-size:.65rem;color:#bbb;font-weight:700;z-index:1000;pointer-events:none;">v3.28 Vosk</div>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<!-- Vosk.js für Offline-Spracherkennung (Fallback wenn Web Speech API versagt) -->
+<script type="module">
+  // Async laden - blockiert die App nicht
+  window._voskLoad = async function(){
+    if(window._voskModel) return window._voskModel;
+    try{
+      const Vosk = await import('https://cdn.jsdelivr.net/npm/vosk-browser@0.0.8/dist/vosk.js');
+      // Kleines englisches Modell (~40 MB) – wird via IndexedDB von Vosk gecacht
+      const modelUrl = 'https://ccoreilly.github.io/vosk-browser/models/vosk-model-small-en-us-0.15.tar.gz';
+      window._voskStatus = 'loading';
+      const model = await Vosk.createModel(modelUrl);
+      window._voskModel = model;
+      window._voskStatus = 'ready';
+      console.log('[Vosk] Modell geladen');
+      return model;
+    }catch(e){
+      console.warn('[Vosk] Fehler beim Laden:', e);
+      window._voskStatus = 'failed';
+      return null;
+    }
+  };
+</script>
 <script>
 // ── Globaler Fehler-Anzeiger ──
 (function(){
@@ -1234,17 +1276,54 @@ function updateKeyBadge(){
 //  INIT
 // ════════════════════════════════════════════════
 loadData();
-window.addEventListener('load',()=>{
+
+async function startupSequence(){
+  const alreadyLoaded = (()=>{ try{ return localStorage.getItem('es_vosk_loaded')==='1'; }catch(e){return false;} })();
+  const bar=document.getElementById('loading-bar');
+  const status=document.getElementById('loading-status');
+  const hint=document.getElementById('loading-hint');
+  function setProgress(pct,msg){
+    if(bar) bar.style.width=pct+'%';
+    if(status) status.textContent=msg;
+  }
+  showScreen('loading-screen');
+  setProgress(15,'App wird geladen…');
+  // Kurze Verzögerung für UX
+  await new Promise(r=>setTimeout(r,300));
+  setProgress(35,'Datenbank wird vorbereitet…');
+  await new Promise(r=>setTimeout(r,200));
+  if(!alreadyLoaded){
+    setProgress(50,'Lade Offline-Spracherkennung (~40 MB)…');
+    if(hint) hint.textContent='Nur beim ersten Start nötig. Bitte WLAN nutzen wenn möglich.';
+    try{
+      if(window._voskLoad){
+        await window._voskLoad();
+      }
+      try{ localStorage.setItem('es_vosk_loaded','1'); }catch(e){}
+    }catch(e){ console.warn('Vosk Load fehler beim Start:', e); }
+  } else {
+    setProgress(70,'Initialisiere Spracherkennung…');
+    // Im Hintergrund laden, blockiert nicht
+    if(window._voskLoad && !window._voskModel) window._voskLoad().catch(()=>{});
+  }
+  setProgress(95,'Fast fertig…');
+  await new Promise(r=>setTimeout(r,250));
+  setProgress(100,'Bereit!');
+  await new Promise(r=>setTimeout(r,200));
   if(!SD.playerName) showScreen('name-screen');
   else showMenu();
+}
+
+window.addEventListener('load',()=>{
+  startupSequence();
 });
 
 function showScreen(id){
-  ['apikey-screen','name-screen','menu-screen','game-screen','end-screen','stats-screen','profile-screen','scan-screen','review-screen'].forEach(s=>{
+  ['loading-screen','apikey-screen','name-screen','menu-screen','game-screen','end-screen','stats-screen','profile-screen','scan-screen','review-screen'].forEach(s=>{
     const el=document.getElementById(s); if(el) el.style.display='none';
   });
   const el=document.getElementById(id);
-  el.style.display=['menu-screen','game-screen','stats-screen','profile-screen','scan-screen','review-screen'].includes(id)?'flex':'block';
+  el.style.display=['loading-screen','menu-screen','game-screen','stats-screen','profile-screen','scan-screen','review-screen'].includes(id)?'flex':'block';
   if(id==='game-screen') document.body.classList.add('in-game');
   else document.body.classList.remove('in-game');
   // Sticky Footer nur im Menü zeigen
@@ -1724,6 +1803,10 @@ function startGame(m){
   const hasPronounce=(m==='pronounce'||m==='mixed_vocab');
   if(hasPronounce&&navigator.mediaDevices){
     ensureMicStream(); // einmalig cachen
+    // Vosk-Modell im Hintergrund vorladen (falls Web Speech API später versagt)
+    if(window._voskLoad && !window._voskModel && window._voskStatus!=='loading'){
+      window._voskLoad().catch(()=>{});
+    }
   }
   hideFeedback();showScreen('game-screen');updateScoreBar();
   _lastModePct=0;
@@ -1743,6 +1826,7 @@ function confirmHome(){
 function showQuestion(){
   answered=false;hideFeedback();
   _spokenForQuestion=false;
+  _pronounceAttempts=0;
   if(isSchnellModus){
     while(questionIndex<questionPool.length){
       const q=questionPool[questionIndex];
@@ -1985,6 +2069,60 @@ function stopVisualizer(){
   if(canvas){const ctx=canvas.getContext('2d');ctx.clearRect(0,0,canvas.width,canvas.height);}
 }
 
+// ════════════════════════════════════════════════
+//  VOSK – Offline-Spracherkennung (Fallback)
+//  Wird beim ersten Aussprache-Versuch lazy geladen.
+// ════════════════════════════════════════════════
+let _voskRec=null, _voskMediaSource=null;
+
+async function voskStart(stream, onResult, onError){
+  try{
+    if(!window._voskModel){
+      // Lade-Anzeige
+      if(window._voskStatus!=='loading'){
+        window._voskLoad();
+      }
+      // Warten bis bereit (max 60 Sek beim ersten Mal wegen Modell-Download)
+      const start=Date.now();
+      while(!window._voskModel && Date.now()-start<60000){
+        if(window._voskStatus==='failed') throw new Error('Vosk-Lade-Fehler');
+        await new Promise(r=>setTimeout(r,200));
+      }
+      if(!window._voskModel) throw new Error('Vosk timeout');
+    }
+    const rec = new window._voskModel.KaldiRecognizer(48000);
+    rec.setWords(true);
+    rec.on('result', m=>{
+      if(m && m.result && m.result.text) onResult(m.result.text, true);
+    });
+    rec.on('partialresult', m=>{
+      if(m && m.result && m.result.partial) onResult(m.result.partial, false);
+    });
+    const ctx = new (window.AudioContext||window.webkitAudioContext)();
+    const src = ctx.createMediaStreamSource(stream);
+    const proc = ctx.createScriptProcessor(4096,1,1);
+    proc.onaudioprocess = e=>{
+      try{ rec.acceptWaveform(e.inputBuffer); }catch(err){}
+    };
+    src.connect(proc);
+    proc.connect(ctx.destination);
+    _voskRec = {rec, ctx, src, proc};
+    return true;
+  }catch(e){
+    if(onError) onError(e);
+    return false;
+  }
+}
+
+function voskStop(){
+  if(!_voskRec) return;
+  try{ _voskRec.proc.disconnect(); }catch(e){}
+  try{ _voskRec.src.disconnect(); }catch(e){}
+  try{ _voskRec.ctx.close(); }catch(e){}
+  try{ _voskRec.rec.remove(); }catch(e){}
+  _voskRec=null;
+}
+
 function startRecording(){
   if(answered) return;
   const btn=document.getElementById('mic-btn');
@@ -2116,17 +2254,17 @@ function startRecording(){
           result.style.display='block'; result.className='pronounce-result';
           result.textContent='❌ Mikrofon-Zugriff verweigert. Bitte in den Browser-Einstellungen erlauben.';
         } else if(e.error==='network'||e.error==='service-not-allowed'){
+          // Web Speech API nicht verfügbar → Vosk-Fallback versuchen
           result.style.display='block'; result.className='pronounce-result';
-          result.innerHTML='⚠️ Spracherkennung blockiert.<br>'+
-            '<small style="opacity:.8">Tipp: Bei Huawei → Samsung-Internet oder Firefox versuchen. Solange: bewerte selbst.</small>';
-          showSelfRateButtons();
+          result.innerHTML='⏳ Lade Offline-Spracherkennung…<br><small style="opacity:.8">(beim ersten Mal ~40 MB Download, danach offline)</small>';
+          startVoskRecognition(stream, targetWord, result, btn);
         } else if(e.error==='no-speech'){
           result.style.display='block'; result.className='pronounce-result heard';
-          result.textContent='🤷 Nichts gehört – nochmal versuchen oder selbst bewerten';
+          result.textContent='🤷 Nichts gehört';
           showSelfRateButtons();
         } else {
           result.style.display='block'; result.className='pronounce-result heard';
-          result.textContent='🤷 Nichts erkannt ('+e.error+') – versuchs nochmal oder bewerte selbst';
+          result.textContent='🤷 Nichts erkannt ('+e.error+')';
           showSelfRateButtons();
         }
       };
@@ -2150,16 +2288,65 @@ function startRecording(){
       try{ sr.start(); }catch(e){ resetBtn(); stopVisualizer(); }
 
     } else {
-      // Kein SpeechRecognition → Selbst-Bewertung anbieten
-      stopVisualizer(); resetBtn();
+      // Kein SpeechRecognition → direkt Vosk-Fallback versuchen
       result.style.display='block'; result.className='pronounce-result';
-      result.textContent='⚠️ Spracherkennung nicht verfügbar auf diesem Gerät.';
-      showSelfRateButtons();
+      result.innerHTML='⏳ Lade Offline-Spracherkennung…<br><small style="opacity:.8">(beim ersten Mal ~40 MB Download, danach offline)</small>';
+      startVoskRecognition(stream, currentQ.answer, result, btn);
     }
   });
 }
 
+// Wrapper-Funktion: Vosk starten und Ergebnisse auswerten
+function startVoskRecognition(stream, targetWord, resultEl, btn){
+  let _voskAlts=[];
+  let _voskTimeout=null;
+  function finishVosk(){
+    if(answered) return;
+    if(_voskTimeout){ clearTimeout(_voskTimeout); _voskTimeout=null; }
+    voskStop(); stopVisualizer();
+    if(btn){ btn.className='mic-btn'; btn.disabled=false; btn.textContent='🎙️ Nochmal'; btn.onclick=startRecording; }
+    if(_voskAlts.length>0){
+      evaluateWithClaude(_voskAlts.join('|'), targetWord);
+    } else {
+      resultEl.style.display='block'; resultEl.className='pronounce-result heard';
+      resultEl.textContent='🤷 Nichts erkannt';
+      showSelfRateButtons();
+    }
+  }
+  voskStart(stream,(text,isFinal)=>{
+    if(!text||answered) return;
+    const clean=text.toLowerCase().trim().replace(/[.,!?;:"]/g,'');
+    if(!clean) return;
+    if(_voskAlts.indexOf(clean)<0) _voskAlts.push(clean);
+    resultEl.style.display='block'; resultEl.className='pronounce-result heard';
+    resultEl.textContent='🗣️ Erkannt: "'+clean+'"';
+    // Schneller Abbruch wenn Target erkannt
+    const tLow=targetWord.toLowerCase().replace(/^to /,'').trim();
+    if(clean===tLow || clean.split(' ').includes(tLow)){
+      finishVosk();
+    } else if(isFinal){
+      finishVosk();
+    }
+  },(err)=>{
+    voskStop(); stopVisualizer();
+    if(btn){ btn.className='mic-btn'; btn.disabled=false; btn.textContent='🎙️ Nochmal'; btn.onclick=startRecording; }
+    resultEl.style.display='block'; resultEl.className='pronounce-result';
+    resultEl.textContent='⚠️ Offline-Erkennung fehlgeschlagen';
+    showSelfRateButtons();
+  });
+  // Visualizer + Recording-Button-Style
+  if(btn){
+    btn.className='mic-btn recording'; btn.textContent='⏹️ Stopp';
+    btn.onclick=()=>finishVosk();
+  }
+  // Max 5 Sek Aufnahme
+  _voskTimeout=setTimeout(()=>finishVosk(), 5000);
+}
+
 // Selbst-Bewertungs-Buttons (Fallback wenn Spracherkennung versagt)
+// Versuchs-Zähler für Spracherkennung (max 2 vor Auto-Falsch)
+let _pronounceAttempts=0;
+
 function showSelfRateButtons(){
   if(answered) return;
   const card=document.getElementById('game-card');
@@ -2167,26 +2354,41 @@ function showSelfRateButtons(){
   const old=document.getElementById('self-rate-wrap');
   if(old) old.remove();
   const ans=currentQ.answer;
+  _pronounceAttempts++;
+  const canRetry=_pronounceAttempts<2;
   const wrap=document.createElement('div');
   wrap.id='self-rate-wrap';
   wrap.style.cssText='margin-top:14px;display:flex;flex-direction:column;gap:10px;align-items:center;';
+  // Lösung NICHT mehr als Text zeigen - nur Anhören-Button
   wrap.innerHTML=`
-    <div style="font-size:.85rem;color:#666;font-weight:700;">Richtige Antwort: <strong style="color:var(--purple)">${ans}</strong></div>
-    <button onclick="speakWord('${ans.replace(/'/g,"\\'")}')" style="font-family:'Fredoka One',cursive;font-size:.85rem;padding:8px 18px;background:#fff;color:var(--purple);border:2px solid var(--purple);border-radius:50px;cursor:pointer;">🔊 Anhören</button>
-    <div style="font-size:.78rem;color:#888;">Hast du es so ausgesprochen?</div>
-    <div style="display:flex;gap:8px;">
-      <button onclick="selfRate(true)" style="font-family:'Fredoka One',cursive;font-size:.9rem;padding:10px 18px;background:linear-gradient(135deg,#06d6a0,#3a9b45);color:#fff;border:none;border-radius:11px;cursor:pointer;box-shadow:0 4px 0 #2a7a35;">✓ Richtig</button>
-      <button onclick="selfRate(false)" style="font-family:'Fredoka One',cursive;font-size:.9rem;padding:10px 18px;background:linear-gradient(135deg,#ff6b6b,#c0001a);color:#fff;border:none;border-radius:11px;cursor:pointer;box-shadow:0 4px 0 #800010;">✗ Falsch</button>
+    <button onclick="speakWord(${JSON.stringify(ans)})" style="font-family:'Fredoka One',cursive;font-size:.9rem;padding:10px 22px;background:#fff;color:var(--purple);border:2px solid var(--purple);border-radius:50px;cursor:pointer;">🔊 Lösung anhören</button>
+    <div style="font-size:.78rem;color:#666;text-align:center;">Hör dir die Aussprache an und entscheide:</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
+      <button onclick="selfRate(true)" style="font-family:'Fredoka One',cursive;font-size:.9rem;padding:10px 18px;background:linear-gradient(135deg,#06d6a0,#3a9b45);color:#fff;border:none;border-radius:11px;cursor:pointer;box-shadow:0 4px 0 #2a7a35;">✓ Hatte ich richtig</button>
+      <button onclick="selfRate(false)" style="font-family:'Fredoka One',cursive;font-size:.9rem;padding:10px 18px;background:linear-gradient(135deg,#ff6b6b,#c0001a);color:#fff;border:none;border-radius:11px;cursor:pointer;box-shadow:0 4px 0 #800010;">✗ Daneben</button>
+      ${canRetry?'<button onclick="retryPronounce()" style="font-family:\'Fredoka One\',cursive;font-size:.9rem;padding:10px 18px;background:#ffa64d;color:#fff;border:none;border-radius:11px;cursor:pointer;box-shadow:0 4px 0 #cc7a20;">🔄 Nochmal</button>':''}
     </div>
+    ${!canRetry?'<div style="font-size:.72rem;color:#999;">Versuche aufgebraucht.</div>':''}
   `;
   card.appendChild(wrap);
-  // Wort direkt vorlesen damit User vergleichen kann
   setTimeout(()=>{ try{ speakWordOnce(ans); }catch(e){} }, 200);
 }
+
+function retryPronounce(){
+  // Selbst-Bewertungs-Buttons entfernen, Mikrofon neu starten
+  const wrap=document.getElementById('self-rate-wrap');
+  if(wrap) wrap.remove();
+  const result=document.getElementById('pronounce-result');
+  if(result){ result.style.display='none'; }
+  const btn=document.getElementById('mic-btn');
+  if(btn){ btn.disabled=false; btn.onclick=startRecording; }
+  // Direkt neu aufnehmen
+  if(typeof startRecording==='function') startRecording();
+}
+
 function selfRate(ok){
   if(answered) return;
   answered=true;
-  // Laufende Spracherkennung + Visualizer stoppen
   try{ if(window.speechSynthesis) window.speechSynthesis.cancel(); }catch(e){}
   try{ if(typeof stopVisualizer==='function') stopVisualizer(); }catch(e){}
   const wrap=document.getElementById('self-rate-wrap');
@@ -2423,16 +2625,18 @@ function handleWrong(){
     function pickW(arr){return arr[Math.floor(Math.random()*arr.length)];}
     headline=pickW(close?wrongTexts.close:wrongTexts.normal);
 
-    showFeedback(false,headline,'Richtige Antwort: '+(currentQ&&currentQ.answer||'?'));
+    // Bei Aussprache: Lösung nicht als Text zeigen, nur vorlesen
+    const isPronounce = currentQ&&currentQ.type==='pronounce';
+    const subText = isPronounce ? '🔊 Hör dir die richtige Aussprache an' : ('Richtige Antwort: '+(currentQ&&currentQ.answer||'?'));
+    showFeedback(false,headline,subText);
     try{ playSfx('wrong'); }catch(e){}
-    // Auch bei Falsch: richtiges Wort vorlesen (Wort fest gebunden)
     if(currentQ&&currentQ.answer){
       const w=currentQ.answer;
       setTimeout(()=>{ try{ speakWordOnce(w); }catch(e){} }, 200);
     }
   }catch(e){
     console.error('handleWrong:',e);
-    try{ showFeedback(false,'❌ Nicht ganz!','Richtige Antwort: '+(currentQ&&currentQ.answer||'?')); }catch(e2){}
+    try{ showFeedback(false,'❌ Nicht ganz!',''); }catch(e2){}
   }
 }
 
@@ -2796,31 +3000,29 @@ window.addEventListener('DOMContentLoaded',()=>{
   try{ const v=localStorage.getItem('es_music'); if(v!==null) pref=v; }catch(e){}
   if(pref!=='1'){ _setMusicBtns(false); return; }
   _setMusicBtns(true);
-  // Robust: bei jeder ersten User-Interaktion startMusic versuchen.
-  // Erst direkt versuchen, dann bei click/touch/keydown nochmal.
-  let startTriggered=false;
-  async function tryStart(){
-    if(startTriggered) return;
-    startTriggered=true;
-    try{ await startMusic(); }catch(e){console.warn('Music start failed:',e);}
-    // Falls keine Tracks gefunden, nicht nochmal versuchen
-  }
-  // Erst direkt (klappt nur wenn Browser autoplay erlaubt)
-  tryStart().then(()=>{
-    if(!_musicOn){
-      // Reset für ersten User-Klick
-      startTriggered=false;
-    }
-  });
+  // Erst Tracks im Hintergrund entdecken
+  _discoverTracks().catch(()=>{});
+  // Beim ersten User-Event SOFORT synchron starten (für iOS/Android User-Gesture)
+  let started=false;
   const onFirst=()=>{
-    document.removeEventListener('click',onFirst);
-    document.removeEventListener('touchstart',onFirst);
-    document.removeEventListener('keydown',onFirst);
-    if(!_musicOn) tryStart();
+    if(started) return;
+    started=true;
+    document.removeEventListener('click',onFirst,true);
+    document.removeEventListener('touchstart',onFirst,true);
+    document.removeEventListener('keydown',onFirst,true);
+    if(!_musicOn){
+      try{ startMusicSync(); }catch(e){}
+      // Falls Tracks inzwischen entdeckt wurden, direkt richtigen Track laden
+      if(_musicTracks.length>0 && _musicAudio){
+        _musicAudio.src=_trackUrl(_musicTracks[0]);
+        _musicAudio.play().catch(()=>{});
+      }
+    }
   };
-  document.addEventListener('click',onFirst);
-  document.addEventListener('touchstart',onFirst);
-  document.addEventListener('keydown',onFirst);
+  // capture:true damit es vor anderen Click-Handlern feuert
+  document.addEventListener('click',onFirst,true);
+  document.addEventListener('touchstart',onFirst,true);
+  document.addEventListener('keydown',onFirst,true);
 });
 
 // Live-Modus-Fortschritt während des Spielens
