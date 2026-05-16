@@ -989,7 +989,7 @@ body.in-game .mode-progress{display:block;}
   <span id="music-vol-lbl">50%</span>
   <input type="range" min="0" max="100" value="50" id="music-vol-slider" oninput="setMusicVolume(this.value/100)" />
 </div>
-<div style="position:fixed;bottom:4px;right:8px;font-size:.65rem;color:#bbb;font-weight:700;z-index:1000;pointer-events:none;">v3.35</div>
+<div style="position:fixed;bottom:4px;right:8px;font-size:.65rem;color:#bbb;font-weight:700;z-index:1000;pointer-events:none;">v3.36</div>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <!-- Vosk.js für Offline-Spracherkennung (Fallback wenn Web Speech API versagt) -->
@@ -2160,8 +2160,9 @@ async function voskStart(onResult, onError){
       video:false,
       audio:{ echoCancellation:true, noiseSuppression:true, channelCount:1, sampleRate:16000 }
     });
-    // KaldiRecognizer ohne Argumente (offizieller Weg)
-    const rec = new window._voskModel.KaldiRecognizer();
+    const ctx = new (window.AudioContext||window.webkitAudioContext)();
+    // WICHTIG: KaldiRecognizer braucht die tatsächliche Sample-Rate vom AudioContext
+    const rec = new window._voskModel.KaldiRecognizer(ctx.sampleRate);
     rec.setWords(true);
     rec.on('result', m=>{
       console.log('[Vosk] result:', m);
@@ -2173,7 +2174,6 @@ async function voskStart(onResult, onError){
         onResult(m.result.partial, false);
       }
     });
-    const ctx = new (window.AudioContext||window.webkitAudioContext)();
     const src = ctx.createMediaStreamSource(stream);
     const proc = ctx.createScriptProcessor(4096,1,1);
     proc.onaudioprocess = e=>{
