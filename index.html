@@ -989,7 +989,7 @@ body.in-game .mode-progress{display:block;}
   <span id="music-vol-lbl">50%</span>
   <input type="range" min="0" max="100" value="50" id="music-vol-slider" oninput="setMusicVolume(this.value/100)" />
 </div>
-<div style="position:fixed;bottom:4px;right:8px;font-size:.65rem;color:#bbb;font-weight:700;z-index:1000;pointer-events:none;">v3.43</div>
+<div style="position:fixed;bottom:4px;right:8px;font-size:.65rem;color:#bbb;font-weight:700;z-index:1000;pointer-events:none;">v3.44</div>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <!-- Vosk.js für Offline-Spracherkennung (Fallback wenn Web Speech API versagt) -->
@@ -1503,7 +1503,7 @@ function renderDecks(){
     const card=document.createElement('div');
     card.className='deck-card'+(isActive?' active':'')+(isExpanded?' expanded':'')+(!isActive?' inactive':'');
     card.innerHTML=`
-      <div class="deck-header" onclick="toggleDeck('${id}')">
+      <div class="deck-header" onclick="activateDeck('${id}')">
         <div class="deck-icon">${isActive?'📖':'📕'}</div>
         <div class="deck-info">
           <div class="deck-name">${escHtml(deck.name)}</div>
@@ -1515,7 +1515,7 @@ function renderDecks(){
           <div class="deck-progress-mini"><div class="deck-progress-mini-fill" style="width:${p.overallPct}%"></div></div>
         </div>
         <div class="deck-pct">${p.overallPct}%</div>
-        <div class="deck-chevron">▼</div>
+        <div class="deck-chevron" onclick="event.stopPropagation();toggleDeck('${id}')" style="cursor:pointer;padding:8px;">▼</div>
       </div>
       <div class="deck-body">
         ${isActive?`<div class="deck-active-badge">⭐ Aktive Sammlung – Statistik bezieht sich auf diese</div>`:''}
@@ -1559,15 +1559,16 @@ function renderModeSubBy(p){
 }
 
 function toggleDeck(id){
-  if(_expandedDeckId===id){
-    _expandedDeckId=null;
-  } else {
-    _expandedDeckId=id;
-    if(SD.activeDeckId!==id){
-      SD.activeDeckId=id;
-      syncMirrorFromActiveDeck();
-      persist();
-    }
+  // Nur Auf-/Zuklappen, keine Aktivierung
+  _expandedDeckId = (_expandedDeckId===id) ? null : id;
+  renderDecks();
+}
+function activateDeck(id){
+  // Nur Aktivieren, kein Aufklappen
+  if(SD.activeDeckId!==id){
+    SD.activeDeckId=id;
+    syncMirrorFromActiveDeck();
+    persist();
   }
   renderDecks();
 }
