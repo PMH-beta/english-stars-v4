@@ -989,7 +989,7 @@ body.in-game .mode-progress{display:block;}
   <span id="music-vol-lbl">50%</span>
   <input type="range" min="0" max="100" value="50" id="music-vol-slider" oninput="setMusicVolume(this.value/100)" />
 </div>
-<div style="position:fixed;bottom:4px;right:8px;font-size:.65rem;color:#bbb;font-weight:700;z-index:1000;pointer-events:none;">v3.37</div>
+<div style="position:fixed;bottom:4px;right:8px;font-size:.65rem;color:#bbb;font-weight:700;z-index:1000;pointer-events:none;">v3.38</div>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <!-- Vosk.js für Offline-Spracherkennung (Fallback wenn Web Speech API versagt) -->
@@ -2250,26 +2250,32 @@ function voskStop(){
   if(canvas){const cctx=canvas.getContext('2d');cctx.clearRect(0,0,canvas.width,canvas.height);}
 }
 
+function _shouldUseVosk(){
+  // iPhone/iPad/iPod und Desktop → Web Speech API (klappt dort gut)
+  // Android & Rest → Vosk (offline, Huawei-tauglich)
+  const ua = navigator.userAgent || '';
+  const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
+  const isAndroid = /Android/i.test(ua);
+  const isMobile = /Mobi|Android|iPhone|iPad/i.test(ua);
+  if(isIOS) return false; // iOS: Web Speech API
+  if(!isMobile) return false; // Desktop: Web Speech API
+  if(isAndroid) return true; // Android: Vosk
+  return true; // Sonstige Mobile: Vosk
+}
+
 function startRecording(){
   if(answered) return;
   const btn=document.getElementById('mic-btn');
   const result=document.getElementById('pronounce-result');
   if(!result) return;
 
-  // Wenn Vosk geladen ist, IMMER Vosk nutzen (zuverlässiger + auf jedem Gerät gleich)
-  if(window._voskModel || window._voskStatus==='ready'){
-    console.log('[Recording] nutze Vosk (Offline-Erkennung)');
+  // Plattform-Entscheidung: Android+Rest → Vosk, iOS+Desktop → Web Speech API
+  if(_shouldUseVosk() && (window._voskModel || window._voskStatus==='ready')){
+    console.log('[Recording] Android/Rest → Vosk');
     result.style.display='block';
     result.className='pronounce-result';
     result.textContent='🎤 Sprich jetzt…';
     startVoskRecognition(currentQ.answer, result, btn);
-    return;
-  }
-  // Fallback: Web Speech API wenn Vosk noch lädt
-  if(window._webSpeechFailed){
-    result.style.display='block';
-    result.className='pronounce-result';
-    result.textContent='⏳ Spracherkennung lädt…';
     return;
   }
 
@@ -2504,8 +2510,6 @@ function showSelfRateButtons(){
   const old=document.getElementById('self-rate-wrap');
   if(old) old.remove();
   const ans=currentQ.answer;
-  // Versuche werden in retryPronounce hochgezählt, nicht hier
-  const canRetry=_pronounceAttempts<2;
   const wrap=document.createElement('div');
   wrap.id='self-rate-wrap';
   wrap.style.cssText='margin-top:14px;display:flex;flex-direction:column;gap:10px;align-items:center;';
@@ -2536,25 +2540,10 @@ function showSelfRateButtons(){
   noBtn.onclick=()=>selfRate(false);
   btnRow.appendChild(noBtn);
 
-  if(canRetry){
-    const retryBtn=document.createElement('button');
-    retryBtn.textContent='🔄 Nochmal';
-    retryBtn.style.cssText="font-family:'Fredoka One',cursive;font-size:.9rem;padding:10px 18px;background:#ffa64d;color:#fff;border:none;border-radius:11px;cursor:pointer;box-shadow:0 4px 0 #cc7a20;";
-    retryBtn.onclick=()=>retryPronounce();
-    btnRow.appendChild(retryBtn);
-  }
-
   wrap.appendChild(listenBtn);
   wrap.appendChild(hint);
   wrap.appendChild(btnRow);
-  if(!canRetry){
-    const noMore=document.createElement('div');
-    noMore.style.cssText='font-size:.72rem;color:#999;';
-    noMore.textContent='Versuche aufgebraucht.';
-    wrap.appendChild(noMore);
-  }
   card.appendChild(wrap);
-  // Kein automatisches speakWord - User klickt selbst auf "Lösung anhören"
 }
 
 function retryPronounce(){
@@ -2860,7 +2849,28 @@ async function _discoverTracks(){
       .replace(/&nbsp;/g,' ');
   }
 
-  // Versuch 1: Directory-Listing vom Server (Python http.server liefert HTML-Index)
+  // Versuch 1: GitHub API für github.io-Hosting
+  try{
+    const host=location.hostname; // z.B. pmh-beta.github.io
+    if(host.endsWith('.github.io')){
+      const user=host.split('.')[0]; // pmh-beta
+      const pathParts=location.pathname.split('/').filter(Boolean);
+      const repo=pathParts[0]||'english-stars';
+      const apiUrl=`https://api.github.com/repos/${user}/${repo}/contents/`;
+      const r=await fetch(apiUrl);
+      if(r.ok){
+        const files=await r.json();
+        const mp3s=files.filter(f=>f.type==='file' && /\.mp3$/i.test(f.name)).map(f=>f.name);
+        if(mp3s.length>0){
+          _musicTracks=mp3s;
+          console.log('[Music] GitHub API: '+mp3s.length+' Tracks:',mp3s);
+          return _musicTracks;
+        }
+      }
+    }
+  }catch(e){ console.warn('[Music] GitHub-API:',e.message); }
+
+  // Versuch 2: Directory-Listing (lokale Python-Server)
   try{
     const r=await fetch('./',{method:'GET',cache:'no-store'});
     if(r.ok){
@@ -2873,30 +2883,26 @@ async function _discoverTracks(){
       }).filter(n=>n && !n.includes('/') && !n.startsWith('?'));
       if(found.length>0){
         _musicTracks=Array.from(new Set(found));
-        console.log('[Music] '+_musicTracks.length+' Tracks gefunden:',_musicTracks);
+        console.log('[Music] Listing: '+_musicTracks.length+' Tracks:',_musicTracks);
         return _musicTracks;
       }
-      console.warn('[Music] Listing OK, aber keine .mp3-Links gefunden. Listing-Anfang:',txt.slice(0,300));
-    } else {
-      console.warn('[Music] Listing-Status:',r.status);
     }
-  }catch(e){ console.warn('[Music] Listing-Fehler:',e.message); }
+  }catch(e){ console.warn('[Music] Listing:',e.message); }
 
-  // Fallback: nur die bekannten Namen probieren (keine 30 generischen Namen die alle 404 machen)
-  const candidates=[
-    'HoliznaCC0_-_2__jazz_.mp3','oji - nouvelle vague..mp3',
-    'Art Flower - Art Flower - Dancing Bee.mp3',
-    'Arrizabalaga, Bravo, Laginestra, Martinez - 3LW....mp3'
-  ];
-  const results=await Promise.all(candidates.map(c=>
-    fetch(_trackUrl(c),{method:'HEAD'}).then(r=>r.ok?c:null).catch(()=>null)
-  ));
-  _musicTracks=results.filter(x=>x);
-  if(_musicTracks.length===0){
-    console.warn('[Music] Keine MP3-Dateien im Ordner gefunden. Lege MP3-Dateien neben die HTML.');
-  } else {
-    console.log('[Music] Fallback: '+_musicTracks.length+' Tracks gefunden:',_musicTracks);
-  }
+  // Versuch 3: manifest-tracks.json (optional vom User gepflegt)
+  try{
+    const r=await fetch('./tracks.json',{cache:'no-store'});
+    if(r.ok){
+      const list=await r.json();
+      if(Array.isArray(list) && list.length>0){
+        _musicTracks=list;
+        console.log('[Music] tracks.json: '+list.length+' Tracks:',list);
+        return _musicTracks;
+      }
+    }
+  }catch(e){}
+
+  console.warn('[Music] Keine MP3-Dateien gefunden. Lege MP3s in das Repository und sie werden automatisch erkannt.');
   return _musicTracks;
 }
 
@@ -2911,7 +2917,20 @@ function _initAudio(){
   if(_musicAudio) return _musicAudio;
   try{ const v=localStorage.getItem('es_music_vol'); if(v) _musicVolume=parseFloat(v); }catch(e){}
   _musicAudio=new Audio();
+  _musicAudio.crossOrigin='anonymous';
+  _musicAudio.preload='auto';
+  _musicAudio.setAttribute('playsinline','');
   _musicAudio.volume=_musicVolume;
+  // MediaSession damit Android die Musik dem Medien-Volume-Bus zuordnet (nicht Klingelton)
+  try{
+    if('mediaSession' in navigator){
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: 'English Stars Musik',
+        artist: 'CC0 Background',
+        album: 'English Stars'
+      });
+    }
+  }catch(e){}
   _musicAudio.addEventListener('ended',()=>{
     _musicErrorRetries=0;
     _playNext();
@@ -2919,14 +2938,12 @@ function _initAudio(){
   _musicAudio.addEventListener('error',()=>{
     if(!_musicOn) return;
     _musicErrorRetries++;
-    // Wenn alle Tracks fehlerhaft → aufgeben
     if(_musicErrorRetries >= _musicTracks.length){
       console.warn('Alle MP3-Dateien fehlerhaft.');
       return;
     }
     setTimeout(()=>_playNext(),300);
   });
-  // Reset retry-counter wenn Track erfolgreich startet
   _musicAudio.addEventListener('playing',()=>{ _musicErrorRetries=0; });
   return _musicAudio;
 }
