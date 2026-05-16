@@ -1,4 +1,4 @@
-const VERSION = 'v3.19';
+const VERSION = 'v3.35';
 const CACHE = 'english-stars-' + VERSION;
 const PRECACHE = ['./','./index.html','./manifest.json','./icon-192.png','./icon-512.png','./favicon.png'];
 

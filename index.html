@@ -989,7 +989,7 @@ body.in-game .mode-progress{display:block;}
   <span id="music-vol-lbl">50%</span>
   <input type="range" min="0" max="100" value="50" id="music-vol-slider" oninput="setMusicVolume(this.value/100)" />
 </div>
-<div style="position:fixed;bottom:4px;right:8px;font-size:.65rem;color:#bbb;font-weight:700;z-index:1000;pointer-events:none;">v3.34</div>
+<div style="position:fixed;bottom:4px;right:8px;font-size:.65rem;color:#bbb;font-weight:700;z-index:1000;pointer-events:none;">v3.35</div>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <!-- Vosk.js für Offline-Spracherkennung (Fallback wenn Web Speech API versagt) -->
@@ -2213,6 +2213,16 @@ function startRecording(){
   const result=document.getElementById('pronounce-result');
   if(!result) return;
 
+  // Wenn auf diesem Gerät Web Speech API schon mal versagt hat UND Vosk geladen ist → direkt Vosk
+  if(window._webSpeechFailed && (window._voskModel || window._voskStatus==='ready')){
+    console.log('[Recording] Web Speech zuvor versagt, nutze Vosk');
+    result.style.display='block';
+    result.className='pronounce-result';
+    result.textContent='🎤 Sprich jetzt – Offline-Erkennung…';
+    startVoskRecognition(currentQ.answer, result, btn);
+    return;
+  }
+
   function resetBtn(){
     if(btn){btn.className='mic-btn';btn.disabled=false;btn.textContent='🎙️ Nochmal';btn.onclick=startRecording;}
   }
@@ -2249,6 +2259,8 @@ function startRecording(){
           result.style.display='block';result.className='pronounce-result heard';
           result.textContent='⏱️ Nichts erkannt';
           resetBtn();
+          window._webSpeechFailed = true; // Beim nächsten Mal direkt Vosk versuchen
+          console.log('[Recording] Web Speech: kein Resultat → bei nächstem Versuch Vosk');
           showSelfRateButtons();
         }
       }
@@ -2333,15 +2345,18 @@ function startRecording(){
           result.style.display='block'; result.className='pronounce-result';
           result.textContent='❌ Mikrofon-Zugriff verweigert. Bitte in den Browser-Einstellungen erlauben.';
         } else if(e.error==='network'||e.error==='service-not-allowed'){
-          // Web Speech API nicht verfügbar → Vosk-Fallback versuchen
+          // Web Speech API nicht verfügbar → für immer Vosk nutzen
+          window._webSpeechFailed = true;
           result.style.display='block'; result.className='pronounce-result';
           result.innerHTML='⏳ Lade Offline-Spracherkennung…<br><small style="opacity:.8">(beim ersten Mal ~40 MB Download, danach offline)</small>';
           startVoskRecognition(targetWord, result, btn);
         } else if(e.error==='no-speech'){
+          window._webSpeechFailed = true;
           result.style.display='block'; result.className='pronounce-result heard';
           result.textContent='🤷 Nichts gehört';
           showSelfRateButtons();
         } else {
+          window._webSpeechFailed = true;
           result.style.display='block'; result.className='pronounce-result heard';
           result.textContent='🤷 Nichts erkannt ('+e.error+')';
           showSelfRateButtons();
@@ -2355,12 +2370,12 @@ function startRecording(){
             resetBtn();
             evaluateWithClaude(_lastAlts.join('|'), targetWord);
           } else {
-            // Nichts erkannt - Selbstbewertung anbieten
             resetBtn();
-            // Mikrofon-Stream freigeben damit nichts klemmt
             try{ releaseMicStream(); }catch(e){}
             result.style.display='block'; result.className='pronounce-result heard';
             result.textContent='🤷 Nichts erkannt';
+            window._webSpeechFailed = true;
+            console.log('[Recording] Web Speech onend: kein Resultat → bei nächstem Versuch Vosk');
             showSelfRateButtons();
           }
         }
