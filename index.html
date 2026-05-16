@@ -656,6 +656,7 @@ body.in-game .mode-progress{display:block;}
   <div id="loading-hint" style="margin-top:8px;font-size:.72rem;color:#aaa;font-weight:600;text-align:center;max-width:320px;">
     Beim ersten Start wird die Spracherkennung heruntergeladen (~40 MB). Beim nächsten Mal startet die App sofort.
   </div>
+  <button id="loading-start-btn" onclick="finishStartup()" style="display:none;margin-top:24px;font-family:'Fredoka One',cursive;font-size:1.1rem;padding:14px 32px;background:linear-gradient(135deg,#a86cdb,#ff8fab);color:#fff;border:none;border-radius:50px;cursor:pointer;box-shadow:0 5px 0 #7a4ba8;">▶️ Loslegen</button>
 </div>
 
 <style>
@@ -988,7 +989,7 @@ body.in-game .mode-progress{display:block;}
   <span id="music-vol-lbl">50%</span>
   <input type="range" min="0" max="100" value="50" id="music-vol-slider" oninput="setMusicVolume(this.value/100)" />
 </div>
-<div style="position:fixed;bottom:4px;right:8px;font-size:.65rem;color:#bbb;font-weight:700;z-index:1000;pointer-events:none;">v3.31</div>
+<div style="position:fixed;bottom:4px;right:8px;font-size:.65rem;color:#bbb;font-weight:700;z-index:1000;pointer-events:none;">v3.33</div>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <!-- Vosk.js für Offline-Spracherkennung (Fallback wenn Web Speech API versagt) -->
@@ -1291,6 +1292,26 @@ function updateKeyBadge(){
 loadData();
 
 async function startupSequence(){
+  // Service-Worker-Cache löschen damit immer die neueste App-Version geladen wird
+  // (außer Vosk-Modell, das ist in IndexedDB und bleibt automatisch)
+  try{
+    if('caches' in window){
+      const names = await caches.keys();
+      await Promise.all(names.map(n=>caches.delete(n)));
+    }
+  }catch(e){ console.warn('[Cache] Löschen fehlgeschlagen:',e); }
+
+  // LocalStorage-Aufräumen: alles bis auf User-Daten weg
+  const KEEP_KEYS = ['english_stars_v3','english_stars_v2','es_music','es_music_vol','es_apikey','es_vosk_loaded'];
+  try{
+    const toRemove=[];
+    for(let i=0;i<localStorage.length;i++){
+      const k=localStorage.key(i);
+      if(k && !KEEP_KEYS.includes(k)) toRemove.push(k);
+    }
+    toRemove.forEach(k=>{ try{ localStorage.removeItem(k); }catch(e){} });
+  }catch(e){}
+
   const alreadyLoaded = (()=>{ try{ return localStorage.getItem('es_vosk_loaded')==='1'; }catch(e){return false;} })();
   const bar=document.getElementById('loading-bar');
   const status=document.getElementById('loading-status');
@@ -1337,8 +1358,25 @@ async function startupSequence(){
   setProgress(90,'App wird gestartet…');
   await new Promise(r=>setTimeout(r,250));
   setProgress(100,'Bereit!');
-  await new Promise(r=>setTimeout(r,300));
+  // Statt automatisch weitergehen: Button zeigen damit der User die App startet
+  // (notwendig für Musik-Autostart auf Mobile - braucht User-Gesture)
+  const startBtn=document.getElementById('loading-start-btn');
+  const hintEl=document.getElementById('loading-hint');
+  if(hintEl) hintEl.textContent='Tippe auf Loslegen um zu starten – dann läuft auch die Musik';
+  if(startBtn) startBtn.style.display='inline-block';
+}
 
+function finishStartup(){
+  // Direkter User-Klick: Musik starten (synchron für iOS/Android User-Gesture!)
+  try{
+    let musicPref='1';
+    try{ const v=localStorage.getItem('es_music'); if(v!==null) musicPref=v; }catch(e){}
+    if(musicPref==='1' && !_musicOn){
+      startMusicSync();
+      _setMusicBtns(true);
+    }
+  }catch(e){ console.warn('Music start failed:',e); }
+  // Weiter zum Menü oder Name-Screen
   if(!SD.playerName) showScreen('name-screen');
   else showMenu();
 }
@@ -2117,30 +2155,42 @@ async function voskStart(onResult, onError){
       }
       if(!window._voskModel) throw new Error('Vosk timeout');
     }
-    // Eigener Mic-Stream mit 16 kHz - das ist was Vosk braucht
+    // Audio-Stream mit 16 kHz wie in offiziellem Vosk-Browser Beispiel
     const stream = await navigator.mediaDevices.getUserMedia({
       video:false,
       audio:{ echoCancellation:true, noiseSuppression:true, channelCount:1, sampleRate:16000 }
     });
-    const ctx = new (window.AudioContext||window.webkitAudioContext)();
-    const rec = new window._voskModel.KaldiRecognizer(ctx.sampleRate);
+    // KaldiRecognizer ohne Argumente (offizieller Weg)
+    const rec = new window._voskModel.KaldiRecognizer();
     rec.setWords(true);
     rec.on('result', m=>{
+      console.log('[Vosk] result:', m);
       if(m && m.result && m.result.text) onResult(m.result.text, true);
     });
     rec.on('partialresult', m=>{
-      if(m && m.result && m.result.partial) onResult(m.result.partial, false);
+      if(m && m.result && m.result.partial){
+        console.log('[Vosk] partial:', m.result.partial);
+        onResult(m.result.partial, false);
+      }
     });
+    const ctx = new (window.AudioContext||window.webkitAudioContext)();
     const src = ctx.createMediaStreamSource(stream);
     const proc = ctx.createScriptProcessor(4096,1,1);
     proc.onaudioprocess = e=>{
-      try{ rec.acceptWaveform(e.inputBuffer); }catch(err){}
+      try{ rec.acceptWaveform(e.inputBuffer); }catch(err){ console.error('[Vosk] acceptWaveform:',err); }
     };
     src.connect(proc);
-    proc.connect(ctx.destination);
-    _voskRec = {rec, ctx, src, proc, stream};
+    // WICHTIG: proc NICHT mit ctx.destination verbinden (sonst Mikrofon-Feedback hörbar)
+    // Aber ScriptProcessor braucht eine Verbindung um zu feuern - workaround mit gain
+    const sink = ctx.createGain();
+    sink.gain.value = 0;
+    proc.connect(sink);
+    sink.connect(ctx.destination);
+    _voskRec = {rec, ctx, src, proc, sink, stream};
+    console.log('[Vosk] Aufnahme läuft, sampleRate:', ctx.sampleRate);
     return true;
   }catch(e){
+    console.error('[Vosk] start error:',e);
     if(onError) onError(e);
     return false;
   }
@@ -2149,6 +2199,7 @@ async function voskStart(onResult, onError){
 function voskStop(){
   if(!_voskRec) return;
   try{ _voskRec.proc.disconnect(); }catch(e){}
+  try{ _voskRec.sink.disconnect(); }catch(e){}
   try{ _voskRec.src.disconnect(); }catch(e){}
   try{ _voskRec.ctx.close(); }catch(e){}
   try{ _voskRec.rec.remove(); }catch(e){}
@@ -2446,15 +2497,24 @@ function showSelfRateButtons(){
 }
 
 function retryPronounce(){
-  // Selbst-Bewertungs-Buttons entfernen, Mikrofon neu starten
   const wrap=document.getElementById('self-rate-wrap');
   if(wrap) wrap.remove();
   const result=document.getElementById('pronounce-result');
-  if(result){ result.style.display='none'; }
   const btn=document.getElementById('mic-btn');
-  if(btn){ btn.disabled=false; btn.onclick=startRecording; }
-  // Direkt neu aufnehmen
-  if(typeof startRecording==='function') startRecording();
+  // Vorhandene Audio-Resourcen aufräumen
+  try{ releaseMicStream(); }catch(e){}
+  try{ stopVisualizer(); }catch(e){}
+  try{ voskStop(); }catch(e){}
+  // Wenn Vosk verfügbar ist, direkt damit versuchen
+  if(window._voskModel || window._voskStatus==='ready'){
+    if(result){ result.style.display='block'; result.className='pronounce-result'; result.textContent='🎤 Sprich jetzt – Offline-Erkennung läuft…'; }
+    if(btn){ btn.disabled=false; }
+    startVoskRecognition(currentQ.answer, result, btn);
+  } else {
+    if(result){ result.style.display='none'; }
+    if(btn){ btn.disabled=false; btn.onclick=startRecording; }
+    if(typeof startRecording==='function') startRecording();
+  }
 }
 
 function selfRate(ok){
@@ -3080,29 +3140,8 @@ window.addEventListener('DOMContentLoaded',()=>{
   try{ const v=localStorage.getItem('es_music'); if(v!==null) pref=v; }catch(e){}
   if(pref!=='1'){ _setMusicBtns(false); return; }
   _setMusicBtns(true);
-  // Erst Tracks im Hintergrund entdecken
+  // Tracks im Hintergrund entdecken - Start passiert dann durch finishStartup() Button-Klick
   _discoverTracks().catch(()=>{});
-  // Beim ersten User-Event SOFORT synchron starten (für iOS/Android User-Gesture)
-  let started=false;
-  const onFirst=()=>{
-    if(started) return;
-    started=true;
-    document.removeEventListener('click',onFirst,true);
-    document.removeEventListener('touchstart',onFirst,true);
-    document.removeEventListener('keydown',onFirst,true);
-    if(!_musicOn){
-      try{ startMusicSync(); }catch(e){}
-      // Falls Tracks inzwischen entdeckt wurden, direkt richtigen Track laden
-      if(_musicTracks.length>0 && _musicAudio){
-        _musicAudio.src=_trackUrl(_musicTracks[0]);
-        _musicAudio.play().catch(()=>{});
-      }
-    }
-  };
-  // capture:true damit es vor anderen Click-Handlern feuert
-  document.addEventListener('click',onFirst,true);
-  document.addEventListener('touchstart',onFirst,true);
-  document.addEventListener('keydown',onFirst,true);
 });
 
 // Live-Modus-Fortschritt während des Spielens
