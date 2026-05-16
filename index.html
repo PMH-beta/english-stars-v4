@@ -989,7 +989,7 @@ body.in-game .mode-progress{display:block;}
   <span id="music-vol-lbl">50%</span>
   <input type="range" min="0" max="100" value="50" id="music-vol-slider" oninput="setMusicVolume(this.value/100)" />
 </div>
-<div style="position:fixed;bottom:4px;right:8px;font-size:.65rem;color:#bbb;font-weight:700;z-index:1000;pointer-events:none;">v3.39</div>
+<div style="position:fixed;bottom:4px;right:8px;font-size:.65rem;color:#bbb;font-weight:700;z-index:1000;pointer-events:none;">v3.40</div>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <!-- Vosk.js für Offline-Spracherkennung (Fallback wenn Web Speech API versagt) -->
@@ -1302,7 +1302,7 @@ async function startupSequence(){
   }catch(e){ console.warn('[Cache] Löschen fehlgeschlagen:',e); }
 
   // LocalStorage-Aufräumen: alles bis auf User-Daten weg
-  const KEEP_KEYS = ['english_stars_v3','english_stars_v2','es_music','es_music_vol','es_apikey','es_vosk_loaded'];
+  const KEEP_KEYS = ['english_stars_v3','english_stars_v2','es_apikey','es_vosk_loaded'];
   try{
     const toRemove=[];
     for(let i=0;i<localStorage.length;i++){
@@ -2923,16 +2923,6 @@ function _initAudio(){
   _musicAudio.preload='auto';
   _musicAudio.setAttribute('playsinline','');
   _musicAudio.volume=_musicVolume;
-  // MediaSession damit Android die Musik dem Medien-Volume-Bus zuordnet (nicht Klingelton)
-  try{
-    if('mediaSession' in navigator){
-      navigator.mediaSession.metadata = new MediaMetadata({
-        title: 'English Stars Musik',
-        artist: 'CC0 Background',
-        album: 'English Stars'
-      });
-    }
-  }catch(e){}
   _musicAudio.addEventListener('ended',()=>{
     _musicErrorRetries=0;
     _playNext();
@@ -3206,8 +3196,8 @@ window.addEventListener('DOMContentLoaded',()=>{
   const isMobile = matchMedia('(pointer:coarse)').matches || innerWidth<600;
   try{
     if(isMobile){
-      // Auf Mobile: feste 50% - Slider ist eh versteckt, User regelt am Gerät
-      _musicVolume=0.50;
+      // Auf Mobile: niedrigere App-interne Lautstärke (0.3) damit System-Regler genug Spielraum hat
+      _musicVolume=0.30;
     } else {
       const v=localStorage.getItem('es_music_vol');
       if(v) _musicVolume=parseFloat(v);
