@@ -988,7 +988,7 @@ body.in-game .mode-progress{display:block;}
   <span id="music-vol-lbl">50%</span>
   <input type="range" min="0" max="100" value="50" id="music-vol-slider" oninput="setMusicVolume(this.value/100)" />
 </div>
-<div style="position:fixed;bottom:4px;right:8px;font-size:.65rem;color:#bbb;font-weight:700;z-index:1000;pointer-events:none;">v3.32</div>
+<div style="position:fixed;bottom:4px;right:8px;font-size:.65rem;color:#bbb;font-weight:700;z-index:1000;pointer-events:none;">v3.31</div>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <!-- Vosk.js für Offline-Spracherkennung (Fallback wenn Web Speech API versagt) -->
@@ -1291,26 +1291,6 @@ function updateKeyBadge(){
 loadData();
 
 async function startupSequence(){
-  // Service-Worker-Cache löschen damit immer die neueste App-Version geladen wird
-  // (außer Vosk-Modell, das ist in IndexedDB und bleibt automatisch)
-  try{
-    if('caches' in window){
-      const names = await caches.keys();
-      await Promise.all(names.map(n=>caches.delete(n)));
-    }
-  }catch(e){ console.warn('[Cache] Löschen fehlgeschlagen:',e); }
-
-  // LocalStorage-Aufräumen: alles bis auf User-Daten weg
-  const KEEP_KEYS = ['english_stars_v3','english_stars_v2','es_music','es_music_vol','es_apikey','es_vosk_loaded'];
-  try{
-    const toRemove=[];
-    for(let i=0;i<localStorage.length;i++){
-      const k=localStorage.key(i);
-      if(k && !KEEP_KEYS.includes(k)) toRemove.push(k);
-    }
-    toRemove.forEach(k=>{ try{ localStorage.removeItem(k); }catch(e){} });
-  }catch(e){}
-
   const alreadyLoaded = (()=>{ try{ return localStorage.getItem('es_vosk_loaded')==='1'; }catch(e){return false;} })();
   const bar=document.getElementById('loading-bar');
   const status=document.getElementById('loading-status');
