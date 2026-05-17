@@ -39,6 +39,42 @@ export function load() {
 }
 
 /**
+ * Erzeugt einen frischen, leeren App-State.
+ * @param {Array} defaultVocab - Vokabeln für das Standard-Deck (Default: leer)
+ * @returns {object}
+ */
+export function freshData(defaultVocab = []) {
+  const defaultDeckId = 'deck_default';
+  return {
+    _version: 4,
+    playerName: '', highscore: 0, totalPoints: 0,
+    activeDeckId: defaultDeckId,
+    decks: {
+      [defaultDeckId]: {
+        id: defaultDeckId,
+        name: 'Standard-Vokabeln',
+        createdAt: Date.now(),
+        vocab: defaultVocab.slice(),
+        wordStats: {},
+        categoryProgress: {
+          vocab:       { played: 0, correct: 0, bestStreak: 0 },
+          spelling:    { played: 0, correct: 0, bestStreak: 0 },
+          pronounce:   { played: 0, correct: 0, bestStreak: 0 },
+          mixed_vocab: { played: 0, correct: 0, bestStreak: 0 },
+        },
+      },
+    },
+    categoryProgress: {
+      vocab:       { played: 0, correct: 0, bestStreak: 0 },
+      spelling:    { played: 0, correct: 0, bestStreak: 0 },
+      pronounce:   { played: 0, correct: 0, bestStreak: 0 },
+      mixed_vocab: { played: 0, correct: 0, bestStreak: 0 },
+    },
+    wordStats: {},
+  };
+}
+
+/**
  * Räumt alle nicht-User-relevanten LocalStorage-Keys auf
  * (für sauberen App-Start)
  */

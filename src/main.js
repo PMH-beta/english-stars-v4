@@ -1,7 +1,7 @@
 // src/main.js
 // Einstiegspunkt - lädt die Legacy-App und ergänzt sie schrittweise mit Modulen
 import { APP_VERSION } from './modules/config.js';
-import { persist, loadData, cleanupStorage, clearSWCache } from './modules/storage.js';
+import { persist, loadData, freshData, cleanupStorage, clearSWCache } from './modules/storage.js';
 
 console.log('[main] English Stars', APP_VERSION, 'startet…');
 
@@ -28,3 +28,5 @@ window.ESModules = { storage, config };
 window.persist = (state = window.SD) => persist(state);
 // window.loadData: gibt rohe Storage-Daten zurück (ohne App-Logik wie migrateData)
 window.loadData = loadData;
+// window.freshData: liest window.DEFAULT_VOCAB als Standard-Vokabular
+window.freshData = () => freshData(window.DEFAULT_VOCAB || []);
