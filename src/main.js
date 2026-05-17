@@ -2,7 +2,7 @@
 // Einstiegspunkt - lädt die Legacy-App und ergänzt sie schrittweise mit Modulen
 import { APP_VERSION } from './modules/config.js';
 import { persist, loadData, freshData, cleanupStorage, clearSWCache } from './modules/storage.js';
-import { _initTTS, speakWord, speakWordOnce } from './modules/speech.js';
+import { _initTTS, speakWord, speakWordOnce, ensureMicStream, releaseMicStream, startVisualizer, stopVisualizer, voskStart, voskStop, _shouldUseVosk, startRecording, startVoskRecognition } from './modules/speech.js';
 
 console.log('[main] English Stars', APP_VERSION, 'startet…');
 
@@ -39,3 +39,14 @@ window._spokenForQuestion = false;
 window._initTTS = _initTTS;
 window.speakWord = speakWord;
 window.speakWordOnce = speakWordOnce;
+
+// Spracherkennung via window für Legacy-Code
+window.ensureMicStream = ensureMicStream;
+window.releaseMicStream = releaseMicStream;
+window.startVisualizer = startVisualizer;
+window.stopVisualizer = stopVisualizer;
+window.voskStart = voskStart;
+window.voskStop = voskStop;
+window._shouldUseVosk = _shouldUseVosk;
+window.startRecording = startRecording;
+window.startVoskRecognition = startVoskRecognition;

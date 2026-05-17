@@ -1,7 +1,7 @@
 // src/modules/speech.js
-// Text-to-Speech Funktionen.
-// Shared state (_ttsVoices, _spokenForQuestion) liegt auf window damit
-// Legacy-Code in index.html direkt darauf zugreifen kann.
+// Text-to-Speech + Spracherkennung (Web Speech API + Vosk Offline).
+// Shared state (_ttsVoices, _spokenForQuestion, _voskStatus, _voskModel, …)
+// liegt auf window damit Legacy-Code in index.html direkt darauf zugreifen kann.
 
 let _ttsReady = false;
 
@@ -53,3 +53,464 @@ window.addEventListener('load', () => { _initTTS(); });
 document.addEventListener('click', function _ttsWarmup() {
   _initTTS();
 }, { once: true });
+
+// ════════════════════════════════════════════════
+//  VOSK LOADER (shared state auf window)
+// ════════════════════════════════════════════════
+window._voskStatus = 'idle';
+window._voskLoad = async function() {
+  if (window._voskModel) return window._voskModel;
+  if (window._voskStatus === 'loading') {
+    const start = Date.now();
+    while (window._voskStatus === 'loading' && Date.now() - start < 90000) {
+      await new Promise(r => setTimeout(r, 200));
+    }
+    return window._voskModel;
+  }
+  if (typeof Vosk === 'undefined') {
+    console.warn('[Vosk] Library nicht verfügbar');
+    window._voskStatus = 'failed';
+    return null;
+  }
+  try {
+    window._voskStatus = 'loading';
+    const modelUrl = 'https://ccoreilly.github.io/vosk-browser/models/vosk-model-small-en-us-0.15.tar.gz';
+    const model = await Vosk.createModel(modelUrl);
+    window._voskModel = model;
+    window._voskStatus = 'ready';
+    console.log('[Vosk] Modell geladen');
+    return model;
+  } catch(e) {
+    console.warn('[Vosk] Fehler beim Laden:', e);
+    window._voskStatus = 'failed';
+    return null;
+  }
+};
+
+// ════════════════════════════════════════════════
+//  AUSSPRACHE-MODUS — private state
+// ════════════════════════════════════════════════
+let _micStream = null;
+let _micTimeout = null;
+let _vizAF = null;
+let _analyser = null;
+let _audioCtx = null;
+let _voskRec = null;
+let _voskMediaSource = null;
+
+const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+export async function ensureMicStream() {
+  if (_micStream && _micStream.active) return _micStream;
+  try {
+    _micStream = await navigator.mediaDevices.getUserMedia({
+      audio: {echoCancellation:true, noiseSuppression:true, autoGainControl:true},
+      video: false
+    });
+    return _micStream;
+  } catch(e) { return null; }
+}
+
+export function releaseMicStream() {
+  if (_micStream) {
+    try { _micStream.getTracks().forEach(t => t.stop()); } catch(e) {}
+    _micStream = null;
+  }
+}
+
+// ════════════════════════════════════════════════
+//  AUDIO-VISUALIZER
+// ════════════════════════════════════════════════
+export function startVisualizer(stream) {
+  stopVisualizer();
+  const canvas = document.getElementById('viz-canvas');
+  if (!canvas) return;
+  try {
+    _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    _analyser = _audioCtx.createAnalyser();
+    _analyser.fftSize = 256;
+    _analyser.smoothingTimeConstant = 0.6;
+    const src = _audioCtx.createMediaStreamSource(stream);
+    const gain = _audioCtx.createGain();
+    gain.gain.value = 6.0;
+    src.connect(gain);
+    gain.connect(_analyser);
+    const buf = new Uint8Array(_analyser.frequencyBinCount);
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    let _lastDraw = 0;
+    function draw(t) {
+      _vizAF = requestAnimationFrame(draw);
+      if (t - _lastDraw < 33) return;
+      _lastDraw = t;
+      _analyser.getByteFrequencyData(buf);
+      ctx.clearRect(0, 0, W, H);
+      const barW = W / buf.length * 2;
+      let x = 0;
+      for (let i = 0; i < buf.length; i++) {
+        const h = buf[i] / 255 * H;
+        const hue = 200 + buf[i] / 2;
+        ctx.fillStyle = `hsl(${hue},90%,60%)`;
+        ctx.fillRect(x, H - h, barW - 1, h);
+        x += barW;
+      }
+    }
+    draw();
+  } catch(e) {}
+}
+
+export function stopVisualizer() {
+  if (_vizAF) { cancelAnimationFrame(_vizAF); _vizAF = null; }
+  if (_analyser) { try { _analyser.disconnect(); } catch(e) {} _analyser = null; }
+  if (_audioCtx) { try { _audioCtx.close(); } catch(e) {} _audioCtx = null; }
+  const canvas = document.getElementById('viz-canvas');
+  if (canvas) { const ctx = canvas.getContext('2d'); ctx.clearRect(0, 0, canvas.width, canvas.height); }
+}
+
+// ════════════════════════════════════════════════
+//  VOSK — Offline-Spracherkennung
+// ════════════════════════════════════════════════
+export async function voskStart(onResult, onError) {
+  try {
+    if (!window._voskModel) {
+      if (window._voskStatus !== 'loading' && window._voskStatus !== 'ready') {
+        window._voskLoad();
+      }
+      const start = Date.now();
+      while (!window._voskModel && Date.now() - start < 90000) {
+        if (window._voskStatus === 'failed') throw new Error('Vosk-Lade-Fehler');
+        await new Promise(r => setTimeout(r, 200));
+      }
+      if (!window._voskModel) throw new Error('Vosk timeout');
+    }
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: false,
+      audio: {echoCancellation:true, noiseSuppression:true, channelCount:1, sampleRate:16000}
+    });
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const rec = new window._voskModel.KaldiRecognizer(ctx.sampleRate);
+    rec.setWords(true);
+    rec.on('result', m => {
+      console.log('[Vosk] result:', m);
+      if (m && m.result && m.result.text) onResult(m.result.text, true);
+    });
+    rec.on('partialresult', m => {
+      if (m && m.result && m.result.partial) {
+        console.log('[Vosk] partial:', m.result.partial);
+        onResult(m.result.partial, false);
+      }
+    });
+    const src = ctx.createMediaStreamSource(stream);
+    _voskRec = {rec, ctx, src, stream, vizAF: null};
+    try {
+      const canvas = document.getElementById('viz-canvas');
+      if (canvas) {
+        const vizAnalyser = ctx.createAnalyser();
+        vizAnalyser.fftSize = 256;
+        vizAnalyser.smoothingTimeConstant = 0.6;
+        const vizGain = ctx.createGain();
+        vizGain.gain.value = 6.0;
+        src.connect(vizGain);
+        vizGain.connect(vizAnalyser);
+        const buf = new Uint8Array(vizAnalyser.frequencyBinCount);
+        const cctx = canvas.getContext('2d');
+        const W = canvas.width, H = canvas.height;
+        let _lastDraw = 0;
+        function drawViz(t) {
+          if (!_voskRec) return;
+          _voskRec.vizAF = requestAnimationFrame(drawViz);
+          if (t - _lastDraw < 33) return;
+          _lastDraw = t;
+          vizAnalyser.getByteFrequencyData(buf);
+          cctx.clearRect(0, 0, W, H);
+          const barW = W / buf.length * 2;
+          let x = 0;
+          for (let i = 0; i < buf.length; i++) {
+            const h = buf[i] / 255 * H;
+            const hue = 200 + buf[i] / 2;
+            cctx.fillStyle = `hsl(${hue},90%,60%)`;
+            cctx.fillRect(x, H - h, barW - 1, h);
+            x += barW;
+          }
+        }
+        drawViz(0);
+      }
+    } catch(e) { console.warn('[Vosk] Visualizer-Fehler:', e); }
+    const proc = ctx.createScriptProcessor(4096, 1, 1);
+    proc.onaudioprocess = e => {
+      try { rec.acceptWaveform(e.inputBuffer); } catch(err) { console.error('[Vosk] acceptWaveform:', err); }
+    };
+    src.connect(proc);
+    const sink = ctx.createGain();
+    sink.gain.value = 0;
+    proc.connect(sink);
+    sink.connect(ctx.destination);
+    _voskRec.proc = proc;
+    _voskRec.sink = sink;
+    console.log('[Vosk] Aufnahme läuft, sampleRate:', ctx.sampleRate);
+    return true;
+  } catch(e) {
+    console.error('[Vosk] start error:', e);
+    if (onError) onError(e);
+    return false;
+  }
+}
+
+export function voskStop() {
+  if (!_voskRec) return;
+  if (_voskRec.vizAF) try { cancelAnimationFrame(_voskRec.vizAF); } catch(e) {}
+  try { _voskRec.proc.disconnect(); } catch(e) {}
+  try { _voskRec.sink.disconnect(); } catch(e) {}
+  try { _voskRec.src.disconnect(); } catch(e) {}
+  try { _voskRec.ctx.close(); } catch(e) {}
+  try { _voskRec.rec.remove(); } catch(e) {}
+  try { if (_voskRec.stream) _voskRec.stream.getTracks().forEach(t => t.stop()); } catch(e) {}
+  _voskRec = null;
+  const canvas = document.getElementById('viz-canvas');
+  if (canvas) { const cctx = canvas.getContext('2d'); cctx.clearRect(0, 0, canvas.width, canvas.height); }
+}
+
+// ════════════════════════════════════════════════
+//  PLATTFORM-DETECTION + AUFNAHME
+// ════════════════════════════════════════════════
+export function _shouldUseVosk() {
+  const ua = navigator.userAgent || '';
+  const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isAndroid = /Android/i.test(ua);
+  const isMobile = /Mobi|Android|iPhone|iPad/i.test(ua);
+  if (isIOS) return false;
+  if (!isMobile) return false;
+  if (isAndroid) return true;
+  return true;
+}
+
+export function startRecording() {
+  console.log('[startRecording] call — answered:', window.answered, 'currentQ:', window.currentQ?.answer);
+  try { voskStop(); } catch(e) {}
+  try { stopVisualizer(); } catch(e) {}
+  try { releaseMicStream(); } catch(e) {}
+  document.getElementById('self-rate-wrap')?.remove();
+  if (window.answered) { console.log('[startRecording] skip: answered'); return; }
+  if (!window.currentQ) { console.log('[startRecording] skip: no currentQ'); return; }
+  const btn = document.getElementById('mic-btn');
+  const result = document.getElementById('pronounce-result');
+  if (!result) return;
+
+  if ((_shouldUseVosk() || window._webSpeechFailed) && (window._voskModel || window._voskStatus === 'ready')) {
+    console.log('[Recording] Android/Rest → Vosk');
+    result.style.display = 'block';
+    result.className = 'pronounce-result';
+    result.textContent = '🎤 Sprich jetzt…';
+    startVoskRecognition(window.currentQ.answer, result, btn);
+    return;
+  }
+
+  function resetBtn() {
+    if (btn) { btn.className = 'mic-btn'; btn.disabled = false; btn.textContent = '🎙️ Nochmal'; btn.onclick = window.startRecording; }
+  }
+  function showFinalBtn(ok) {
+    if (!btn) return;
+    btn.disabled = true;
+    btn.onclick = null;
+    if (ok) {
+      btn.className = 'mic-btn done-correct';
+      btn.textContent = '✨ Klasse!';
+    } else {
+      btn.className = 'mic-btn done-wrong';
+      btn.textContent = '💭 Knapp daneben!';
+    }
+  }
+  function clearTG() {
+    if (_micTimeout) { clearTimeout(_micTimeout); _micTimeout = null; }
+    if (_micHint) { clearTimeout(_micHint); _micHint = null; }
+  }
+  let _micHint = null;
+  function setTG() {
+    clearTG();
+    _micTimeout = setTimeout(() => {
+      if (!window.answered) {
+        clearTG(); stopVisualizer();
+        if (typeof _bestAlts !== 'undefined' && _bestAlts.length > 0) {
+          result.style.display = 'block'; result.className = 'pronounce-result heard';
+          result.textContent = '🗣️ Erkannt: "' + _bestAlts[0] + '"';
+          resetBtn();
+          window.evaluateWithClaude(_bestAlts.join('|'), window.currentQ.answer);
+        } else {
+          try { releaseMicStream(); } catch(e) {}
+          result.style.display = 'block'; result.className = 'pronounce-result heard';
+          result.textContent = '⏱️ Nichts erkannt';
+          resetBtn();
+          window._webSpeechFailed = true;
+          console.log('[Recording] Web Speech: kein Resultat → bei nächstem Versuch Vosk');
+          window.showSelfRateButtons();
+        }
+      }
+    }, 5000);
+  }
+
+  if (!navigator.mediaDevices) {
+    result.style.display = 'block'; result.className = 'pronounce-result';
+    result.textContent = '❌ Mikrofon nicht verfügbar. Bitte Chrome verwenden.';
+    return;
+  }
+
+  ensureMicStream().then(stream => {
+    if (!stream) {
+      result.style.display = 'block'; result.className = 'pronounce-result';
+      result.textContent = '❌ Mikrofon-Zugriff verweigert. Bitte in den Browser-Einstellungen erlauben.';
+      return;
+    }
+
+    startVisualizer(stream);
+    btn.className = 'mic-btn recording'; btn.textContent = '⏹️ Stopp';
+
+    if (SpeechRec) {
+      const targetWord = window.currentQ.answer;
+      const sr = new SpeechRec();
+      sr.lang = 'en-US';
+      sr.interimResults = true;
+      sr.maxAlternatives = 8;
+      sr.continuous = false;
+
+      btn.onclick = () => { clearTG(); stopVisualizer(); try { sr.stop(); } catch(e) {} };
+
+      let _lastAlts = [];
+      let _finished = false;
+      sr.onresult = (e) => {
+        if (_finished) return;
+        const alts = [];
+        for (let r = 0; r < e.results.length; r++) {
+          for (let a = 0; a < e.results[r].length; a++) {
+            const t = e.results[r][a].transcript.toLowerCase().trim().replace(/[.,!?;:"]/g, '');
+            if (t && !alts.includes(t)) alts.push(t);
+          }
+        }
+        _lastAlts = alts;
+        if (alts.length > 0) {
+          result.style.display = 'block'; result.className = 'pronounce-result heard';
+          result.textContent = '🗣️ Erkannt: "' + alts[0] + '"';
+        }
+        const tLow = targetWord.toLowerCase().replace(/^to /, '').trim();
+        const match = alts.some(a => a === tLow || a.split(' ').includes(tLow));
+        if (match && e.results[e.results.length - 1].isFinal) {
+          _finished = true;
+          window._webSpeechFailed = false;
+          clearTG(); stopVisualizer(); resetBtn();
+          document.getElementById('self-rate-wrap')?.remove();
+          window.evaluateWithClaude(alts.join('|'), targetWord);
+        } else if (e.results[e.results.length - 1].isFinal) {
+          _finished = true;
+          clearTG(); stopVisualizer(); resetBtn();
+          document.getElementById('self-rate-wrap')?.remove();
+          window.evaluateWithClaude(alts.join('|'), targetWord);
+        }
+      };
+
+      sr.onerror = (e) => {
+        clearTG(); stopVisualizer(); resetBtn();
+        if (e.error === 'not-allowed') {
+          result.style.display = 'block'; result.className = 'pronounce-result';
+          result.textContent = '❌ Mikrofon-Zugriff verweigert. Bitte in den Browser-Einstellungen erlauben.';
+        } else if (e.error === 'network' || e.error === 'service-not-allowed') {
+          window._webSpeechFailed = true;
+          result.style.display = 'block'; result.className = 'pronounce-result';
+          result.innerHTML = '⏳ Lade Offline-Spracherkennung…<br><small style="opacity:.8">(beim ersten Mal ~40 MB Download, danach offline)</small>';
+          startVoskRecognition(targetWord, result, btn);
+        } else if (e.error === 'no-speech') {
+          window._webSpeechFailed = true;
+          result.style.display = 'block'; result.className = 'pronounce-result heard';
+          result.textContent = '🤷 Nichts gehört';
+          window.showSelfRateButtons();
+        } else {
+          window._webSpeechFailed = true;
+          result.style.display = 'block'; result.className = 'pronounce-result heard';
+          result.textContent = '🤷 Nichts erkannt (' + e.error + ')';
+          window.showSelfRateButtons();
+        }
+      };
+
+      sr.onend = () => {
+        if (!window.answered) {
+          clearTG(); stopVisualizer();
+          if (_lastAlts.length > 0) {
+            resetBtn();
+            document.getElementById('self-rate-wrap')?.remove();
+            window.evaluateWithClaude(_lastAlts.join('|'), targetWord);
+          } else {
+            resetBtn();
+            try { releaseMicStream(); } catch(e) {}
+            result.style.display = 'block'; result.className = 'pronounce-result heard';
+            result.textContent = '🤷 Nichts erkannt';
+            window._webSpeechFailed = true;
+            console.log('[Recording] Web Speech onend: kein Resultat → bei nächstem Versuch Vosk');
+            window.showSelfRateButtons();
+          }
+        }
+      };
+
+      setTG();
+      try { sr.start(); } catch(e) { console.error('[startRecording] sr.start error:', e); resetBtn(); stopVisualizer(); }
+    } else {
+      result.style.display = 'block'; result.className = 'pronounce-result';
+      result.innerHTML = '⏳ Lade Offline-Spracherkennung…<br><small style="opacity:.8">(beim ersten Mal ~40 MB Download, danach offline)</small>';
+      startVoskRecognition(window.currentQ.answer, result, btn);
+    }
+  });
+}
+
+export function startVoskRecognition(targetWord, resultEl, btn) {
+  let _voskAlts = [];
+  let _voskTimeout = null;
+  window._activeVoskTimeout = null;
+  if (!targetWord) return;
+  function finishVosk() {
+    if (window.answered) return;
+    if (_voskTimeout) { clearTimeout(_voskTimeout); _voskTimeout = null; }
+    window._activeVoskTimeout = null;
+    voskStop();
+    if (btn && !btn.disabled) {
+      btn.className = 'mic-btn'; btn.textContent = '🎙️ Nochmal'; btn.onclick = window.startRecording;
+    }
+    if (_voskAlts.length > 0) {
+      document.getElementById('self-rate-wrap')?.remove();
+      window.evaluateWithClaude(_voskAlts.join('|'), targetWord);
+    } else {
+      resultEl.style.display = 'block'; resultEl.className = 'pronounce-result heard';
+      resultEl.textContent = '🤷 Nichts erkannt';
+      window.showSelfRateButtons();
+    }
+  }
+  try { releaseMicStream(); } catch(e) {}
+  try { stopVisualizer(); } catch(e) {}
+  resultEl.style.display = 'block'; resultEl.className = 'pronounce-result';
+  resultEl.textContent = '🎤 Sprich jetzt…';
+  if (btn) {
+    btn.className = 'mic-btn recording'; btn.textContent = '⏹️ Stopp';
+    btn.disabled = false;
+    btn.style.opacity = '';
+    btn.style.cursor = '';
+    btn.onclick = () => finishVosk();
+  }
+  voskStart((text, isFinal) => {
+    if (!text || window.answered) return;
+    const clean = text.toLowerCase().trim().replace(/[.,!?;:"]/g, '');
+    if (!clean) return;
+    if (_voskAlts.indexOf(clean) < 0) _voskAlts.push(clean);
+    resultEl.style.display = 'block'; resultEl.className = 'pronounce-result heard';
+    resultEl.textContent = '🗣️ Erkannt: "' + clean + '"';
+    const tLow = targetWord.toLowerCase().replace(/^to /, '').trim();
+    if (clean === tLow || clean.split(' ').includes(tLow)) {
+      finishVosk();
+    } else if (isFinal) {
+      finishVosk();
+    }
+  }, (err) => {
+    voskStop();
+    if (btn && !btn.disabled) { btn.className = 'mic-btn'; btn.textContent = '🎙️ Nochmal'; btn.onclick = window.startRecording; }
+    resultEl.style.display = 'block'; resultEl.className = 'pronounce-result';
+    resultEl.textContent = '⚠️ Offline-Erkennung fehlgeschlagen';
+    window.showSelfRateButtons();
+  });
+  _voskTimeout = setTimeout(() => finishVosk(), 6000);
+  window._activeVoskTimeout = _voskTimeout;
+}
