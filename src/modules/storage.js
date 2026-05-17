@@ -5,37 +5,37 @@ const SK = 'english_stars_v3';
 const SK_OLD = 'english_stars_v2';
 
 /**
- * Speichert State-Object in localStorage
+ * Speichert State-Object in localStorage und sessionStorage
  * @param {object} state
  */
 export function persist(state) {
-  try {
-    localStorage.setItem(SK, JSON.stringify(state));
-  } catch (e) {
-    console.error('[storage] persist failed:', e);
+  const json = JSON.stringify(state);
+  try { localStorage.setItem(SK, json); } catch (e) {
+    console.error('[storage] persist localStorage failed:', e);
   }
+  try { sessionStorage.setItem(SK, json); } catch (e) {}
 }
 
 /**
- * Lädt State aus localStorage (mit Migration aus altem v2-Format)
+ * Lädt rohe State-Daten aus localStorage/sessionStorage.
+ * Gibt geparsten Object zurück oder null — ohne App-Logik (Migration etc.).
  * @returns {object|null}
  */
-export function load() {
+export function loadData() {
   try {
-    // Erst v3 versuchen
-    const raw = localStorage.getItem(SK);
+    const raw = localStorage.getItem(SK)
+      || localStorage.getItem(SK_OLD)
+      || sessionStorage.getItem(SK);
     if (raw) return JSON.parse(raw);
-
-    // Fallback: alter v2 Stand zur Migration
-    const oldRaw = localStorage.getItem(SK_OLD);
-    if (oldRaw) {
-      console.log('[storage] Migriere von v2 zu v3');
-      return JSON.parse(oldRaw);
-    }
   } catch (e) {
-    console.error('[storage] load failed:', e);
+    console.error('[storage] loadData failed:', e);
   }
   return null;
+}
+
+/** @deprecated Verwende loadData() */
+export function load() {
+  return loadData();
 }
 
 /**

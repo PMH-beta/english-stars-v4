@@ -1077,7 +1077,7 @@ let VOCAB = DEFAULT_VOCAB.slice();
 //  STORAGE
 // ════════════════════════════════════════════════
 const SK='english_stars_v3';
-let SD;
+var SD;
 
 function loadData(){
   let raw=null;
@@ -1216,12 +1216,6 @@ function renameDeck(deckId,newName){
   if(!SD.decks[deckId]||!newName) return;
   SD.decks[deckId].name=newName;
   persist();
-}
-
-function persist(){
-  const json=JSON.stringify(SD);
-  try{localStorage.setItem(SK,json);}catch(e){}
-  try{sessionStorage.setItem(SK,json);}catch(e){}
 }
 
 // ════════════════════════════════════════════════
