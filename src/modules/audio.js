@@ -9,7 +9,9 @@ window._musicOn = false;
 window._musicVolume = 0.50;
 window._musicErrorRetries = 0;
 
-export function _trackUrl(name) { return encodeURIComponent(name); }
+const MUSIC_BASE = 'public/music/';
+
+export function _trackUrl(name) { return MUSIC_BASE + encodeURIComponent(name); }
 
 export async function _discoverTracks() {
   if (window._musicTracks.length > 0) return window._musicTracks;
@@ -28,7 +30,7 @@ export async function _discoverTracks() {
       const user = host.split('.')[0];
       const pathParts = location.pathname.split('/').filter(Boolean);
       const repo = pathParts[0] || 'english-stars';
-      const apiUrl = `https://api.github.com/repos/${user}/${repo}/contents/`;
+      const apiUrl = `https://api.github.com/repos/${user}/${repo}/contents/public/music`;
       const r = await fetch(apiUrl);
       if (r.ok) {
         const files = await r.json();
@@ -44,7 +46,7 @@ export async function _discoverTracks() {
 
   // Versuch 2: Directory-Listing (lokale Python-Server)
   try {
-    const r = await fetch('./', { method: 'GET', cache: 'no-store' });
+    const r = await fetch('./' + MUSIC_BASE, { method: 'GET', cache: 'no-store' });
     if (r.ok) {
       const txt = await r.text();
       const matches = [...txt.matchAll(/href="([^"]+\.mp3)"/gi)];

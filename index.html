@@ -733,7 +733,11 @@ async function startupSequence(){
   if(startBtn) startBtn.style.display='inline-block';
 }
 
-function finishStartup(){
+async function finishStartup(){
+  // TTS Warmup: User-Gesture garantiert dass TTS-Engine auf Mobile geladen ist
+  try{
+    await new Promise(r => { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; u.onend = r; u.onerror = r; speechSynthesis.speak(u); setTimeout(r, 800); });
+  }catch(e){}
   // Direkter User-Klick: Musik starten (synchron für iOS/Android User-Gesture!)
   try{
     let musicPref='1';
