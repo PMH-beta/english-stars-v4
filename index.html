@@ -404,7 +404,7 @@ var DEFAULT_VOCAB = [
   {de:"Frohe Weihnachten!",en:"Merry Christmas!"},{de:"Süßes, sonst gibt's Saures!",en:"Trick or treat!"}
 ];
 // VOCAB ist die ARBEITSREFERENZ – wird beim Deck-Switch in-place ersetzt.
-let VOCAB = DEFAULT_VOCAB.slice();
+var VOCAB = DEFAULT_VOCAB.slice();
 
 // ════════════════════════════════════════════════
 //  STORAGE
@@ -554,7 +554,7 @@ function renameDeck(deckId,newName){
 // ════════════════════════════════════════════════
 //  SCHNELL-MODUS
 // ════════════════════════════════════════════════
-let isSchnellModus=false;
+var isSchnellModus=false;
 let schnellDone=new Set();
 let _schnellBackup=null;
 
@@ -1181,42 +1181,7 @@ function bVocabPronounce(item){
     hint:'',answer:item.en};
 }
 
-const QPERROUND=15;
-
-function buildPool(m){
-  let qs=[];
-  const TOTAL=QPERROUND;
-  const limit = isSchnellModus ? VOCAB.length : TOTAL;
-  if(m==='vocab'){
-    weightedPickUnique(VOCAB,v=>SD.wordStats[v.de+'_mc'],limit).forEach(v=>qs.push(bVocabMC(v)));
-  }
-  if(m==='spelling'){
-    weightedPickUnique(VOCAB,v=>SD.wordStats[v.de+'_sp'],limit).forEach(v=>qs.push(bVocabType(v)));
-  }
-  if(m==='pronounce'){
-    weightedPickUnique(VOCAB,v=>SD.wordStats[v.de+'_pr'],limit).forEach(v=>qs.push(bVocabPronounce(v)));
-  }
-  if(m==='mixed_vocab'){
-    if(isSchnellModus){
-      VOCAB.forEach(v=>{ qs.push(bVocabMC(v)); qs.push(bVocabType(v)); qs.push(bVocabPronounce(v)); });
-    } else {
-      const n1=Math.round(TOTAL/3),n2=Math.round(TOTAL/3),n3=TOTAL-n1-n2;
-      weightedPickUnique(VOCAB,v=>SD.wordStats[v.de+'_mc'],n1).forEach(v=>qs.push(bVocabMC(v)));
-      weightedPickUnique(VOCAB,v=>SD.wordStats[v.de+'_sp'],n2).forEach(v=>qs.push(bVocabType(v)));
-      weightedPickUnique(VOCAB,v=>SD.wordStats[v.de+'_pr'],n3).forEach(v=>qs.push(bVocabPronounce(v)));
-    }
-  }
-  if(window._skipMasteryFilter) return shuffle(qs).slice(0,limit);
-  // IMMER gemeisterte Wörter raus (auch im Schnellmodus)
-  const filtered=qs.filter(q=>!isMastered(q));
-  if(filtered.length===0) return qs.slice(0,limit);
-  return shuffle(filtered).slice(0,limit);
-}
-
-function isMastered(q){
-  const s=SD.wordStats[q.statKey];
-  return s&&Math.floor(s.asked||0)>=3&&effectivePct(s)>=0.9;
-}
+var QPERROUND=15;
 
 // ════════════════════════════════════════════════
 //  GAME FLOW
@@ -1567,25 +1532,6 @@ function recordStat(q,ok){
   try{persist();}catch(e){}
 }
 
-// Effektiver Prozentwert mit EMA (jüngste Antwort zählt stärker)
-// → User der nach 3× falsch jetzt richtig hat, muss nicht 27x richtig sagen um auf 90% zu kommen
-function effectivePct(stat){
-  if(!stat||!stat.asked) return 0;
-  const recent=stat.recent||'';
-  if(!recent) return (stat.correct||0)/stat.asked;
-  // EMA: alpha=0.45 (jüngste Antwort = 45% Gewicht, davor 24.75%, etc.)
-  const alpha=0.45;
-  let ema=null;
-  for(let i=0;i<recent.length;i++){
-    const v=recent[i]==='1'?1:0;
-    ema = ema===null ? v : alpha*v + (1-alpha)*ema;
-  }
-  // Mische mit Gesamtdurchschnitt für Stabilität
-  const total=(stat.correct||0)/stat.asked;
-  // Wenn wenig Daten: mehr Gewicht auf total. Wenn viele recente: mehr auf EMA.
-  const recentWeight=Math.min(recent.length/5, 1) * 0.75;
-  return ema*recentWeight + total*(1-recentWeight);
-}
 
 // ── CORRECT / WRONG ──
 function handleCorrect(){
