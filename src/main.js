@@ -64,6 +64,8 @@ window.buildPool = buildPool;
 
 // Decks via window für Legacy-Code
 window.syncMirrorFromActiveDeck = syncMirrorFromActiveDeck;
+// Nach loadData() (index.html, inline) Spiegel synchronisieren — Modul läuft deferred nach inline-Script
+syncMirrorFromActiveDeck();
 window.activeDeck = activeDeck;
 window.switchDeck = switchDeck;
 window.createDeck = createDeck;

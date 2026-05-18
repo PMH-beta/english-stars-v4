@@ -421,12 +421,10 @@ function loadData(){
     try{
       const parsed=JSON.parse(raw);
       SD=migrateData(parsed);
-      syncMirrorFromActiveDeck();
       return;
     }catch(e){}
   }
   SD=freshData();
-  syncMirrorFromActiveDeck();
 }
 
 function freshData(){
@@ -491,8 +489,6 @@ function migrateData(old){
     }
   }
 
-  // Spiegel synchronisieren
-  syncMirrorFromActiveDeck(d);
   return d;
 }
 
