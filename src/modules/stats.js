@@ -18,35 +18,8 @@ export function effectivePct(stat) {
 }
 
 export function isMastered(q) {
-  const s = SD.wordStats[q.statKey];
+  const s = window.SD.wordStats[q.statKey];
   return s && Math.floor(s.asked || 0) >= MASTERY_MIN_ATTEMPTS && effectivePct(s) >= MASTERY_THRESHOLD;
 }
 
-export function buildPool(m) {
-  let qs = [];
-  const TOTAL = QPERROUND;
-  const limit = isSchnellModus ? VOCAB.length : TOTAL;
-  if (m === 'vocab') {
-    weightedPickUnique(VOCAB, v => SD.wordStats[v.de + '_mc'], limit).forEach(v => qs.push(bVocabMC(v)));
-  }
-  if (m === 'spelling') {
-    weightedPickUnique(VOCAB, v => SD.wordStats[v.de + '_sp'], limit).forEach(v => qs.push(bVocabType(v)));
-  }
-  if (m === 'pronounce') {
-    weightedPickUnique(VOCAB, v => SD.wordStats[v.de + '_pr'], limit).forEach(v => qs.push(bVocabPronounce(v)));
-  }
-  if (m === 'mixed_vocab') {
-    if (isSchnellModus) {
-      VOCAB.forEach(v => { qs.push(bVocabMC(v)); qs.push(bVocabType(v)); qs.push(bVocabPronounce(v)); });
-    } else {
-      const n1 = Math.round(TOTAL / 3), n2 = Math.round(TOTAL / 3), n3 = TOTAL - n1 - n2;
-      weightedPickUnique(VOCAB, v => SD.wordStats[v.de + '_mc'], n1).forEach(v => qs.push(bVocabMC(v)));
-      weightedPickUnique(VOCAB, v => SD.wordStats[v.de + '_sp'], n2).forEach(v => qs.push(bVocabType(v)));
-      weightedPickUnique(VOCAB, v => SD.wordStats[v.de + '_pr'], n3).forEach(v => qs.push(bVocabPronounce(v)));
-    }
-  }
-  if (window._skipMasteryFilter) return shuffle(qs).slice(0, limit);
-  const filtered = qs.filter(q => !isMastered(q));
-  if (filtered.length === 0) return qs.slice(0, limit);
-  return shuffle(filtered).slice(0, limit);
-}
+// buildPool → src/modules/game.js (braucht Question-Builder die dort leben)

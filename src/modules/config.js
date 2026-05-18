@@ -1,7 +1,7 @@
 // src/modules/config.js
 // Zentrale Konstanten und Konfiguration
 
-export const APP_VERSION = 'v4.0.5';
+export const APP_VERSION = 'v4.0.6';
 
 export const QPERROUND = 20;
 

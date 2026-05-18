@@ -494,34 +494,7 @@ function migrateData(old){
 
 // syncMirrorFromActiveDeck, activeDeck, switchDeck, createDeck, deleteDeck, renameDeck → src/modules/decks.js
 
-// ════════════════════════════════════════════════
-//  SCHNELL-MODUS
-// ════════════════════════════════════════════════
-var isSchnellModus=false;
-let schnellDone=new Set();
-let _schnellBackup=null;
-
-function toggleSchnell(){
-  isSchnellModus=!isSchnellModus;
-  const btn=document.getElementById('schnell-toggle');
-  if(isSchnellModus){
-    _schnellBackup={wordStats:JSON.parse(JSON.stringify(activeDeck().wordStats))};
-    activeDeck().wordStats={};
-    syncMirrorFromActiveDeck();
-    btn.textContent='⚡ Schnell: AN';
-    btn.style.background='var(--orange)';btn.style.color='white';btn.style.boxShadow='0 3px 0 #cc4a1a';
-    showMenu();
-  } else {
-    if(_schnellBackup){
-      activeDeck().wordStats=_schnellBackup.wordStats;
-      syncMirrorFromActiveDeck();
-      _schnellBackup=null;
-    }
-    btn.textContent='⚡ Schnell: AUS';
-    btn.style.background='#eee';btn.style.color='#888';btn.style.boxShadow='0 3px 0 #ccc';
-    showMenu();
-  }
-}
+// toggleSchnell, isSchnellModus, schnellDone, _schnellBackup → src/modules/game.js
 
 // saveApiKey, skipApiKey → src/modules/ui.js
 // getApiKey (lokal), updateKeyBadge (toter Code) entfernt
@@ -704,162 +677,11 @@ function importData(event){
 
 // wordStatus, wrongDots, showProfile, editPlayerName, showStats → src/modules/ui.js
 
-// ════════════════════════════════════════════════
-//  QUESTION BUILDERS
-// ════════════════════════════════════════════════
-function shuffle(a){const b=[...a];for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];}return b;}
-function pick(a,n){return shuffle(a).slice(0,n);}
+// shuffle, pick, weightedPickUnique, wrongVocab, bVocabMC/Type/Pronounce, buildPool → src/modules/game.js
 
-function weightedPickUnique(items,getStatFn,n){
-  const scored=items.map(item=>{
-    const s=getStatFn(item);
-    let w;
-    if(!s||s.asked<3)              w=3;
-    else {
-      const ep=effectivePct(s);
-      if(ep>=0.9) w=1;
-      else if(ep>=0.7) w=3;
-      else if(ep>=0.4) w=4;
-      else             w=5;
-    }
-    const key=-Math.pow(Math.random(),1/w);
-    return {item,key};
-  });
-  scored.sort((a,b)=>a.key-b.key);
-  return scored.slice(0,n).map(x=>x.item);
-}
-
-function wrongVocab(correct,n=3){
-  return pick(VOCAB.filter(x=>x!==correct),n).map(x=>x.en);
-}
-
-function bVocabMC(item){
-  return{type:'mc',badge:'vocab',statKey:item.de+'_mc',
-    question:`🇩🇪 ${item.de}`,hint:'',
-    choices:shuffle([item.en,...wrongVocab(item,3)]),answer:item.en};
-}
-function bVocabType(item){
-  return{type:'type',badge:'spelling',statKey:item.de+'_sp',
-    question:`✏️ Schreibe auf Englisch:\n🇩🇪 ${item.de}`,
-    hint:'',answer:item.en};
-}
-function bVocabPronounce(item){
-  return{type:'pronounce',badge:'pronounce',statKey:item.de+'_pr',
-    question:`🎙️ Sprich auf Englisch:\n🇩🇪 ${item.de}`,
-    hint:'',answer:item.en};
-}
-
-var QPERROUND=15;
-
-// ════════════════════════════════════════════════
-//  GAME FLOW
-// ════════════════════════════════════════════════
-var currentQ=null;
-let mode='vocab',questionPool=[],questionIndex=0;
-var answered=false;
-let points=0,streak=0,bestStreak=0,totalCorrect=0;
-let wrongQueue=[],isRetryPhase=false,isFreePlay=false;
-let _progressSaved=false;
-
-function startGame(m){
-  mode=m;points=0;streak=0;bestStreak=0;totalCorrect=0;
-  questionPool=buildPool(m);questionIndex=0;answered=false;
-  wrongQueue=[];isRetryPhase=false;isFreePlay=false;_progressSaved=false;
-  schnellDone=new Set();
-  if(questionPool.length===0){
-    if(!confirm('🏆 Modus gemeistert!\n\nNoch eine Runde ohne Wertung?'))return;
-    window._skipMasteryFilter=true;
-    questionPool=shuffle(buildPool(m)).slice(0,10);
-    window._skipMasteryFilter=false;
-    isFreePlay=true;
-  }
-  // Mikrofon vorab anfragen wenn Aussprache-Aufgaben dabei sind
-  const hasPronounce=(m==='pronounce'||m==='mixed_vocab');
-  if(hasPronounce&&navigator.mediaDevices){
-    ensureMicStream(); // einmalig cachen
-    // Vosk-Modell im Hintergrund vorladen (falls Web Speech API später versagt)
-    if(window._voskLoad && !window._voskModel && window._voskStatus!=='loading'){
-      window._voskLoad().catch(()=>{});
-    }
-  }
-  hideFeedback();showScreen('game-screen');updateScoreBar();
-  _lastModePct=0;
-  updateModeProgress(false); // initial setzen ohne Animation
-  showQuestion();
-}
-
-function confirmHome(){
-  if(confirm('Zurück zum Menü?\nDer Lernfortschritt dieser Runde wird gespeichert.')){
-    saveProgress();hideFeedback();
-    try{ releaseMicStream(); }catch(e){}
-    try{ if(window.speechSynthesis) window.speechSynthesis.cancel(); }catch(e){}
-    showMenu();
-  }
-}
-
-function showQuestion(){
-  answered=false;hideFeedback();
-  _spokenForQuestion=false;
-  _pronounceAttempts=0;
-  if(isSchnellModus){
-    while(questionIndex<questionPool.length){
-      const q=questionPool[questionIndex];
-      if(q.statKey&&schnellDone.has(q.statKey)) questionIndex++;
-      else break;
-    }
-  }
-  if(questionIndex>=questionPool.length){
-    if(!isFreePlay&&!isRetryPhase&&wrongQueue.length>0){
-      isRetryPhase=true;
-      questionPool=wrongQueue.slice();wrongQueue=[];questionIndex=0;
-      const card=document.getElementById('game-card');
-      card.innerHTML='<div style="padding:20px;font-size:1.1rem;font-weight:700;color:var(--orange)">'+
-        '🔄 Jetzt nochmal die '+questionPool.length+' falschen Fragen!<br><span style="font-size:.85rem;color:#888;font-weight:600">Punkte zählen halb.</span></div>';
-      setTimeout(()=>showQuestion(),2000);return;
-    }
-    showEnd();return;
-  }
-  document.getElementById('progress-fill').style.width=(questionIndex/questionPool.length*100)+'%';
-  currentQ=questionPool[questionIndex];
-  renderQuestion(currentQ);
-}
-
-function renderQuestion(q){
-  const card=document.getElementById('game-card');
-  const bLabels={vocab:'🔤 Vokabeln',spelling:'✏️ Rechtschreibung',pronounce:'🎙️ Aussprache'};
-  let html=`<div class="badge ${q.badge}">${bLabels[q.badge]||'📝'}</div>`;
-
-  if(q.type==='mc'){
-    html+=`<div class="question-text">${(q.question||'').replace(/\n/g,'<br>')}</div>`;
-    html+=`<div class="choices">`;
-    q.choices.forEach(c=>{
-      html+=`<button class="choice-btn" onclick="checkMC(this,'${esc(c)}')">${c}</button>`;
-    });
-    html+=`</div>`;
-  }
-  else if(q.type==='type'){
-    html+=`<div class="question-text">${(q.question||'').replace(/\n/g,'<br>')}</div>`;
-    html+=`<div class="type-input-wrap">
-      <input class="type-input" id="type-input" type="text" placeholder="Englisch tippen..."
-        autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
-        onkeydown="if(event.key==='Enter')submitType()">
-    </div>
-    <button class="submit-btn" onclick="submitType()">Prüfen ✓</button>`;
-  }
-  else if(q.type==='pronounce'){
-    html+=`<div class="question-text">${(q.question||'').replace(/\n/g,'<br>')}</div>`;
-    html+=`<div class="pronounce-tip" id="pronounce-tip">Drücke den Mikrofon-Button und sprich das Wort auf Englisch!</div>`;
-    html+=`<canvas id="viz-canvas" width="300" height="60" style="display:block;margin:10px auto;border-radius:10px;background:#f5f0ff;"></canvas>`;
-    html+=`<button class="mic-btn" id="mic-btn" onclick="startRecording()">🎙️ Sprechen</button>`;
-    html+=`<div class="pronounce-result" id="pronounce-result" style="display:none"></div>`;
-  }
-
-  card.innerHTML=html;
-  card.classList.remove('bounce-in');void card.offsetWidth;card.classList.add('bounce-in');
-  if(q.type==='type') setTimeout(()=>document.getElementById('type-input')?.focus(),120);
-}
-
-function esc(s){return(s+'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
+// startGame, confirmHome, showQuestion, renderQuestion, nextQuestion, restartSame,
+// currentQ, mode, questionPool, questionIndex, answered, points, streak, bestStreak,
+// totalCorrect, wrongQueue, isRetryPhase, isFreePlay, _progressSaved → src/modules/game.js
 
 // ── MC ──
 function checkMC(btn,chosen){
@@ -886,9 +708,7 @@ function submitType(){
   ok?handleCorrect():handleWrong();
 }
 
-// Selbst-Bewertungs-Buttons (Fallback wenn Spracherkennung versagt)
-// Versuchs-Zähler für Spracherkennung (max 2 vor Auto-Falsch)
-let _pronounceAttempts=0;
+// _pronounceAttempts → src/modules/game.js
 
 function showSelfRateButtons(){
   if(answered) return;
@@ -1375,8 +1195,9 @@ window.addEventListener('DOMContentLoaded',()=>{
   _discoverTracks().catch(()=>{});
 });
 
+// _lastModePct → src/modules/game.js
+
 // Live-Modus-Fortschritt während des Spielens
-let _lastModePct=0;
 function progressForCurrentMode(){
   function pf(suffix){
     let score=0, mastered=0;
@@ -1433,11 +1254,7 @@ function updateModeProgress(animate){
   _lastModePct=pct;
 }
 // showFeedback, hideFeedback → src/modules/ui.js
-function nextQuestion(){
-  // Laufende Aussprache stoppen wenn User weiterklickt
-  try{ if(window.speechSynthesis) window.speechSynthesis.cancel(); }catch(e){}
-  questionIndex++;showQuestion();
-}
+// nextQuestion → src/modules/game.js
 
 // ── END ──
 function saveProgress(){
@@ -1484,7 +1301,7 @@ function showEnd(){
   document.getElementById('end-stars').textContent=stars;
   if(pct>=.8) spawnConfetti();
 }
-function restartSame(){startGame(mode);}
+// restartSame → src/modules/game.js
 
 // ════════════════════════════════════════════════
 //  SCAN & REVIEW
