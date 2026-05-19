@@ -3,3 +3,11 @@ dist/
 .DS_Store
 .vscode/
 *.log
+
+# Secrets
+.env
+.env.local
+.env.*.local
+
+# Claude Code local settings
+.claude/
