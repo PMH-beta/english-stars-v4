@@ -5,7 +5,7 @@ import { persist, loadData, freshData, cleanupStorage, clearSWCache } from './mo
 import { _initTTS, speakWord, speakWordOnce, ensureMicStream, releaseMicStream, startVisualizer, stopVisualizer, voskStart, voskStop, _shouldUseVosk, startRecording, startVoskRecognition } from './modules/speech.js';
 import { _trackUrl, _discoverTracks, _playNext, _initAudio, startMusic, startMusicSync, stopMusic, setMusicVolume, _setMusicBtns, toggleMusic, toggleVolPopup } from './modules/audio.js';
 import { effectivePct, isMastered } from './modules/stats.js';
-import { buildPool, toggleSchnell, startGame, confirmHome, nextQuestion, restartSame } from './modules/game.js';
+import { buildPool, toggleSchnell, startGame, confirmHome, nextQuestion, restartSame, checkMC, submitType, showSelfRateButtons, retryPronounce, evaluateWithClaude, setMicFinalStatus, _sfx, playSfx } from './modules/game.js';
 import { syncMirrorFromActiveDeck, activeDeck, switchDeck, createDeck, deleteDeck, renameDeck, deckProgress, renderDecks, toggleDeck, activateDeck, startGameWithDeck, newDeckPrompt, renameDeckPrompt, confirmDeleteDeck, vmDeleteWord, vmAddManual } from './modules/decks.js';
 import { showScreen, saveName, showMenu, saveApiKey, skipApiKey, showProfile, editPlayerName, showStats, confirmReset, showFeedback, hideFeedback } from './modules/ui.js';
 
@@ -70,6 +70,14 @@ window.startGame = startGame;
 window.confirmHome = confirmHome;
 window.nextQuestion = nextQuestion;
 window.restartSame = restartSame;
+window.checkMC = checkMC;
+window.submitType = submitType;
+window.showSelfRateButtons = showSelfRateButtons;
+window.retryPronounce = retryPronounce;
+window.evaluateWithClaude = evaluateWithClaude;
+window.setMicFinalStatus = setMicFinalStatus;
+window._sfx = _sfx;
+window.playSfx = playSfx;
 
 // Decks via window für Legacy-Code
 window.syncMirrorFromActiveDeck = syncMirrorFromActiveDeck;
