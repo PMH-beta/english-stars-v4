@@ -10,6 +10,7 @@ import { syncMirrorFromActiveDeck, activeDeck, switchDeck, createDeck, deleteDec
 import { showScreen, saveName, showMenu, saveApiKey, skipApiKey, showProfile, editPlayerName, showStats, confirmReset, showFeedback, hideFeedback, exportData, importData } from './modules/ui.js';
 import { pwaInstall } from './modules/pwa.js';
 import { openVocabManager, vmTab, renderVocabList, parsePastedText, onScanFile, showReview, renderReviewList, removeReviewItem, addReviewItem, confirmAddVocab } from './modules/vocab.js';
+import { startupSequence, finishStartup } from './modules/startup.js';
 
 console.log('[main] English Stars', APP_VERSION, 'startet…');
 
@@ -117,6 +118,10 @@ window.showStats = showStats;
 window.confirmReset = confirmReset;
 window.showFeedback = showFeedback;
 window.hideFeedback = hideFeedback;
+
+// Startup via window für Legacy-Code (finishStartup: onclick="finishStartup()" im HTML)
+window.startupSequence = startupSequence;
+window.finishStartup = finishStartup;
 
 // Vocab via window für Legacy-Code
 window.openVocabManager = openVocabManager;
