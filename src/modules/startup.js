@@ -2,7 +2,12 @@
 import { _initTTS } from './speech.js';
 import { _sfx } from './game.js';
 import { _discoverTracks, _initAudio, _trackUrl, startMusicSync, _setMusicBtns } from './audio.js';
-import { showScreen, showMenu } from './ui.js';
+import { showScreen, showMenu, handleLogin, handleLogout } from './ui.js';
+import { supabase } from './supabase.js';
+import { onAuthChange } from './auth.js';
+
+// Guard: onAuthChange-Listener ignoriert Feuern während des Startvorgangs
+let _startupComplete = false;
 
 export async function startupSequence() {
   try {
@@ -21,6 +26,25 @@ export async function startupSequence() {
     }
     toRemove.forEach(k => { try { localStorage.removeItem(k); } catch(e) {} });
   } catch(e) {}
+
+  // Auth-Session aus Cache laden (funktioniert auch offline wenn vorher eingeloggt)
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    window.currentUser = session?.user ?? null;
+    console.log('[startup] Auth:', window.currentUser ? 'eingeloggt als ' + window.currentUser.email : 'nicht eingeloggt');
+  } catch(e) {
+    window.currentUser = null;
+    console.warn('[startup] getSession fehlgeschlagen:', e.message);
+  }
+
+  // Runtime-Listener: Session-Ablauf, Logout aus anderem Tab, Email-Bestätigung
+  onAuthChange(user => {
+    if (!_startupComplete) return; // Startup-Fire ignorieren
+    const prev = window.currentUser;
+    window.currentUser = user;
+    if (prev && !user) handleLogout();           // Session abgelaufen oder Logout in anderem Tab
+    if (!prev && user) handleLogin(user);         // Email-Bestätigung redirect in anderem Tab
+  });
 
   const alreadyLoaded = (() => { try { return localStorage.getItem('es_vosk_loaded') === '1'; } catch(e) { return false; } })();
   const bar = document.getElementById('loading-bar');
@@ -117,6 +141,13 @@ export async function finishStartup() {
       _setMusicBtns(true);
     }
   } catch(e) { console.warn('Music start failed:', e); }
+
+  _startupComplete = true;
+
+  if (!window.currentUser) {
+    showScreen('auth-screen');
+    return;
+  }
   if (!window.SD.playerName) showScreen('name-screen');
   else showMenu();
 }

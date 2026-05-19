@@ -98,6 +98,13 @@ export function cleanupStorage() {
   }
 }
 
+/** Löscht User-Daten aus LocalStorage beim Logout. */
+export function clearStorage() {
+  try { localStorage.removeItem(SK); } catch(e) {}
+  try { localStorage.removeItem(SK_OLD); } catch(e) {}
+  try { localStorage.removeItem('pending_sync'); } catch(e) {}
+}
+
 /**
  * Löscht den Service Worker Cache (alle App-Files werden frisch geladen)
  */

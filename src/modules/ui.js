@@ -1,5 +1,5 @@
 // src/modules/ui.js
-import { persist } from './storage.js';
+import { persist, freshData, clearStorage } from './storage.js';
 import { effectivePct } from './stats.js';
 import { syncMirrorFromActiveDeck, activeDeck, deckProgress, renderDecks } from './decks.js';
 import { releaseMicStream, stopVisualizer, speakWord } from './speech.js';
@@ -405,6 +405,16 @@ export async function authSubmit() {
   submitBtn.disabled = false;
   _updateAuthModeUI();
 
+  if (result.emailNotConfirmed) {
+    _pendingConfirmEmail = email;
+    const display = document.getElementById('confirm-email-display');
+    if (display) display.textContent = email;
+    const msg = document.getElementById('confirm-message');
+    if (msg) { msg.style.display = 'none'; msg.textContent = ''; }
+    showScreen('email-confirm-screen');
+    return;
+  }
+
   if (result.error) {
     _setAuthError(result.error);
     return;
@@ -421,8 +431,8 @@ export async function authSubmit() {
     return;
   }
 
-  // login erfolgreich — Commit 2 ergänzt handleLogin(); vorerst zum Menü
-  showMenu();
+  // login erfolgreich
+  handleLogin(result.user);
 }
 
 function _setAuthError(msg) {
@@ -453,8 +463,24 @@ export async function authResend() {
 
 export async function authLogout() {
   await signOut();
-  // Commit 4 ergänzt: LS leeren, freshData(), pendingSync leeren
-  // Vorerst: currentUser löschen und zum Menü navigieren
+  handleLogout();
+}
+
+// ────────────────────────────────────────────────
+//  AUTH LIFECYCLE (aufgerufen von startup.js + authSubmit)
+// ────────────────────────────────────────────────
+
+export function handleLogin(user) {
+  window.currentUser = user;
+  // Commit 4 ergänzt cloudLoad() hier
+  if (!window.SD || !window.SD.playerName) showScreen('name-screen');
+  else showMenu();
+}
+
+export function handleLogout() {
   window.currentUser = null;
-  showMenu();
+  clearStorage();
+  window.SD = freshData();
+  syncMirrorFromActiveDeck();
+  showScreen('auth-screen');
 }

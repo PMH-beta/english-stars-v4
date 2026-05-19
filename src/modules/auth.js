@@ -19,13 +19,26 @@ function mapErr(msg) {
 }
 
 export async function signUp(email, password) {
-  const { data, error } = await supabase.auth.signUp({ email, password });
-  return { user: data?.user ?? null, error: error ? mapErr(error.message) : null };
+  try {
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    return { user: data?.user ?? null, error: error ? mapErr(error.message) : null };
+  } catch(e) {
+    return { user: null, error: 'Keine Verbindung. Bitte Internet prüfen.' };
+  }
 }
 
 export async function signIn(email, password) {
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  return { user: data?.user ?? null, error: error ? mapErr(error.message) : null };
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    const emailNotConfirmed = !!error?.message?.includes('Email not confirmed');
+    return {
+      user: data?.user ?? null,
+      error: error ? mapErr(error.message) : null,
+      emailNotConfirmed,
+    };
+  } catch(e) {
+    return { user: null, error: 'Keine Verbindung. Bitte Internet prüfen.', emailNotConfirmed: false };
+  }
 }
 
 export async function signOut() {
