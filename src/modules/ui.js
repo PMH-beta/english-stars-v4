@@ -205,10 +205,18 @@ export function showStats() {
   grid.innerHTML = catData.map(c => {
     const pct = c.total ? Math.round(c.done / c.total * 100) : 0;
     const p = SD.categoryProgress[c.cat] || {};
+    let subLine;
+    if (c.cat === 'mixed_vocab') {
+      const deck = activeDeck();
+      const ex = deck && deck.lastExam;
+      subLine = ex ? ('📊 Note ' + ex.grade + ' · ' + new Date(ex.date).toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'})) : '📊 Noch keine Prüfung';
+    } else {
+      subLine = c.done + '/' + c.total + ' gelernt · 🔥' + (p.bestStreak||0);
+    }
     return `<div class="cat-card">
       <div class="cat-card-title" style="color:${c.color}">${c.label}</div>
       <div class="mini-bar-wrap"><div class="mini-bar" style="width:${pct}%;background:${c.color}"></div></div>
-      <div class="cat-stat-small">${c.done}/${c.total} gelernt · 🔥${p.bestStreak||0}</div>
+      <div class="cat-stat-small">${subLine}</div>
     </div>`;
   }).join('');
 

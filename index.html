@@ -428,26 +428,44 @@ function loadData(){
 }
 
 function freshData(){
-  const defaultDeckId='deck_default';
+  const _defs=[
+    {id:'deck_tiere',name:'Tiere',vocab:[
+      {de:'Hund',en:'dog'},{de:'Katze',en:'cat'},{de:'Maus',en:'mouse'},
+      {de:'Pferd',en:'horse'},{de:'Kuh',en:'cow'},{de:'Schwein',en:'pig'},
+      {de:'Vogel',en:'bird'},{de:'Fisch',en:'fish'},{de:'Hase',en:'rabbit'},
+      {de:'Bär',en:'bear'},
+    ]},
+    {id:'deck_farben',name:'Farben',vocab:[
+      {de:'rot',en:'red'},{de:'blau',en:'blue'},{de:'grün',en:'green'},
+      {de:'gelb',en:'yellow'},{de:'schwarz',en:'black'},{de:'weiß',en:'white'},
+      {de:'orange',en:'orange'},{de:'rosa',en:'pink'},{de:'lila',en:'purple'},
+      {de:'braun',en:'brown'},
+    ]},
+    {id:'deck_zahlen',name:'Zahlen 1-10',vocab:[
+      {de:'eins',en:'one'},{de:'zwei',en:'two'},{de:'drei',en:'three'},
+      {de:'vier',en:'four'},{de:'fünf',en:'five'},{de:'sechs',en:'six'},
+      {de:'sieben',en:'seven'},{de:'acht',en:'eight'},{de:'neun',en:'nine'},
+      {de:'zehn',en:'ten'},
+    ]},
+  ];
+  const decks={};
+  _defs.forEach(def=>{
+    decks[def.id]={
+      id:def.id,name:def.name,createdAt:Date.now(),
+      vocab:def.vocab.slice(),wordStats:{},
+      categoryProgress:{
+        vocab:{played:0,correct:0,bestStreak:0},
+        spelling:{played:0,correct:0,bestStreak:0},
+        pronounce:{played:0,correct:0,bestStreak:0},
+        mixed_vocab:{played:0,correct:0,bestStreak:0},
+      },
+      lastExam:null,
+    };
+  });
   return{_version:4,
     playerName:'',highscore:0,totalPoints:0,
-    activeDeckId:defaultDeckId,
-    decks:{
-      [defaultDeckId]:{
-        id:defaultDeckId,
-        name:'Standard-Vokabeln',
-        createdAt:Date.now(),
-        vocab:DEFAULT_VOCAB.slice(),
-        wordStats:{},
-        categoryProgress:{
-          vocab:{played:0,correct:0,bestStreak:0},
-          spelling:{played:0,correct:0,bestStreak:0},
-          pronounce:{played:0,correct:0,bestStreak:0},
-          mixed_vocab:{played:0,correct:0,bestStreak:0},
-        }
-      }
-    },
-    // Spiegel-Felder für den aktiven Deck (Compatibility):
+    activeDeckId:'deck_tiere',
+    decks,
     categoryProgress:{
       vocab:{played:0,correct:0,bestStreak:0},
       spelling:{played:0,correct:0,bestStreak:0},
@@ -468,6 +486,7 @@ function migrateData(old){
   if(old.decks && old.activeDeckId){
     d.decks=old.decks;
     d.activeDeckId=old.activeDeckId;
+    Object.values(d.decks).forEach(deck=>{ if(!('lastExam' in deck)) deck.lastExam=null; });
   } else {
     // Altes Format → ins Default-Deck migrieren
     const defId=d.activeDeckId;

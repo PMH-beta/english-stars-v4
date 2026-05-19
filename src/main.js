@@ -37,8 +37,7 @@ if (_vb) _vb.textContent = APP_VERSION;
 window.persist = (state = window.SD) => persist(state);
 // window.loadData: gibt rohe Storage-Daten zurück (ohne App-Logik wie migrateData)
 window.loadData = loadData;
-// window.freshData: liest window.DEFAULT_VOCAB als Standard-Vokabular
-window.freshData = () => freshData(window.DEFAULT_VOCAB || []);
+window.freshData = freshData;
 
 // TTS: shared state auf window (Index.html liest/schreibt diese direkt)
 window._ttsVoices = [];

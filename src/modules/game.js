@@ -1,5 +1,5 @@
 // src/modules/game.js
-import { QPERROUND } from './config.js';
+import { QPERROUND, EXAM_QUESTIONS, calcGrade, gradeText } from './config.js';
 import { effectivePct, isMastered } from './stats.js';
 import { activeDeck, syncMirrorFromActiveDeck } from './decks.js';
 import { showScreen, showMenu, hideFeedback, showFeedback } from './ui.js';
@@ -25,6 +25,7 @@ window.isFreePlay = false;
 window._progressSaved = false;
 window._pronounceAttempts = 0;
 window._lastModePct = 0;
+window.isExamMode = false;
 
 // ── Pool Utilities ──
 function shuffle(a) {
@@ -76,7 +77,8 @@ export function buildPool(m) {
   const vocab=window.VOCAB;
   const sd=window.SD;
   let qs=[];
-  const limit=window.isSchnellModus ? vocab.length : QPERROUND;
+  const examLimit=window.isExamMode ? Math.min(EXAM_QUESTIONS, vocab.length*3) : QPERROUND;
+  const limit=window.isSchnellModus&&!window.isExamMode ? vocab.length : examLimit;
   if(m==='vocab'){
     weightedPickUnique(vocab, v=>sd.wordStats[v.de+'_mc'], limit).forEach(v=>qs.push(bVocabMC(v)));
   }
@@ -87,16 +89,16 @@ export function buildPool(m) {
     weightedPickUnique(vocab, v=>sd.wordStats[v.de+'_pr'], limit).forEach(v=>qs.push(bVocabPronounce(v)));
   }
   if(m==='mixed_vocab'){
-    if(window.isSchnellModus){
+    if(window.isSchnellModus&&!window.isExamMode){
       vocab.forEach(v=>{qs.push(bVocabMC(v));qs.push(bVocabType(v));qs.push(bVocabPronounce(v));});
     } else {
-      const n1=Math.round(QPERROUND/3), n2=Math.round(QPERROUND/3), n3=QPERROUND-n1-n2;
+      const n1=Math.round(examLimit/3), n2=Math.round(examLimit/3), n3=examLimit-n1-n2;
       weightedPickUnique(vocab, v=>sd.wordStats[v.de+'_mc'], n1).forEach(v=>qs.push(bVocabMC(v)));
       weightedPickUnique(vocab, v=>sd.wordStats[v.de+'_sp'], n2).forEach(v=>qs.push(bVocabType(v)));
       weightedPickUnique(vocab, v=>sd.wordStats[v.de+'_pr'], n3).forEach(v=>qs.push(bVocabPronounce(v)));
     }
   }
-  if(window._skipMasteryFilter) return shuffle(qs).slice(0, limit);
+  if(window._skipMasteryFilter||window.isExamMode) return shuffle(qs).slice(0, limit);
   const filtered=qs.filter(q=>!isMastered(q));
   if(filtered.length===0) return qs.slice(0, limit);
   return shuffle(filtered).slice(0, limit);
@@ -129,6 +131,7 @@ export function toggleSchnell() {
 export function startGame(m) {
   window.mode=m;
   window.points=0;window.streak=0;window.bestStreak=0;window.totalCorrect=0;
+  window.isExamMode=(m==='mixed_vocab');
   window.questionPool=buildPool(m);
   window.questionIndex=0;window.answered=false;
   window.wrongQueue=[];window.isRetryPhase=false;window.isFreePlay=false;window._progressSaved=false;
@@ -178,7 +181,7 @@ function showQuestion() {
     }
   }
   if(window.questionIndex>=window.questionPool.length){
-    if(!window.isFreePlay&&!window.isRetryPhase&&window.wrongQueue.length>0){
+    if(!window.isFreePlay&&!window.isRetryPhase&&!window.isExamMode&&window.wrongQueue.length>0){
       window.isRetryPhase=true;
       window.questionPool=window.wrongQueue.slice();
       window.wrongQueue=[];
@@ -441,7 +444,7 @@ function handleCorrect() {
     const baseBonus=window.streak>=5?30:window.streak>=3?20:10;
     const bonus=window.isFreePlay?0:(window.isRetryPhase?Math.floor(baseBonus/2):baseBonus);
     window.points+=bonus;
-    if(!window.isFreePlay){
+    if(!window.isFreePlay&&!window.isExamMode){
       if(window.isSchnellModus){ recordStatSchnell(window.currentQ); }
       else { recordStat(window.currentQ,true); }
     }
@@ -480,8 +483,8 @@ function handleCorrect() {
 function handleWrong() {
   try{
     window.streak=0;
-    if(!window.isRetryPhase&&!window.isFreePlay) window.wrongQueue.push({...window.currentQ});
-    if(!window.isFreePlay) recordStat(window.currentQ,false);
+    if(!window.isRetryPhase&&!window.isFreePlay&&!window.isExamMode) window.wrongQueue.push({...window.currentQ});
+    if(!window.isFreePlay&&!window.isExamMode) recordStat(window.currentQ,false);
     updateScoreBar();
     updateModeProgress(true);
     const c=document.getElementById('game-card');
@@ -613,12 +616,34 @@ function progressForCurrentMode() {
 function updateModeProgress(animate) {
   const wrap=document.getElementById('mode-progress');
   if(!wrap) return;
-  const p=progressForCurrentMode();
-  const pct=Math.min(100,Math.round((p.score/p.total)*100));
   const titleEl=document.getElementById('mode-progress-title');
   const pctEl=document.getElementById('mode-progress-pct');
   const barEl=document.getElementById('mode-progress-bar');
   const subEl=document.getElementById('mode-progress-sub');
+
+  if(window.isExamMode){
+    // answered = how many questions have been responded to so far
+    // window.answered is true only while within a handler (after user answered current question)
+    const answered=window.answered ? window.questionIndex+1 : window.questionIndex;
+    const totalQ=window.questionPool.length;
+    const barPct=totalQ>0 ? Math.round(answered/totalQ*100) : 0;
+    if(titleEl) titleEl.textContent='📊 Prüfung';
+    if(pctEl) pctEl.textContent=barPct+'%';
+    if(subEl){
+      if(answered===0){
+        subEl.textContent='0/0 · –';
+      } else {
+        const liveGrade=calcGrade(window.totalCorrect/answered);
+        subEl.textContent=window.totalCorrect+'/'+answered+' richtig · Note '+liveGrade;
+      }
+    }
+    if(barEl) barEl.style.width=barPct+'%';
+    window._lastModePct=barPct;
+    return;
+  }
+
+  const p=progressForCurrentMode();
+  const pct=Math.min(100,Math.round((p.score/p.total)*100));
   if(titleEl) titleEl.textContent=p.title;
   if(pctEl) pctEl.textContent=pct+'%';
   if(subEl) subEl.textContent=p.mastered+'/'+p.total+' gemeistert';
@@ -642,6 +667,12 @@ function updateModeProgress(animate) {
 function saveProgress() {
   if(window._progressSaved||window.isFreePlay||window.isSchnellModus)return;
   window._progressSaved=true;
+  if(window.isExamMode){
+    window.SD.totalPoints+=window.points;
+    if(window.points>window.SD.highscore) window.SD.highscore=window.points;
+    persist();
+    return;
+  }
   const cp=window.SD.categoryProgress[window.mode];
   if(cp&&window.questionIndex>0){
     cp.played+=window.questionIndex;
@@ -655,6 +686,27 @@ function saveProgress() {
 
 function showEnd() {
   hideFeedback();saveProgress();
+  if(window.isExamMode){
+    const totalQ=window.questionPool.length;
+    const pct=window.totalCorrect/Math.max(1,totalQ);
+    const grade=calcGrade(pct);
+    const percent=Math.round(pct*100);
+    const deck=activeDeck();
+    if(deck){ deck.lastExam={grade,percent,date:Date.now()}; persist(window.SD); }
+    const newHS=window.points>=window.SD.highscore&&window.points>0;
+    showScreen('end-screen');
+    document.getElementById('stat-points').textContent=window.points;
+    document.getElementById('stat-correct').textContent=window.totalCorrect+'/'+totalQ;
+    document.getElementById('stat-streak').textContent=window.bestStreak;
+    document.getElementById('end-hs-msg').textContent=newHS?'🎉 Neuer Highscore!':'';
+    document.getElementById('end-emoji').textContent='📊 Note '+grade;
+    document.getElementById('end-title').textContent=gradeText(grade);
+    const dateStr=new Date(deck&&deck.lastExam?deck.lastExam.date:Date.now()).toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'});
+    document.getElementById('end-stars').textContent=percent+'% richtig · '+dateStr;
+    if(grade<=2) window.spawnConfetti();
+    try{playSfx('end');}catch(e){}
+    return;
+  }
   const newHS=window.points>=window.SD.highscore&&window.points>0;
   persist();
   const mp=progressForCurrentMode();

@@ -1,9 +1,23 @@
 // src/modules/config.js
 // Zentrale Konstanten und Konfiguration
 
-export const APP_VERSION = 'v4.0.8';
+export const APP_VERSION = 'v4.0.9';
 
 export const QPERROUND = 20;
+export const EXAM_QUESTIONS = 30;
+
+export function calcGrade(pct) {
+  if (pct >= 0.92) return 1;
+  if (pct >= 0.81) return 2;
+  if (pct >= 0.67) return 3;
+  if (pct >= 0.50) return 4;
+  if (pct >= 0.30) return 5;
+  return 6;
+}
+
+export function gradeText(grade) {
+  return ['','Sehr gut! 🌟','Gut! 👍','Befriedigend','Ausreichend','Mangelhaft','Ungenügend'][grade] || '';
+}
 
 export const EMA_ALPHA = 0.45; // Faktor für gewichteten Durchschnitt der letzten Antworten
 export const MASTERY_THRESHOLD = 0.9; // 90% korrekt = gemeistert

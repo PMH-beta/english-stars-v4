@@ -1,6 +1,8 @@
 // src/modules/storage.js
 // Alle LocalStorage-Operationen zentral. Später wird hier auch das Backend (Supabase) eingebunden.
 
+import { DEFAULT_DECKS } from './default-decks.js';
+
 const SK = 'english_stars_v3';
 const SK_OLD = 'english_stars_v2';
 
@@ -43,27 +45,29 @@ export function load() {
  * @param {Array} defaultVocab - Vokabeln für das Standard-Deck (Default: leer)
  * @returns {object}
  */
-export function freshData(defaultVocab = []) {
-  const defaultDeckId = 'deck_default';
+export function freshData() {
+  const decks = {};
+  DEFAULT_DECKS.forEach(def => {
+    decks[def.id] = {
+      id: def.id,
+      name: def.name,
+      createdAt: Date.now(),
+      vocab: def.vocab.slice(),
+      wordStats: {},
+      categoryProgress: {
+        vocab:       { played: 0, correct: 0, bestStreak: 0 },
+        spelling:    { played: 0, correct: 0, bestStreak: 0 },
+        pronounce:   { played: 0, correct: 0, bestStreak: 0 },
+        mixed_vocab: { played: 0, correct: 0, bestStreak: 0 },
+      },
+      lastExam: null,
+    };
+  });
   return {
     _version: 4,
     playerName: '', highscore: 0, totalPoints: 0,
-    activeDeckId: defaultDeckId,
-    decks: {
-      [defaultDeckId]: {
-        id: defaultDeckId,
-        name: 'Standard-Vokabeln',
-        createdAt: Date.now(),
-        vocab: defaultVocab.slice(),
-        wordStats: {},
-        categoryProgress: {
-          vocab:       { played: 0, correct: 0, bestStreak: 0 },
-          spelling:    { played: 0, correct: 0, bestStreak: 0 },
-          pronounce:   { played: 0, correct: 0, bestStreak: 0 },
-          mixed_vocab: { played: 0, correct: 0, bestStreak: 0 },
-        },
-      },
-    },
+    activeDeckId: DEFAULT_DECKS[0].id,
+    decks,
     categoryProgress: {
       vocab:       { played: 0, correct: 0, bestStreak: 0 },
       spelling:    { played: 0, correct: 0, bestStreak: 0 },
