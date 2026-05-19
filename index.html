@@ -492,12 +492,6 @@ function migrateData(old){
   return d;
 }
 
-// syncMirrorFromActiveDeck, activeDeck, switchDeck, createDeck, deleteDeck, renameDeck → src/modules/decks.js
-
-// toggleSchnell, isSchnellModus, schnellDone, _schnellBackup → src/modules/game.js
-
-// saveApiKey, skipApiKey → src/modules/ui.js
-// getApiKey (lokal), updateKeyBadge (toter Code) entfernt
 
 // ════════════════════════════════════════════════
 //  INIT
@@ -641,14 +635,7 @@ window.addEventListener('load',()=>{
   startupSequence();
 });
 
-// showScreen, saveName, showMenu → src/modules/ui.js
-
-// deckProgress, renderDecks, renderModeSubBy, toggleDeck, activateDeck, startGameWithDeck,
-// newDeckPrompt, renameDeckPrompt, confirmDeleteDeck → src/modules/decks.js
-
 function escHtml(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');}
-
-// confirmReset → src/modules/ui.js
 
 function exportData(){
   const json=JSON.stringify(SD,null,2);
@@ -675,21 +662,6 @@ function importData(event){
   event.target.value='';
 }
 
-// wordStatus, wrongDots, showProfile, editPlayerName, showStats → src/modules/ui.js
-
-// shuffle, pick, weightedPickUnique, wrongVocab, bVocabMC/Type/Pronounce, buildPool → src/modules/game.js
-
-// startGame, confirmHome, showQuestion, renderQuestion, nextQuestion, restartSame,
-// currentQ, mode, questionPool, questionIndex, answered, points, streak, bestStreak,
-// totalCorrect, wrongQueue, isRetryPhase, isFreePlay, _progressSaved → src/modules/game.js
-
-// checkMC, submitType, showSelfRateButtons, retryPronounce, selfRate, evaluateWithClaude,
-// setMicFinalStatus, handlePronounceCorrect, recordStatSchnell, recordStat,
-// handleCorrect, handleWrong, updateScoreBar, _sfx, playSfx,
-// progressForCurrentMode, updateModeProgress, saveProgress, showEnd → src/modules/game.js
-
-
-// _sfxCtx, _sfx, playSfx → src/modules/game.js
 
 // Click-Sound auf alle Buttons automatisch
 document.addEventListener('click',e=>{
@@ -793,8 +765,6 @@ window.addEventListener('DOMContentLoaded',()=>{
   _discoverTracks().catch(()=>{});
 });
 
-// progressForCurrentMode, updateModeProgress, saveProgress, showEnd → src/modules/game.js
-
 // ════════════════════════════════════════════════
 //  SCAN & REVIEW
 // ════════════════════════════════════════════════
@@ -850,8 +820,6 @@ function renderVocabList(){
     </div>`;
   }).join('');
 }
-
-// vmDeleteWord, vmAddManual → src/modules/decks.js
 
 function parsePastedText(){
   const ta=document.getElementById('paste-text');
