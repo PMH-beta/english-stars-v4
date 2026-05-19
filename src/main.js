@@ -8,6 +8,7 @@ import { effectivePct, isMastered } from './modules/stats.js';
 import { buildPool, toggleSchnell, startGame, confirmHome, nextQuestion, restartSame, checkMC, submitType, showSelfRateButtons, retryPronounce, evaluateWithClaude, setMicFinalStatus, _sfx, playSfx } from './modules/game.js';
 import { syncMirrorFromActiveDeck, activeDeck, switchDeck, createDeck, deleteDeck, renameDeck, deckProgress, renderDecks, toggleDeck, activateDeck, startGameWithDeck, newDeckPrompt, renameDeckPrompt, confirmDeleteDeck, vmDeleteWord, vmAddManual } from './modules/decks.js';
 import { showScreen, saveName, showMenu, saveApiKey, skipApiKey, showProfile, editPlayerName, showStats, confirmReset, showFeedback, hideFeedback, exportData, importData } from './modules/ui.js';
+import { pwaInstall } from './modules/pwa.js';
 
 console.log('[main] English Stars', APP_VERSION, 'startet…');
 
@@ -101,6 +102,7 @@ window.vmAddManual = vmAddManual;
 // UI via window für Legacy-Code
 window.isIOS = isIOS;
 window.isStandalone = isStandalone;
+window.pwaInstall = pwaInstall;
 window.exportData = exportData;
 window.importData = importData;
 window.showScreen = showScreen;
