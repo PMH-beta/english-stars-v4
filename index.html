@@ -488,7 +488,7 @@ function migrateData(old){
 
   return d;
 }
-
+window.migrateData = migrateData;
 
 // ════════════════════════════════════════════════
 //  INIT
@@ -634,32 +634,6 @@ window.addEventListener('load',()=>{
 
 function escHtml(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');}
 
-function exportData(){
-  const json=JSON.stringify(SD,null,2);
-  const blob=new Blob([json],{type:'application/json'});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
-  a.download='english_stars_fortschritt.json';
-  a.click();
-}
-
-function importData(event){
-  const file=event.target.files[0];if(!file)return;
-  const reader=new FileReader();
-  reader.onload=function(e){
-    try{
-      const parsed=JSON.parse(e.target.result);
-      SD=migrateData(parsed);
-      syncMirrorFromActiveDeck();
-      persist();showMenu();
-      setTimeout(()=>alert('✅ Fortschritt importiert!'),100);
-    }catch(ex){alert('❌ Fehler beim Importieren!');}
-  };
-  reader.readAsText(file);
-  event.target.value='';
-}
-
-
 // Click-Sound auf alle Buttons automatisch
 document.addEventListener('click',e=>{
   const t=e.target;
@@ -704,17 +678,9 @@ window.addEventListener('beforeinstallprompt',(e)=>{
   const btn=document.getElementById('pwa-install-btn');
   if(btn) btn.style.display='flex';
 });
-function _isIOS(){
-  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-    (navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
-}
 function _isMacSafari(){
   const ua=navigator.userAgent;
-  return ua.indexOf('Mac')!==-1 && ua.indexOf('Safari')!==-1 && ua.indexOf('Chrome')===-1 && !_isIOS();
-}
-function _isStandalone(){
-  return window.matchMedia('(display-mode: standalone)').matches ||
-    window.navigator.standalone===true;
+  return ua.indexOf('Mac')!==-1 && ua.indexOf('Safari')!==-1 && ua.indexOf('Chrome')===-1 && !isIOS();
 }
 function pwaInstall(){
   if(_pwaPrompt){
@@ -722,7 +688,7 @@ function pwaInstall(){
     _pwaPrompt.userChoice.then(()=>{ _pwaPrompt=null; const b=document.getElementById('pwa-install-btn'); if(b) b.style.display='none'; });
     return;
   }
-  if(_isIOS()){
+  if(isIOS()){
     alert('📲 App auf iPhone/iPad installieren:\n\n1. Tippe unten in Safari auf das Teilen-Symbol ⬆️\n2. Wähle "Zum Home-Bildschirm"\n3. Tippe oben rechts auf "Hinzufügen"\n\nDie App erscheint dann wie eine normale App auf dem Home-Bildschirm.');
   } else if(_isMacSafari()){
     alert('📲 App auf Mac installieren (Safari):\n\n1. Menüleiste: "Datei"\n2. "Zum Dock hinzufügen..."\n3. "Hinzufügen" klicken\n\nDie App erscheint dann im Dock.');
@@ -732,34 +698,11 @@ function pwaInstall(){
 }
 // iOS/Mac-Safari: Button trotzdem zeigen (kein beforeinstallprompt-Event)
 window.addEventListener('load',()=>{
-  if(_isStandalone()) return;
-  if(_isIOS() || _isMacSafari()){
+  if(isStandalone()) return;
+  if(isIOS() || _isMacSafari()){
     const btn=document.getElementById('pwa-install-btn');
     if(btn) btn.style.display='flex';
   }
-});
-
-window.addEventListener('DOMContentLoaded',()=>{
-  const isMobile = matchMedia('(pointer:coarse)').matches || innerWidth<600;
-  try{
-    if(isMobile){
-      // Auf Mobile: niedrigere App-interne Lautstärke (0.3) damit System-Regler genug Spielraum hat
-      _musicVolume=0.30;
-    } else {
-      const v=localStorage.getItem('es_music_vol');
-      if(v) _musicVolume=parseFloat(v);
-    }
-    const sl=document.getElementById('music-vol-slider');
-    const lbl=document.getElementById('music-vol-lbl');
-    if(sl) sl.value=Math.round(_musicVolume*100);
-    if(lbl) lbl.textContent=Math.round(_musicVolume*100)+'%';
-  }catch(e){}
-  let pref='1';
-  try{ const v=localStorage.getItem('es_music'); if(v!==null) pref=v; }catch(e){}
-  if(pref!=='1'){ _setMusicBtns(false); return; }
-  _setMusicBtns(true);
-  // Tracks im Hintergrund entdecken - Start passiert dann durch finishStartup() Button-Klick
-  _discoverTracks().catch(()=>{});
 });
 
 // ════════════════════════════════════════════════

@@ -287,3 +287,29 @@ export function showFeedback(ok, text, sub) {
 export function hideFeedback() {
   document.getElementById('feedback').className = 'feedback';
 }
+
+export function exportData() {
+  const json = JSON.stringify(window.SD, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'english_stars_fortschritt.json';
+  a.click();
+}
+
+export function importData(event) {
+  const file = event.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const parsed = JSON.parse(e.target.result);
+      window.SD = window.migrateData(parsed);
+      window.syncMirrorFromActiveDeck();
+      window.persist();
+      showMenu();
+      setTimeout(() => alert('✅ Fortschritt importiert!'), 100);
+    } catch(ex) { alert('❌ Fehler beim Importieren!'); }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}

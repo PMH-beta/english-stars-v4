@@ -1,13 +1,13 @@
 // src/main.js
 // Einstiegspunkt - lädt die Legacy-App und ergänzt sie schrittweise mit Modulen
-import { APP_VERSION } from './modules/config.js';
+import { APP_VERSION, isIOS, isStandalone } from './modules/config.js';
 import { persist, loadData, freshData, cleanupStorage, clearSWCache } from './modules/storage.js';
 import { _initTTS, speakWord, speakWordOnce, ensureMicStream, releaseMicStream, startVisualizer, stopVisualizer, voskStart, voskStop, _shouldUseVosk, startRecording, startVoskRecognition } from './modules/speech.js';
 import { _trackUrl, _discoverTracks, _playNext, _initAudio, startMusic, startMusicSync, stopMusic, setMusicVolume, _setMusicBtns, toggleMusic, toggleVolPopup } from './modules/audio.js';
 import { effectivePct, isMastered } from './modules/stats.js';
 import { buildPool, toggleSchnell, startGame, confirmHome, nextQuestion, restartSame, checkMC, submitType, showSelfRateButtons, retryPronounce, evaluateWithClaude, setMicFinalStatus, _sfx, playSfx } from './modules/game.js';
 import { syncMirrorFromActiveDeck, activeDeck, switchDeck, createDeck, deleteDeck, renameDeck, deckProgress, renderDecks, toggleDeck, activateDeck, startGameWithDeck, newDeckPrompt, renameDeckPrompt, confirmDeleteDeck, vmDeleteWord, vmAddManual } from './modules/decks.js';
-import { showScreen, saveName, showMenu, saveApiKey, skipApiKey, showProfile, editPlayerName, showStats, confirmReset, showFeedback, hideFeedback } from './modules/ui.js';
+import { showScreen, saveName, showMenu, saveApiKey, skipApiKey, showProfile, editPlayerName, showStats, confirmReset, showFeedback, hideFeedback, exportData, importData } from './modules/ui.js';
 
 console.log('[main] English Stars', APP_VERSION, 'startet…');
 
@@ -99,6 +99,10 @@ window.vmDeleteWord = vmDeleteWord;
 window.vmAddManual = vmAddManual;
 
 // UI via window für Legacy-Code
+window.isIOS = isIOS;
+window.isStandalone = isStandalone;
+window.exportData = exportData;
+window.importData = importData;
 window.showScreen = showScreen;
 window.saveName = saveName;
 window.showMenu = showMenu;

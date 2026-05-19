@@ -216,3 +216,24 @@ export function toggleVolPopup() {
     }
   }
 }
+
+window.addEventListener('DOMContentLoaded', () => {
+  const isMobile = matchMedia('(pointer:coarse)').matches || innerWidth < 600;
+  try {
+    if (isMobile) {
+      window._musicVolume = 0.30;
+    } else {
+      const v = localStorage.getItem('es_music_vol');
+      if (v) window._musicVolume = parseFloat(v);
+    }
+    const sl = document.getElementById('music-vol-slider');
+    const lbl = document.getElementById('music-vol-lbl');
+    if (sl) sl.value = Math.round(window._musicVolume * 100);
+    if (lbl) lbl.textContent = Math.round(window._musicVolume * 100) + '%';
+  } catch(e) {}
+  let pref = '1';
+  try { const v = localStorage.getItem('es_music'); if (v !== null) pref = v; } catch(e) {}
+  if (pref !== '1') { _setMusicBtns(false); return; }
+  _setMusicBtns(true);
+  _discoverTracks().catch(() => {});
+});
