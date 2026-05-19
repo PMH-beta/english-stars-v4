@@ -9,6 +9,7 @@ import { buildPool, toggleSchnell, startGame, confirmHome, nextQuestion, restart
 import { syncMirrorFromActiveDeck, activeDeck, switchDeck, createDeck, deleteDeck, renameDeck, deckProgress, renderDecks, toggleDeck, activateDeck, startGameWithDeck, newDeckPrompt, renameDeckPrompt, confirmDeleteDeck, vmDeleteWord, vmAddManual } from './modules/decks.js';
 import { showScreen, saveName, showMenu, saveApiKey, skipApiKey, showProfile, editPlayerName, showStats, confirmReset, showFeedback, hideFeedback, exportData, importData } from './modules/ui.js';
 import { pwaInstall } from './modules/pwa.js';
+import { openVocabManager, vmTab, renderVocabList, parsePastedText, onScanFile, showReview, renderReviewList, removeReviewItem, addReviewItem, confirmAddVocab } from './modules/vocab.js';
 
 console.log('[main] English Stars', APP_VERSION, 'startet…');
 
@@ -116,6 +117,18 @@ window.showStats = showStats;
 window.confirmReset = confirmReset;
 window.showFeedback = showFeedback;
 window.hideFeedback = hideFeedback;
+
+// Vocab via window für Legacy-Code
+window.openVocabManager = openVocabManager;
+window.vmTab = vmTab;
+window.renderVocabList = renderVocabList;
+window.parsePastedText = parsePastedText;
+window.onScanFile = onScanFile;
+window.showReview = showReview;
+window.renderReviewList = renderReviewList;
+window.removeReviewItem = removeReviewItem;
+window.addReviewItem = addReviewItem;
+window.confirmAddVocab = confirmAddVocab;
 
 // Musik via window für Legacy-Code
 window._trackUrl = _trackUrl;
