@@ -23,9 +23,8 @@ export async function signUp(email, password) {
     const { data, error } = await supabase.auth.signUp({ email, password });
     if (error) return { user: null, error: mapErr(error.message) };
 
-    // Supabase gibt bei bereits bestätigter Email: user mit identities:[]
-    // Kein error, aber auch keine neue Session — stille Ablehnung erkennen
-    if (data.user && data.user.identities?.length === 0) {
+    // Supabase gibt bei bereits bestätigter Email: { user: null, session: null, error: null }
+    if (!data.user) {
       return {
         user: null,
         error: 'Diese E-Mail ist bereits registriert. Bitte einloggen.',
@@ -33,7 +32,7 @@ export async function signUp(email, password) {
       };
     }
 
-    return { user: data?.user ?? null, error: null };
+    return { user: data.user, error: null };
   } catch(e) {
     return { user: null, error: 'Keine Verbindung. Bitte Internet prüfen.' };
   }
