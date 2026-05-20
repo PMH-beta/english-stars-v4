@@ -4,6 +4,7 @@ import { effectivePct } from './stats.js';
 import { syncMirrorFromActiveDeck, activeDeck, deckProgress, renderDecks } from './decks.js';
 import { releaseMicStream, stopVisualizer, speakWord } from './speech.js';
 import { signIn, signUp, signOut, resendConfirmation } from './auth.js';
+import { cloudLoad, provisionDefaultDecks, saveProfile } from './sync.js';
 
 const API_KEY_SK = 'es_apikey';
 
@@ -36,6 +37,9 @@ export function saveName() {
   if (!v) { document.getElementById('name-input').style.borderColor = 'var(--red)'; return; }
   window.SD.playerName = v;
   persist(window.SD);
+  if (window.currentUser) {
+    saveProfile(window.SD, window.currentUser.id).catch(e => console.error('[saveName] sync:', e));
+  }
   showMenu();
 }
 
@@ -155,6 +159,9 @@ export function editPlayerName() {
   if (!trimmed) return;
   window.SD.playerName = trimmed;
   persist(window.SD);
+  if (window.currentUser) {
+    saveProfile(window.SD, window.currentUser.id).catch(e => console.error('[editPlayerName] sync:', e));
+  }
   const profEl = document.getElementById('profile-screen');
   if (profEl && profEl.style.display !== 'none') showProfile();
   else showStats();
@@ -474,10 +481,25 @@ export async function authLogout() {
 //  AUTH LIFECYCLE (aufgerufen von startup.js + authSubmit)
 // ────────────────────────────────────────────────
 
-export function handleLogin(user) {
+export async function handleLogin(user) {
   window.currentUser = user;
-  // Commit 4 ergänzt cloudLoad() hier
-  if (!window.SD || !window.SD.playerName) showScreen('name-screen');
+  try {
+    let cloudState = await cloudLoad(user.id);
+    if (!cloudState) {
+      // Neuer User: Default-Decks anlegen
+      await provisionDefaultDecks(user.id);
+      cloudState = await cloudLoad(user.id);
+    }
+    if (cloudState) {
+      window.SD = cloudState;
+      persist(window.SD);
+      syncMirrorFromActiveDeck();
+    }
+  } catch(e) {
+    console.error('[handleLogin] Cloud-Sync Fehler:', e.message);
+    // App läuft weiter mit lokalem State
+  }
+  if (!window.SD?.playerName) showScreen('name-screen');
   else showMenu();
 }
 
