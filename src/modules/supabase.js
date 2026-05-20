@@ -1,13 +1,11 @@
 // src/modules/supabase.js
 // Supabase Client - zentrale Verbindung zur Datenbank/Auth
-import { createClient } from '@supabase/supabase-js';
+// ESM-CDN-Import: kein Build-Schritt nötig, funktioniert direkt im Browser
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-
-if (!SUPABASE_URL || !SUPABASE_KEY) {
-  console.error('[supabase] Fehlende Umgebungs-Variablen — siehe .env.example');
-}
+// Öffentliche Client-Keys (anon/publishable) — durch RLS geschützt, kein Secret
+const SUPABASE_URL = 'https://bjjdofvvzlivyhvjdfyw.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_tt5pHbQG185R-H0RNbJ4zA_Nr2fnAmX';
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: {
