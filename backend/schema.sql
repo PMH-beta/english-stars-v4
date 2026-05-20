@@ -17,12 +17,12 @@ CREATE TABLE profiles (
 
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can read own profile"
-  ON profiles FOR SELECT USING (auth.uid() = id);
-CREATE POLICY "Users can update own profile"
-  ON profiles FOR UPDATE USING (auth.uid() = id);
-CREATE POLICY "Users can insert own profile"
-  ON profiles FOR INSERT WITH CHECK (auth.uid() = id);
+CREATE POLICY "Users can read own profile" ON profiles
+  FOR SELECT TO authenticated USING (auth.uid() = id);
+CREATE POLICY "Users can update own profile" ON profiles
+  FOR UPDATE TO authenticated USING (auth.uid() = id);
+CREATE POLICY "Users can insert own profile" ON profiles
+  FOR INSERT TO authenticated WITH CHECK (auth.uid() = id);
 
 -- ─────────────────────────────────────────────
 -- 2) DECKS (Vokabelsammlungen)
@@ -40,14 +40,14 @@ CREATE TABLE decks (
 
 ALTER TABLE decks ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can read own decks"
-  ON decks FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own decks"
-  ON decks FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update own decks"
-  ON decks FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "Users can delete own decks"
-  ON decks FOR DELETE USING (auth.uid() = user_id);
+CREATE POLICY "Users can read own decks" ON decks
+  FOR SELECT TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own decks" ON decks
+  FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update own decks" ON decks
+  FOR UPDATE TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Users can delete own decks" ON decks
+  FOR DELETE TO authenticated USING (auth.uid() = user_id);
 
 -- ─────────────────────────────────────────────
 -- 3) WORD_STATS (Lernfortschritt pro Wort)
@@ -67,14 +67,14 @@ CREATE TABLE word_stats (
 
 ALTER TABLE word_stats ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can read own stats"
-  ON word_stats FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own stats"
-  ON word_stats FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update own stats"
-  ON word_stats FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "Users can delete own stats"
-  ON word_stats FOR DELETE USING (auth.uid() = user_id);
+CREATE POLICY "Users can read own stats" ON word_stats
+  FOR SELECT TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own stats" ON word_stats
+  FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update own stats" ON word_stats
+  FOR UPDATE TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Users can delete own stats" ON word_stats
+  FOR DELETE TO authenticated USING (auth.uid() = user_id);
 
 -- ─────────────────────────────────────────────
 -- 4) EXAMS (Prüfungs-Historie)
@@ -90,10 +90,10 @@ CREATE TABLE exams (
 
 ALTER TABLE exams ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can read own exams"
-  ON exams FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own exams"
-  ON exams FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can read own exams" ON exams
+  FOR SELECT TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own exams" ON exams
+  FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
 
 -- ─────────────────────────────────────────────
 -- 5) AUTO-CREATE PROFILE bei Signup
@@ -113,7 +113,7 @@ $$;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
-  
+
 -- ─────────────────────────────────────────────
 -- 6) INDEXES für Performance
 -- ─────────────────────────────────────────────
