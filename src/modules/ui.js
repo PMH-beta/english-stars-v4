@@ -377,12 +377,14 @@ function _updateAuthModeUI() {
   const title = document.getElementById('auth-title');
   const submitBtn = document.getElementById('auth-submit-btn');
   const toggleBtn = document.getElementById('auth-toggle-btn');
+  const confirmEl = document.getElementById('auth-password-confirm');
   const isLogin = _authMode === 'login';
   if (title) title.textContent = isLogin ? 'Anmelden' : 'Konto erstellen';
   if (submitBtn) submitBtn.textContent = isLogin ? 'Anmelden' : 'Registrieren';
   if (toggleBtn) toggleBtn.textContent = isLogin
     ? 'Noch kein Konto? Registrieren'
     : 'Schon registriert? Anmelden';
+  if (confirmEl) { confirmEl.style.display = isLogin ? 'none' : 'block'; confirmEl.value = ''; }
 }
 
 export function authToggleMode() {
@@ -403,6 +405,14 @@ export async function authSubmit() {
   if (!email || !password) {
     _setAuthError('Bitte E-Mail und Passwort eingeben.');
     return;
+  }
+
+  if (_authMode === 'signup') {
+    const confirmEl = document.getElementById('auth-password-confirm');
+    if (password !== (confirmEl ? confirmEl.value : '')) {
+      _setAuthError('Passwörter stimmen nicht überein.');
+      return;
+    }
   }
 
   _authInFlight = true;
