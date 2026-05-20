@@ -19,9 +19,18 @@ function mapErr(msg) {
   return msg;
 }
 
+function _redirectTo() {
+  // Gibt die korrekte App-URL zurück, z.B. https://pmh-beta.github.io/english-stars-v4/
+  // Funktioniert sowohl auf GitHub Pages (mit Subpfad) als auch lokal (localhost:5173/)
+  return window.location.origin + window.location.pathname.replace(/index\.html$/, '');
+}
+
 export async function signUp(email, password) {
   try {
-    const { data, error } = await supabase.auth.signUp({ email, password });
+    const { data, error } = await supabase.auth.signUp({
+      email, password,
+      options: { emailRedirectTo: _redirectTo() },
+    });
     if (error) return { user: null, error: mapErr(error.message) };
 
     // Bei aktiviertem Email-Confirm gibt Supabase { user: null } zurück —
@@ -55,7 +64,10 @@ export async function signOut() {
 }
 
 export async function resendConfirmation(email) {
-  const { error } = await supabase.auth.resend({ type: 'signup', email });
+  const { error } = await supabase.auth.resend({
+    type: 'signup', email,
+    options: { emailRedirectTo: _redirectTo() },
+  });
   return error ? mapErr(error.message) : null;
 }
 
