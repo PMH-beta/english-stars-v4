@@ -22,7 +22,8 @@ export async function startupSequence() {
     const toRemove = [];
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
-      if (k && !KEEP_KEYS.includes(k)) toRemove.push(k);
+      // sb-* Keys: Supabase Auth-Token — niemals löschen
+      if (k && !KEEP_KEYS.includes(k) && !k.startsWith('sb-')) toRemove.push(k);
     }
     toRemove.forEach(k => { try { localStorage.removeItem(k); } catch(e) {} });
   } catch(e) {}

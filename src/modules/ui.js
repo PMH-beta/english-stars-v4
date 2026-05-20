@@ -417,6 +417,10 @@ export async function authSubmit() {
 
   if (result.error) {
     _setAuthError(result.error);
+    if (result.alreadyRegistered) {
+      _authMode = 'login';
+      _updateAuthModeUI();
+    }
     return;
   }
 

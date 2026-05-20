@@ -21,7 +21,19 @@ function mapErr(msg) {
 export async function signUp(email, password) {
   try {
     const { data, error } = await supabase.auth.signUp({ email, password });
-    return { user: data?.user ?? null, error: error ? mapErr(error.message) : null };
+    if (error) return { user: null, error: mapErr(error.message) };
+
+    // Supabase gibt bei bereits bestätigter Email: user mit identities:[]
+    // Kein error, aber auch keine neue Session — stille Ablehnung erkennen
+    if (data.user && data.user.identities?.length === 0) {
+      return {
+        user: null,
+        error: 'Diese E-Mail ist bereits registriert. Bitte einloggen.',
+        alreadyRegistered: true,
+      };
+    }
+
+    return { user: data?.user ?? null, error: null };
   } catch(e) {
     return { user: null, error: 'Keine Verbindung. Bitte Internet prüfen.' };
   }
