@@ -12,6 +12,7 @@ import { pwaInstall } from './modules/pwa.js';
 import { openVocabManager, vmTab, renderVocabList, parsePastedText, onScanFile, showReview, renderReviewList, removeReviewItem, addReviewItem, confirmAddVocab } from './modules/vocab.js';
 import { startupSequence, finishStartup } from './modules/startup.js';
 import { supabase, testConnection } from './modules/supabase.js';
+import { flushPendingSync } from './modules/sync.js';
 
 console.log('[main] English Stars', APP_VERSION, 'startet…');
 
@@ -157,6 +158,9 @@ window.setMusicVolume = setMusicVolume;
 window._setMusicBtns = _setMusicBtns;
 window.toggleMusic = toggleMusic;
 window.toggleVolPopup = toggleVolPopup;
+
+// Offline-Queue bei Wiederverbindung leeren
+window.addEventListener('online', () => { if (window.currentUser) flushPendingSync().catch(() => {}); });
 
 // Supabase-Verbindung testen (kann später raus)
 testConnection();

@@ -1,5 +1,6 @@
 // src/modules/decks.js
 import { effectivePct } from './stats.js';
+import { markDirty, flushPendingSync, deleteCloudDeck } from './sync.js';
 
 // ────────────────────────────────────────────────
 //  UI STATE
@@ -53,11 +54,13 @@ export function createDeck(name) {
     lastExam: null,
   };
   window.persist();
+  if (window.currentUser) { markDirty('deck', id); flushPendingSync().catch(() => {}); }
   return id;
 }
 
 export function deleteDeck(deckId) {
   const SD = window.SD;
+  if (window.currentUser) deleteCloudDeck(deckId, window.currentUser.id).catch(() => {});
   delete SD.decks[deckId];
   if (SD.activeDeckId === deckId) {
     const rest = Object.keys(SD.decks);
@@ -73,6 +76,7 @@ export function renameDeck(deckId, newName) {
   if (!SD.decks[deckId] || !newName) return;
   SD.decks[deckId].name = newName;
   window.persist();
+  if (window.currentUser) { markDirty('deck', deckId); flushPendingSync().catch(() => {}); }
 }
 
 // ────────────────────────────────────────────────
@@ -237,6 +241,7 @@ export function vmDeleteWord(idx) {
   ['_mc', '_sp', '_pr'].forEach(suf => { delete deck.wordStats[v.de + suf]; });
   syncMirrorFromActiveDeck();
   window.persist();
+  if (window.currentUser) { markDirty('deck', deck.id); flushPendingSync().catch(() => {}); }
   window.renderVocabList();
 }
 
@@ -252,6 +257,7 @@ export function vmAddManual() {
   deck.vocab.push({de, en});
   syncMirrorFromActiveDeck();
   window.persist();
+  if (window.currentUser) { markDirty('deck', deck.id); flushPendingSync().catch(() => {}); }
   document.getElementById('vm-add-de').value = '';
   document.getElementById('vm-add-en').value = '';
   document.getElementById('vm-add-de').focus();
