@@ -470,15 +470,11 @@ export async function authSubmit() {
 
   if (result.error) {
     _setAuthError(result.error);
-    if (result.alreadyRegistered) {
-      _authMode = 'login';
-      _updateAuthModeUI();
-    }
     return;
   }
 
-  // signup: immer Email-Bestätigung zeigen (Email-Confirm ist AN)
-  if (_authMode === 'signup') {
+  // signup: Email-Confirm-Screen zeigen (Supabase bestätigt per Link)
+  if (result.user === 'pending_confirmation' || _authMode === 'signup') {
     _pendingConfirmEmail = email;
     const display = document.getElementById('confirm-email-display');
     if (display) display.textContent = email;

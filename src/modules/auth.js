@@ -24,14 +24,10 @@ export async function signUp(email, password) {
     const { data, error } = await supabase.auth.signUp({ email, password });
     if (error) return { user: null, error: mapErr(error.message) };
 
-    // Supabase gibt bei bereits bestätigter Email: { user: null, session: null, error: null }
-    if (!data.user) {
-      return {
-        user: null,
-        error: 'Diese E-Mail ist bereits registriert. Bitte einloggen.',
-        alreadyRegistered: true,
-      };
-    }
+    // Bei aktiviertem Email-Confirm gibt Supabase { user: null } zurück —
+    // sowohl für neue als auch für bereits bestätigte Emails (Datenschutz: keine Enumeration).
+    // Beide Fälle → pending_confirmation, User muss Postfach prüfen.
+    if (!data.user) return { user: 'pending_confirmation', error: null };
 
     return { user: data.user, error: null };
   } catch(e) {
