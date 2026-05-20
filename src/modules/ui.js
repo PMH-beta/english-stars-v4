@@ -4,7 +4,7 @@ import { effectivePct } from './stats.js';
 import { syncMirrorFromActiveDeck, activeDeck, deckProgress, renderDecks } from './decks.js';
 import { releaseMicStream, stopVisualizer, speakWord } from './speech.js';
 import { signIn, signUp, signOut, resendConfirmation } from './auth.js';
-import { cloudLoad, saveProfile } from './sync.js';
+import { cloudLoad, saveProfile, cloudReset } from './sync.js';
 
 const API_KEY_SK = 'es_apikey';
 
@@ -287,16 +287,44 @@ export function showStats() {
 // ────────────────────────────────────────────────
 //  RESET
 // ────────────────────────────────────────────────
-export function confirmReset() {
-  if (confirm('⚠️ Bist du dir wirklich sicher?\n\nALL dein Fortschritt wird gelöscht!')) {
-    const name = window.SD.playerName;
+export async function confirmReset() {
+  if (!confirm('⚠️ Bist du dir wirklich sicher?\n\nALL dein Fortschritt wird gelöscht!')) return;
+
+  const name = window.SD.playerName;
+
+  if (window.currentUser) {
+    const btn = document.querySelector('[title="Fortschritt zurücksetzen"]');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
+    try {
+      await cloudReset(window.currentUser.id);
+      try { localStorage.removeItem('pending_sync'); } catch(e) {}
+    } catch(e) {
+      console.error('[confirmReset] Cloud-Reset Fehler:', e.message);
+      if (btn) { btn.disabled = false; btn.textContent = '🗑️'; }
+      alert('Fehler beim Zurücksetzen. Bitte erneut versuchen.');
+      return;
+    }
+    if (btn) { btn.disabled = false; btn.textContent = '🗑️'; }
+    window.SD = {
+      _version: 4, playerName: name, highscore: 0, totalPoints: 0,
+      activeDeckId: null, decks: {},
+      categoryProgress: {
+        vocab:       { played: 0, correct: 0, bestStreak: 0 },
+        spelling:    { played: 0, correct: 0, bestStreak: 0 },
+        pronounce:   { played: 0, correct: 0, bestStreak: 0 },
+        mixed_vocab: { played: 0, correct: 0, bestStreak: 0 },
+      },
+      wordStats: {},
+    };
+  } else {
     window.SD = window.freshData();
     window.SD.playerName = name;
-    syncMirrorFromActiveDeck();
-    persist(window.SD);
-    showMenu();
-    setTimeout(() => alert('✅ Fortschritt zurückgesetzt!'), 100);
   }
+
+  syncMirrorFromActiveDeck();
+  persist(window.SD);
+  showMenu();
+  setTimeout(() => alert('✅ Fortschritt zurückgesetzt!'), 100);
 }
 
 // ────────────────────────────────────────────────

@@ -181,6 +181,19 @@ export async function saveExam({ deckId, grade, percent }, userId) {
   if (error) console.error('[sync] saveExam:', error.message);
 }
 
+/** Löscht alle Cloud-Daten eines Users (Decks, word_stats und exams via CASCADE). */
+export async function cloudReset(userId) {
+  const { error: decksErr } = await supabase
+    .from('decks').delete().eq('user_id', userId);
+  if (decksErr) throw new Error('[sync] cloudReset decks: ' + decksErr.message);
+
+  const { error: profErr } = await supabase
+    .from('profiles')
+    .update({ highscore: 0, total_points: 0, active_deck_id: null, updated_at: new Date().toISOString() })
+    .eq('id', userId);
+  if (profErr) throw new Error('[sync] cloudReset profile: ' + profErr.message);
+}
+
 // ────────────────────────────────────────────────
 //  OFFLINE QUEUE
 // ────────────────────────────────────────────────
