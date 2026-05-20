@@ -495,20 +495,16 @@ export async function handleLogin(user) {
   window.currentUser = user;
   try {
     let cloudState = await cloudLoad(user.id);
-    console.log('[handleLogin] cloudState received:', cloudState);
     if (!cloudState) {
       // Neuer User: Default-Decks anlegen
       await provisionDefaultDecks(user.id);
       cloudState = await cloudLoad(user.id);
-      console.log('[handleLogin] cloudState after provision:', cloudState);
     }
     if (cloudState) {
       window.SD = cloudState;
       persist(window.SD);
       syncMirrorFromActiveDeck();
     }
-    console.log('[handleLogin] window.SD after assign:', window.SD);
-    console.log('[handleLogin] playerName check:', window.SD?.playerName);
   } catch(e) {
     console.error('[handleLogin] Cloud-Sync Fehler:', e.message);
   } finally {

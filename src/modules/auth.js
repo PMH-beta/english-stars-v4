@@ -8,6 +8,7 @@ const ERR_MAP = {
   'Password should be at least 6 characters': 'Passwort muss mind. 6 Zeichen haben.',
   'Unable to validate email address: invalid format': 'Ungültige E-Mail-Adresse.',
   'signup disabled':            'Registrierung momentan deaktiviert.',
+  'issued at future':           'Systemuhr nicht synchron. Bitte Datum/Uhrzeit prüfen.',
 };
 
 function mapErr(msg) {
@@ -21,10 +22,6 @@ function mapErr(msg) {
 export async function signUp(email, password) {
   try {
     const { data, error } = await supabase.auth.signUp({ email, password });
-    console.log('[signUp] data:', data);
-    console.log('[signUp] error:', error);
-    console.log('[signUp] data.user:', data?.user);
-    console.log('[signUp] data.user?.identities:', data?.user?.identities);
     if (error) return { user: null, error: mapErr(error.message) };
 
     // Supabase gibt bei bereits bestätigter Email: { user: null, session: null, error: null }

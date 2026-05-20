@@ -66,11 +66,10 @@ export async function cloudLoad(userId) {
   }
 
   const profile = profileRes.data || {};
-  if (profileRes.error) console.warn('[cloudLoad] profile error:', profileRes.error.message);
-  console.log('[cloudLoad] profile RAW from DB:', JSON.stringify(profile));
+  if (profileRes.error) console.error('[cloudLoad] profile error:', profileRes.error.message);
   const activeDeckId = profile.active_deck_id || decksRes.data[0]?.id || null;
 
-  const sd = {
+  return {
     _version:         4,
     playerName:       profile.player_name || '',
     highscore:        profile.highscore || 0,
@@ -80,10 +79,6 @@ export async function cloudLoad(userId) {
     categoryProgress: { ...EMPTY_CAT },
     wordStats:        {},
   };
-  console.log('[cloudLoad] mapped SD.playerName:', sd.playerName);
-  console.log('[cloudLoad] mapped SD.activeDeckId:', sd.activeDeckId);
-  console.log('[cloudLoad] FULL SD before return:', JSON.stringify(sd, null, 2));
-  return sd;
 }
 
 // ────────────────────────────────────────────────
