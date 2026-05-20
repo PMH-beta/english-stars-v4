@@ -13,6 +13,8 @@ const API_KEY_SK = 'es_apikey';
 // ────────────────────────────────────────────────
 let _authMode = 'login';
 let _pendingConfirmEmail = '';
+let _authInFlight = false;
+let _loginInFlight = false;
 
 // ────────────────────────────────────────────────
 //  SCREEN ROUTING
@@ -391,6 +393,7 @@ export function authToggleMode() {
 }
 
 export async function authSubmit() {
+  if (_authInFlight) return;
   const emailEl = document.getElementById('auth-email');
   const pwEl = document.getElementById('auth-password');
   const submitBtn = document.getElementById('auth-submit-btn');
@@ -402,15 +405,20 @@ export async function authSubmit() {
     return;
   }
 
+  _authInFlight = true;
   submitBtn.disabled = true;
   submitBtn.textContent = '…';
 
-  const result = _authMode === 'login'
-    ? await signIn(email, password)
-    : await signUp(email, password);
-
-  submitBtn.disabled = false;
-  _updateAuthModeUI();
+  let result;
+  try {
+    result = _authMode === 'login'
+      ? await signIn(email, password)
+      : await signUp(email, password);
+  } finally {
+    _authInFlight = false;
+    submitBtn.disabled = false;
+    _updateAuthModeUI();
+  }
 
   if (result.emailNotConfirmed) {
     _pendingConfirmEmail = email;
@@ -482,22 +490,29 @@ export async function authLogout() {
 // ────────────────────────────────────────────────
 
 export async function handleLogin(user) {
+  if (_loginInFlight) return;
+  _loginInFlight = true;
   window.currentUser = user;
   try {
     let cloudState = await cloudLoad(user.id);
+    console.log('[handleLogin] cloudState received:', cloudState);
     if (!cloudState) {
       // Neuer User: Default-Decks anlegen
       await provisionDefaultDecks(user.id);
       cloudState = await cloudLoad(user.id);
+      console.log('[handleLogin] cloudState after provision:', cloudState);
     }
     if (cloudState) {
       window.SD = cloudState;
       persist(window.SD);
       syncMirrorFromActiveDeck();
     }
+    console.log('[handleLogin] window.SD after assign:', window.SD);
+    console.log('[handleLogin] playerName check:', window.SD?.playerName);
   } catch(e) {
     console.error('[handleLogin] Cloud-Sync Fehler:', e.message);
-    // App läuft weiter mit lokalem State
+  } finally {
+    _loginInFlight = false;
   }
   if (!window.SD?.playerName) showScreen('name-screen');
   else showMenu();

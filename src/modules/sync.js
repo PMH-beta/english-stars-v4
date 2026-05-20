@@ -13,6 +13,8 @@ function isUUID(str) {
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
 }
 
+let _provisioning = false;
+
 const EMPTY_CAT = {
   vocab:       { played: 0, correct: 0, bestStreak: 0 },
   spelling:    { played: 0, correct: 0, bestStreak: 0 },
@@ -64,19 +66,24 @@ export async function cloudLoad(userId) {
   }
 
   const profile = profileRes.data || {};
+  if (profileRes.error) console.warn('[cloudLoad] profile error:', profileRes.error.message);
+  console.log('[cloudLoad] profile RAW from DB:', JSON.stringify(profile));
   const activeDeckId = profile.active_deck_id || decksRes.data[0]?.id || null;
 
-  return {
+  const sd = {
     _version:         4,
     playerName:       profile.player_name || '',
     highscore:        profile.highscore || 0,
     totalPoints:      profile.total_points || 0,
     activeDeckId,
     decks,
-    // Spiegel — werden nach Rückkehr via syncMirrorFromActiveDeck() gefüllt
     categoryProgress: { ...EMPTY_CAT },
     wordStats:        {},
   };
+  console.log('[cloudLoad] mapped SD.playerName:', sd.playerName);
+  console.log('[cloudLoad] mapped SD.activeDeckId:', sd.activeDeckId);
+  console.log('[cloudLoad] FULL SD before return:', JSON.stringify(sd, null, 2));
+  return sd;
 }
 
 // ────────────────────────────────────────────────
@@ -88,31 +95,37 @@ export async function cloudLoad(userId) {
  * Idempotent: zweiter Aufruf macht nichts (Decks-Check am Anfang).
  */
 export async function provisionDefaultDecks(userId) {
-  const { data: existing } = await supabase
-    .from('decks').select('id').eq('user_id', userId).limit(1);
-  if (existing?.length) return; // schon provisioniert
+  if (_provisioning) return;
+  _provisioning = true;
+  try {
+    const { data: existing } = await supabase
+      .from('decks').select('id').eq('user_id', userId).limit(1);
+    if (existing?.length) return; // schon provisioniert
 
-  const now = new Date().toISOString();
-  const rows = DEFAULT_DECKS.map(def => ({
-    user_id:           userId,
-    name:              def.name,
-    vocab:             def.vocab,
-    category_progress: { ...EMPTY_CAT },
-    last_exam:         null,
-    created_at:        now,
-    updated_at:        now,
-  }));
+    const now = new Date().toISOString();
+    const rows = DEFAULT_DECKS.map(def => ({
+      user_id:           userId,
+      name:              def.name,
+      vocab:             def.vocab,
+      category_progress: { ...EMPTY_CAT },
+      last_exam:         null,
+      created_at:        now,
+      updated_at:        now,
+    }));
 
-  const { data: inserted, error } = await supabase
-    .from('decks').insert(rows).select('id');
-  if (error) throw new Error('[sync] provisionDefaultDecks: ' + error.message);
+    const { data: inserted, error } = await supabase
+      .from('decks').insert(rows).select('id');
+    if (error) throw new Error('[sync] provisionDefaultDecks: ' + error.message);
 
-  // Erstes Deck als aktiv setzen
-  const { error: profErr } = await supabase
-    .from('profiles')
-    .update({ active_deck_id: inserted[0].id, updated_at: now })
-    .eq('id', userId);
-  if (profErr) throw new Error('[sync] provision profile: ' + profErr.message);
+    // Erstes Deck als aktiv setzen
+    const { error: profErr } = await supabase
+      .from('profiles')
+      .update({ active_deck_id: inserted[0].id, updated_at: now })
+      .eq('id', userId);
+    if (profErr) throw new Error('[sync] provision profile: ' + profErr.message);
+  } finally {
+    _provisioning = false;
+  }
 }
 
 // ────────────────────────────────────────────────
