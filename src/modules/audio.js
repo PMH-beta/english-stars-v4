@@ -9,7 +9,7 @@ window._musicOn = false;
 window._musicVolume = 0.50;
 window._musicErrorRetries = 0;
 
-const MUSIC_BASE = 'music/';
+const MUSIC_BASE = 'public/music/';
 
 export function _trackUrl(name) { return MUSIC_BASE + encodeURIComponent(name); }
 
