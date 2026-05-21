@@ -156,8 +156,9 @@ export async function finishStartup() {
     showScreen('auth-screen');
     return;
   }
-  if (!window.SD.playerName) showScreen('name-screen');
-  else showMenu();
+  // User is already logged in — load cloud state first so playerName
+  // and deck data are available even on a fresh device or after browser cache clear.
+  await handleLogin(window.currentUser);
 }
 
 window.addEventListener('load', () => startupSequence());
