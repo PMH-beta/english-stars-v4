@@ -589,37 +589,27 @@ export async function handleLogin(user) {
   window.currentUser = user;
   console.log('[handleLogin] CALLED with user:', user?.email);
   try {
-    let cloudState = await cloudLoad(user.id);
-    if (!cloudState) {
-      // Neuer eingeloggter User: leerer Start — User legt eigene Decks an
-      cloudState = {
-        _version: 4, playerName: '', highscore: 0, totalPoints: 0,
-        activeDeckId: null, decks: {},
-        categoryProgress: {
-          vocab:       { played: 0, correct: 0, bestStreak: 0 },
-          spelling:    { played: 0, correct: 0, bestStreak: 0 },
-          pronounce:   { played: 0, correct: 0, bestStreak: 0 },
-          mixed_vocab: { played: 0, correct: 0, bestStreak: 0 },
-        },
-        wordStats: {},
-      };
+    const cloudState = await cloudLoad(user.id);
+    // Only replace SD when cloud returned actual data — never overwrite with empty state.
+    // If cloudLoad returns null (new user or retry exhausted), keep whatever localStorage had.
+    if (cloudState) {
+      window.SD = cloudState;
+      persist(window.SD);
+      syncMirrorFromActiveDeck();
     }
-    window.SD = cloudState;
-    persist(window.SD);
-    syncMirrorFromActiveDeck();
-    // Explicit profile load — guarantees player_name is always written to SD,
-    // even if cloudLoad had a profile fetch error or returned null (no decks yet).
+    // Explicit profile load — final guarantee that player_name is in SD,
+    // even when cloudLoad returned null (no decks yet) but profile row exists.
     const data = await loadProfile(user.id);
     console.log('[handleLogin] Cloud profile loaded:', data);
     if (data) {
-      window.SD.playerName  = data.player_name   || '';
-      window.SD.highscore   = data.highscore      || 0;
-      window.SD.totalPoints = data.total_points   || 0;
+      window.SD.playerName   = data.player_name   || '';
+      window.SD.highscore    = data.highscore      || 0;
+      window.SD.totalPoints  = data.total_points   || 0;
       window.SD.activeDeckId = data.active_deck_id || window.SD.activeDeckId || null;
       persist(window.SD);
     }
   } catch(e) {
-    console.error('[handleLogin] Cloud-Sync Fehler:', e.message);
+    console.error('[handleLogin] Cloud-Sync Fehler — lokale Daten bleiben erhalten:', e.message);
   } finally {
     _loginInFlight = false;
   }

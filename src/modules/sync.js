@@ -28,10 +28,21 @@ const EMPTY_CAT = {
  * Gibt null zurück wenn User noch keine Decks hat (= neuer User).
  */
 export async function cloudLoad(userId) {
+  // Retry-Helper für JWT-Propagation-Race-Condition nach signInWithPassword()
+  async function fetchWithRetry(fn) {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const result = await fn();
+      if (!result.error?.message?.includes('issued at future')) return result;
+      console.warn(`[sync] JWT issued at future — retry ${attempt + 1}/3 in 1.5s`);
+      await new Promise(r => setTimeout(r, 1500));
+    }
+    return await fn();
+  }
+
   const [profileRes, decksRes, wordStatsRes] = await Promise.all([
-    supabase.from('profiles').select('*').eq('id', userId).single(),
-    supabase.from('decks').select('*').eq('user_id', userId),
-    supabase.from('word_stats').select('*').eq('user_id', userId),
+    fetchWithRetry(() => supabase.from('profiles').select('player_name, highscore, total_points, active_deck_id').eq('id', userId).maybeSingle()),
+    fetchWithRetry(() => supabase.from('decks').select('*').eq('user_id', userId).order('created_at')),
+    fetchWithRetry(() => supabase.from('word_stats').select('*').eq('user_id', userId)),
   ]);
 
   if (decksRes.error) throw new Error('[sync] cloudLoad decks: ' + decksRes.error.message);
