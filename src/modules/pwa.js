@@ -14,6 +14,7 @@ export function pwaInstall() {
     _pwaPrompt.prompt();
     _pwaPrompt.userChoice.then(() => {
       _pwaPrompt = null;
+      window._pwaInstallReady = false;
       const b = document.getElementById('pwa-install-btn');
       if (b) b.style.display = 'none';
     });
@@ -61,15 +62,18 @@ if ('serviceWorker' in navigator) {
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   _pwaPrompt = e;
+  window._pwaInstallReady = true;
+  // showScreen() handles visibility — only show immediately if already on menu-screen
   const btn = document.getElementById('pwa-install-btn');
-  if (btn) btn.style.display = 'flex';
+  if (btn && document.getElementById('menu-screen')?.style.display !== 'none') btn.style.display = 'flex';
 });
 
 // iOS/Mac-Safari: Install-Button trotzdem zeigen (kein beforeinstallprompt-Event)
 window.addEventListener('load', () => {
   if (isStandalone()) return;
   if (isIOS() || isMacSafari()) {
+    window._pwaInstallReady = true;
     const btn = document.getElementById('pwa-install-btn');
-    if (btn) btn.style.display = 'flex';
+    if (btn && document.getElementById('menu-screen')?.style.display !== 'none') btn.style.display = 'flex';
   }
 });

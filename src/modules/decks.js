@@ -76,7 +76,11 @@ export function renameDeck(deckId, newName) {
   if (!SD.decks[deckId] || !newName) return;
   SD.decks[deckId].name = newName;
   window.persist();
-  if (window.currentUser) { markDirty('deck', deckId); flushPendingSync().catch(() => {}); }
+  if (window.currentUser) {
+    console.log('[decks] renameDeck', deckId, '→', newName, '| cloud-sync queued');
+    markDirty('deck', deckId);
+    flushPendingSync().catch(() => {});
+  }
 }
 
 // ────────────────────────────────────────────────

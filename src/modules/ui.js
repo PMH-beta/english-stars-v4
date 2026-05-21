@@ -4,7 +4,7 @@ import { effectivePct } from './stats.js';
 import { syncMirrorFromActiveDeck, activeDeck, deckProgress, renderDecks } from './decks.js';
 import { releaseMicStream, stopVisualizer, speakWord } from './speech.js';
 import { signIn, signUp, signOut, resendConfirmation } from './auth.js';
-import { cloudLoad, saveProfile, cloudReset, loadProfile } from './sync.js';
+import { cloudLoad, saveProfile, cloudReset, loadProfile, saveDeck, saveWordStats, saveExam } from './sync.js';
 
 const API_KEY_SK = 'es_apikey';
 
@@ -29,6 +29,8 @@ export function showScreen(id) {
   else document.body.classList.remove('in-game');
   const ft = document.getElementById('menu-footer');
   if (ft) ft.style.display = (id === 'menu-screen') ? 'flex' : 'none';
+  const installBtn = document.getElementById('pwa-install-btn');
+  if (installBtn) installBtn.style.display = (id === 'menu-screen' && window._pwaInstallReady) ? 'flex' : 'none';
 }
 
 // ────────────────────────────────────────────────
@@ -367,21 +369,79 @@ export function exportData() {
   a.click();
 }
 
-export function importData(event) {
-  const file = event.target.files[0]; if (!file) return;
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    try {
-      const parsed = JSON.parse(e.target.result);
-      window.SD = window.migrateData(parsed);
-      window.syncMirrorFromActiveDeck();
-      window.persist();
-      showMenu();
-      setTimeout(() => alert('✅ Fortschritt importiert!'), 100);
-    } catch(ex) { alert('❌ Fehler beim Importieren!'); }
-  };
-  reader.readAsText(file);
+export async function importData(event) {
+  const file = event.target.files[0];
   event.target.value = '';
+  if (!file) return;
+
+  let parsed;
+  try {
+    const text = await file.text();
+    parsed = JSON.parse(text);
+  } catch(e) { alert('❌ Datei konnte nicht gelesen werden.'); return; }
+
+  const imported = window.migrateData ? window.migrateData(parsed) : parsed;
+  const srcDecks = Object.values(imported?.decks || {});
+  if (!srcDecks.length) { alert('❌ Keine Sammlungen in der Datei gefunden.'); return; }
+
+  const userId = window.currentUser?.id;
+  console.log('[import] Starte Import von', srcDecks.length, 'Sammlung(en) | userId:', userId);
+
+  let count = 0;
+  for (const src of srcDecks) {
+    // Temp-ID (non-UUID) → saveDeck macht INSERT + UUID-Rename
+    const tempId = 'import_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+    const deck = {
+      id:               tempId,
+      name:             src.name || 'Importierte Sammlung',
+      createdAt:        Date.now(),
+      vocab:            src.vocab || [],
+      wordStats:        src.wordStats || {},
+      categoryProgress: src.categoryProgress || {
+        vocab:       { played: 0, correct: 0, bestStreak: 0 },
+        spelling:    { played: 0, correct: 0, bestStreak: 0 },
+        pronounce:   { played: 0, correct: 0, bestStreak: 0 },
+        mixed_vocab: { played: 0, correct: 0, bestStreak: 0 },
+      },
+      lastExam: src.lastExam || null,
+    };
+
+    // IDs vor dem Insert merken um Cloud-UUID zu erkennen
+    const beforeIds = new Set(Object.keys(window.SD.decks));
+    window.SD.decks[tempId] = deck;
+    console.log('[import] Deck vorbereitet:', deck.name, '|', deck.vocab.length, 'Wörter');
+
+    if (userId) {
+      await saveDeck(deck, userId);
+
+      if (window.SD.decks[tempId]) {
+        // saveDeck hat tempId nicht ersetzt → INSERT fehlgeschlagen
+        delete window.SD.decks[tempId];
+        console.warn('[import] Cloud-Insert fehlgeschlagen für:', deck.name);
+        continue;
+      }
+
+      const cloudId = Object.keys(window.SD.decks).find(id => !beforeIds.has(id));
+      if (cloudId) {
+        const cd = window.SD.decks[cloudId];
+        if (Object.keys(cd.wordStats).length > 0) {
+          await saveWordStats(cloudId, cd.wordStats, userId);
+          console.log('[import] WordStats gespeichert:', cd.name);
+        }
+        if (cd.lastExam?.grade != null) {
+          await saveExam({ deckId: cloudId, grade: cd.lastExam.grade, percent: cd.lastExam.percent }, userId);
+          console.log('[import] Exam gespeichert:', cd.name);
+        }
+      }
+    }
+    count++;
+  }
+
+  persist(window.SD);
+  syncMirrorFromActiveDeck();
+  renderDecks();
+  showMenu();
+  setTimeout(() => alert('✅ ' + count + ' Sammlung' + (count !== 1 ? 'en' : '') + ' importiert!'), 100);
 }
 
 // ────────────────────────────────────────────────
