@@ -9,7 +9,7 @@ window._musicOn = false;
 window._musicVolume = 0.50;
 window._musicErrorRetries = 0;
 
-const MUSIC_BASE = 'public/music/';
+const MUSIC_BASE = 'music/';
 
 export function _trackUrl(name) { return MUSIC_BASE + encodeURIComponent(name); }
 
@@ -30,7 +30,7 @@ export async function _discoverTracks() {
       const user = host.split('.')[0];
       const pathParts = location.pathname.split('/').filter(Boolean);
       const repo = pathParts[0] || 'english-stars';
-      const apiUrl = `https://api.github.com/repos/${user}/${repo}/contents/public/music`;
+      const apiUrl = `https://api.github.com/repos/${user}/${repo}/contents/music`;
       const r = await fetch(apiUrl);
       if (r.ok) {
         const files = await r.json();

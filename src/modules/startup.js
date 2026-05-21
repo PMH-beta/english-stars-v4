@@ -10,6 +10,8 @@ import { onAuthChange } from './auth.js';
 let _startupComplete = false;
 
 export async function startupSequence() {
+  console.log('[Startup] Boot-Start:', performance.now().toFixed(0) + 'ms');
+
   try {
     if ('caches' in window) {
       const names = await caches.keys();
@@ -32,7 +34,7 @@ export async function startupSequence() {
   try {
     const { data: { session } } = await supabase.auth.getSession();
     window.currentUser = session?.user ?? null;
-    console.log('[startup] Auth:', window.currentUser ? 'eingeloggt als ' + window.currentUser.email : 'nicht eingeloggt');
+    console.log('[Startup] Auth-Resolved:', performance.now().toFixed(0) + 'ms —', window.currentUser ? 'eingeloggt als ' + window.currentUser.email : 'nicht eingeloggt');
   } catch(e) {
     window.currentUser = null;
     console.warn('[startup] getSession fehlgeschlagen:', e.message);
@@ -55,6 +57,10 @@ export async function startupSequence() {
     if (bar) bar.style.width = pct + '%';
     if (status) status.textContent = msg;
   }
+
+  const overlay = document.getElementById('init-overlay');
+  if (overlay) overlay.style.display = 'none';
+  console.log('[Startup] Loading-Screen:', performance.now().toFixed(0) + 'ms');
   showScreen('loading-screen');
 
   setProgress(8, 'Vokabeln werden geladen…');
@@ -144,6 +150,7 @@ export async function finishStartup() {
   } catch(e) { console.warn('Music start failed:', e); }
 
   _startupComplete = true;
+  console.log('[Startup] App-Ready:', performance.now().toFixed(0) + 'ms');
 
   if (!window.currentUser) {
     showScreen('auth-screen');
