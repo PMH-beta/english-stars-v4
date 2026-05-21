@@ -35,7 +35,24 @@ export async function cloudLoad(userId) {
   ]);
 
   if (decksRes.error) throw new Error('[sync] cloudLoad decks: ' + decksRes.error.message);
-  if (!decksRes.data?.length) return null; // neuer User, noch keine Decks
+
+  const profile = profileRes.data || {};
+  if (profileRes.error) console.error('[cloudLoad] profile error:', profileRes.error.message);
+
+  if (!decksRes.data?.length) {
+    // No decks yet. If profile has a name this is a returning user (e.g. after cloud reset).
+    if (!profile.player_name) return null; // truly new user
+    return {
+      _version:     4,
+      playerName:   profile.player_name,
+      highscore:    profile.highscore    || 0,
+      totalPoints:  profile.total_points || 0,
+      activeDeckId: null,
+      decks:        {},
+      categoryProgress: { ...EMPTY_CAT },
+      wordStats:    {},
+    };
+  }
 
   // Decks aufbauen
   const decks = {};
@@ -62,8 +79,6 @@ export async function cloudLoad(userId) {
     };
   }
 
-  const profile = profileRes.data || {};
-  if (profileRes.error) console.error('[cloudLoad] profile error:', profileRes.error.message);
   const activeDeckId = profile.active_deck_id || decksRes.data[0]?.id || null;
 
   return {
@@ -186,6 +201,17 @@ export async function saveExam({ deckId, grade, percent }, userId) {
     percent: Math.round(percent),
   });
   if (error) console.error('[sync] saveExam:', error.message);
+}
+
+/** Lädt nur das Profil eines Users aus der Cloud (playerName, Scores, activeDeckId). */
+export async function loadProfile(userId) {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('player_name, highscore, total_points, active_deck_id')
+    .eq('id', userId)
+    .single();
+  if (error) console.error('[sync] loadProfile:', error.message);
+  return data || null;
 }
 
 /** Löscht alle Cloud-Daten eines Users (Decks, word_stats und exams via CASCADE). */

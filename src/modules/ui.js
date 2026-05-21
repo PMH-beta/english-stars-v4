@@ -4,7 +4,7 @@ import { effectivePct } from './stats.js';
 import { syncMirrorFromActiveDeck, activeDeck, deckProgress, renderDecks } from './decks.js';
 import { releaseMicStream, stopVisualizer, speakWord } from './speech.js';
 import { signIn, signUp, signOut, resendConfirmation } from './auth.js';
-import { cloudLoad, saveProfile, cloudReset } from './sync.js';
+import { cloudLoad, saveProfile, cloudReset, loadProfile } from './sync.js';
 
 const API_KEY_SK = 'es_apikey';
 
@@ -527,6 +527,7 @@ export async function handleLogin(user) {
   if (_loginInFlight) return;
   _loginInFlight = true;
   window.currentUser = user;
+  console.log('[handleLogin] CALLED with user:', user?.email);
   try {
     let cloudState = await cloudLoad(user.id);
     if (!cloudState) {
@@ -543,16 +544,26 @@ export async function handleLogin(user) {
         wordStats: {},
       };
     }
-    if (cloudState) {
-      window.SD = cloudState;
+    window.SD = cloudState;
+    persist(window.SD);
+    syncMirrorFromActiveDeck();
+    // Explicit profile load — guarantees player_name is always written to SD,
+    // even if cloudLoad had a profile fetch error or returned null (no decks yet).
+    const data = await loadProfile(user.id);
+    console.log('[handleLogin] Cloud profile loaded:', data);
+    if (data) {
+      window.SD.playerName  = data.player_name   || '';
+      window.SD.highscore   = data.highscore      || 0;
+      window.SD.totalPoints = data.total_points   || 0;
+      window.SD.activeDeckId = data.active_deck_id || window.SD.activeDeckId || null;
       persist(window.SD);
-      syncMirrorFromActiveDeck();
     }
   } catch(e) {
     console.error('[handleLogin] Cloud-Sync Fehler:', e.message);
   } finally {
     _loginInFlight = false;
   }
+  console.log('[handleLogin] SD nach Load:', window.SD.playerName, window.SD.highscore);
   if (!window.SD?.playerName) showScreen('name-screen');
   else showMenu();
 }
