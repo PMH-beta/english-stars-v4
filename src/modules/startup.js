@@ -8,8 +8,8 @@ import { onAuthChange } from './auth.js';
 
 // Guard: onAuthChange-Listener ignoriert Feuern während des Startvorgangs
 let _startupComplete = false;
-// Gesetzt wenn Supabase PASSWORD_RECOVERY event feuert (Reset-Link in Email geklickt)
-let _pendingRecovery = false;
+// Gesetzt wenn URL-Hash type=recovery enthält ODER Supabase PASSWORD_RECOVERY event feuert
+let _pendingRecovery = (window.location.hash || '').includes('type=recovery');
 
 export async function startupSequence() {
   console.log('[Startup] Boot-Start:', performance.now().toFixed(0) + 'ms');

@@ -645,9 +645,17 @@ export async function submitNewPassword() {
     if (errEl) { errEl.textContent = err; errEl.style.display = 'block'; }
     return;
   }
+  window.location.hash = '';
   // Supabase hat den User automatisch eingeloggt nach updateUser
   if (window.currentUser) await handleLogin(window.currentUser);
   else showScreen('auth-screen');
+}
+
+export async function cancelNewPassword() {
+  window.location.hash = '';
+  await signOut();
+  window.currentUser = null;
+  showScreen('auth-screen');
 }
 
 // ────────────────────────────────────────────────
