@@ -2,6 +2,7 @@
 import { switchDeck, activeDeck } from './decks.js';
 import { showScreen } from './ui.js';
 import { persist } from './storage.js';
+import { markDirty, flushPendingSync } from './sync.js';
 
 // window._reviewItems: muss global sein damit inline onchange-Handler ("_reviewItems[i].de=...") funktionieren
 window._reviewItems = [];
@@ -309,12 +310,14 @@ export function confirmAddVocab() {
     alert('Keine neuen Wörter zum Hinzufügen (alle bereits vorhanden oder leer).');
     return;
   }
+  const deck = activeDeck();
   toAdd.forEach(i => {
     const v = { de: i.de.trim(), en: i.en.trim() };
     window.VOCAB.push(v);
-    activeDeck().vocab.push(v);
+    deck.vocab.push(v);
   });
   persist();
+  if (window.currentUser) { markDirty('deck', deck.id); flushPendingSync().catch(() => {}); }
   alert(`✅ ${toAdd.length} neue Vokabel${toAdd.length === 1 ? '' : 'n'} zur Lernliste hinzugefügt!`);
   window._reviewItems = [];
   openVocabManager();

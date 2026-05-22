@@ -145,11 +145,13 @@ export async function saveDeck(deck, userId) {
     last_exam:         deck.lastExam || null,
     updated_at:        now,
   };
+  console.log('[sync] saveDeck →', deck.id, '| vocab:', deck.vocab?.length ?? '?', 'words | row:', row);
 
   if (isUUID(deck.id)) {
     const { error } = await supabase
       .from('decks').update(row).eq('id', deck.id).eq('user_id', userId);
     if (error) console.error('[sync] saveDeck update:', error.message);
+    else console.log('[sync] saveDeck update OK:', deck.id);
     return;
   }
 
