@@ -601,10 +601,10 @@ export async function handleLogin(user) {
     // even when cloudLoad returned null (no decks yet) but profile row exists.
     const data = await loadProfile(user.id);
     console.log('[handleLogin] Cloud profile loaded:', data);
-    if (data) {
-      window.SD.playerName   = data.player_name   || '';
-      window.SD.highscore    = data.highscore      || 0;
-      window.SD.totalPoints  = data.total_points   || 0;
+    if (data && data.player_name) {
+      window.SD.playerName   = data.player_name;
+      window.SD.highscore    = data.highscore      || window.SD.highscore    || 0;
+      window.SD.totalPoints  = data.total_points   || window.SD.totalPoints  || 0;
       window.SD.activeDeckId = data.active_deck_id || window.SD.activeDeckId || null;
       persist(window.SD);
     }
