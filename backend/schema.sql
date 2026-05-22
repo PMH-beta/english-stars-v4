@@ -99,13 +99,15 @@ CREATE POLICY "Users can insert own exams" ON exams
 -- 5) AUTO-CREATE PROFILE bei Signup
 -- ─────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER 
+RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-  INSERT INTO public.profiles (id) VALUES (NEW.id);
+  INSERT INTO public.profiles (id, player_name, highscore, total_points)
+  VALUES (NEW.id, '', 0, 0)
+  ON CONFLICT (id) DO NOTHING;
   RETURN NEW;
 END;
 $$;
