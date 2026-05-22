@@ -72,7 +72,27 @@ export async function resendConfirmation(email) {
 }
 
 export function onAuthChange(callback) {
-  return supabase.auth.onAuthStateChange((_event, session) => {
-    callback(session?.user ?? null);
+  return supabase.auth.onAuthStateChange((event, session) => {
+    callback(event, session?.user ?? null);
   });
+}
+
+export async function requestPasswordReset(email) {
+  try {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: _redirectTo(),
+    });
+    return error ? mapErr(error.message) : null;
+  } catch(e) {
+    return 'Keine Verbindung. Bitte Internet prüfen.';
+  }
+}
+
+export async function updatePassword(newPassword) {
+  try {
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    return error ? mapErr(error.message) : null;
+  } catch(e) {
+    return 'Keine Verbindung. Bitte Internet prüfen.';
+  }
 }

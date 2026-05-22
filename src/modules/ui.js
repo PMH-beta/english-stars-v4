@@ -3,7 +3,7 @@ import { persist, freshData, clearStorage } from './storage.js';
 import { effectivePct } from './stats.js';
 import { syncMirrorFromActiveDeck, activeDeck, deckProgress, renderDecks } from './decks.js';
 import { releaseMicStream, stopVisualizer, speakWord } from './speech.js';
-import { signIn, signUp, signOut, resendConfirmation } from './auth.js';
+import { signIn, signUp, signOut, resendConfirmation, requestPasswordReset, updatePassword } from './auth.js';
 import { cloudLoad, saveProfile, cloudReset, loadProfile, saveDeck, saveWordStats, saveExam } from './sync.js';
 
 const API_KEY_SK = 'es_apikey';
@@ -20,7 +20,7 @@ let _loginInFlight = false;
 //  SCREEN ROUTING
 // ────────────────────────────────────────────────
 export function showScreen(id) {
-  ['loading-screen','apikey-screen','name-screen','menu-screen','game-screen','end-screen','stats-screen','profile-screen','scan-screen','review-screen','auth-screen','email-confirm-screen'].forEach(s => {
+  ['loading-screen','apikey-screen','name-screen','menu-screen','game-screen','end-screen','stats-screen','profile-screen','scan-screen','review-screen','auth-screen','email-confirm-screen','password-reset-screen','password-reset-sent-screen','new-password-screen'].forEach(s => {
     const el = document.getElementById(s); if (el) el.style.display = 'none';
   });
   const el = document.getElementById(id);
@@ -473,6 +473,8 @@ function _updateAuthModeUI() {
     ? 'Noch kein Konto? Registrieren'
     : 'Schon registriert? Anmelden';
   if (confirmEl) { confirmEl.style.display = isLogin ? 'none' : 'block'; confirmEl.value = ''; }
+  const forgotBtn = document.getElementById('auth-forgot-btn');
+  if (forgotBtn) forgotBtn.style.display = isLogin ? 'block' : 'none';
 }
 
 export function authToggleMode() {
@@ -577,6 +579,75 @@ export async function authResend() {
 export async function authLogout() {
   await signOut();
   handleLogout();
+}
+
+// ────────────────────────────────────────────────
+//  PASSWORT VERGESSEN
+// ────────────────────────────────────────────────
+
+export function showPasswordReset() {
+  const emailEl = document.getElementById('auth-email');
+  const resetEmailEl = document.getElementById('pw-reset-email');
+  if (resetEmailEl && emailEl) resetEmailEl.value = emailEl.value.trim();
+  const errEl = document.getElementById('pw-reset-error');
+  if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
+  showScreen('password-reset-screen');
+}
+
+export async function submitPasswordReset() {
+  const emailEl = document.getElementById('pw-reset-email');
+  const btn = document.getElementById('pw-reset-btn');
+  const errEl = document.getElementById('pw-reset-error');
+  const email = emailEl ? emailEl.value.trim() : '';
+  if (!email) {
+    if (errEl) { errEl.textContent = 'Bitte E-Mail eingeben.'; errEl.style.display = 'block'; }
+    return;
+  }
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  const err = await requestPasswordReset(email);
+  if (btn) { btn.disabled = false; btn.textContent = 'Reset-Link senden'; }
+  if (err) {
+    if (errEl) { errEl.textContent = err; errEl.style.display = 'block'; }
+    return;
+  }
+  showScreen('password-reset-sent-screen');
+}
+
+export function showNewPasswordScreen() {
+  const pwEl = document.getElementById('new-pw-input');
+  const confirmEl = document.getElementById('new-pw-confirm');
+  const errEl = document.getElementById('new-pw-error');
+  if (pwEl) pwEl.value = '';
+  if (confirmEl) confirmEl.value = '';
+  if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
+  showScreen('new-password-screen');
+}
+
+export async function submitNewPassword() {
+  const pwEl = document.getElementById('new-pw-input');
+  const confirmEl = document.getElementById('new-pw-confirm');
+  const btn = document.getElementById('new-pw-btn');
+  const errEl = document.getElementById('new-pw-error');
+  const password = pwEl ? pwEl.value : '';
+  const confirm = confirmEl ? confirmEl.value : '';
+  if (!password || password.length < 6) {
+    if (errEl) { errEl.textContent = 'Passwort muss mind. 6 Zeichen haben.'; errEl.style.display = 'block'; }
+    return;
+  }
+  if (password !== confirm) {
+    if (errEl) { errEl.textContent = 'Passwörter stimmen nicht überein.'; errEl.style.display = 'block'; }
+    return;
+  }
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  const err = await updatePassword(password);
+  if (btn) { btn.disabled = false; btn.textContent = 'Passwort speichern'; }
+  if (err) {
+    if (errEl) { errEl.textContent = err; errEl.style.display = 'block'; }
+    return;
+  }
+  // Supabase hat den User automatisch eingeloggt nach updateUser
+  if (window.currentUser) await handleLogin(window.currentUser);
+  else showScreen('auth-screen');
 }
 
 // ────────────────────────────────────────────────

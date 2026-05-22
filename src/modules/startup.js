@@ -2,12 +2,14 @@
 import { _initTTS } from './speech.js';
 import { _sfx } from './game.js';
 import { _discoverTracks, _initAudio, _trackUrl, startMusicSync, _setMusicBtns } from './audio.js';
-import { showScreen, showMenu, handleLogin, handleLogout } from './ui.js';
+import { showScreen, showMenu, handleLogin, handleLogout, showNewPasswordScreen } from './ui.js';
 import { supabase } from './supabase.js';
 import { onAuthChange } from './auth.js';
 
 // Guard: onAuthChange-Listener ignoriert Feuern während des Startvorgangs
 let _startupComplete = false;
+// Gesetzt wenn Supabase PASSWORD_RECOVERY event feuert (Reset-Link in Email geklickt)
+let _pendingRecovery = false;
 
 export async function startupSequence() {
   console.log('[Startup] Boot-Start:', performance.now().toFixed(0) + 'ms');
@@ -40,8 +42,14 @@ export async function startupSequence() {
     console.warn('[startup] getSession fehlgeschlagen:', e.message);
   }
 
-  // Runtime-Listener: Session-Ablauf, Logout aus anderem Tab, Email-Bestätigung
-  onAuthChange(user => {
+  // Runtime-Listener: Session-Ablauf, Logout aus anderem Tab, Email-Bestätigung, Passwort-Reset
+  onAuthChange((event, user) => {
+    if (event === 'PASSWORD_RECOVERY') {
+      _pendingRecovery = true;
+      window.currentUser = user;
+      if (_startupComplete) showNewPasswordScreen();
+      return;
+    }
     if (!_startupComplete) return; // Startup-Fire ignorieren
     const prev = window.currentUser;
     window.currentUser = user;
@@ -152,6 +160,10 @@ export async function finishStartup() {
   _startupComplete = true;
   console.log('[Startup] App-Ready:', performance.now().toFixed(0) + 'ms');
 
+  if (_pendingRecovery) {
+    showNewPasswordScreen();
+    return;
+  }
   if (!window.currentUser) {
     showScreen('auth-screen');
     return;
