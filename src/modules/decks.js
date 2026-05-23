@@ -1,6 +1,6 @@
 // src/modules/decks.js
 import { effectivePct } from './stats.js';
-import { markDirty, flushPendingSync, deleteCloudDeck } from './sync.js';
+import { markDirty, flushPendingSync, deleteCloudDeck, deleteCloudWordStats, saveDeck } from './sync.js';
 
 // ────────────────────────────────────────────────
 //  UI STATE
@@ -175,6 +175,7 @@ export function renderDecks() {
         </div>
         <div class="deck-actions">
           <button class="deck-action-btn" onclick="renameDeckPrompt('${id}')">✏️ Umbenennen</button>
+          <button class="deck-action-btn" onclick="resetDeckProgress('${id}')">🔄 Zurücksetzen</button>
           <button class="deck-action-btn danger" onclick="confirmDeleteDeck('${id}')">🗑️ Löschen</button>
         </div>
       </div>
@@ -221,6 +222,29 @@ export function renameDeckPrompt(id) {
   const name = prompt('Neuer Name:', cur.name);
   if (!name || !name.trim()) return;
   renameDeck(id, name.trim());
+  renderDecks();
+}
+
+export function resetDeckProgress(id) {
+  const deck = window.SD.decks[id];
+  if (!deck) return;
+  if (!confirm(`Fortschritt von "${deck.name}" wirklich zurücksetzen?\n\nDie Wörter bleiben erhalten.`)) return;
+  deck.wordStats = {};
+  deck.categoryProgress = {
+    vocab:       { played: 0, correct: 0, bestStreak: 0 },
+    spelling:    { played: 0, correct: 0, bestStreak: 0 },
+    pronounce:   { played: 0, correct: 0, bestStreak: 0 },
+    mixed_vocab: { played: 0, correct: 0, bestStreak: 0 },
+  };
+  deck.lastExam = null;
+  syncMirrorFromActiveDeck();
+  window.persist();
+  if (window.currentUser) {
+    const userId = window.currentUser.id;
+    console.log('[decks] resetDeckProgress', id, '| cloud-sync');
+    deleteCloudWordStats(id, userId).catch(e => console.error('[resetDeckProgress] deleteWordStats:', e));
+    saveDeck(deck, userId).catch(e => console.error('[resetDeckProgress] saveDeck:', e));
+  }
   renderDecks();
 }
 

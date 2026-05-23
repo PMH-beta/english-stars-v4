@@ -180,6 +180,14 @@ export async function deleteCloudDeck(deckId, userId) {
   if (error) console.error('[sync] deleteCloudDeck:', error.message);
 }
 
+export async function deleteCloudWordStats(deckId, userId) {
+  if (!isUUID(deckId)) return;
+  const { error } = await supabase
+    .from('word_stats').delete().eq('deck_id', deckId).eq('user_id', userId);
+  if (error) console.error('[sync] deleteCloudWordStats:', error.message);
+  else console.log('[sync] deleteCloudWordStats OK:', deckId);
+}
+
 /**
  * Batch-Upsert aller word_stats eines Decks.
  * Überspringt automatisch wenn deckId keine UUID ist.
