@@ -97,11 +97,13 @@ export async function updatePassword(newPassword) {
   }
 }
 
-export async function signInWithGoogle() {
+export async function signInWithGoogle(forceAccountPicker = false) {
   try {
+    const opts = { redirectTo: _redirectTo() };
+    if (forceAccountPicker) opts.queryParams = { prompt: 'select_account' };
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: _redirectTo() },
+      options: opts,
     });
     if (error) return { error: mapErr(error.message) };
     return { error: null };

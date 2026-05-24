@@ -577,14 +577,20 @@ export async function authResend() {
 }
 
 export async function authLogout() {
+  try { sessionStorage.setItem('force_account_picker', '1'); } catch(e) {}
   await signOut();
   handleLogout();
 }
 
 export async function authGoogleSignIn() {
+  let forceAccountPicker = false;
+  try {
+    forceAccountPicker = sessionStorage.getItem('force_account_picker') === '1';
+    if (forceAccountPicker) sessionStorage.removeItem('force_account_picker');
+  } catch(e) {}
   const btn = document.getElementById('auth-google-btn');
   if (btn) { btn.disabled = true; btn.textContent = '…'; }
-  const { error } = await signInWithGoogle();
+  const { error } = await signInWithGoogle(forceAccountPicker);
   // On success: browser redirects to Google — no further action needed here.
   if (error) {
     _setAuthError(error);
