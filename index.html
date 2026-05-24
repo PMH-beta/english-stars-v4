@@ -18,26 +18,46 @@
 </head>
 <body>
 
-<div id="init-overlay" style="position:fixed;inset:0;z-index:9999;background:#f5f0ff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;font-family:'Fredoka One',cursive,sans-serif;">
-  <div style="font-size:3.5rem;animation:initBounce 1.5s ease-in-out infinite;">⭐</div>
-  <div style="font-size:1.9rem;color:#a86cdb;">English Stars</div>
-  <div style="width:44px;height:44px;border:4px solid #e0d4f5;border-top-color:#a86cdb;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
-  <div style="font-size:.85rem;color:#999;font-weight:400;letter-spacing:.03em;">Lade…</div>
+<div id="init-overlay" style="position:fixed;inset:0;z-index:9999;background:#f5f0ff;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Fredoka One',cursive,sans-serif;">
+  <div style="font-size:3.5rem;margin-bottom:18px;">⭐</div>
+  <div style="font-size:1.9rem;color:#a86cdb;margin-bottom:28px;">English Stars</div>
+  <svg width="130" height="130" viewBox="0 0 130 130" style="animation:spin 1.2s linear infinite;">
+    <defs>
+      <linearGradient id="overlay-ring-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#a86cdb"/>
+        <stop offset="100%" stop-color="#ff8fab"/>
+      </linearGradient>
+    </defs>
+    <circle cx="65" cy="65" r="54" fill="none" stroke="#ede5f8" stroke-width="8"/>
+    <circle cx="65" cy="65" r="54" fill="none" stroke="url(#overlay-ring-grad)"
+      stroke-width="8" stroke-linecap="round" stroke-dasharray="240 99.292"/>
+  </svg>
 </div>
 
-<!-- ═══ API KEY SCREEN ═══ -->
-<div id="loading-screen" style="display:none;width:100%;max-width:540px;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;">
-  <div style="font-size:4rem;margin-bottom:14px;animation:bounce 1.5s ease-in-out infinite;">⭐</div>
-  <h1 style="margin-bottom:6px">English Stars</h1>
-  <div style="color:#888;font-size:.95rem;margin-bottom:26px;font-weight:600;">Wird vorbereitet…</div>
-  <div style="width:100%;max-width:340px;background:#eee;height:12px;border-radius:50px;overflow:hidden;box-shadow:inset 0 2px 4px rgba(0,0,0,.08);">
-    <div id="loading-bar" style="height:100%;width:5%;background:linear-gradient(90deg,#a86cdb,#ff8fab,#ffd166,#06d6a0);background-size:300% 100%;animation:gradientFlow 4s linear infinite;border-radius:50px;transition:width .5s ease;"></div>
+<!-- ═══ LOADING SCREEN ═══ -->
+<div id="loading-screen" style="display:none;width:100%;max-width:540px;flex-direction:column;align-items:center;justify-content:center;min-height:80vh;">
+  <div style="font-size:3.5rem;margin-bottom:18px;">⭐</div>
+  <div style="font-family:'Fredoka One',cursive;font-size:1.9rem;color:#a86cdb;margin-bottom:28px;">English Stars</div>
+  <div style="position:relative;width:130px;height:130px;margin-bottom:20px;">
+    <svg width="130" height="130" viewBox="0 0 130 130" style="transform:rotate(-90deg)">
+      <defs>
+        <linearGradient id="ring-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#a86cdb"/>
+          <stop offset="100%" stop-color="#ff8fab"/>
+        </linearGradient>
+      </defs>
+      <circle cx="65" cy="65" r="54" fill="none" stroke="#ede5f8" stroke-width="8"/>
+      <circle id="progress-ring" cx="65" cy="65" r="54" fill="none"
+        stroke="url(#ring-grad)" stroke-width="8" stroke-linecap="round"
+        stroke-dasharray="339.292" stroke-dashoffset="339.292"
+        style="transition:stroke-dashoffset 0.4s ease;"/>
+    </svg>
+    <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
+      <span id="loading-pct" style="font-family:'Fredoka One',cursive;font-size:1.5rem;color:#a86cdb;">0%</span>
+    </div>
   </div>
-  <div id="loading-status" style="margin-top:14px;font-size:.85rem;color:#666;font-weight:700;text-align:center;min-height:40px;">Lade App…</div>
-  <div id="loading-hint" style="margin-top:8px;font-size:.72rem;color:#aaa;font-weight:600;text-align:center;max-width:320px;">
-    Beim ersten Start wird die Spracherkennung heruntergeladen (~40 MB). Beim nächsten Mal startet die App sofort.
-  </div>
-  <button id="loading-start-btn" onclick="finishStartup()" style="display:none;margin-top:24px;font-family:'Fredoka One',cursive;font-size:1.1rem;padding:14px 32px;background:linear-gradient(135deg,#a86cdb,#ff8fab);color:#fff;border:none;border-radius:50px;cursor:pointer;box-shadow:0 5px 0 #7a4ba8;">▶️ Loslegen</button>
+  <div id="loading-status" style="font-size:.82rem;color:#888;font-weight:700;text-align:center;max-width:260px;min-height:20px;">Lade App…</div>
+  <div id="loading-hint" style="margin-top:6px;font-size:.7rem;color:#bbb;font-weight:600;text-align:center;max-width:240px;min-height:16px;line-height:1.4;"></div>
 </div>
 
 

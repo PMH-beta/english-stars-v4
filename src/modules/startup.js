@@ -58,11 +58,14 @@ export async function startupSequence() {
   });
 
   const alreadyLoaded = (() => { try { return localStorage.getItem('es_vosk_loaded') === '1'; } catch(e) { return false; } })();
-  const bar = document.getElementById('loading-bar');
+  const ring = document.getElementById('progress-ring');
+  const pctEl = document.getElementById('loading-pct');
   const status = document.getElementById('loading-status');
   const hint = document.getElementById('loading-hint');
+  const _circ = 2 * Math.PI * 54;
   function setProgress(pct, msg) {
-    if (bar) bar.style.width = pct + '%';
+    if (ring) ring.style.strokeDashoffset = _circ * (1 - pct / 100);
+    if (pctEl) pctEl.textContent = Math.round(pct) + '%';
     if (status) status.textContent = msg;
   }
 
@@ -74,7 +77,7 @@ export async function startupSequence() {
   setProgress(8, 'Vokabeln werden geladen…');
   await new Promise(r => setTimeout(r, 200));
 
-  setProgress(20, 'Sprachausgabe wird vorbereitet…');
+  setProgress(20, 'Stimmen werden geladen…');
   try { _initTTS(); } catch(e) {}
   let ttsTries = 0;
   while (window._ttsVoices.length === 0 && ttsTries < 10) {
@@ -83,7 +86,7 @@ export async function startupSequence() {
     ttsTries++;
   }
 
-  setProgress(30, 'Sound-Effekte werden vorbereitet…');
+  setProgress(30, 'Sounds werden geladen…');
   try { _sfx(); } catch(e) {}
   await new Promise(r => setTimeout(r, 150));
 
@@ -106,8 +109,8 @@ export async function startupSequence() {
   } catch(e) { console.warn('[Startup] Musik:', e); }
 
   if (!alreadyLoaded) {
-    setProgress(60, 'Lade Offline-Spracherkennung (~40 MB)…');
-    if (hint) hint.textContent = 'Nur beim ersten Start nötig. Bitte WLAN nutzen wenn möglich. Das kann 1–3 Minuten dauern.';
+    setProgress(60, 'Spracherkennung wird geladen…');
+    if (hint) hint.textContent = 'Nur beim ersten Start — kann 1–3 Min. dauern.';
     try {
       if (window._voskLoad) await window._voskLoad();
       if (window._voskStatus === 'ready') {
@@ -115,7 +118,7 @@ export async function startupSequence() {
       }
     } catch(e) { console.warn('Vosk Load fehler beim Start:', e); }
   } else {
-    setProgress(75, 'Initialisiere Spracherkennung…');
+    setProgress(75, 'Spracherkennung wird gestartet…');
     if (window._voskLoad) {
       try { await window._voskLoad(); } catch(e) {}
     }
@@ -132,33 +135,31 @@ export async function startupSequence() {
   setProgress(96, 'Fast fertig…');
   await new Promise(r => setTimeout(r, 200));
   setProgress(100, 'Bereit!');
-
-  const startBtn = document.getElementById('loading-start-btn');
-  const hintEl = document.getElementById('loading-hint');
-  if (hintEl) hintEl.textContent = 'Alles bereit! Tippe auf Loslegen';
-  if (startBtn) startBtn.style.display = 'inline-block';
+  if (hint) hint.textContent = '';
+  await new Promise(r => setTimeout(r, 600));
+  finishStartup();
 }
 
 export async function finishStartup() {
-  try {
-    await new Promise(r => {
-      const u = new SpeechSynthesisUtterance(' ');
-      u.volume = 0; u.onend = r; u.onerror = r;
-      speechSynthesis.speak(u);
-      setTimeout(r, 800);
-    });
-  } catch(e) {}
-  try {
-    let musicPref = '1';
-    try { const v = localStorage.getItem('es_music'); if (v !== null) musicPref = v; } catch(e) {}
-    if (musicPref === '1' && !window._musicOn) {
-      startMusicSync();
-      _setMusicBtns(true);
-    }
-  } catch(e) { console.warn('Music start failed:', e); }
-
   _startupComplete = true;
   console.log('[Startup] App-Ready:', performance.now().toFixed(0) + 'ms');
+
+  // TTS-Unlock + Musik: brauchen User-Geste (Autoplay-Policy).
+  // Erster Tap irgendwo in der App entsperrt Audio — für den User unsichtbar.
+  document.addEventListener('pointerdown', function _audioUnlock() {
+    try {
+      const u = new SpeechSynthesisUtterance(' ');
+      u.volume = 0; speechSynthesis.speak(u);
+    } catch(e) {}
+    try {
+      let musicPref = '1';
+      try { const v = localStorage.getItem('es_music'); if (v !== null) musicPref = v; } catch(e) {}
+      if (musicPref === '1' && !window._musicOn) {
+        startMusicSync();
+        _setMusicBtns(true);
+      }
+    } catch(e) { console.warn('[startup] Music unlock failed:', e); }
+  }, { capture: true, once: true });
 
   if (_pendingRecovery) {
     showNewPasswordScreen();
@@ -168,8 +169,6 @@ export async function finishStartup() {
     showScreen('auth-screen');
     return;
   }
-  // User is already logged in — load cloud state first so playerName
-  // and deck data are available even on a fresh device or after browser cache clear.
   await handleLogin(window.currentUser);
 }
 
