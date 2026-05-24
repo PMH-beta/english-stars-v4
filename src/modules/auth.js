@@ -96,3 +96,16 @@ export async function updatePassword(newPassword) {
     return 'Keine Verbindung. Bitte Internet prüfen.';
   }
 }
+
+export async function signInWithGoogle() {
+  try {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: _redirectTo() },
+    });
+    if (error) return { error: mapErr(error.message) };
+    return { error: null };
+  } catch(e) {
+    return { error: 'Keine Verbindung. Bitte Internet prüfen.' };
+  }
+}

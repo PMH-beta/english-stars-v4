@@ -7,7 +7,7 @@ import { _trackUrl, _discoverTracks, _playNext, _initAudio, startMusic, startMus
 import { effectivePct, isMastered } from './modules/stats.js';
 import { buildPool, toggleSchnell, startGame, confirmHome, nextQuestion, restartSame, checkMC, submitType, showSelfRateButtons, retryPronounce, evaluateWithClaude, setMicFinalStatus, _sfx, playSfx } from './modules/game.js';
 import { syncMirrorFromActiveDeck, activeDeck, switchDeck, createDeck, deleteDeck, renameDeck, deckProgress, renderDecks, toggleDeck, activateDeck, startGameWithDeck, newDeckPrompt, renameDeckPrompt, confirmDeleteDeck, resetDeckProgress, vmDeleteWord, vmAddManual } from './modules/decks.js';
-import { showScreen, saveName, showMenu, saveApiKey, skipApiKey, showProfile, editPlayerName, showStats, confirmReset, showFeedback, hideFeedback, exportData, importData, showAuth, authToggleMode, authSubmit, authResend, authLogout, handleLogin, handleLogout, showPasswordReset, submitPasswordReset, showNewPasswordScreen, submitNewPassword, cancelNewPassword } from './modules/ui.js';
+import { showScreen, saveName, showMenu, saveApiKey, skipApiKey, showProfile, editPlayerName, showStats, confirmReset, showFeedback, hideFeedback, exportData, importData, showAuth, authToggleMode, authSubmit, authResend, authLogout, authGoogleSignIn, handleLogin, handleLogout, showPasswordReset, submitPasswordReset, showNewPasswordScreen, submitNewPassword, cancelNewPassword } from './modules/ui.js';
 import { pwaInstall } from './modules/pwa.js';
 import { openVocabManager, vmTab, renderVocabList, parsePastedText, onScanFile, showReview, renderReviewList, removeReviewItem, addReviewItem, confirmAddVocab } from './modules/vocab.js';
 import { startupSequence, finishStartup } from './modules/startup.js';
@@ -128,6 +128,7 @@ window.authToggleMode = authToggleMode;
 window.authSubmit = authSubmit;
 window.authResend = authResend;
 window.authLogout = authLogout;
+window.authGoogleSignIn = authGoogleSignIn;
 window.handleLogin = handleLogin;
 window.handleLogout = handleLogout;
 window.showPasswordReset = showPasswordReset;

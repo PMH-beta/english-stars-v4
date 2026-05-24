@@ -105,8 +105,16 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
+  -- Google OAuth liefert full_name in raw_user_meta_data — als Startwert übernehmen.
+  -- Passwort-User haben kein full_name → COALESCE gibt '' zurück.
+  -- ON CONFLICT: idempotent, kein zweiter Row bei Identity-Linking.
   INSERT INTO public.profiles (id, player_name, highscore, total_points)
-  VALUES (NEW.id, '', 0, 0)
+  VALUES (
+    NEW.id,
+    COALESCE(NEW.raw_user_meta_data->>'full_name', ''),
+    0,
+    0
+  )
   ON CONFLICT (id) DO NOTHING;
   RETURN NEW;
 END;
