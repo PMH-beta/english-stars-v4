@@ -8,6 +8,7 @@ window._musicIdx = 0;
 window._musicOn = false;
 window._musicVolume = 0.50;
 window._musicErrorRetries = 0;
+let _pausedByVisibility = false;
 
 const MUSIC_BASE = 'music/';
 
@@ -159,6 +160,7 @@ export function startMusicSync() {
 }
 
 export function stopMusic() {
+  _pausedByVisibility = false;
   window._musicOn = false;
   if (window._musicAudio) window._musicAudio.pause();
 }
@@ -216,6 +218,21 @@ export function toggleVolPopup() {
     }
   }
 }
+
+document.addEventListener('visibilitychange', () => {
+  if (!window._musicAudio) return;
+  if (document.hidden) {
+    if (window._musicOn) {
+      window._musicAudio.pause();
+      _pausedByVisibility = true;
+    }
+  } else {
+    if (_pausedByVisibility && window._musicOn) {
+      _pausedByVisibility = false;
+      window._musicAudio.play().catch(() => {});
+    }
+  }
+});
 
 window.addEventListener('DOMContentLoaded', () => {
   const isMobile = matchMedia('(pointer:coarse)').matches || innerWidth < 600;

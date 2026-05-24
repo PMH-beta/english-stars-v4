@@ -4,6 +4,39 @@
 // liegt auf window damit Legacy-Code in index.html direkt darauf zugreifen kann.
 
 let _ttsReady = false;
+let _ttsWarmupDone = false;
+let _ttsWarmingUp = false;
+let _afterWarmup = null;
+
+// Wärmt die TTS-Engine auf — browser-gesperrt bis zur ersten User-Geste.
+// Mehrfache Aufrufe während Warmup läuft: letzter Callback gewinnt.
+function _ensureTTSWarm(callback) {
+  if (_ttsWarmupDone) { callback(); return; }
+  _afterWarmup = callback;
+  if (_ttsWarmingUp) return;
+  if (!window.speechSynthesis) { _ttsWarmupDone = true; callback(); return; }
+  _ttsWarmingUp = true;
+  try {
+    const w = new SpeechSynthesisUtterance(' ');
+    w.volume = 0; w.rate = 10;
+    const done = () => {
+      if (_ttsWarmupDone) return;
+      _ttsWarmupDone = true; _ttsWarmingUp = false;
+      const f = _afterWarmup; _afterWarmup = null; if (f) f();
+    };
+    w.onend = done; w.onerror = done;
+    window.speechSynthesis.speak(w);
+    setTimeout(done, 400); // Fallback: manche Browser feuern onend bei volume=0 nicht
+  } catch(e) {
+    _ttsWarmupDone = true; _ttsWarmingUp = false;
+    const f = _afterWarmup; _afterWarmup = null; if (f) f();
+  }
+}
+
+// Öffentlich: Engine nach erster User-Geste aufwärmen (aus startup.js aufgerufen)
+export function primeTTS() {
+  _ensureTTSWarm(() => {});
+}
 
 export function _initTTS() {
   if (!window.speechSynthesis) return;
@@ -16,17 +49,9 @@ export function _initTTS() {
   } else {
     _ttsReady = true;
   }
-  // Warmup: unhörbaren Utterance abspielen damit die Engine geladen ist
-  try {
-    const warm = new SpeechSynthesisUtterance(' ');
-    warm.volume = 0; warm.rate = 10;
-    window.speechSynthesis.speak(warm);
-  } catch(e) {}
 }
 
-export function speakWord(word, onDone) {
-  if (!window.speechSynthesis || !word) return;
-  window.speechSynthesis.cancel();
+function _speakImmediate(word, onDone) {
   if (!window._ttsVoices || window._ttsVoices.length === 0) {
     window._ttsVoices = window.speechSynthesis.getVoices();
   }
@@ -40,6 +65,21 @@ export function speakWord(word, onDone) {
   window.speechSynthesis.speak(utt);
 }
 
+export function speakWord(word, onDone) {
+  if (!window.speechSynthesis || !word) return;
+  if (!_ttsWarmupDone) {
+    if (_ttsWarmingUp) {
+      _afterWarmup = () => speakWord(word, onDone);
+    } else {
+      window.speechSynthesis.cancel();
+      _ensureTTSWarm(() => speakWord(word, onDone));
+    }
+    return;
+  }
+  window.speechSynthesis.cancel();
+  _speakImmediate(word, onDone);
+}
+
 export function speakWordOnce(word) {
   if (window._spokenForQuestion) return;
   window._spokenForQuestion = true;
@@ -49,10 +89,6 @@ export function speakWordOnce(word) {
 // TTS beim window.load initialisieren (Warmup für Desktop)
 window.addEventListener('load', () => { _initTTS(); });
 
-// Bei erstem Klick nochmal initialisieren (Mobile braucht User-Geste)
-document.addEventListener('click', function _ttsWarmup() {
-  _initTTS();
-}, { once: true });
 
 // ════════════════════════════════════════════════
 //  VOSK LOADER (shared state auf window)
@@ -104,7 +140,7 @@ export async function ensureMicStream() {
   if (_micStream && _micStream.active) return _micStream;
   try {
     _micStream = await navigator.mediaDevices.getUserMedia({
-      audio: {echoCancellation:true, noiseSuppression:true, autoGainControl:true},
+      audio: {echoCancellation:false, noiseSuppression:false, autoGainControl:false},
       video: false
     });
     return _micStream;
@@ -185,7 +221,7 @@ export async function voskStart(onResult, onError) {
     }
     const stream = await navigator.mediaDevices.getUserMedia({
       video: false,
-      audio: {echoCancellation:true, noiseSuppression:true, channelCount:1, sampleRate:16000}
+      audio: {echoCancellation:false, noiseSuppression:false, autoGainControl:false, channelCount:1, sampleRate:16000}
     });
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     const rec = new window._voskModel.KaldiRecognizer(ctx.sampleRate);

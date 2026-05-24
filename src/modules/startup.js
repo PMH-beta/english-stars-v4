@@ -1,5 +1,5 @@
 // src/modules/startup.js
-import { _initTTS } from './speech.js';
+import { _initTTS, primeTTS } from './speech.js';
 import { _sfx } from './game.js';
 import { _discoverTracks, _initAudio, _trackUrl, startMusicSync, _setMusicBtns } from './audio.js';
 import { showScreen, showMenu, handleLogin, handleLogout, showNewPasswordScreen } from './ui.js';
@@ -147,10 +147,7 @@ export async function finishStartup() {
   // TTS-Unlock + Musik: brauchen User-Geste (Autoplay-Policy).
   // Erster Tap irgendwo in der App entsperrt Audio — für den User unsichtbar.
   document.addEventListener('pointerdown', function _audioUnlock() {
-    try {
-      const u = new SpeechSynthesisUtterance(' ');
-      u.volume = 0; speechSynthesis.speak(u);
-    } catch(e) {}
+    try { primeTTS(); } catch(e) {}
     try {
       let musicPref = '1';
       try { const v = localStorage.getItem('es_music'); if (v !== null) musicPref = v; } catch(e) {}
