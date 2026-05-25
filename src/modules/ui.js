@@ -1,7 +1,7 @@
 // src/modules/ui.js
 import { persist, freshData, clearStorage } from './storage.js';
 import { effectivePct } from './stats.js';
-import { syncMirrorFromActiveDeck, activeDeck, deckProgress, renderDecks } from './decks.js';
+import { syncMirrorFromActiveDeck, activeDeck, deckProgress, renderDecks, migrateStatKeys } from './decks.js';
 import { releaseMicStream, stopVisualizer, voskStop, speakWord } from './speech.js';
 import { signIn, signUp, signOut, resendConfirmation, requestPasswordReset, updatePassword, signInWithGoogle } from './auth.js';
 import { cloudLoad, saveProfile, cloudReset, loadProfile, saveDeck, saveWordStats, saveExam } from './sync.js';
@@ -720,6 +720,7 @@ export async function handleLogin(user) {
     _loginInFlight = false;
   }
   console.log('[handleLogin] SD nach Load:', window.SD.playerName, window.SD.highscore);
+  if (migrateStatKeys()) persist(window.SD);
   if (!window.SD?.playerName) showScreen('name-screen');
   else showMenu();
 }

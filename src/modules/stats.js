@@ -23,3 +23,20 @@ export function isMastered(q) {
 }
 
 // buildPool → src/modules/game.js (braucht Question-Builder die dort leben)
+
+// ════════════════════════════════════════════════
+//  STAT-KEY NORMALISIERUNG
+// ════════════════════════════════════════════════
+
+// Format: normDE(de) + '|' + normEN(en) + suffix ('_mc'|'_sp'|'_pr')
+// Normalisierung: trim + lowercase + führendes "to " beim EN entfernen.
+// "to go" und "go" treffen denselben Key; DE und EN zusammen müssen passen.
+export function normStatDE(de) {
+  return (de || '').trim().toLowerCase();
+}
+export function normStatEN(en) {
+  return (en || '').trim().toLowerCase().replace(/^to /, '');
+}
+export function statKeyFor(de, en, suffix) {
+  return normStatDE(de) + '|' + normStatEN(en) + suffix;
+}

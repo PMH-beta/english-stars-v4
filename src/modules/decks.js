@@ -1,5 +1,5 @@
 // src/modules/decks.js
-import { effectivePct } from './stats.js';
+import { effectivePct, statKeyFor } from './stats.js';
 import { markDirty, flushPendingSync, deleteCloudDeck, deleteCloudWordStats, saveDeck } from './sync.js';
 
 // ────────────────────────────────────────────────
@@ -91,7 +91,7 @@ export function deckProgress(deck) {
   function pf(suffix) {
     let score = 0, mastered = 0;
     deck.vocab.forEach(v => {
-      const s = deck.wordStats[v.de + suffix];
+      const s = deck.wordStats[statKeyFor(v.de, v.en, suffix)];
       if (!s || !s.asked) return;
       const asked = s.asked, pct = effectivePct(s);
       if (Math.floor(asked) >= 3 && pct >= 0.9) { score += 1; mastered += 1; }
@@ -267,11 +267,35 @@ export function vmDeleteWord(idx) {
   if (!v) return;
   if (!confirm('"' + v.de + ' → ' + v.en + '" wirklich löschen?')) return;
   deck.vocab.splice(idx, 1);
-  ['_mc', '_sp', '_pr'].forEach(suf => { delete deck.wordStats[v.de + suf]; });
+  // wordStats NICHT löschen — Einträge "schlummern" und werden beim Wiederhinzufügen
+  // desselben Worts (DE+EN normalisiert übereinstimmend) automatisch wiedergefunden.
   syncMirrorFromActiveDeck();
   window.persist();
   if (window.currentUser) { markDirty('deck', deck.id); flushPendingSync().catch(() => {}); }
   window.renderVocabList();
+}
+
+// Einmalige Migration beim Login: wandelt alte statKeys (de+suffix) in das neue
+// Format (normDE|normEN+suffix) um. Gibt true zurück wenn etwas geändert wurde.
+export function migrateStatKeys(sd) {
+  sd = sd || window.SD;
+  let changed = false;
+  for (const deck of Object.values(sd.decks || {})) {
+    const stats = deck.wordStats;
+    if (!stats) continue;
+    for (const v of (deck.vocab || [])) {
+      for (const suf of ['_mc', '_sp', '_pr']) {
+        const oldKey = v.de + suf;
+        const newKey = statKeyFor(v.de, v.en, suf);
+        if (oldKey !== newKey && stats[oldKey] && !stats[newKey]) {
+          stats[newKey] = stats[oldKey];
+          delete stats[oldKey];
+          changed = true;
+        }
+      }
+    }
+  }
+  return changed;
 }
 
 export function vmAddManual() {

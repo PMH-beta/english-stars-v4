@@ -1,6 +1,6 @@
 // src/modules/game.js
 import { QPERROUND, EXAM_QUESTIONS, calcGrade, gradeText } from './config.js';
-import { effectivePct, isMastered } from './stats.js';
+import { effectivePct, isMastered, statKeyFor } from './stats.js';
 import { activeDeck, syncMirrorFromActiveDeck } from './decks.js';
 import { showScreen, showMenu, hideFeedback, showFeedback } from './ui.js';
 import { ensureMicStream, releaseMicStream, voskStop, stopVisualizer, speakWord, speakWordOnce, startVoskRecognition, startRecording } from './speech.js';
@@ -61,16 +61,16 @@ function wrongVocab(correct, n=3) {
 
 // ── Question Builders ──
 function bVocabMC(item) {
-  return {type:'mc',badge:'vocab',statKey:item.de+'_mc',
+  return {type:'mc',badge:'vocab',statKey:statKeyFor(item.de, item.en, '_mc'),
     question:`🇩🇪 ${item.de}`,hint:'',
     choices:shuffle([item.en,...wrongVocab(item,3)]),answer:item.en};
 }
 function bVocabType(item) {
-  return {type:'type',badge:'spelling',statKey:item.de+'_sp',
+  return {type:'type',badge:'spelling',statKey:statKeyFor(item.de, item.en, '_sp'),
     question:`✏️ Schreibe auf Englisch:\n🇩🇪 ${item.de}`,hint:'',answer:item.en};
 }
 function bVocabPronounce(item) {
-  return {type:'pronounce',badge:'pronounce',statKey:item.de+'_pr',
+  return {type:'pronounce',badge:'pronounce',statKey:statKeyFor(item.de, item.en, '_pr'),
     question:`🎙️ Sprich auf Englisch:\n🇩🇪 ${item.de}`,hint:'',answer:item.en};
 }
 

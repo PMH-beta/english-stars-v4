@@ -10,8 +10,8 @@
 | `default-decks.js` | Starter-Vokabelsammlungen für neue Nutzer | `DEFAULT_DECKS` |
 | `auth.js` | Supabase Auth: Login, Registrierung, Passwort-Reset, Google-OAuth | `signIn`, `signUp`, `signOut`, `onAuthChange`, `requestPasswordReset`, `updatePassword`, `resendConfirmation`, `signInWithGoogle` |
 | `sync.js` | Cloud Read/Write zwischen Supabase und window.SD + Offline-Queue | `cloudLoad`, `saveProfile`, `saveDeck`, `saveWordStats`, `saveExam`, `deleteCloudDeck`, `loadProfile`, `cloudReset`, `markDirty`, `flushPendingSync`, `getPendingCount` |
-| `decks.js` | Deck CRUD + UI-State + Spiegel-Sync | `activeDeck`, `syncMirrorFromActiveDeck`, `switchDeck`, `createDeck`, `deckProgress`, `renderDecks` |
-| `stats.js` | EMA-basierte Statistik-Berechnungen | `effectivePct`, `isMastered` |
+| `decks.js` | Deck CRUD + UI-State + Spiegel-Sync | `activeDeck`, `syncMirrorFromActiveDeck`, `switchDeck`, `createDeck`, `deckProgress`, `renderDecks`, `migrateStatKeys` |
+| `stats.js` | EMA-basierte Statistik-Berechnungen + statKey-Normalisierung | `effectivePct`, `isMastered`, `statKeyFor`, `normStatDE`, `normStatEN` |
 | `speech.js` | TTS (Web Speech API) + Spracherkennung (Vosk offline) | `_initTTS`, `primeTTS`, `speakWord`, `speakWordOnce`, `ensureMicStream`, `releaseMicStream`, `startVoskRecognition`, `startRecording`, `voskStop`, `stopVisualizer` |
 | `audio.js` | Hintergrundmusik (MP3-Playlist, endlos) | `_discoverTracks`, `_initAudio`, `_trackUrl`, `startMusicSync`, `_setMusicBtns` |
 | `pwa.js` | PWA Install-Prompt + iOS-Hinweis-Banner | `pwaInstall`, `pwaSetup` |
@@ -41,6 +41,11 @@ window.SD = {
       createdAt: number,
       vocab: [{ de: string, en: string, _presetId?: string }],  // _presetId: UUID der Preset-Kategorie
       wordStats: {
+        // statKey-Format: normDE(de) + '|' + normEN(en) + suffix
+        // normDE = trim+lowercase; normEN = trim+lowercase+führendes "to " entfernen
+        // Suffixe: '_mc' (Vokabel), '_sp' (Rechtschreibung), '_pr' (Aussprache)
+        // Stats schlummern beim Löschen eines Worts — Wiederhinzufügen stellt den Stand wieder her.
+        // Einmalige Migration von altem Format (de+suffix) beim Login via migrateStatKeys().
         [statKey]: { asked, correct, wrong, recent }   // recent = Binär-String "1011..." für EMA
       },
       categoryProgress: {
