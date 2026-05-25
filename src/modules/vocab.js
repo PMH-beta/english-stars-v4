@@ -1,8 +1,9 @@
 // src/modules/vocab.js
-import { switchDeck, activeDeck } from './decks.js';
+import { switchDeck, activeDeck, syncMirrorFromActiveDeck } from './decks.js';
 import { showScreen } from './ui.js';
 import { persist } from './storage.js';
 import { markDirty, flushPendingSync } from './sync.js';
+import { supabase } from './supabase.js';
 
 // window._reviewItems: muss global sein damit inline onchange-Handler ("_reviewItems[i].de=...") funktionieren
 window._reviewItems = [];
@@ -20,11 +21,12 @@ export function vmTab(tabName) {
   document.querySelectorAll('.vm-tab').forEach(t => {
     t.classList.toggle('active', t.dataset.tab === tabName);
   });
-  ['list','add','scan','paste'].forEach(name => {
+  ['list','add','scan','paste','presets'].forEach(name => {
     const el = document.getElementById('vm-pane-' + name);
     if (el) el.style.display = (name === tabName) ? 'block' : 'none';
   });
   if (tabName === 'list') renderVocabList();
+  if (tabName === 'presets') renderPresetsTab();
 }
 
 export function renderVocabList() {
@@ -321,4 +323,99 @@ export function confirmAddVocab() {
   alert(`✅ ${toAdd.length} neue Vokabel${toAdd.length === 1 ? '' : 'n'} zur Lernliste hinzugefügt!`);
   window._reviewItems = [];
   openVocabManager();
+}
+
+// ════════════════════════════════════════════════
+//  PRESET CATEGORIES
+// ════════════════════════════════════════════════
+let _presetCache = null;
+let _presetLoading = false;
+
+async function _loadPresetCategories() {
+  if (_presetCache) return _presetCache;
+  if (_presetLoading) {
+    while (_presetLoading) await new Promise(r => setTimeout(r, 80));
+    return _presetCache;
+  }
+  _presetLoading = true;
+  try {
+    const { data, error } = await supabase
+      .from('preset_categories')
+      .select('id, name, slug, sort_order, words')
+      .order('sort_order');
+    if (error) throw error;
+    _presetCache = data || [];
+  } catch(e) {
+    console.warn('[presets] Laden fehlgeschlagen:', e.message);
+    _presetCache = [];
+  }
+  _presetLoading = false;
+  return _presetCache;
+}
+
+export async function renderPresetsTab() {
+  const pane = document.getElementById('vm-pane-presets');
+  if (!pane) return;
+  pane.innerHTML = '<div style="text-align:center;padding:24px;color:#aaa;font-weight:700;">Lade Vorlagen…</div>';
+  const categories = await _loadPresetCategories();
+  const deck = activeDeck();
+  if (!deck) return;
+  const activeSet = new Set(deck.presetCategories || []);
+
+  if (categories.length === 0) {
+    pane.innerHTML = '<div style="text-align:center;padding:24px;color:#aaa;font-weight:700;">Noch keine Vorlagen verfügbar.</div>';
+    return;
+  }
+
+  pane.innerHTML = `
+    <p style="font-size:.82rem;color:#888;margin:0 0 14px;line-height:1.5;">
+      Vorgefertigte Wortgruppen ein- oder ausschalten.<br>
+      Lernfortschritt bleibt beim Ausschalten erhalten.
+    </p>
+    ${categories.map(cat => {
+      const isOn = activeSet.has(cat.id);
+      const wordCount = Array.isArray(cat.words) ? cat.words.length : 0;
+      return `<div class="preset-row">
+        <div class="preset-info">
+          <span class="preset-name">${window.escHtml(cat.name)}</span>
+          <span class="preset-count">${wordCount} Wörter</span>
+        </div>
+        <button class="preset-toggle${isOn ? ' on' : ''}" onclick="togglePresetCategory('${cat.id}')">
+          ${isOn ? 'AN ✓' : 'AUS'}
+        </button>
+      </div>`;
+    }).join('')}
+  `;
+}
+
+export function togglePresetCategory(categoryId) {
+  const deck = activeDeck();
+  if (!deck) return;
+  if (!Array.isArray(deck.presetCategories)) deck.presetCategories = [];
+
+  const cat = (_presetCache || []).find(c => c.id === categoryId);
+  if (!cat) return;
+
+  const isOn = deck.presetCategories.includes(categoryId);
+
+  if (!isOn) {
+    // Ein: Wörter der Kategorie ins Deck aufnehmen (Duplikate überspringen)
+    const existingEn = new Set(deck.vocab.map(v => v.en.toLowerCase()));
+    for (const w of (cat.words || [])) {
+      if (!existingEn.has(w.en.toLowerCase())) {
+        deck.vocab.push({ de: w.de, en: w.en, _presetId: categoryId });
+        existingEn.add(w.en.toLowerCase());
+      }
+    }
+    deck.presetCategories.push(categoryId);
+  } else {
+    // Aus: nur Wörter mit _presetId dieser Kategorie entfernen; wordStats bleiben erhalten
+    deck.vocab = deck.vocab.filter(v => v._presetId !== categoryId);
+    deck.presetCategories = deck.presetCategories.filter(id => id !== categoryId);
+  }
+
+  syncMirrorFromActiveDeck();
+  persist();
+  if (window.currentUser) { markDirty('deck', deck.id); flushPendingSync().catch(() => {}); }
+  renderPresetsTab();
 }

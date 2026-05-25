@@ -33,6 +33,7 @@ CREATE TABLE decks (
   name TEXT NOT NULL,
   vocab JSONB NOT NULL DEFAULT '[]'::jsonb,
   category_progress JSONB NOT NULL DEFAULT '{}'::jsonb,
+  preset_categories JSONB NOT NULL DEFAULT '[]'::jsonb,
   last_exam JSONB,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -123,6 +124,31 @@ $$;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- ─────────────────────────────────────────────
+-- 5b) PRESET_CATEGORIES (Vorgefertigte Vokabelgruppen — zentral, alle Nutzer lesbar)
+-- ─────────────────────────────────────────────
+CREATE TABLE preset_categories (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  slug TEXT UNIQUE NOT NULL,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  words JSONB NOT NULL DEFAULT '[]'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE preset_categories ENABLE ROW LEVEL SECURITY;
+
+-- Alle eingeloggten Nutzer dürfen lesen — nur Admin schreibt (über Dashboard/Service-Role)
+CREATE POLICY "Authenticated users can read preset categories" ON preset_categories
+  FOR SELECT TO authenticated USING (true);
+
+-- Platzhalter-Kategorien (Wörter kommen später)
+INSERT INTO preset_categories (name, slug, sort_order, words) VALUES
+  ('Tiere',  'tiere',  10, '[]'::jsonb),
+  ('Zahlen', 'zahlen', 20, '[]'::jsonb),
+  ('Farben', 'farben', 30, '[]'::jsonb);
 
 -- ─────────────────────────────────────────────
 -- 6) INDEXES für Performance

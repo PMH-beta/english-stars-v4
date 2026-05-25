@@ -75,6 +75,7 @@ export async function cloudLoad(userId) {
       vocab:            row.vocab || [],
       wordStats:        {},
       categoryProgress: row.category_progress || { ...EMPTY_CAT },
+      presetCategories: row.preset_categories || [],
       lastExam:         row.last_exam || null,
     };
   }
@@ -138,12 +139,13 @@ export async function saveProfile(sd, userId) {
 export async function saveDeck(deck, userId) {
   const now = new Date().toISOString();
   const row = {
-    user_id:           userId,
-    name:              deck.name,
-    vocab:             deck.vocab,
-    category_progress: deck.categoryProgress,
-    last_exam:         deck.lastExam || null,
-    updated_at:        now,
+    user_id:            userId,
+    name:               deck.name,
+    vocab:              deck.vocab,
+    category_progress:  deck.categoryProgress,
+    preset_categories:  deck.presetCategories || [],
+    last_exam:          deck.lastExam || null,
+    updated_at:         now,
   };
   console.log('[sync] saveDeck →', deck.id, '| vocab:', deck.vocab?.length ?? '?', 'words | row:', row);
 

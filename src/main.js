@@ -9,7 +9,7 @@ import { buildPool, toggleSchnell, startGame, confirmHome, nextQuestion, restart
 import { syncMirrorFromActiveDeck, activeDeck, switchDeck, createDeck, deleteDeck, renameDeck, deckProgress, renderDecks, toggleDeck, activateDeck, startGameWithDeck, newDeckPrompt, renameDeckPrompt, confirmDeleteDeck, resetDeckProgress, vmDeleteWord, vmAddManual } from './modules/decks.js';
 import { showScreen, saveName, showMenu, saveApiKey, skipApiKey, showProfile, editPlayerName, showStats, confirmReset, showFeedback, hideFeedback, exportData, importData, showAuth, authToggleMode, authSubmit, authResend, authLogout, authGoogleSignIn, handleLogin, handleLogout, showPasswordReset, submitPasswordReset, showNewPasswordScreen, submitNewPassword, cancelNewPassword } from './modules/ui.js';
 import { pwaInstall } from './modules/pwa.js';
-import { openVocabManager, vmTab, renderVocabList, parsePastedText, onScanFile, showReview, renderReviewList, removeReviewItem, addReviewItem, confirmAddVocab } from './modules/vocab.js';
+import { openVocabManager, vmTab, renderVocabList, parsePastedText, onScanFile, showReview, renderReviewList, removeReviewItem, addReviewItem, confirmAddVocab, renderPresetsTab, togglePresetCategory } from './modules/vocab.js';
 import { startupSequence, finishStartup } from './modules/startup.js';
 import { supabase, testConnection } from './modules/supabase.js';
 import { flushPendingSync } from './modules/sync.js';
@@ -152,6 +152,8 @@ window.renderReviewList = renderReviewList;
 window.removeReviewItem = removeReviewItem;
 window.addReviewItem = addReviewItem;
 window.confirmAddVocab = confirmAddVocab;
+window.renderPresetsTab = renderPresetsTab;
+window.togglePresetCategory = togglePresetCategory;
 
 // Musik via window für Legacy-Code
 window._trackUrl = _trackUrl;

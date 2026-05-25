@@ -16,7 +16,7 @@
 | `audio.js` | Hintergrundmusik (MP3-Playlist, endlos) | `_discoverTracks`, `_initAudio`, `_trackUrl`, `startMusicSync`, `_setMusicBtns` |
 | `pwa.js` | PWA Install-Prompt + iOS-Hinweis-Banner | `pwaInstall`, `pwaSetup` |
 | `game.js` | Spielmechanik: Fragen, Punkte, Streak, Exam | `_sfx` + zahlreiche `window.*` Game-State-Variablen |
-| `vocab.js` | VokabelManager UI: Hinzufügen, Scannen, Einfügen, Exportieren | `openVocabManager`, `vmTab`, `renderVocabList`, `confirmAddVocab` |
+| `vocab.js` | VokabelManager UI: Hinzufügen, Scannen, Einfügen, Preset-Kategorien | `openVocabManager`, `vmTab`, `renderVocabList`, `confirmAddVocab`, `renderPresetsTab`, `togglePresetCategory` |
 | `ui.js` | Screen-Routing, Auth-Lifecycle, alle UI-Event-Handler | `showScreen`, `showMenu`, `handleLogin`, `handleLogout`, `showNewPasswordScreen`, `saveName`, `authGoogleSignIn` |
 | `startup.js` | Boot-Sequenz: TTS, Audio, Vosk, Auth-Session | `startupSequence`, `finishStartup` |
 
@@ -39,13 +39,14 @@ window.SD = {
       id: string,
       name: string,
       createdAt: number,
-      vocab: [{ de: string, en: string }],
+      vocab: [{ de: string, en: string, _presetId?: string }],  // _presetId: UUID der Preset-Kategorie
       wordStats: {
         [statKey]: { asked, correct, wrong, recent }   // recent = Binär-String "1011..." für EMA
       },
       categoryProgress: {
         vocab | spelling | pronounce | mixed_vocab: { played, correct, bestStreak }
       },
+      presetCategories: string[],   // UUIDs aktiver preset_categories
       lastExam: null | object,
     }
   },
