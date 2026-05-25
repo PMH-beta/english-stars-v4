@@ -141,37 +141,23 @@ export async function startupSequence() {
     window._ttsVoices = window.speechSynthesis.getVoices();
   }
 
-  if (!window.currentUser) {
-    // Kein Login — Button zeigen; Klick ist die Browser-Geste für Audio-Unlock
-    const startBtn = document.getElementById('loading-start-btn');
-    if (startBtn) {
-      startBtn.style.display = '';
-      startBtn.onclick = () => {
-        startBtn.disabled = true;
-        try { primeTTS(); } catch(e) {}
-        try {
-          let musicPref = '1';
-          try { const v = localStorage.getItem('es_music'); if (v !== null) musicPref = v; } catch(e) {}
-          if (musicPref === '1' && !window._musicOn) { startMusicSync(); _setMusicBtns(true); }
-        } catch(e) { console.warn('[startup] Music unlock failed:', e); }
-        finishStartup();
-      };
-    } else {
-      await new Promise(r => setTimeout(r, 600));
-      finishStartup();
-    }
-  } else {
-    // Session vorhanden (Return-User oder OAuth-Redirect) — kein Button, direkt weiter
-    // Audio-Unlock per erstem Tap in der App (Autoplay-Policy)
-    document.addEventListener('pointerdown', function _audioUnlock() {
+  // Button bei JEDEM Kaltstart zeigen — iOS braucht User-Geste um Audio freizugeben.
+  // Gilt für eingeloggte und nicht eingeloggte Nutzer gleichermaßen.
+  const startBtn = document.getElementById('loading-start-btn');
+  if (startBtn) {
+    startBtn.style.display = '';
+    startBtn.onclick = () => {
+      startBtn.disabled = true;
       try { primeTTS(); } catch(e) {}
       try {
         let musicPref = '1';
         try { const v = localStorage.getItem('es_music'); if (v !== null) musicPref = v; } catch(e) {}
         if (musicPref === '1' && !window._musicOn) { startMusicSync(); _setMusicBtns(true); }
-      } catch(e) {}
-    }, { capture: true, once: true });
-    await new Promise(r => setTimeout(r, 400));
+      } catch(e) { console.warn('[startup] Music unlock failed:', e); }
+      finishStartup();
+    };
+  } else {
+    await new Promise(r => setTimeout(r, 600));
     finishStartup();
   }
 }

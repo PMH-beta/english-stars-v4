@@ -537,12 +537,6 @@ export function startRecording() {
       };
 
       setTG();
-      // iOS: separater getUserMedia nur für Visualizer (SpeechRec verwaltet eigenen Mic-Track)
-      if (_isIOS() && navigator.mediaDevices) {
-        navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false},video:false})
-          .then(s => { _vizStream = s; startVisualizer(s); })
-          .catch(() => {}); // Visualizer ist optional, SR läuft ohne
-      }
       try { sr.start(); } catch(e) { console.error('[startRecording] sr.start error:', e); resetBtn(); stopVisualizer(); }
     } else {
       result.style.display = 'block'; result.className = 'pronounce-result';
