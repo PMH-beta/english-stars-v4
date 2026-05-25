@@ -136,27 +136,32 @@ export async function startupSequence() {
   await new Promise(r => setTimeout(r, 200));
   setProgress(100, 'Bereit!');
   if (hint) hint.textContent = '';
-  await new Promise(r => setTimeout(r, 600));
-  finishStartup();
+  // Voices finaler Check — wurden bereits bei Schritt 20% gepollt
+  if (window.speechSynthesis && (!window._ttsVoices || window._ttsVoices.length === 0)) {
+    window._ttsVoices = window.speechSynthesis.getVoices();
+  }
+  const startBtn = document.getElementById('loading-start-btn');
+  if (startBtn) {
+    startBtn.style.display = '';
+    startBtn.onclick = () => {
+      startBtn.disabled = true;
+      try { primeTTS(); } catch(e) {}
+      try {
+        let musicPref = '1';
+        try { const v = localStorage.getItem('es_music'); if (v !== null) musicPref = v; } catch(e) {}
+        if (musicPref === '1' && !window._musicOn) { startMusicSync(); _setMusicBtns(true); }
+      } catch(e) { console.warn('[startup] Music unlock failed:', e); }
+      finishStartup();
+    };
+  } else {
+    await new Promise(r => setTimeout(r, 600));
+    finishStartup();
+  }
 }
 
 export async function finishStartup() {
   _startupComplete = true;
   console.log('[Startup] App-Ready:', performance.now().toFixed(0) + 'ms');
-
-  // TTS-Unlock + Musik: brauchen User-Geste (Autoplay-Policy).
-  // Erster Tap irgendwo in der App entsperrt Audio — für den User unsichtbar.
-  document.addEventListener('pointerdown', function _audioUnlock() {
-    try { primeTTS(); } catch(e) {}
-    try {
-      let musicPref = '1';
-      try { const v = localStorage.getItem('es_music'); if (v !== null) musicPref = v; } catch(e) {}
-      if (musicPref === '1' && !window._musicOn) {
-        startMusicSync();
-        _setMusicBtns(true);
-      }
-    } catch(e) { console.warn('[startup] Music unlock failed:', e); }
-  }, { capture: true, once: true });
 
   if (_pendingRecovery) {
     showNewPasswordScreen();
