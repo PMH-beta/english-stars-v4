@@ -31,6 +31,11 @@ export function showScreen(id) {
   if (ft) ft.style.display = (id === 'menu-screen') ? 'flex' : 'none';
   const installBtn = document.getElementById('pwa-install-btn');
   if (installBtn) installBtn.style.display = (id === 'menu-screen' && window._pwaInstallReady) ? 'flex' : 'none';
+  const isLoading = id === 'loading-screen';
+  const musicBtnGlobal = document.getElementById('music-btn-global');
+  const musicVolBtn = document.getElementById('music-vol-btn');
+  if (musicBtnGlobal) musicBtnGlobal.style.display = isLoading ? 'none' : '';
+  if (musicVolBtn) musicVolBtn.style.display = isLoading ? 'none' : '';
 }
 
 // ────────────────────────────────────────────────
