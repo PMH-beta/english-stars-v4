@@ -188,13 +188,24 @@ function _scheduleIosMusicResume() {
 //  AUDIO-VISUALIZER
 // ════════════════════════════════════════════════
 
-// Nur grafischen Zustand bereinigen — mic-Stream bleibt intakt.
-// (stopVisualizer ruft zusätzlich releaseMicStream auf.)
+// AudioContext synchron anlegen/aufwecken — muss während User-Gesture passieren.
+// Danach kann startVisualizer() den bereits laufenden Context nutzen.
+function _ensureAudioCtx() {
+  if (_audioCtx && _audioCtx.state !== 'closed') {
+    if (_audioCtx.state === 'suspended') _audioCtx.resume().catch(() => {});
+    return;
+  }
+  try {
+    _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    _audioCtx.resume().catch(() => {});
+  } catch(e) { _audioCtx = null; }
+}
+
+// Grafik und Visualizer-Stream bereinigen — AudioContext und mic-Stream bleiben intakt.
 function _clearVisualizerState() {
   if (_vizAF) { cancelAnimationFrame(_vizAF); _vizAF = null; }
   if (_analyser) { try { _analyser.disconnect(); } catch(e) {} _analyser = null; }
   if (_vizSrc) { try { _vizSrc.disconnect(); } catch(e) {} _vizSrc = null; }
-  if (_audioCtx) { try { _audioCtx.close(); } catch(e) {} _audioCtx = null; }
   if (_vizStream) {
     try { _vizStream.getTracks().forEach(t => t.stop()); } catch(e) {}
     _vizStream = null;
@@ -204,12 +215,18 @@ function _clearVisualizerState() {
 }
 
 export function startVisualizer(stream) {
-  _clearVisualizerState(); // nur Grafik — _micStream bleibt am Leben
+  _clearVisualizerState();
   if (!stream) return;
   const canvas = document.getElementById('viz-canvas');
   if (!canvas) return;
   try {
-    _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    // _audioCtx wurde synchron in startRecording() angelegt und resumed.
+    // Fallback: neu erstellen; bei 'suspended' aufwecken (iOS kann Context zwischen
+    // der synchronen Anlage und dem async-Callback in suspended setzen).
+    if (!_audioCtx || _audioCtx.state === 'closed') {
+      _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (_audioCtx.state !== 'running') _audioCtx.resume().catch(() => {});
     _analyser = _audioCtx.createAnalyser();
     _analyser.fftSize = 256;
     _analyser.smoothingTimeConstant = 0.6;
@@ -222,10 +239,10 @@ export function startVisualizer(stream) {
     const ctx = canvas.getContext('2d');
     const W = canvas.width, H = canvas.height;
     let _lastDraw = 0;
-    function draw(t) {
+    function draw(ts) {
       _vizAF = requestAnimationFrame(draw);
-      if (t - _lastDraw < 33) return;
-      _lastDraw = t;
+      if (ts - _lastDraw < 33) return;
+      _lastDraw = ts;
       _analyser.getByteFrequencyData(buf);
       ctx.clearRect(0, 0, W, H);
       const barW = W / buf.length * 2;
@@ -238,13 +255,14 @@ export function startVisualizer(stream) {
         x += barW;
       }
     }
-    draw();
+    requestAnimationFrame(draw);
   } catch(e) {}
 }
 
 export function stopVisualizer() {
   console.log('[stopVisualizer] called — _vizSrc:', !!_vizSrc, 'ctx:', !!_audioCtx, 'SR:', !!_activeSR);
   _clearVisualizerState();
+  if (_audioCtx) { try { _audioCtx.close(); } catch(e) {} _audioCtx = null; }
   releaseMicStream();
 }
 
@@ -389,6 +407,10 @@ export function startRecording() {
     return;
   }
 
+  // AudioContext synchron anlegen während die User-Gesture noch aktiv ist.
+  // Nur im Web-Speech-Pfad (Vosk hat eigenes AudioCtx-Management).
+  _ensureAudioCtx();
+
   function resetBtn() {
     if (btn) { btn.className = 'mic-btn'; btn.disabled = false; btn.textContent = '🎙️ Nochmal'; btn.onclick = window.startRecording; }
   }
@@ -438,11 +460,24 @@ export function startRecording() {
     return;
   }
 
-  ensureMicStream().then(stream => {
+  ensureMicStream().then(async stream => {
     if (!stream && !_isIOS()) {
       result.style.display = 'block'; result.className = 'pronounce-result';
       result.textContent = '❌ Mikrofon-Zugriff verweigert. Bitte in den Browser-Einstellungen erlauben.';
       return;
+    }
+
+    // iOS: SpeechRec verwaltet eigenen Mic-Track; wir brauchen einen zweiten nur für den Visualizer.
+    // Awaiten VOR sr.start() damit iOS Permission bereits erteilt ist → kein Doppel-Prompt.
+    if (_isIOS() && navigator.mediaDevices) {
+      try {
+        const s = await navigator.mediaDevices.getUserMedia({
+          audio: {echoCancellation:false, noiseSuppression:false, autoGainControl:false},
+          video: false
+        });
+        _vizStream = s;
+        stream = s;
+      } catch(e) {} // Visualizer ist optional, Erkennung läuft ohne
     }
 
     startVisualizer(stream);
