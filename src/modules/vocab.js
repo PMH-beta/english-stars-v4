@@ -342,7 +342,7 @@ async function _loadPresetCategories() {
     console.log('[presets] Lade Kategorien aus Supabase...');
     const { data, error } = await supabase
       .from('preset_categories')
-      .select('id, name, slug, sort_order, words')
+      .select('id, name, slug, sort_order, words, difficulty')
       .order('sort_order');
     console.log('[presets] data:', JSON.stringify(data), 'error:', error);
     if (error) throw error;
@@ -370,6 +370,13 @@ export async function renderPresetsTab() {
     return;
   }
 
+  const _diffBadge = d => {
+    const cfg = { leicht: ['#3aaa5c','leicht'], mittel: ['#e8920a','mittel'], schwer: ['#e03030','schwer'] };
+    const [col, lbl] = cfg[d] || [];
+    if (!col) return '';
+    return `<span style="display:inline-flex;align-items:center;gap:3px;font-size:.70rem;font-weight:700;color:${col};white-space:nowrap"><span style="width:7px;height:7px;border-radius:50%;background:${col};flex-shrink:0"></span>${lbl}</span>`;
+  };
+
   pane.innerHTML = `
     <p style="font-size:.82rem;color:#888;margin:0 0 14px;line-height:1.5;">
       Vorgefertigte Wortgruppen ein- oder ausschalten.<br>
@@ -380,7 +387,10 @@ export async function renderPresetsTab() {
       const wordCount = Array.isArray(cat.words) ? cat.words.length : 0;
       return `<div class="preset-row">
         <div class="preset-info">
-          <span class="preset-name">${window.escHtml(cat.name)}</span>
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            <span class="preset-name">${window.escHtml(cat.name)}</span>
+            ${_diffBadge(cat.difficulty)}
+          </div>
           <span class="preset-count">${wordCount} Wörter</span>
         </div>
         <button class="preset-toggle${isOn ? ' on' : ''}" onclick="togglePresetCategory('${cat.id}')">
