@@ -131,6 +131,7 @@ let _micActive = false; // true solange Mic-Stream oder Vosk-Stream aktiv
 let _micTimeout = null;
 let _vizAF = null;
 let _vizSrc = null;      // MediaStreamAudioSourceNode — vor AudioContext.close() disconnect()
+let _vizStream = null;   // iOS-only: separater getUserMedia-Stream nur für Visualizer
 let _analyser = null;
 let _audioCtx = null;
 let _voskRec = null;
@@ -178,17 +179,33 @@ function _scheduleIosMusicResume() {
   setTimeout(() => {
     if (_micActive) return;
     if (!window._musicOn) return;
-    const a = window._musicAudio;
-    if (a && a.paused) a.play().catch(() => {});
+    // call play() auch wenn nicht paused — signalisiert iOS Playback-Session zurück
+    window._musicAudio.play().catch(() => {});
   }, 600);
 }
 
 // ════════════════════════════════════════════════
 //  AUDIO-VISUALIZER
 // ════════════════════════════════════════════════
+
+// Nur grafischen Zustand bereinigen — mic-Stream bleibt intakt.
+// (stopVisualizer ruft zusätzlich releaseMicStream auf.)
+function _clearVisualizerState() {
+  if (_vizAF) { cancelAnimationFrame(_vizAF); _vizAF = null; }
+  if (_analyser) { try { _analyser.disconnect(); } catch(e) {} _analyser = null; }
+  if (_vizSrc) { try { _vizSrc.disconnect(); } catch(e) {} _vizSrc = null; }
+  if (_audioCtx) { try { _audioCtx.close(); } catch(e) {} _audioCtx = null; }
+  if (_vizStream) {
+    try { _vizStream.getTracks().forEach(t => t.stop()); } catch(e) {}
+    _vizStream = null;
+  }
+  const canvas = document.getElementById('viz-canvas');
+  if (canvas) { const ctx = canvas.getContext('2d'); ctx.clearRect(0, 0, canvas.width, canvas.height); }
+}
+
 export function startVisualizer(stream) {
-  stopVisualizer();
-  if (!stream) return; // iOS: ensureMicStream() gibt null — kein eigener AudioContext nötig
+  _clearVisualizerState(); // nur Grafik — _micStream bleibt am Leben
+  if (!stream) return;
   const canvas = document.getElementById('viz-canvas');
   if (!canvas) return;
   try {
@@ -227,12 +244,7 @@ export function startVisualizer(stream) {
 
 export function stopVisualizer() {
   console.log('[stopVisualizer] called — _vizSrc:', !!_vizSrc, 'ctx:', !!_audioCtx, 'SR:', !!_activeSR);
-  if (_vizAF) { cancelAnimationFrame(_vizAF); _vizAF = null; }
-  if (_analyser) { try { _analyser.disconnect(); } catch(e) {} _analyser = null; }
-  if (_vizSrc) { try { _vizSrc.disconnect(); } catch(e) {} _vizSrc = null; } // iOS: vor close() trennen
-  if (_audioCtx) { try { _audioCtx.close(); } catch(e) {} _audioCtx = null; }
-  const canvas = document.getElementById('viz-canvas');
-  if (canvas) { const ctx = canvas.getContext('2d'); ctx.clearRect(0, 0, canvas.width, canvas.height); }
+  _clearVisualizerState();
   releaseMicStream();
 }
 
@@ -525,6 +537,12 @@ export function startRecording() {
       };
 
       setTG();
+      // iOS: separater getUserMedia nur für Visualizer (SpeechRec verwaltet eigenen Mic-Track)
+      if (_isIOS() && navigator.mediaDevices) {
+        navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false},video:false})
+          .then(s => { _vizStream = s; startVisualizer(s); })
+          .catch(() => {}); // Visualizer ist optional, SR läuft ohne
+      }
       try { sr.start(); } catch(e) { console.error('[startRecording] sr.start error:', e); resetBtn(); stopVisualizer(); }
     } else {
       result.style.display = 'block'; result.className = 'pronounce-result';
