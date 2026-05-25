@@ -81,22 +81,22 @@ export function buildPool(m) {
   const examLimit=window.isExamMode ? Math.min(EXAM_QUESTIONS, vocab.length*3) : QPERROUND;
   const limit=window.isSchnellModus&&!window.isExamMode ? vocab.length : examLimit;
   if(m==='vocab'){
-    weightedPickUnique(vocab, v=>sd.wordStats[v.de+'_mc'], limit).forEach(v=>qs.push(bVocabMC(v)));
+    weightedPickUnique(vocab, v=>sd.wordStats[statKeyFor(v.de,v.en,'_mc')], limit).forEach(v=>qs.push(bVocabMC(v)));
   }
   if(m==='spelling'){
-    weightedPickUnique(vocab, v=>sd.wordStats[v.de+'_sp'], limit).forEach(v=>qs.push(bVocabType(v)));
+    weightedPickUnique(vocab, v=>sd.wordStats[statKeyFor(v.de,v.en,'_sp')], limit).forEach(v=>qs.push(bVocabType(v)));
   }
   if(m==='pronounce'){
-    weightedPickUnique(vocab, v=>sd.wordStats[v.de+'_pr'], limit).forEach(v=>qs.push(bVocabPronounce(v)));
+    weightedPickUnique(vocab, v=>sd.wordStats[statKeyFor(v.de,v.en,'_pr')], limit).forEach(v=>qs.push(bVocabPronounce(v)));
   }
   if(m==='mixed_vocab'){
     if(window.isSchnellModus&&!window.isExamMode){
       vocab.forEach(v=>{qs.push(bVocabMC(v));qs.push(bVocabType(v));qs.push(bVocabPronounce(v));});
     } else {
       const n1=Math.round(examLimit/3), n2=Math.round(examLimit/3), n3=examLimit-n1-n2;
-      weightedPickUnique(vocab, v=>sd.wordStats[v.de+'_mc'], n1).forEach(v=>qs.push(bVocabMC(v)));
-      weightedPickUnique(vocab, v=>sd.wordStats[v.de+'_sp'], n2).forEach(v=>qs.push(bVocabType(v)));
-      weightedPickUnique(vocab, v=>sd.wordStats[v.de+'_pr'], n3).forEach(v=>qs.push(bVocabPronounce(v)));
+      weightedPickUnique(vocab, v=>sd.wordStats[statKeyFor(v.de,v.en,'_mc')], n1).forEach(v=>qs.push(bVocabMC(v)));
+      weightedPickUnique(vocab, v=>sd.wordStats[statKeyFor(v.de,v.en,'_sp')], n2).forEach(v=>qs.push(bVocabType(v)));
+      weightedPickUnique(vocab, v=>sd.wordStats[statKeyFor(v.de,v.en,'_pr')], n3).forEach(v=>qs.push(bVocabPronounce(v)));
     }
   }
   if(window._skipMasteryFilter||window.isExamMode) return shuffle(qs).slice(0, limit);
@@ -590,7 +590,7 @@ function progressForCurrentMode() {
   function pf(suffix){
     let score=0, mastered=0;
     window.VOCAB.forEach(v=>{
-      const s=window.SD.wordStats[v.de+suffix];
+      const s=window.SD.wordStats[statKeyFor(v.de,v.en,suffix)];
       if(!s||!s.asked) return;
       const asked=s.asked;
       const pct=effectivePct(s);

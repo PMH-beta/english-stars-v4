@@ -267,31 +267,79 @@ export function vmDeleteWord(idx) {
   if (!v) return;
   if (!confirm('"' + v.de + ' → ' + v.en + '" wirklich löschen?')) return;
   deck.vocab.splice(idx, 1);
-  // wordStats NICHT löschen — Einträge "schlummern" und werden beim Wiederhinzufügen
-  // desselben Worts (DE+EN normalisiert übereinstimmend) automatisch wiedergefunden.
+  // wordStats NICHT löschen — schlummern für eventuelle Wiederherstellung.
+  // word_stats dirty markieren damit schlummernde Keys sofort in die Cloud gesichert werden
+  // und nach einem Logout/Login nicht durch den cloudLoad-Overwrite verloren gehen.
   syncMirrorFromActiveDeck();
   window.persist();
-  if (window.currentUser) { markDirty('deck', deck.id); flushPendingSync().catch(() => {}); }
+  if (window.currentUser) {
+    markDirty('deck', deck.id);
+    markDirty('word_stats', deck.id);
+    flushPendingSync().catch(() => {});
+  }
   window.renderVocabList();
 }
 
-// Einmalige Migration beim Login: wandelt alte statKeys (de+suffix) in das neue
+// Migration beim Login: wandelt alte statKeys (de+suffix) in das neue
 // Format (normDE|normEN+suffix) um. Gibt true zurück wenn etwas geändert wurde.
+// Pass 1: aktuelle Vokabeln — kennt DE+EN, kann präzise konvertieren.
+// Pass 2: verwaiste Altformat-Keys (z.B. nach Cloud-Reload) — DE-only-Matching
+//   sofern eindeutig (genau ein Vokabel-Eintrag mit gleichem normDE), sonst überspringen.
 export function migrateStatKeys(sd) {
   sd = sd || window.SD;
   let changed = false;
+  const SUFFIXES = ['_mc', '_sp', '_pr'];
+
   for (const deck of Object.values(sd.decks || {})) {
     const stats = deck.wordStats;
     if (!stats) continue;
-    for (const v of (deck.vocab || [])) {
-      for (const suf of ['_mc', '_sp', '_pr']) {
+    const vocab = deck.vocab || [];
+
+    // Pass 1: für jeden aktuellen Vokabel-Eintrag den alten Key migrieren
+    for (const v of vocab) {
+      for (const suf of SUFFIXES) {
         const oldKey = v.de + suf;
         const newKey = statKeyFor(v.de, v.en, suf);
-        if (oldKey !== newKey && stats[oldKey] && !stats[newKey]) {
+        if (stats[oldKey] && !stats[newKey]) {
           stats[newKey] = stats[oldKey];
           delete stats[oldKey];
           changed = true;
+        } else if (stats[oldKey] && stats[newKey]) {
+          // Neuer Key existiert bereits (nach Cloud-Reload) — alten Orphan entfernen
+          delete stats[oldKey];
+          changed = true;
         }
+      }
+    }
+
+    // Pass 2: verwaiste Altformat-Keys (kein '|') per eindeutigem DE-Match konvertieren.
+    // Notwendig wenn z.B. nach Logout/Login der Cloud-State alte Keys zurückbringt,
+    // die nicht mehr durch Pass 1 aufgelöst werden (Wort zwischenzeitlich gelöscht).
+    const normDEToVocab = {};
+    for (const v of vocab) {
+      const nd = (v.de || '').trim().toLowerCase();
+      if (!normDEToVocab[nd]) normDEToVocab[nd] = [];
+      normDEToVocab[nd].push(v);
+    }
+    for (const key of Object.keys(stats)) {
+      if (key.includes('|')) continue; // bereits neues Format
+      for (const suf of SUFFIXES) {
+        if (!key.endsWith(suf)) continue;
+        const de = key.slice(0, -suf.length);
+        const nd = de.trim().toLowerCase();
+        const matches = normDEToVocab[nd] || [];
+        if (matches.length === 1) {
+          const newKey = statKeyFor(matches[0].de, matches[0].en, suf);
+          if (!stats[newKey]) {
+            stats[newKey] = stats[key];
+            delete stats[key];
+            changed = true;
+          } else {
+            delete stats[key]; // neuer Key existiert schon → Orphan entfernen
+            changed = true;
+          }
+        }
+        break;
       }
     }
   }
