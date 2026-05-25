@@ -427,7 +427,7 @@ export function startRecording() {
   }
 
   ensureMicStream().then(stream => {
-    if (!stream) {
+    if (!stream && !_isIOS()) {
       result.style.display = 'block'; result.className = 'pronounce-result';
       result.textContent = '❌ Mikrofon-Zugriff verweigert. Bitte in den Browser-Einstellungen erlauben.';
       return;
