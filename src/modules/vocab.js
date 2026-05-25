@@ -332,25 +332,28 @@ let _presetCache = null;
 let _presetLoading = false;
 
 async function _loadPresetCategories() {
-  if (_presetCache) return _presetCache;
+  if (_presetCache !== null) return _presetCache; // null = noch nie geladen; [] = geladen aber leer
   if (_presetLoading) {
     while (_presetLoading) await new Promise(r => setTimeout(r, 80));
-    return _presetCache;
+    return _presetCache || [];
   }
   _presetLoading = true;
   try {
+    console.log('[presets] Lade Kategorien aus Supabase...');
     const { data, error } = await supabase
       .from('preset_categories')
       .select('id, name, slug, sort_order, words')
       .order('sort_order');
+    console.log('[presets] data:', JSON.stringify(data), 'error:', error);
     if (error) throw error;
     _presetCache = data || [];
+    console.log('[presets] gecacht:', _presetCache.length, 'Kategorien');
   } catch(e) {
     console.warn('[presets] Laden fehlgeschlagen:', e.message);
-    _presetCache = [];
+    _presetCache = null; // Bei Fehler nicht cachen → nächster Tab-Click versucht es erneut
   }
   _presetLoading = false;
-  return _presetCache;
+  return _presetCache || [];
 }
 
 export async function renderPresetsTab() {
