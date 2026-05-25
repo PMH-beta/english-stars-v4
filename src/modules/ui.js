@@ -2,7 +2,7 @@
 import { persist, freshData, clearStorage } from './storage.js';
 import { effectivePct } from './stats.js';
 import { syncMirrorFromActiveDeck, activeDeck, deckProgress, renderDecks } from './decks.js';
-import { releaseMicStream, stopVisualizer, speakWord } from './speech.js';
+import { releaseMicStream, stopVisualizer, voskStop, speakWord } from './speech.js';
 import { signIn, signUp, signOut, resendConfirmation, requestPasswordReset, updatePassword, signInWithGoogle } from './auth.js';
 import { cloudLoad, saveProfile, cloudReset, loadProfile, saveDeck, saveWordStats, saveExam } from './sync.js';
 
@@ -20,6 +20,11 @@ let _loginInFlight = false;
 //  SCREEN ROUTING
 // ────────────────────────────────────────────────
 export function showScreen(id) {
+  // Mic/Audio-Session freigeben wenn Spieler den Game-Screen verlässt (z.B. ← Zurück)
+  if (id !== 'game-screen' && document.body.classList.contains('in-game')) {
+    try { voskStop(); } catch(e) {}
+    try { stopVisualizer(); } catch(e) {}
+  }
   ['loading-screen','apikey-screen','name-screen','menu-screen','game-screen','end-screen','stats-screen','profile-screen','scan-screen','review-screen','auth-screen','email-confirm-screen','password-reset-screen','password-reset-sent-screen','new-password-screen'].forEach(s => {
     const el = document.getElementById(s); if (el) el.style.display = 'none';
   });

@@ -130,14 +130,22 @@ let _micStream = null;
 let _micActive = false; // true solange Mic-Stream oder Vosk-Stream aktiv
 let _micTimeout = null;
 let _vizAF = null;
+let _vizSrc = null;      // MediaStreamAudioSourceNode — vor AudioContext.close() disconnect()
 let _analyser = null;
 let _audioCtx = null;
 let _voskRec = null;
 let _voskMediaSource = null;
+let _activeSR = null;    // aktive SpeechRecognition-Instanz — für abort() bei Cleanup
 
 const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
 
+function _isIOS() {
+  const ua = navigator.userAgent || '';
+  return /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
 export async function ensureMicStream() {
+  if (_isIOS()) return null; // iOS: SpeechRecognition verwaltet eigenes Mic — kein zweites getUserMedia
   if (_micStream && _micStream.active) return _micStream;
   try {
     _micStream = await navigator.mediaDevices.getUserMedia({
@@ -150,6 +158,11 @@ export async function ensureMicStream() {
 }
 
 export function releaseMicStream() {
+  console.log('[releaseMicStream] called — _micActive:', _micActive, 'SR:', !!_activeSR, 'stream:', !!_micStream);
+  if (_activeSR) {
+    try { _activeSR.abort(); } catch(e) {}
+    _activeSR = null;
+  }
   _micActive = false;
   if (_micStream) {
     try { _micStream.getTracks().forEach(t => t.stop()); } catch(e) {}
@@ -167,7 +180,7 @@ function _scheduleIosMusicResume() {
     if (!window._musicOn) return;
     const a = window._musicAudio;
     if (a && a.paused) a.play().catch(() => {});
-  }, 300);
+  }, 600);
 }
 
 // ════════════════════════════════════════════════
@@ -175,6 +188,7 @@ function _scheduleIosMusicResume() {
 // ════════════════════════════════════════════════
 export function startVisualizer(stream) {
   stopVisualizer();
+  if (!stream) return; // iOS: ensureMicStream() gibt null — kein eigener AudioContext nötig
   const canvas = document.getElementById('viz-canvas');
   if (!canvas) return;
   try {
@@ -182,10 +196,10 @@ export function startVisualizer(stream) {
     _analyser = _audioCtx.createAnalyser();
     _analyser.fftSize = 256;
     _analyser.smoothingTimeConstant = 0.6;
-    const src = _audioCtx.createMediaStreamSource(stream);
+    _vizSrc = _audioCtx.createMediaStreamSource(stream);
     const gain = _audioCtx.createGain();
     gain.gain.value = 6.0;
-    src.connect(gain);
+    _vizSrc.connect(gain);
     gain.connect(_analyser);
     const buf = new Uint8Array(_analyser.frequencyBinCount);
     const ctx = canvas.getContext('2d');
@@ -212,12 +226,14 @@ export function startVisualizer(stream) {
 }
 
 export function stopVisualizer() {
+  console.log('[stopVisualizer] called — _vizSrc:', !!_vizSrc, 'ctx:', !!_audioCtx, 'SR:', !!_activeSR);
   if (_vizAF) { cancelAnimationFrame(_vizAF); _vizAF = null; }
   if (_analyser) { try { _analyser.disconnect(); } catch(e) {} _analyser = null; }
+  if (_vizSrc) { try { _vizSrc.disconnect(); } catch(e) {} _vizSrc = null; } // iOS: vor close() trennen
   if (_audioCtx) { try { _audioCtx.close(); } catch(e) {} _audioCtx = null; }
   const canvas = document.getElementById('viz-canvas');
   if (canvas) { const ctx = canvas.getContext('2d'); ctx.clearRect(0, 0, canvas.width, canvas.height); }
-  releaseMicStream(); // Mic-Stream immer mit AudioContext freigeben (iOS: PlayAndRecord beenden)
+  releaseMicStream();
 }
 
 // ════════════════════════════════════════════════
@@ -427,6 +443,7 @@ export function startRecording() {
       sr.interimResults = true;
       sr.maxAlternatives = 8;
       sr.continuous = false;
+      _activeSR = sr;
 
       btn.onclick = () => { clearTG(); stopVisualizer(); try { sr.stop(); } catch(e) {} };
 
@@ -463,6 +480,7 @@ export function startRecording() {
       };
 
       sr.onerror = (e) => {
+        _activeSR = null; // zuerst nullen, damit releaseMicStream kein abort() mehr macht
         clearTG(); stopVisualizer(); resetBtn();
         if (e.error === 'not-allowed') {
           result.style.display = 'block'; result.className = 'pronounce-result';
@@ -488,15 +506,15 @@ export function startRecording() {
       };
 
       sr.onend = () => {
+        _activeSR = null;
+        clearTG(); stopVisualizer(); // Immer cleanup — iOS hält Audio-Session sonst
         if (!window.answered) {
-          clearTG(); stopVisualizer();
           if (_lastAlts.length > 0) {
             resetBtn();
             document.getElementById('self-rate-wrap')?.remove();
             window.evaluateWithClaude(_lastAlts.join('|'), targetWord);
           } else {
             resetBtn();
-            try { releaseMicStream(); } catch(e) {}
             result.style.display = 'block'; result.className = 'pronounce-result heard';
             result.textContent = '🤷 Nichts erkannt';
             window._webSpeechFailed = true;
