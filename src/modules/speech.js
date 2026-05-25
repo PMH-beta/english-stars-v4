@@ -127,6 +127,7 @@ window._voskLoad = async function() {
 //  AUSSPRACHE-MODUS — private state
 // ════════════════════════════════════════════════
 let _micStream = null;
+let _micActive = false; // true solange Mic-Stream oder Vosk-Stream aktiv
 let _micTimeout = null;
 let _vizAF = null;
 let _analyser = null;
@@ -143,15 +144,30 @@ export async function ensureMicStream() {
       audio: {echoCancellation:false, noiseSuppression:false, autoGainControl:false},
       video: false
     });
+    _micActive = true;
     return _micStream;
   } catch(e) { return null; }
 }
 
 export function releaseMicStream() {
+  _micActive = false;
   if (_micStream) {
     try { _micStream.getTracks().forEach(t => t.stop()); } catch(e) {}
     _micStream = null;
   }
+  _scheduleIosMusicResume();
+}
+
+// iOS: Nach Track-Stop ~300ms warten bis Audio-Session zurück auf Playback schaltet,
+// dann Musik resumed. Abgebrochen wenn inzwischen ein neues Recording begonnen hat.
+function _scheduleIosMusicResume() {
+  if (!window._musicOn || !window._musicAudio) return;
+  setTimeout(() => {
+    if (_micActive) return;
+    if (!window._musicOn) return;
+    const a = window._musicAudio;
+    if (a && a.paused) a.play().catch(() => {});
+  }, 300);
 }
 
 // ════════════════════════════════════════════════
@@ -201,6 +217,7 @@ export function stopVisualizer() {
   if (_audioCtx) { try { _audioCtx.close(); } catch(e) {} _audioCtx = null; }
   const canvas = document.getElementById('viz-canvas');
   if (canvas) { const ctx = canvas.getContext('2d'); ctx.clearRect(0, 0, canvas.width, canvas.height); }
+  releaseMicStream(); // Mic-Stream immer mit AudioContext freigeben (iOS: PlayAndRecord beenden)
 }
 
 // ════════════════════════════════════════════════
@@ -223,6 +240,7 @@ export async function voskStart(onResult, onError) {
       video: false,
       audio: {echoCancellation:false, noiseSuppression:false, autoGainControl:false, channelCount:1, sampleRate:16000}
     });
+    _micActive = true;
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     const rec = new window._voskModel.KaldiRecognizer(ctx.sampleRate);
     rec.setWords(true);
@@ -302,6 +320,8 @@ export function voskStop() {
   try { _voskRec.rec.remove(); } catch(e) {}
   try { if (_voskRec.stream) _voskRec.stream.getTracks().forEach(t => t.stop()); } catch(e) {}
   _voskRec = null;
+  _micActive = false;
+  _scheduleIosMusicResume();
   const canvas = document.getElementById('viz-canvas');
   if (canvas) { const cctx = canvas.getContext('2d'); cctx.clearRect(0, 0, canvas.width, canvas.height); }
 }
@@ -454,11 +474,13 @@ export function startRecording() {
           startVoskRecognition(targetWord, result, btn);
         } else if (e.error === 'no-speech') {
           window._webSpeechFailed = true;
+          clearTG(); stopVisualizer(); resetBtn();
           result.style.display = 'block'; result.className = 'pronounce-result heard';
           result.textContent = '🤷 Nichts gehört';
           window.showSelfRateButtons();
         } else {
           window._webSpeechFailed = true;
+          clearTG(); stopVisualizer(); resetBtn();
           result.style.display = 'block'; result.className = 'pronounce-result heard';
           result.textContent = '🤷 Nichts erkannt (' + e.error + ')';
           window.showSelfRateButtons();
