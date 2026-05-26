@@ -16,6 +16,9 @@
 - Google-Login (OAuth): verknüpft sauber mit Bestandskonten,
   Account-Picker bei Hard-Logout, Kinderkonten via Family-Link-
   Eltern-Genehmigung getestet
+- Lockscreen-/Media-Notification unterdrückt: Musik läuft über
+  Web Audio API (AudioBufferSourceNode + fetch/decodeAudioData),
+  kein <audio>-Element mehr — Browser erzeugt keine Notification
 
 ## Offen
 - Live-Gang v4: wird DIE Hauptversion, v3.44/altes Repo verfällt,

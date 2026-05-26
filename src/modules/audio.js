@@ -1,14 +1,26 @@
 // src/modules/audio.js
 // Hintergrundmusik (MP3-Playlist, läuft endlos) + Volume-Popup
+// Wiedergabe über Web Audio API (AudioBufferSourceNode) statt <audio>-Element —
+// der Browser erzeugt für AudioContext-Output KEINE Lockscreen-/Media-Notification.
 // Shared state liegt auf window damit Legacy-Code in index.html direkt darauf zugreifen kann.
 
 window._musicTracks = [];
+// window._musicAudio: Kompatibilitäts-Shim für speech.js (_scheduleIosMusicResume),
+// wird in _initAudio() belegt.
 window._musicAudio = null;
 window._musicIdx = 0;
 window._musicOn = false;
 window._musicVolume = 0.50;
 window._musicErrorRetries = 0;
+
 let _pausedByVisibility = false;
+let _musicCtx = null;      // AudioContext
+let _musicGain = null;     // GainNode für Lautstärke
+let _musicSource = null;   // laufender AudioBufferSourceNode
+let _musicBuffer = null;   // dekodierter AudioBuffer des aktuellen Tracks
+let _musicStartTime = 0;   // ctx.currentTime beim letzten start()
+let _musicPauseOffset = 0; // Wiedergabe-Offset beim Pausieren
+let _musicPlaying = false;
 
 const MUSIC_BASE = 'music/';
 
@@ -81,53 +93,117 @@ export async function _discoverTracks() {
   return window._musicTracks;
 }
 
+function _ensureMusicCtx() {
+  if (_musicCtx && _musicCtx.state !== 'closed') {
+    if (_musicCtx.state === 'suspended') _musicCtx.resume().catch(() => {});
+    return _musicCtx;
+  }
+  _musicCtx = new (window.AudioContext || window.webkitAudioContext)();
+  _musicGain = _musicCtx.createGain();
+  _musicGain.gain.value = window._musicVolume;
+  _musicGain.connect(_musicCtx.destination);
+  _musicCtx.resume().catch(() => {});
+  return _musicCtx;
+}
+
+function _stopCurrentSource() {
+  if (_musicSource) {
+    try { _musicSource.onended = null; _musicSource.stop(); } catch(e) {}
+    try { _musicSource.disconnect(); } catch(e) {}
+    _musicSource = null;
+  }
+  _musicPlaying = false;
+}
+
+function _playBuffer(buffer, offset) {
+  if (!_musicCtx || _musicCtx.state === 'closed') return;
+  if (_musicCtx.state === 'suspended') _musicCtx.resume().catch(() => {});
+  _stopCurrentSource();
+  const src = _musicCtx.createBufferSource();
+  src.buffer = buffer;
+  src.connect(_musicGain);
+  const startOffset = Math.max(0, offset || 0);
+  src.onended = () => {
+    if (src !== _musicSource) return;
+    _musicSource = null;
+    _musicPlaying = false;
+    _musicPauseOffset = 0;
+    window._musicErrorRetries = 0;
+    _playNext();
+  };
+  src.start(0, startOffset);
+  _musicSource = src;
+  _musicStartTime = _musicCtx.currentTime - startOffset;
+  _musicPlaying = true;
+}
+
+async function _loadAndPlay(url) {
+  try {
+    const ctx = _ensureMusicCtx();
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('HTTP ' + response.status);
+    const arrayBuffer = await response.arrayBuffer();
+    if (!window._musicOn) return;
+    // Callback-Variante für maximale Browser-Kompatibilität (älteres iOS Safari)
+    const audioBuffer = await new Promise((resolve, reject) => {
+      ctx.decodeAudioData(arrayBuffer, resolve, reject);
+    });
+    if (!window._musicOn) return;
+    _musicBuffer = audioBuffer;
+    _playBuffer(audioBuffer, 0);
+  } catch(e) {
+    console.warn('[Music] Ladefehler:', e);
+    if (!window._musicOn) return;
+    window._musicErrorRetries++;
+    if (window._musicErrorRetries >= Math.max(1, window._musicTracks.length)) {
+      console.warn('[Music] Alle MP3-Dateien fehlerhaft.');
+      return;
+    }
+    setTimeout(() => {
+      if (!window._musicOn) return;
+      window._musicIdx = (window._musicIdx + 1) % window._musicTracks.length;
+      _loadAndPlay(_trackUrl(window._musicTracks[window._musicIdx]));
+    }, 300);
+  }
+}
+
 export function _playNext() {
   if (!window._musicOn || window._musicTracks.length === 0) return;
   window._musicIdx = (window._musicIdx + 1) % window._musicTracks.length;
-  window._musicAudio.src = _trackUrl(window._musicTracks[window._musicIdx]);
-  window._musicAudio.play().catch(() => {});
-}
-
-function _suppressMediaSession() {
-  if (!('mediaSession' in navigator)) return;
-  try {
-    navigator.mediaSession.metadata = null;
-    navigator.mediaSession.playbackState = 'none';
-    ['play','pause','stop','seekbackward','seekforward','previoustrack','nexttrack'].forEach(a => {
-      try { navigator.mediaSession.setActionHandler(a, null); } catch(e) {}
-    });
-  } catch(e) {}
+  _loadAndPlay(_trackUrl(window._musicTracks[window._musicIdx]));
 }
 
 export function _initAudio() {
-  if (window._musicAudio) return window._musicAudio;
   try { const v = localStorage.getItem('es_music_vol'); if (v) window._musicVolume = parseFloat(v); } catch(e) {}
-  window._musicAudio = new Audio();
-  window._musicAudio.crossOrigin = 'anonymous';
-  window._musicAudio.preload = 'auto';
-  window._musicAudio.setAttribute('playsinline', '');
-  window._musicAudio.volume = window._musicVolume;
-  window._musicAudio.addEventListener('ended', () => {
-    window._musicErrorRetries = 0;
-    _playNext();
-  });
-  window._musicAudio.addEventListener('error', () => {
-    if (!window._musicOn) return;
-    window._musicErrorRetries++;
-    if (window._musicErrorRetries >= window._musicTracks.length) {
-      console.warn('Alle MP3-Dateien fehlerhaft.');
-      return;
-    }
-    setTimeout(() => _playNext(), 300);
-  });
-  // Lockscreen-Medienanzeige nach jedem play() unterdrücken — Browser setzt
-  // MediaSession bei Wiedergabe neu, daher hier wiederholt zurücksetzen.
-  window._musicAudio.addEventListener('playing', () => {
-    window._musicErrorRetries = 0;
-    _suppressMediaSession();
-  });
-  _suppressMediaSession();
+  // Shim für speech.js: _scheduleIosMusicResume() ruft window._musicAudio.play() auf
+  // um nach Mikrofon-Freigabe die iOS-AudioSession zurück auf Playback zu schalten.
+  if (!window._musicAudio) {
+    window._musicAudio = {
+      play: () => { resumeMusic(); return Promise.resolve(); },
+      pause: () => {}
+    };
+  }
   return window._musicAudio;
+}
+
+// Setzt Wiedergabe fort (nach Mikrofon-Freigabe oder Visibility-Resume).
+// Wird auch indirekt via window._musicAudio.play() aus speech.js aufgerufen.
+export function resumeMusic() {
+  if (!window._musicOn) return Promise.resolve();
+  try {
+    const ctx = _ensureMusicCtx();
+    const doPlay = () => {
+      if (!_musicPlaying) {
+        if (_musicBuffer) _playBuffer(_musicBuffer, _musicPauseOffset);
+        else if (window._musicTracks.length > 0) _loadAndPlay(_trackUrl(window._musicTracks[window._musicIdx]));
+      }
+    };
+    if (ctx.state === 'suspended') return ctx.resume().then(doPlay).catch(() => {});
+    doPlay();
+    return Promise.resolve();
+  } catch(e) {
+    return Promise.resolve();
+  }
 }
 
 export async function startMusic() {
@@ -135,32 +211,24 @@ export async function startMusic() {
     await _discoverTracks();
   }
   if (window._musicTracks.length === 0) {
-    console.warn('Keine MP3-Dateien gefunden');
+    console.warn('[Music] Keine MP3-Dateien gefunden');
     return false;
   }
   window._musicOn = true;
   window._musicErrorRetries = 0;
-  const a = _initAudio();
-  if (!a.src) a.src = _trackUrl(window._musicTracks[window._musicIdx]);
-  try {
-    const p = a.play();
-    if (p) p.catch(() => { window._musicOn = false; });
-  } catch(e) { window._musicOn = false; }
+  _initAudio();
+  _ensureMusicCtx(); // synchron während User-Gesture — iOS AudioContext Unlock
+  _loadAndPlay(_trackUrl(window._musicTracks[window._musicIdx]));
   return true;
 }
 
 export function startMusicSync() {
   window._musicOn = true;
   window._musicErrorRetries = 0;
-  const a = _initAudio();
+  _initAudio();
+  _ensureMusicCtx(); // synchron während User-Gesture — iOS AudioContext Unlock
   if (window._musicTracks.length > 0) {
-    if (!a.src || a.error) {
-      a.src = _trackUrl(window._musicTracks[window._musicIdx % window._musicTracks.length]);
-    }
-    try {
-      const p = a.play();
-      if (p) p.catch(err => { console.warn('[Music] play failed:', err); });
-    } catch(e) { console.warn('[Music] play exception:', e); }
+    _loadAndPlay(_trackUrl(window._musicTracks[window._musicIdx % window._musicTracks.length]));
   } else {
     _discoverTracks().then(() => {
       if (!window._musicOn) return;
@@ -169,9 +237,7 @@ export function startMusicSync() {
         window._musicOn = false; _setMusicBtns(false);
         return;
       }
-      a.src = _trackUrl(window._musicTracks[0]);
-      const p = a.play();
-      if (p) p.catch(err => console.warn('[Music] late play failed:', err));
+      _loadAndPlay(_trackUrl(window._musicTracks[0]));
     }).catch(e => console.warn('[Music] discover failed:', e));
   }
 }
@@ -179,12 +245,13 @@ export function startMusicSync() {
 export function stopMusic() {
   _pausedByVisibility = false;
   window._musicOn = false;
-  if (window._musicAudio) window._musicAudio.pause();
+  _musicPauseOffset = 0;
+  _stopCurrentSource();
 }
 
 export function setMusicVolume(v) {
   window._musicVolume = Math.max(0, Math.min(1, parseFloat(v)));
-  if (window._musicAudio) window._musicAudio.volume = window._musicVolume;
+  if (_musicGain) _musicGain.gain.value = window._musicVolume;
   try { localStorage.setItem('es_music_vol', String(window._musicVolume)); } catch(e) {}
   const lbl = document.getElementById('music-vol-lbl');
   if (lbl) lbl.textContent = Math.round(window._musicVolume * 100) + '%';
@@ -237,16 +304,27 @@ export function toggleVolPopup() {
 }
 
 document.addEventListener('visibilitychange', () => {
-  if (!window._musicAudio) return;
   if (document.hidden) {
-    if (window._musicOn) {
-      window._musicAudio.pause();
+    if (window._musicOn && _musicPlaying && _musicCtx) {
+      _musicPauseOffset = Math.max(0, _musicCtx.currentTime - _musicStartTime);
+      if (_musicBuffer) _musicPauseOffset = Math.min(_musicPauseOffset, _musicBuffer.duration - 0.01);
+      _stopCurrentSource();
       _pausedByVisibility = true;
     }
   } else {
     if (_pausedByVisibility && window._musicOn) {
       _pausedByVisibility = false;
-      window._musicAudio.play().catch(() => {});
+      if (_musicCtx && _musicCtx.state === 'suspended') {
+        _musicCtx.resume().then(() => {
+          if (window._musicOn && !_musicPlaying) {
+            if (_musicBuffer) _playBuffer(_musicBuffer, _musicPauseOffset);
+            else if (window._musicTracks.length > 0) _loadAndPlay(_trackUrl(window._musicTracks[window._musicIdx]));
+          }
+        }).catch(() => {});
+      } else if (window._musicOn && !_musicPlaying) {
+        if (_musicBuffer) _playBuffer(_musicBuffer, _musicPauseOffset);
+        else if (window._musicTracks.length > 0) _loadAndPlay(_trackUrl(window._musicTracks[window._musicIdx]));
+      }
     }
   }
 });
