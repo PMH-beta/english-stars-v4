@@ -88,6 +88,17 @@ export function _playNext() {
   window._musicAudio.play().catch(() => {});
 }
 
+function _suppressMediaSession() {
+  if (!('mediaSession' in navigator)) return;
+  try {
+    navigator.mediaSession.metadata = null;
+    navigator.mediaSession.playbackState = 'none';
+    ['play','pause','stop','seekbackward','seekforward','previoustrack','nexttrack'].forEach(a => {
+      try { navigator.mediaSession.setActionHandler(a, null); } catch(e) {}
+    });
+  } catch(e) {}
+}
+
 export function _initAudio() {
   if (window._musicAudio) return window._musicAudio;
   try { const v = localStorage.getItem('es_music_vol'); if (v) window._musicVolume = parseFloat(v); } catch(e) {}
@@ -109,7 +120,13 @@ export function _initAudio() {
     }
     setTimeout(() => _playNext(), 300);
   });
-  window._musicAudio.addEventListener('playing', () => { window._musicErrorRetries = 0; });
+  // Lockscreen-Medienanzeige nach jedem play() unterdrücken — Browser setzt
+  // MediaSession bei Wiedergabe neu, daher hier wiederholt zurücksetzen.
+  window._musicAudio.addEventListener('playing', () => {
+    window._musicErrorRetries = 0;
+    _suppressMediaSession();
+  });
+  _suppressMediaSession();
   return window._musicAudio;
 }
 
