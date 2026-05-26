@@ -1,7 +1,7 @@
 // src/modules/config.js
 // Zentrale Konstanten und Konfiguration
 
-export const APP_VERSION = 'v4.0.69';
+export const APP_VERSION = 'v4.0.70';
 
 export const QPERROUND = 20;
 export const EXAM_QUESTIONS = 30;

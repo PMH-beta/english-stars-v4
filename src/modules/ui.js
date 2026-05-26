@@ -77,6 +77,41 @@ export function skipApiKey() {
 }
 
 // ────────────────────────────────────────────────
+//  MODUS-TOGGLE
+// ────────────────────────────────────────────────
+
+function _renderModeToggle(mode) {
+  ['free', 'student', 'campaign'].forEach(m => {
+    const btn = document.getElementById('mode-btn-' + m);
+    if (!btn) return;
+    btn.style.background  = (m === mode) ? '#fff' : 'transparent';
+    btn.style.color       = (m === mode) ? 'var(--purple)' : '#999';
+    btn.style.boxShadow   = (m === mode) ? '0 2px 6px rgba(0,0,0,.12)' : 'none';
+  });
+}
+
+export function renderModeContent(mode) {
+  const freeEl    = document.getElementById('mode-free');
+  const studentEl = document.getElementById('mode-student');
+  const campEl    = document.getElementById('mode-campaign');
+  if (freeEl)    freeEl.style.display    = (mode === 'free')     ? '' : 'none';
+  if (studentEl) studentEl.style.display = (mode === 'student')  ? '' : 'none';
+  if (campEl)    campEl.style.display    = (mode === 'campaign') ? '' : 'none';
+  _renderModeToggle(mode);
+}
+
+export function setActiveMode(mode) {
+  const valid = ['free', 'student', 'campaign'];
+  if (!valid.includes(mode)) mode = 'free';
+  window.SD.activeMode = mode;
+  persist(window.SD);
+  if (window.currentUser) {
+    saveProfile(window.SD, window.currentUser.id).catch(() => {});
+  }
+  renderModeContent(mode);
+}
+
+// ────────────────────────────────────────────────
 //  MENU
 // ────────────────────────────────────────────────
 export function showMenu() {
@@ -89,6 +124,7 @@ export function showMenu() {
   document.getElementById('menu-total').textContent = window.SD.totalPoints;
   const ft = document.getElementById('menu-footer'); if (ft) ft.style.display = 'flex';
   renderDecks();
+  renderModeContent(window.SD.activeMode || 'free');
 }
 
 // ────────────────────────────────────────────────
@@ -319,7 +355,7 @@ export async function confirmReset() {
     if (btn) { btn.disabled = false; btn.textContent = '🗑️'; }
     window.SD = {
       _version: 4, playerName: name, highscore: 0, totalPoints: 0,
-      activeDeckId: null, decks: {},
+      activeMode: 'free', activeDeckId: null, decks: {},
       categoryProgress: {
         vocab:       { played: 0, correct: 0, bestStreak: 0 },
         spelling:    { played: 0, correct: 0, bestStreak: 0 },
@@ -729,6 +765,7 @@ export async function handleLogin(user) {
       window.SD.highscore    = data.highscore      || window.SD.highscore    || 0;
       window.SD.totalPoints  = data.total_points   || window.SD.totalPoints  || 0;
       window.SD.activeDeckId = data.active_deck_id || window.SD.activeDeckId || null;
+      window.SD.activeMode   = data.active_mode    || window.SD.activeMode   || 'free';
       persist(window.SD);
     }
   } catch(e) {

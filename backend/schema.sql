@@ -11,9 +11,13 @@ CREATE TABLE profiles (
   highscore INTEGER NOT NULL DEFAULT 0,
   total_points INTEGER NOT NULL DEFAULT 0,
   active_deck_id UUID,
+  active_mode TEXT NOT NULL DEFAULT 'free',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Migration für bestehende DBs (einmalig im Supabase-Dashboard ausführen):
+-- ALTER TABLE profiles ADD COLUMN IF NOT EXISTS active_mode TEXT NOT NULL DEFAULT 'free';
 
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 

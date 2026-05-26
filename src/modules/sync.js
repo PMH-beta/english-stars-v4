@@ -40,7 +40,7 @@ async function fetchWithRetry(fn) {
  */
 export async function cloudLoad(userId) {
   const [profileRes, decksRes, wordStatsRes] = await Promise.all([
-    fetchWithRetry(() => supabase.from('profiles').select('player_name, highscore, total_points, active_deck_id').eq('id', userId).maybeSingle()),
+    fetchWithRetry(() => supabase.from('profiles').select('player_name, highscore, total_points, active_deck_id, active_mode').eq('id', userId).maybeSingle()),
     fetchWithRetry(() => supabase.from('decks').select('*').eq('user_id', userId).order('created_at')),
     fetchWithRetry(() => supabase.from('word_stats').select('*').eq('user_id', userId)),
   ]);
@@ -58,6 +58,7 @@ export async function cloudLoad(userId) {
       playerName:   profile.player_name,
       highscore:    profile.highscore    || 0,
       totalPoints:  profile.total_points || 0,
+      activeMode:   profile.active_mode  || 'free',
       activeDeckId: null,
       decks:        {},
       categoryProgress: { ...EMPTY_CAT },
@@ -98,6 +99,7 @@ export async function cloudLoad(userId) {
     playerName:       profile.player_name || '',
     highscore:        profile.highscore || 0,
     totalPoints:      profile.total_points || 0,
+    activeMode:       profile.active_mode || 'free',
     activeDeckId,
     decks,
     categoryProgress: { ...EMPTY_CAT },
@@ -116,6 +118,7 @@ export async function saveProfile(sd, userId) {
     highscore:      sd.highscore || 0,
     total_points:   sd.totalPoints || 0,
     active_deck_id: isUUID(sd.activeDeckId) ? sd.activeDeckId : null,
+    active_mode:    sd.activeMode || 'free',
     updated_at:     new Date().toISOString(),
   };
   try {
@@ -230,7 +233,7 @@ export async function saveExam({ deckId, grade, percent }, userId) {
 export async function loadProfile(userId) {
   const { data, error } = await fetchWithRetry(() => supabase
     .from('profiles')
-    .select('player_name, highscore, total_points, active_deck_id')
+    .select('player_name, highscore, total_points, active_deck_id, active_mode')
     .eq('id', userId)
     .maybeSingle()
   );
@@ -246,7 +249,7 @@ export async function cloudReset(userId) {
 
   const { error: profErr } = await supabase
     .from('profiles')
-    .update({ highscore: 0, total_points: 0, active_deck_id: null, updated_at: new Date().toISOString() })
+    .update({ highscore: 0, total_points: 0, active_deck_id: null, active_mode: 'free', updated_at: new Date().toISOString() })
     .eq('id', userId);
   if (profErr) throw new Error('[sync] cloudReset profile: ' + profErr.message);
 }

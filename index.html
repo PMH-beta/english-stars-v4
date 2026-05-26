@@ -198,25 +198,47 @@
     <button class="back-btn" style="margin:0" onclick="event.stopPropagation();showStats()">📊 Fortschritt</button>
   </div>
 
-  <div style="display:flex;align-items:center;justify-content:space-between;width:100%;margin-bottom:8px;">
-    <div class="section-title" style="margin:0">📚 Vokabelsammlungen</div>
-    <button id="schnell-toggle" onclick="toggleSchnell()" style="
-      font-family:'Fredoka One',cursive;font-size:.78rem;padding:6px 12px;
-      border:none;border-radius:11px;cursor:pointer;transition:all .2s;
-      background:#eee;color:#888;box-shadow:0 3px 0 #ccc;white-space:nowrap;
-    ">⚡ Schnell: AUS</button>
+  <!-- Modus-Toggle -->
+  <div id="mode-toggle" style="display:flex;width:100%;background:#f0f0f0;border-radius:14px;padding:3px;margin-bottom:18px;gap:2px;">
+    <button id="mode-btn-free" onclick="setActiveMode('free')" style="flex:1;font-family:'Fredoka One',cursive;font-size:.78rem;padding:8px 4px;border:none;border-radius:11px;cursor:pointer;transition:all .15s;background:#fff;color:var(--purple);box-shadow:0 2px 6px rgba(0,0,0,.12);">🎮 Freier Modus</button>
+    <button id="mode-btn-student" onclick="setActiveMode('student')" style="flex:1;font-family:'Fredoka One',cursive;font-size:.78rem;padding:8px 4px;border:none;border-radius:11px;cursor:pointer;transition:all .15s;background:transparent;color:#999;">🎒 Schülermodus</button>
+    <button id="mode-btn-campaign" onclick="setActiveMode('campaign')" style="flex:1;font-family:'Fredoka One',cursive;font-size:.78rem;padding:8px 4px;border:none;border-radius:11px;cursor:pointer;transition:all .15s;background:transparent;color:#999;">🗺️ Kampagne</button>
   </div>
 
-  <!-- Liste der Decks (dynamisch) -->
-  <div id="decks-container" style="width:100%;"></div>
+  <!-- ─── Freier Modus ─── -->
+  <div id="mode-free">
+    <div style="display:flex;align-items:center;justify-content:space-between;width:100%;margin-bottom:8px;">
+      <div class="section-title" style="margin:0">📚 Vokabelsammlungen</div>
+      <button id="schnell-toggle" onclick="toggleSchnell()" style="
+        font-family:'Fredoka One',cursive;font-size:.78rem;padding:6px 12px;
+        border:none;border-radius:11px;cursor:pointer;transition:all .2s;
+        background:#eee;color:#888;box-shadow:0 3px 0 #ccc;white-space:nowrap;
+      ">⚡ Schnell: AUS</button>
+    </div>
+    <!-- Liste der Decks (dynamisch) -->
+    <div id="decks-container" style="width:100%;"></div>
+    <!-- Neues Deck hinzufügen -->
+    <button class="big-btn purple center" onclick="newDeckPrompt()" style="margin-top:14px;font-size:.95rem;">
+      <span class="icon-btn">➕</span>
+      <span>Neue Vokabelsammlung anlegen</span>
+    </button>
+    <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
+  </div>
 
-  <!-- Neues Deck hinzufügen -->
-  <button class="big-btn purple center" onclick="newDeckPrompt()" style="margin-top:14px;font-size:.95rem;">
-    <span class="icon-btn">➕</span>
-    <span>Neue Vokabelsammlung anlegen</span>
-  </button>
+  <!-- ─── Schülermodus Platzhalter ─── -->
+  <div id="mode-student" style="display:none;width:100%;text-align:center;padding:48px 20px;">
+    <div style="font-size:3.5rem;margin-bottom:14px;">🎒</div>
+    <div style="font-family:'Fredoka One',cursive;font-size:1.4rem;color:var(--purple);margin-bottom:8px;">Schülermodus</div>
+    <div style="font-size:.9rem;color:#aaa;font-weight:700;">Kommt bald!</div>
+  </div>
 
-  <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
+  <!-- ─── Kampagne Platzhalter ─── -->
+  <div id="mode-campaign" style="display:none;width:100%;text-align:center;padding:48px 20px;">
+    <div style="font-size:3.5rem;margin-bottom:14px;">🗺️</div>
+    <div style="font-family:'Fredoka One',cursive;font-size:1.4rem;color:var(--purple);margin-bottom:8px;">Kampagne</div>
+    <div style="font-size:.9rem;color:#aaa;font-weight:700;">Kommt bald!</div>
+  </div>
+
 </div>
 
 

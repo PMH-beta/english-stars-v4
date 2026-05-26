@@ -16,6 +16,9 @@
 - Google-Login (OAuth): verknüpft sauber mit Bestandskonten,
   Account-Picker bei Hard-Logout, Kinderkonten via Family-Link-
   Eltern-Genehmigung getestet
+- Modus-Toggle-Gerüst: Dreier-Toggle (Freier Modus / Schülermodus
+  / Kampagne) auf Startseite, SD.activeMode + profiles.active_mode
+  Cloud-sync; Schülermodus + Kampagne = Platzhalter
 
 ## Offen
 - Live-Gang v4: wird DIE Hauptversion, v3.44/altes Repo verfällt,
