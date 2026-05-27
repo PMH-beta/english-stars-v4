@@ -4,8 +4,8 @@ import { showScreen } from './ui.js';
 import { persist } from './storage.js';
 import { markDirty, flushPendingSync } from './sync.js';
 import { supabase } from './supabase.js';
-import { isMastered, statKeyFor } from './stats.js';
-import { MAX_PRESET_CATEGORIES } from './config.js';
+import { effectivePct, statKeyFor } from './stats.js';
+import { MAX_PRESET_CATEGORIES, MASTERY_MIN_ATTEMPTS, MASTERY_THRESHOLD } from './config.js';
 
 // window._reviewItems: muss global sein damit inline onchange-Handler ("_reviewItems[i].de=...") funktionieren
 window._reviewItems = [];
@@ -388,7 +388,10 @@ function _presetProgress(cat, deck) {
   if (!hasPlayed) return null;
   const presetWords = deck.vocab.filter(v => v._presetId === cat.id);
   if (presetWords.length === 0) return null;
-  const mastered = presetWords.filter(v => isMastered(deck.wordStats[statKeyFor(v.de, v.en, '_mc')])).length;
+  const mastered = presetWords.filter(v => {
+    const stat = deck.wordStats[statKeyFor(v.de, v.en, '_mc')];
+    return stat && Math.floor(stat.asked || 0) >= MASTERY_MIN_ATTEMPTS && effectivePct(stat) >= MASTERY_THRESHOLD;
+  }).length;
   return { mastered, total: presetWords.length };
 }
 
