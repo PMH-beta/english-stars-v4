@@ -102,6 +102,7 @@ export async function cloudLoad(userId) {
       categoryProgress: row.category_progress || { ...EMPTY_CAT },
       presetCategories: row.preset_categories || [],
       presetsLocked:    row.presets_locked || false,
+      deckPath:         row.deck_path || 'none',
       sortOrder:        (row.sort_order > 0) ? row.sort_order : (i + 1) * 10,
       lastExam:         row.last_exam || null,
     };
@@ -175,6 +176,7 @@ export async function saveDeck(deck, userId) {
     category_progress:  deck.categoryProgress,
     preset_categories:  deck.presetCategories || [],
     presets_locked:     deck.presetsLocked || false,
+    deck_path:          deck.deckPath || 'none',
     sort_order:         deck.sortOrder || 0,
     last_exam:          deck.lastExam || null,
     updated_at:         now,

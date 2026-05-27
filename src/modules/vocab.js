@@ -24,13 +24,17 @@ function _renderVmTabsForMode() {
   const tabsEl = document.querySelector('.vm-tabs');
   if (!tabsEl) return;
   if (mode === 'free') {
+    const dp = activeDeck()?.deckPath || 'none';
+    const presetsLocked = dp === 'custom'; // custom path → grey presets tab
+    const customLocked  = dp === 'preset'; // preset path → grey add/paste tabs
+    const _lockedAttr = 'disabled style="opacity:.4;cursor:not-allowed"';
     tabsEl.innerHTML = `
-      <button class="vm-tab" data-tab="presets" onclick="vmTab('presets')">📦 Vorlagen</button>
-      <button class="vm-tab" data-tab="add" onclick="vmTab('add')">➕ Hinzufügen</button>
-      <button class="vm-tab" data-tab="paste" onclick="vmTab('paste')">📝 Text</button>
+      <button class="vm-tab" data-tab="presets" ${presetsLocked ? _lockedAttr : "onclick=\"vmTab('presets')\""}>📦 Vorlagen</button>
+      <button class="vm-tab" data-tab="add" ${customLocked ? _lockedAttr : "onclick=\"vmTab('add')\""}>➕ Hinzufügen</button>
+      <button class="vm-tab" data-tab="paste" ${customLocked ? _lockedAttr : "onclick=\"vmTab('paste')\""}>📝 Text</button>
       <button class="vm-tab" data-tab="list" onclick="vmTab('list')">📋 Liste <span id="vm-count" class="vm-count">0</span></button>
     `;
-    vmTab('presets');
+    vmTab(customLocked ? 'list' : 'presets');
   } else {
     tabsEl.innerHTML = `
       <button class="vm-tab" data-tab="list" onclick="vmTab('list')">📋 Liste <span id="vm-count" class="vm-count">0</span></button>
@@ -94,6 +98,12 @@ export function parsePastedText() {
   if (window._reviewItems.length === 0) {
     alert('Keine Vokabeln im Text erkannt. Format: pro Zeile ein Vokabelpaar, getrennt durch 2+ Leerzeichen oder Tab.\n\nBeispiel:\ncafeteria   Cafeteria\nplace   Platz');
     return;
+  }
+  const _ptDeck = activeDeck();
+  if (_ptDeck && (!_ptDeck.deckPath || _ptDeck.deckPath === 'none')) {
+    _ptDeck.deckPath = 'custom';
+    persist();
+    if (window.currentUser) { markDirty('deck', _ptDeck.id); flushPendingSync().catch(() => {}); }
   }
   showReview();
 }
@@ -343,6 +353,7 @@ export function confirmAddVocab() {
     window.VOCAB.push(v);
     deck.vocab.push(v);
   });
+  if (!deck.deckPath || deck.deckPath === 'none') deck.deckPath = 'custom';
   persist();
   if (window.currentUser) { markDirty('deck', deck.id); flushPendingSync().catch(() => {}); }
   alert(`✅ ${toAdd.length} neue Vokabel${toAdd.length === 1 ? '' : 'n'} zur Lernliste hinzugefügt!`);
@@ -390,12 +401,18 @@ function _presetProgress(cat) {
   if (!(globalCp?.played > 0)) return null;
   const words = Array.isArray(cat.words) ? cat.words : [];
   if (words.length === 0) return null;
-  const globalWordStats = window.SD?.globalPresetStats?.wordStats || {};
-  const mastered = words.filter(v => {
-    const stat = globalWordStats[statKeyFor(v.de, v.en, '_mc')];
-    return stat && Math.floor(stat.asked || 0) >= MASTERY_MIN_ATTEMPTS && effectivePct(stat) >= MASTERY_THRESHOLD;
-  }).length;
-  const pct = Math.round(mastered / words.length * 100);
+  const ws = window.SD?.globalPresetStats?.wordStats || {};
+  function modeMastered(suffix) {
+    return words.filter(v => {
+      const s = ws[statKeyFor(v.de, v.en, suffix)];
+      return s && Math.floor(s.asked || 0) >= MASTERY_MIN_ATTEMPTS && effectivePct(s) >= MASTERY_THRESHOLD;
+    }).length;
+  }
+  const mc = modeMastered('_mc');
+  const sp = modeMastered('_sp');
+  const pr = modeMastered('_pr');
+  const pct = Math.round((mc + sp + pr) / 3 / words.length * 100);
+  const mastered = Math.min(mc, sp, pr);
   return { mastered, total: words.length, pct };
 }
 
@@ -544,6 +561,7 @@ function _doTogglePresetCategory(categoryId) {
 
   if (!isOn) {
     if (deck.presetCategories.length >= MAX_PRESET_CATEGORIES) return; // Sicherheits-Guard
+    if (!deck.deckPath || deck.deckPath === 'none') deck.deckPath = 'preset';
     // Ein: Wörter der Kategorie ins Deck aufnehmen (Duplikate überspringen)
     const existingEn = new Set(deck.vocab.map(v => v.en.toLowerCase()));
     for (const w of (cat.words || [])) {

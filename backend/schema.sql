@@ -208,3 +208,16 @@ CREATE POLICY "Users can update own preset cat progress"  ON preset_category_pro
 CREATE POLICY "Users can delete own preset cat progress"  ON preset_category_progress FOR DELETE TO authenticated USING (auth.uid() = user_id);
 CREATE INDEX IF NOT EXISTS idx_preset_cat_progress_user ON preset_category_progress(user_id);
 GRANT ALL ON preset_category_progress TO authenticated, anon, service_role;
+
+-- v4.0.80: deckPath — Exklusiver Sammlungs-Weg im Freien Modus
+ALTER TABLE decks ADD COLUMN IF NOT EXISTS deck_path TEXT NOT NULL DEFAULT 'none';
+UPDATE decks
+SET deck_path = CASE
+  WHEN jsonb_array_length(vocab) > 0
+       AND NOT EXISTS (SELECT 1 FROM jsonb_array_elements(vocab) v WHERE NOT (v ? '_presetId'))
+    THEN 'preset'
+  WHEN jsonb_array_length(vocab) > 0
+       AND NOT EXISTS (SELECT 1 FROM jsonb_array_elements(vocab) v WHERE v ? '_presetId')
+    THEN 'custom'
+  ELSE 'none'
+END;

@@ -588,6 +588,7 @@ function freshData(){
         pronounce:{played:0,correct:0,bestStreak:0},
         mixed_vocab:{played:0,correct:0,bestStreak:0},
       },
+      deckPath:'none',
       lastExam:null,
     };
   });
@@ -617,7 +618,14 @@ function migrateData(old){
   if(old.decks && old.activeDeckId){
     d.decks=old.decks;
     d.activeDeckId=old.activeDeckId;
-    Object.values(d.decks).forEach(deck=>{ if(!('lastExam' in deck)) deck.lastExam=null; });
+    Object.values(d.decks).forEach(deck=>{
+      if(!('lastExam' in deck)) deck.lastExam=null;
+      if(!deck.deckPath){
+        const hasPreset=deck.vocab.some(v=>v._presetId);
+        const hasManual=deck.vocab.some(v=>!v._presetId);
+        deck.deckPath=(hasPreset&&!hasManual)?'preset':(hasManual&&!hasPreset)?'custom':'none';
+      }
+    });
   } else {
     // Altes Format → ins Default-Deck migrieren
     const defId=d.activeDeckId;

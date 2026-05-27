@@ -62,6 +62,7 @@ export function freshData() {
       },
       presetCategories: [],
       presetsLocked: false,
+      deckPath: 'none',
       sortOrder: (idx + 1) * 10,
       lastExam: null,
     };
