@@ -67,6 +67,7 @@ export function freshData() {
     _version: 4,
     playerName: '', highscore: 0, totalPoints: 0,
     activeMode: 'free',
+    presetIntroSeen: false,
     activeDeckId: DEFAULT_DECKS[0].id,
     decks,
     categoryProgress: {

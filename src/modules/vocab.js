@@ -4,6 +4,8 @@ import { showScreen } from './ui.js';
 import { persist } from './storage.js';
 import { markDirty, flushPendingSync } from './sync.js';
 import { supabase } from './supabase.js';
+import { isMastered, statKeyFor } from './stats.js';
+import { MAX_PRESET_CATEGORIES } from './config.js';
 
 // window._reviewItems: muss global sein damit inline onchange-Handler ("_reviewItems[i].de=...") funktionieren
 window._reviewItems = [];
@@ -12,9 +14,31 @@ let _lastOCRText = '';
 export function openVocabManager(deckId) {
   if (deckId) switchDeck(deckId);
   showScreen('scan-screen');
-  vmTab('list');
+  _renderVmTabsForMode();
   const dn = document.getElementById('vm-deck-name');
   if (dn) dn.textContent = 'Sammlung: ' + activeDeck().name;
+}
+
+function _renderVmTabsForMode() {
+  const mode = window.SD?.activeMode || 'free';
+  const tabsEl = document.querySelector('.vm-tabs');
+  if (!tabsEl) return;
+  if (mode === 'free') {
+    tabsEl.innerHTML = `
+      <button class="vm-tab" data-tab="presets" onclick="vmTab('presets')">📦 Vorlagen</button>
+      <button class="vm-tab" data-tab="list" onclick="vmTab('list')">📋 Liste <span id="vm-count" class="vm-count">0</span></button>
+      <button class="vm-tab" data-tab="add" onclick="vmTab('add')">➕ Hinzufügen</button>
+      <button class="vm-tab" data-tab="paste" onclick="vmTab('paste')">📝 Text</button>
+    `;
+    vmTab('presets');
+  } else {
+    tabsEl.innerHTML = `
+      <button class="vm-tab" data-tab="list" onclick="vmTab('list')">📋 Liste <span id="vm-count" class="vm-count">0</span></button>
+      <button class="vm-tab" data-tab="add" onclick="vmTab('add')">➕ Hinzufügen</button>
+      <button class="vm-tab" data-tab="scan" onclick="vmTab('scan')">📷 Scan</button>
+    `;
+    vmTab('list');
+  }
 }
 
 export function vmTab(tabName) {
@@ -356,6 +380,40 @@ async function _loadPresetCategories() {
   return _presetCache || [];
 }
 
+// Fortschritt einer Vorlage: null wenn Gate nicht erfüllt, sonst {mastered, total}.
+// Gate: Vorlage muss aktiv sein UND das Deck muss mindestens einmal gespielt worden sein.
+function _presetProgress(cat, deck) {
+  if (!deck.presetCategories?.includes(cat.id)) return null;
+  const hasPlayed = Object.values(deck.categoryProgress || {}).some(cp => (cp.played || 0) > 0);
+  if (!hasPlayed) return null;
+  const presetWords = deck.vocab.filter(v => v._presetId === cat.id);
+  if (presetWords.length === 0) return null;
+  const mastered = presetWords.filter(v => isMastered(deck.wordStats[statKeyFor(v.de, v.en, '_mc')])).length;
+  return { mastered, total: presetWords.length };
+}
+
+function _showPresetIntroModal(onDone) {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
+  overlay.innerHTML = `
+    <div style="background:#fff;border-radius:20px;padding:28px 22px;max-width:340px;width:100%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.2);">
+      <div style="font-size:2.5rem;margin-bottom:10px;">📦</div>
+      <div style="font-family:'Fredoka One',cursive;font-size:1.25rem;color:var(--purple);margin-bottom:12px;">Lernvorlagen</div>
+      <p style="font-size:.88rem;color:#555;line-height:1.6;margin:0 0 20px;">
+        Vorlagen sind fertige Wortsammlungen zum Loslegen. Du kannst ${MAX_PRESET_CATEGORIES} gleichzeitig aktiv haben — eine zum Neulernen, eine zum Auffrischen. Wähle mit Bedacht.
+      </p>
+      <button id="_preset-intro-ok" style="font-family:'Fredoka One',cursive;font-size:1rem;padding:12px 32px;background:linear-gradient(135deg,var(--purple),var(--pink));color:#fff;border:none;border-radius:50px;cursor:pointer;box-shadow:0 4px 0 #7a4ba8;">Verstanden</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#_preset-intro-ok').addEventListener('click', () => {
+    overlay.remove();
+    if (window.SD) window.SD.presetIntroSeen = true;
+    if (typeof window.persist === 'function') window.persist(window.SD);
+    onDone();
+  });
+}
+
 export async function renderPresetsTab() {
   const pane = document.getElementById('vm-pane-presets');
   if (!pane) return;
@@ -364,6 +422,7 @@ export async function renderPresetsTab() {
   const deck = activeDeck();
   if (!deck) return;
   const activeSet = new Set(deck.presetCategories || []);
+  const atLimit = activeSet.size >= MAX_PRESET_CATEGORIES;
 
   if (categories.length === 0) {
     pane.innerHTML = '<div style="text-align:center;padding:24px;color:#aaa;font-weight:700;">Noch keine Vorlagen verfügbar.</div>';
@@ -377,31 +436,43 @@ export async function renderPresetsTab() {
     return `<span style="display:inline-flex;align-items:center;gap:3px;font-size:.70rem;font-weight:700;color:${col};white-space:nowrap"><span style="width:7px;height:7px;border-radius:50%;background:${col};flex-shrink:0"></span>${lbl}</span>`;
   };
 
-  pane.innerHTML = `
-    <p style="font-size:.82rem;color:#888;margin:0 0 14px;line-height:1.5;">
-      Vorgefertigte Wortgruppen ein- oder ausschalten.<br>
-      Lernfortschritt bleibt beim Ausschalten erhalten.
-    </p>
-    ${categories.map(cat => {
-      const isOn = activeSet.has(cat.id);
-      const wordCount = Array.isArray(cat.words) ? cat.words.length : 0;
-      return `<div class="preset-row">
-        <div class="preset-info">
-          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-            <span class="preset-name">${window.escHtml(cat.name)}</span>
-            ${_diffBadge(cat.difficulty)}
-          </div>
-          <span class="preset-count">${wordCount} Wörter</span>
+  const headerNote = atLimit
+    ? `<p style="font-size:.82rem;font-weight:700;color:var(--purple);background:rgba(168,108,219,.08);padding:8px 12px;border-radius:10px;margin:0 0 14px;text-align:center;">✓ ${MAX_PRESET_CATEGORIES} Vorlagen aktiv — Limit erreicht</p>`
+    : `<p style="font-size:.82rem;color:#888;margin:0 0 14px;line-height:1.5;">Vorgefertigte Wortgruppen ein- oder ausschalten.<br>Lernfortschritt bleibt beim Ausschalten erhalten.</p>`;
+
+  pane.innerHTML = headerNote + categories.map(cat => {
+    const isOn = activeSet.has(cat.id);
+    const disabled = !isOn && atLimit;
+    const wordCount = Array.isArray(cat.words) ? cat.words.length : 0;
+    const prog = _presetProgress(cat, deck);
+    const progressLine = prog
+      ? `<span style="font-size:.72rem;font-weight:700;color:#2a7a35;">✓ ${prog.mastered}/${prog.total} gemeistert</span>`
+      : '';
+    return `<div class="preset-row" style="${disabled ? 'opacity:.4;' : ''}">
+      <div class="preset-info">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          <span class="preset-name">${window.escHtml(cat.name)}</span>
+          ${_diffBadge(cat.difficulty)}
         </div>
-        <button class="preset-toggle${isOn ? ' on' : ''}" onclick="togglePresetCategory('${cat.id}')">
-          ${isOn ? 'AN ✓' : 'AUS'}
-        </button>
-      </div>`;
-    }).join('')}
-  `;
+        <span class="preset-count">${wordCount} Wörter</span>
+        ${progressLine}
+      </div>
+      <button class="preset-toggle${isOn ? ' on' : ''}" onclick="${disabled ? '' : `togglePresetCategory('${cat.id}')`}" ${disabled ? 'disabled' : ''}>
+        ${isOn ? 'AN ✓' : 'AUS'}
+      </button>
+    </div>`;
+  }).join('');
 }
 
 export function togglePresetCategory(categoryId) {
+  if (!window.SD?.presetIntroSeen) {
+    _showPresetIntroModal(() => _doTogglePresetCategory(categoryId));
+    return;
+  }
+  _doTogglePresetCategory(categoryId);
+}
+
+function _doTogglePresetCategory(categoryId) {
   const deck = activeDeck();
   if (!deck) return;
   if (!Array.isArray(deck.presetCategories)) deck.presetCategories = [];
@@ -412,6 +483,7 @@ export function togglePresetCategory(categoryId) {
   const isOn = deck.presetCategories.includes(categoryId);
 
   if (!isOn) {
+    if (deck.presetCategories.length >= MAX_PRESET_CATEGORIES) return; // Sicherheits-Guard
     // Ein: Wörter der Kategorie ins Deck aufnehmen (Duplikate überspringen)
     const existingEn = new Set(deck.vocab.map(v => v.en.toLowerCase()));
     for (const w of (cat.words || [])) {

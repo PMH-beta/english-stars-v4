@@ -4,7 +4,7 @@
 
 | Modul | Aufgabe | Wichtige Exports |
 |---|---|---|
-| `config.js` | Konstanten, Grading-Logik, Device-Detection | `APP_VERSION`, `QPERROUND`, `EXAM_QUESTIONS`, `calcGrade`, `gradeText`, `isMobile`, `isIOS`, `shouldUseVosk` |
+| `config.js` | Konstanten, Grading-Logik, Device-Detection | `APP_VERSION`, `QPERROUND`, `EXAM_QUESTIONS`, `MAX_PRESET_CATEGORIES`, `calcGrade`, `gradeText`, `isMobile`, `isIOS`, `shouldUseVosk` |
 | `supabase.js` | Supabase-Client (anon key, RLS-geschützt) | `supabase`, `testConnection` |
 | `storage.js` | LocalStorage-Operationen für window.SD | `persist`, `loadData`, `freshData`, `clearStorage`, `cleanupStorage`, `clearSWCache` |
 | `default-decks.js` | Starter-Vokabelsammlungen für neue Nutzer | `DEFAULT_DECKS` |
@@ -33,6 +33,7 @@ window.SD = {
   highscore: number,
   totalPoints: number,
   activeMode: 'free' | 'student' | 'campaign',  // zuletzt gewählter Modus, Default 'free'
+  presetIntroSeen: boolean,                      // ob Vorlagen-Intro-Modal schon gezeigt wurde
   activeDeckId: string | null,      // UUID (Cloud) oder 'deck_TIMESTAMP_RANDOM' (lokal, noch nicht gepusht)
 
   decks: {
