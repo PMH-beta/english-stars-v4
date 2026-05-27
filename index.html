@@ -215,13 +215,8 @@
         background:#eee;color:#888;box-shadow:0 3px 0 #ccc;white-space:nowrap;
       ">⚡ Schnell: AUS</button>
     </div>
-    <!-- Liste der Decks (dynamisch) -->
+    <!-- Liste der Decks (dynamisch) — «+ Neue Sammlung» wird von renderDecks() als erstes Element eingefügt -->
     <div id="decks-container" style="width:100%;"></div>
-    <!-- Neues Deck hinzufügen -->
-    <button class="big-btn purple center" onclick="newDeckPrompt()" style="margin-top:14px;font-size:.95rem;">
-      <span class="icon-btn">➕</span>
-      <span>Neue Vokabelsammlung anlegen</span>
-    </button>
     <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
   </div>
 

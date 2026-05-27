@@ -47,7 +47,7 @@ export function load() {
  */
 export function freshData() {
   const decks = {};
-  DEFAULT_DECKS.forEach(def => {
+  DEFAULT_DECKS.forEach((def, idx) => {
     decks[def.id] = {
       id: def.id,
       name: def.name,
@@ -62,6 +62,7 @@ export function freshData() {
       },
       presetCategories: [],
       presetsLocked: false,
+      sortOrder: (idx + 1) * 10,
       lastExam: null,
     };
   });

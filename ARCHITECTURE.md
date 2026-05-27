@@ -55,6 +55,7 @@ window.SD = {
       },
       presetCategories: string[],   // UUIDs aktiver preset_categories
       presetsLocked: boolean,        // true = Vorlage-Auswahl dauerhaft gesperrt; gesetzt beim ersten Verlassen mit aktiven Vorlagen
+      sortOrder: number,             // Reihenfolge in der Sammlungs-Liste (10, 20, 30 …); per Drag geändert → saveDeck
       lastExam: null | object,
     }
   },

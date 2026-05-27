@@ -41,7 +41,7 @@ async function fetchWithRetry(fn) {
 export async function cloudLoad(userId) {
   const [profileRes, decksRes, wordStatsRes] = await Promise.all([
     fetchWithRetry(() => supabase.from('profiles').select('player_name, highscore, total_points, active_deck_id, active_mode').eq('id', userId).maybeSingle()),
-    fetchWithRetry(() => supabase.from('decks').select('*').eq('user_id', userId).order('created_at')),
+    fetchWithRetry(() => supabase.from('decks').select('*').eq('user_id', userId).order('sort_order').order('created_at')),
     fetchWithRetry(() => supabase.from('word_stats').select('*').eq('user_id', userId)),
   ]);
 
@@ -68,7 +68,8 @@ export async function cloudLoad(userId) {
 
   // Decks aufbauen
   const decks = {};
-  for (const row of decksRes.data) {
+  for (let i = 0; i < decksRes.data.length; i++) {
+    const row = decksRes.data[i];
     decks[row.id] = {
       id:               row.id,
       name:             row.name,
@@ -78,6 +79,7 @@ export async function cloudLoad(userId) {
       categoryProgress: row.category_progress || { ...EMPTY_CAT },
       presetCategories: row.preset_categories || [],
       presetsLocked:    row.presets_locked || false,
+      sortOrder:        (row.sort_order > 0) ? row.sort_order : (i + 1) * 10,
       lastExam:         row.last_exam || null,
     };
   }
@@ -149,6 +151,7 @@ export async function saveDeck(deck, userId) {
     category_progress:  deck.categoryProgress,
     preset_categories:  deck.presetCategories || [],
     presets_locked:     deck.presetsLocked || false,
+    sort_order:         deck.sortOrder || 0,
     last_exam:          deck.lastExam || null,
     updated_at:         now,
   };

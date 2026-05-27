@@ -6,6 +6,7 @@ import { markDirty, flushPendingSync, deleteCloudDeck, deleteCloudWordStats, sav
 //  UI STATE
 // ────────────────────────────────────────────────
 let _expandedDeckId = null;
+let _dragState = null;
 
 // ────────────────────────────────────────────────
 //  CORE DECK OPERATIONS
@@ -42,6 +43,7 @@ export function switchDeck(deckId) {
 
 export function createDeck(name) {
   const id = 'deck_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+  const maxSort = Math.max(0, ...Object.values(window.SD.decks).map(d => d.sortOrder || 0));
   window.SD.decks[id] = {
     id, name: name || 'Neue Vokabelsammlung', createdAt: Date.now(),
     vocab: [], wordStats: {},
@@ -53,6 +55,7 @@ export function createDeck(name) {
     },
     presetCategories: [],
     presetsLocked: false,
+    sortOrder: maxSort + 10,
     lastExam: null,
   };
   window.persist();
@@ -122,12 +125,21 @@ function renderModeSubBy(p) {
 }
 
 export function renderDecks() {
+  _ensureDocListeners();
   const c = document.getElementById('decks-container');
   if (!c) return;
   const SD = window.SD;
-  const ids = Object.keys(SD.decks);
   c.innerHTML = '';
-  ids.forEach(id => {
+
+  // «+ Neue Sammlung» — immer erstes Element, nicht verschiebbar
+  const newBtn = document.createElement('button');
+  newBtn.className = 'big-btn purple center';
+  newBtn.style.cssText = 'margin-bottom:14px;font-size:.95rem;';
+  newBtn.innerHTML = '<span class="icon-btn">➕</span><span>Neue Vokabelsammlung anlegen</span>';
+  newBtn.addEventListener('click', () => window.newDeckPrompt());
+  c.appendChild(newBtn);
+
+  _getSortedDeckIds().forEach(id => {
     const deck = SD.decks[id];
     const p = deckProgress(deck);
     const isActive = id === SD.activeDeckId;
@@ -136,8 +148,9 @@ export function renderDecks() {
     const dateStr = dt.toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit', year: 'numeric'});
     const card = document.createElement('div');
     card.className = 'deck-card' + (isActive ? ' active' : '') + (isExpanded ? ' expanded' : '') + (!isActive ? ' inactive' : '');
+    card.dataset.deckId = id;
     card.innerHTML = `
-      <div class="deck-header" onclick="activateDeck('${id}')">
+      <div class="deck-header">
         <div class="deck-icon">${isActive ? '📖' : '📕'}</div>
         <div class="deck-info">
           <div class="deck-name">${window.escHtml(deck.name)}</div>
@@ -149,7 +162,7 @@ export function renderDecks() {
           <div class="deck-progress-mini"><div class="deck-progress-mini-fill" style="width:${p.overallPct}%"></div></div>
         </div>
         <div class="deck-pct">${p.overallPct}%</div>
-        <div class="deck-chevron" onclick="event.stopPropagation();toggleDeck('${id}')" style="cursor:pointer;padding:8px;">▼</div>
+        <div class="deck-chevron">▼</div>
       </div>
       <div class="deck-body">
         ${isActive ? `<div class="deck-active-badge">⭐ Aktive Sammlung – Statistik bezieht sich auf diese</div>` : ''}
@@ -182,8 +195,135 @@ export function renderDecks() {
         </div>
       </div>
     `;
+    _attachCardListeners(card, id);
     c.appendChild(card);
   });
+}
+
+// ────────────────────────────────────────────────
+//  DECK INTERACTION (Tap + Long-Press Drag)
+// ────────────────────────────────────────────────
+let _docListenersInit = false;
+function _ensureDocListeners() {
+  if (_docListenersInit) return;
+  _docListenersInit = true;
+  document.addEventListener('touchmove', e => {
+    if (!_dragState) return;
+    _moveDrag(e.touches[0].clientY);
+    e.preventDefault();
+  }, { passive: false });
+  document.addEventListener('touchend', () => { if (_dragState) _endDrag(); });
+  document.addEventListener('mousemove', e => { if (_dragState) _moveDrag(e.clientY); });
+  document.addEventListener('mouseup', () => { if (_dragState) _endDrag(); });
+}
+
+function _getSortedDeckIds() {
+  const SD = window.SD;
+  return Object.keys(SD.decks).sort((a, b) => {
+    const da = SD.decks[a], db = SD.decks[b];
+    const sa = da.sortOrder != null ? da.sortOrder : (da.createdAt || 0);
+    const sb = db.sortOrder != null ? db.sortOrder : (db.createdAt || 0);
+    return sa - sb;
+  });
+}
+
+function _handleTap(deckId) {
+  const SD = window.SD;
+  if (SD.activeDeckId !== deckId) {
+    SD.activeDeckId = deckId;
+    _expandedDeckId = null;
+    syncMirrorFromActiveDeck();
+    window.persist();
+  } else {
+    _expandedDeckId = (_expandedDeckId === deckId) ? null : deckId;
+  }
+  renderDecks();
+}
+
+function _attachCardListeners(cardEl, deckId) {
+  const header = cardEl.querySelector('.deck-header');
+  if (!header) return;
+  let longPressTimer = null, startY = 0, startX = 0, tapBlocked = false;
+
+  function onStart(e) {
+    const pt = e.touches ? e.touches[0] : e;
+    startY = pt.clientY; startX = pt.clientX; tapBlocked = false;
+    longPressTimer = setTimeout(() => {
+      longPressTimer = null; tapBlocked = true;
+      _initDrag(cardEl, deckId, startY);
+    }, 450);
+  }
+  function onMove(e) {
+    if (_dragState) return;
+    const pt = e.touches ? e.touches[0] : e;
+    if (Math.abs(pt.clientY - startY) > 8 || Math.abs(pt.clientX - startX) > 8) {
+      clearTimeout(longPressTimer); longPressTimer = null; tapBlocked = true;
+    }
+  }
+  function onEnd() {
+    clearTimeout(longPressTimer); longPressTimer = null;
+    if (!tapBlocked) _handleTap(deckId);
+  }
+
+  header.addEventListener('touchstart', onStart, { passive: true });
+  header.addEventListener('touchmove', onMove, { passive: true });
+  header.addEventListener('touchend', onEnd);
+  header.addEventListener('mousedown', e => { if (e.button === 0) onStart(e); });
+  header.addEventListener('mousemove', onMove);
+  header.addEventListener('mouseup', e => { if (e.button === 0) onEnd(); });
+}
+
+function _initDrag(cardEl, deckId, clientY) {
+  if (_expandedDeckId) {
+    _expandedDeckId = null;
+    document.querySelectorAll('.deck-card.expanded').forEach(el => el.classList.remove('expanded'));
+  }
+  const rect = cardEl.getBoundingClientRect();
+  const ph = document.createElement('div');
+  ph.style.cssText = `height:${rect.height}px;margin-bottom:10px;border-radius:18px;border:2px dashed var(--purple,#9b4dca);background:rgba(155,77,202,.06);box-sizing:border-box;`;
+  cardEl.after(ph);
+  Object.assign(cardEl.style, {
+    position: 'fixed', top: rect.top + 'px', left: rect.left + 'px',
+    width: rect.width + 'px', zIndex: '1000', margin: '0',
+    boxShadow: '0 16px 48px rgba(0,0,0,.25)',
+    transform: 'scale(1.02)', transition: 'none', pointerEvents: 'none',
+  });
+  _dragState = { deckId, el: cardEl, ph, offsetY: clientY - rect.top };
+  document.body.style.userSelect = 'none';
+  document.body.style.webkitUserSelect = 'none';
+}
+
+function _moveDrag(clientY) {
+  if (!_dragState) return;
+  const { el, ph, offsetY } = _dragState;
+  el.style.top = (clientY - offsetY) + 'px';
+  const container = document.getElementById('decks-container');
+  const cards = [...container.querySelectorAll('.deck-card')].filter(c => c !== el);
+  let insertBefore = null;
+  for (const c of cards) {
+    const r = c.getBoundingClientRect();
+    if (clientY < r.top + r.height / 2) { insertBefore = c; break; }
+  }
+  if (insertBefore) container.insertBefore(ph, insertBefore);
+  else if (cards.length) cards[cards.length - 1].after(ph);
+  else container.appendChild(ph);
+}
+
+function _endDrag() {
+  if (!_dragState) return;
+  const { el, ph } = _dragState;
+  ph.before(el);
+  ph.remove();
+  el.removeAttribute('style');
+  const container = document.getElementById('decks-container');
+  const newOrder = [...container.querySelectorAll('.deck-card')].map(c => c.dataset.deckId).filter(Boolean);
+  newOrder.forEach((id, i) => { if (window.SD.decks[id]) window.SD.decks[id].sortOrder = (i + 1) * 10; });
+  document.body.style.userSelect = '';
+  document.body.style.webkitUserSelect = '';
+  _dragState = null;
+  window.persist();
+  if (window.currentUser) { newOrder.forEach(id => markDirty('deck', id)); flushPendingSync().catch(() => {}); }
+  renderDecks();
 }
 
 // ────────────────────────────────────────────────
@@ -195,13 +335,7 @@ export function toggleDeck(id) {
 }
 
 export function activateDeck(id) {
-  const SD = window.SD;
-  if (SD.activeDeckId !== id) {
-    SD.activeDeckId = id;
-    syncMirrorFromActiveDeck();
-    window.persist();
-  }
-  renderDecks();
+  _handleTap(id);
 }
 
 export function startGameWithDeck(deckId, modeName) {

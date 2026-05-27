@@ -39,6 +39,7 @@ CREATE TABLE decks (
   category_progress JSONB NOT NULL DEFAULT '{}'::jsonb,
   preset_categories JSONB NOT NULL DEFAULT '[]'::jsonb,
   presets_locked BOOLEAN NOT NULL DEFAULT false,
+  sort_order INTEGER NOT NULL DEFAULT 0,
   last_exam JSONB,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -167,3 +168,5 @@ CREATE INDEX idx_exams_user_deck ON exams(user_id, deck_id);
 -- ─────────────────────────────────────────────
 -- v4.0.75: presets_locked Flag pro Deck
 ALTER TABLE decks ADD COLUMN IF NOT EXISTS presets_locked BOOLEAN NOT NULL DEFAULT false;
+-- v4.0.76: sort_order für manuelle Deck-Reihenfolge
+ALTER TABLE decks ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0;
