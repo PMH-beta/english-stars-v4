@@ -60,6 +60,8 @@ export function freshData() {
         pronounce:   { played: 0, correct: 0, bestStreak: 0 },
         mixed_vocab: { played: 0, correct: 0, bestStreak: 0 },
       },
+      presetCategories: [],
+      presetsLocked: false,
       lastExam: null,
     };
   });

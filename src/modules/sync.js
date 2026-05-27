@@ -77,6 +77,7 @@ export async function cloudLoad(userId) {
       wordStats:        {},
       categoryProgress: row.category_progress || { ...EMPTY_CAT },
       presetCategories: row.preset_categories || [],
+      presetsLocked:    row.presets_locked || false,
       lastExam:         row.last_exam || null,
     };
   }
@@ -147,6 +148,7 @@ export async function saveDeck(deck, userId) {
     vocab:              deck.vocab,
     category_progress:  deck.categoryProgress,
     preset_categories:  deck.presetCategories || [],
+    presets_locked:     deck.presetsLocked || false,
     last_exam:          deck.lastExam || null,
     updated_at:         now,
   };

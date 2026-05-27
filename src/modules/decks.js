@@ -52,6 +52,7 @@ export function createDeck(name) {
       mixed_vocab: {played:0,correct:0,bestStreak:0},
     },
     presetCategories: [],
+    presetsLocked: false,
     lastExam: null,
   };
   window.persist();

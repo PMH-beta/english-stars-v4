@@ -427,6 +427,7 @@ export async function renderPresetsTab() {
   if (!deck) return;
   const activeSet = new Set(deck.presetCategories || []);
   const atLimit = activeSet.size >= MAX_PRESET_CATEGORIES;
+  const locked = deck.presetsLocked || false;
 
   if (categories.length === 0) {
     pane.innerHTML = '<div style="text-align:center;padding:24px;color:#aaa;font-weight:700;">Noch keine Vorlagen verfügbar.</div>';
@@ -440,13 +441,18 @@ export async function renderPresetsTab() {
     return `<span style="display:inline-flex;align-items:center;gap:3px;font-size:.70rem;font-weight:700;color:${col};white-space:nowrap"><span style="width:7px;height:7px;border-radius:50%;background:${col};flex-shrink:0"></span>${lbl}</span>`;
   };
 
-  const headerNote = atLimit
-    ? `<p style="font-size:.82rem;font-weight:700;color:var(--purple);background:rgba(168,108,219,.08);padding:8px 12px;border-radius:10px;margin:0 0 14px;text-align:center;">✓ ${MAX_PRESET_CATEGORIES} Vorlagen aktiv — Limit erreicht</p>`
-    : `<p style="font-size:.82rem;color:#888;margin:0 0 14px;line-height:1.5;">Vorgefertigte Wortgruppen ein- oder ausschalten.<br>Lernfortschritt bleibt beim Ausschalten erhalten.</p>`;
+  let headerNote;
+  if (locked) {
+    headerNote = `<p style="font-size:.82rem;font-weight:700;color:#888;background:rgba(0,0,0,.04);padding:8px 12px;border-radius:10px;margin:0 0 14px;text-align:center;">🔒 Vorlagen-Auswahl gesperrt — fest verbunden mit dieser Sammlung</p>`;
+  } else if (atLimit) {
+    headerNote = `<p style="font-size:.82rem;font-weight:700;color:var(--purple);background:rgba(168,108,219,.08);padding:8px 12px;border-radius:10px;margin:0 0 14px;text-align:center;">✓ ${MAX_PRESET_CATEGORIES} Vorlagen aktiv — Limit erreicht</p>`;
+  } else {
+    headerNote = `<p style="font-size:.82rem;color:#888;margin:0 0 14px;line-height:1.5;">Vorgefertigte Wortgruppen ein- oder ausschalten.<br>Lernfortschritt bleibt beim Ausschalten erhalten.</p>`;
+  }
 
   pane.innerHTML = headerNote + categories.map(cat => {
     const isOn = activeSet.has(cat.id);
-    const disabled = !isOn && atLimit;
+    const disabled = locked || (!isOn && atLimit);
     const wordCount = Array.isArray(cat.words) ? cat.words.length : 0;
     const prog = _presetProgress(cat, deck);
     const progressLine = prog
@@ -469,6 +475,8 @@ export async function renderPresetsTab() {
 }
 
 export function togglePresetCategory(categoryId) {
+  const deck = activeDeck();
+  if (deck?.presetsLocked) return; // Sicherheits-Guard — Button ist bereits disabled
   if (!window.SD?.presetIntroSeen) {
     _showPresetIntroModal(() => _doTogglePresetCategory(categoryId));
     return;
@@ -479,25 +487,34 @@ export function togglePresetCategory(categoryId) {
 export function vmBack() {
   const deck = activeDeck();
   const hasActivePresets = (deck?.presetCategories?.length || 0) > 0;
-  if (!hasActivePresets) { showMenu(); return; }
+  // Keine aktiven Vorlagen, oder bereits gesperrt → direkt weg
+  if (!hasActivePresets || deck.presetsLocked) { showMenu(); return; }
+  // Erste Bestätigung: erklärt den dauerhaften Lock
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
   overlay.innerHTML = `
     <div style="background:#fff;border-radius:20px;padding:28px 22px;max-width:340px;width:100%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.2);">
       <div style="font-size:2.5rem;margin-bottom:10px;">🔒</div>
-      <div style="font-family:'Fredoka One',cursive;font-size:1.25rem;color:var(--purple);margin-bottom:12px;">Sammlung gesperrt</div>
+      <div style="font-family:'Fredoka One',cursive;font-size:1.25rem;color:var(--purple);margin-bottom:12px;">Sammlung sperren?</div>
       <p style="font-size:.88rem;color:#555;line-height:1.6;margin:0 0 20px;">
-        Solange Vorlagen aktiv sind, kannst du Vorlagen-Wörter nicht aus der Liste löschen.
+        Mit „Bestätigen" werden die aktiven Vorlagen fest mit dieser Sammlung verbunden. Danach können keine Vorlagen mehr gewechselt werden.
       </p>
       <div style="display:flex;gap:10px;justify-content:center;">
-        <button id="_vmback-cancel" style="font-family:'Fredoka One',cursive;font-size:1rem;padding:12px 20px;background:#eee;color:#333;border:none;border-radius:50px;cursor:pointer;">Zurück</button>
-        <button id="_vmback-ok" style="font-family:'Fredoka One',cursive;font-size:1rem;padding:12px 20px;background:linear-gradient(135deg,var(--purple),var(--pink));color:#fff;border:none;border-radius:50px;cursor:pointer;box-shadow:0 4px 0 #7a4ba8;">Verstanden</button>
+        <button id="_vmback-cancel" style="font-family:'Fredoka One',cursive;font-size:1rem;padding:12px 20px;background:#eee;color:#333;border:none;border-radius:50px;cursor:pointer;">Abbrechen</button>
+        <button id="_vmback-ok" style="font-family:'Fredoka One',cursive;font-size:1rem;padding:12px 20px;background:linear-gradient(135deg,var(--purple),var(--pink));color:#fff;border:none;border-radius:50px;cursor:pointer;box-shadow:0 4px 0 #7a4ba8;">Bestätigen</button>
       </div>
     </div>
   `;
   document.body.appendChild(overlay);
   overlay.querySelector('#_vmback-cancel').addEventListener('click', () => overlay.remove());
-  overlay.querySelector('#_vmback-ok').addEventListener('click', () => { overlay.remove(); showMenu(); });
+  overlay.querySelector('#_vmback-ok').addEventListener('click', () => {
+    overlay.remove();
+    deck.presetsLocked = true;
+    syncMirrorFromActiveDeck();
+    persist();
+    if (window.currentUser) { markDirty('deck', deck.id); flushPendingSync().catch(() => {}); }
+    showMenu();
+  });
 }
 
 function _doTogglePresetCategory(categoryId) {

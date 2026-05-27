@@ -54,6 +54,7 @@ window.SD = {
         vocab | spelling | pronounce | mixed_vocab: { played, correct, bestStreak }
       },
       presetCategories: string[],   // UUIDs aktiver preset_categories
+      presetsLocked: boolean,        // true = Vorlage-Auswahl dauerhaft gesperrt; gesetzt beim ersten Verlassen mit aktiven Vorlagen
       lastExam: null | object,
     }
   },

@@ -38,6 +38,7 @@ CREATE TABLE decks (
   vocab JSONB NOT NULL DEFAULT '[]'::jsonb,
   category_progress JSONB NOT NULL DEFAULT '{}'::jsonb,
   preset_categories JSONB NOT NULL DEFAULT '[]'::jsonb,
+  presets_locked BOOLEAN NOT NULL DEFAULT false,
   last_exam JSONB,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -160,3 +161,9 @@ INSERT INTO preset_categories (name, slug, sort_order, words) VALUES
 CREATE INDEX idx_decks_user ON decks(user_id);
 CREATE INDEX idx_word_stats_user_deck ON word_stats(user_id, deck_id);
 CREATE INDEX idx_exams_user_deck ON exams(user_id, deck_id);
+
+-- ─────────────────────────────────────────────
+-- MIGRATIONS (nachträgliche Schema-Änderungen)
+-- ─────────────────────────────────────────────
+-- v4.0.75: presets_locked Flag pro Deck
+ALTER TABLE decks ADD COLUMN IF NOT EXISTS presets_locked BOOLEAN NOT NULL DEFAULT false;
