@@ -381,21 +381,22 @@ async function _loadPresetCategories() {
   return _presetCache || [];
 }
 
-// Fortschritt einer Vorlage: null wenn Gate nicht erfüllt, sonst {mastered, total}.
-// Gate: Vorlage muss aktiv sein UND globally mindestens einmal gespielt worden sein.
-// Stats werden aus SD.globalPresetStats gelesen (deck-unabhängig).
-function _presetProgress(cat, deck) {
-  if (!deck.presetCategories?.includes(cat.id)) return null;
+// Globaler Fortschritt einer Vorlage — deck-unabhängig.
+// Gibt null zurück wenn die Vorlage noch nie irgendwo gespielt wurde,
+// sonst { mastered, total, pct }.
+// Wörter kommen aus cat.words (Preset-Cache), nicht aus einem Deck.
+function _presetProgress(cat) {
   const globalCp = window.SD?.globalPresetStats?.categoryProgress?.[cat.id];
   if (!(globalCp?.played > 0)) return null;
-  const presetWords = deck.vocab.filter(v => v._presetId === cat.id);
-  if (presetWords.length === 0) return null;
+  const words = Array.isArray(cat.words) ? cat.words : [];
+  if (words.length === 0) return null;
   const globalWordStats = window.SD?.globalPresetStats?.wordStats || {};
-  const mastered = presetWords.filter(v => {
+  const mastered = words.filter(v => {
     const stat = globalWordStats[statKeyFor(v.de, v.en, '_mc')];
     return stat && Math.floor(stat.asked || 0) >= MASTERY_MIN_ATTEMPTS && effectivePct(stat) >= MASTERY_THRESHOLD;
   }).length;
-  return { mastered, total: presetWords.length };
+  const pct = Math.round(mastered / words.length * 100);
+  return { mastered, total: words.length, pct };
 }
 
 function _showPresetIntroModal(onDone) {
@@ -452,15 +453,27 @@ export async function renderPresetsTab() {
     headerNote = `<p style="font-size:.82rem;color:#888;margin:0 0 14px;line-height:1.5;">Vorgefertigte Wortgruppen ein- oder ausschalten.<br>Lernfortschritt bleibt beim Ausschalten erhalten.</p>`;
   }
 
-  pane.innerHTML = headerNote + categories.map(cat => {
+  // Gesperrte Sammlung: aktive Vorlagen zuerst, inaktive dahinter
+  const sortedCategories = locked
+    ? [...categories.filter(c => activeSet.has(c.id)), ...categories.filter(c => !activeSet.has(c.id))]
+    : categories;
+
+  pane.innerHTML = headerNote + sortedCategories.map(cat => {
     const isOn = activeSet.has(cat.id);
-    const disabled = locked || (!isOn && atLimit);
+    // Button-Sperre: bei lock immer, oder wenn Limit erreicht und nicht aktiv
+    const btnDisabled = locked || (!isOn && atLimit);
+    // Ausgrauung: nur für inaktive bei lock, oder für überlimit-inaktive
+    const greyOut = (locked && !isOn) || (!locked && !isOn && atLimit);
     const wordCount = Array.isArray(cat.words) ? cat.words.length : 0;
-    const prog = _presetProgress(cat, deck);
+    const prog = _presetProgress(cat);
     const progressLine = prog
-      ? `<span style="font-size:.72rem;font-weight:700;color:#2a7a35;">✓ ${prog.mastered}/${prog.total} gemeistert</span>`
+      ? `<span style="font-size:.72rem;font-weight:700;color:#2a7a35;">✓ ${prog.pct}% · ${prog.mastered}/${prog.total} gemeistert</span>`
       : '';
-    return `<div class="preset-row" style="${disabled ? 'opacity:.4;' : ''}">
+    // Hintergrund-Fill: Lila-Verlauf proportional zum Fortschritt
+    const fillStyle = prog && prog.pct > 0
+      ? `background:linear-gradient(to right,rgba(168,108,219,.13) ${prog.pct}%,transparent ${prog.pct}%);`
+      : '';
+    return `<div class="preset-row" style="${greyOut ? 'opacity:.4;' : ''}${fillStyle}">
       <div class="preset-info">
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
           <span class="preset-name">${window.escHtml(cat.name)}</span>
@@ -469,7 +482,7 @@ export async function renderPresetsTab() {
         <span class="preset-count">${wordCount} Wörter</span>
         ${progressLine}
       </div>
-      <button class="preset-toggle${isOn ? ' on' : ''}" onclick="${disabled ? '' : `togglePresetCategory('${cat.id}')`}" ${disabled ? 'disabled' : ''}>
+      <button class="preset-toggle${isOn ? ' on' : ''}" onclick="${btnDisabled ? '' : `togglePresetCategory('${cat.id}')`}" ${btnDisabled ? 'disabled' : ''}>
         ${isOn ? 'AN ✓' : 'AUS'}
       </button>
     </div>`;
