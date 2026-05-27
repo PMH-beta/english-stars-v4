@@ -26,9 +26,9 @@ function _renderVmTabsForMode() {
   if (mode === 'free') {
     tabsEl.innerHTML = `
       <button class="vm-tab" data-tab="presets" onclick="vmTab('presets')">📦 Vorlagen</button>
-      <button class="vm-tab" data-tab="list" onclick="vmTab('list')">📋 Liste <span id="vm-count" class="vm-count">0</span></button>
       <button class="vm-tab" data-tab="add" onclick="vmTab('add')">➕ Hinzufügen</button>
       <button class="vm-tab" data-tab="paste" onclick="vmTab('paste')">📝 Text</button>
+      <button class="vm-tab" data-tab="list" onclick="vmTab('list')">📋 Liste <span id="vm-count" class="vm-count">0</span></button>
     `;
     vmTab('presets');
   } else {
@@ -59,11 +59,12 @@ export function renderVocabList() {
   if (!listEl) return;
   const search = (document.getElementById('vm-search')?.value || '').toLowerCase().trim();
   const deck = activeDeck();
-  const items = deck.vocab.filter(v => {
+  const manualVocab = deck.vocab.filter(v => !v._presetId);
+  const items = manualVocab.filter(v => {
     if (!search) return true;
     return v.de.toLowerCase().includes(search) || v.en.toLowerCase().includes(search);
   });
-  if (cntEl) cntEl.textContent = deck.vocab.length;
+  if (cntEl) cntEl.textContent = manualVocab.length;
   if (items.length === 0) {
     listEl.innerHTML = '<div class="vm-empty">' + (search ? 'Keine Treffer für "' + window.escHtml(search) + '"' : 'Noch keine Vokabeln. Füge welche hinzu! 👇') + '</div>';
     return;
@@ -403,7 +404,7 @@ function _showPresetIntroModal(onDone) {
       <div style="font-size:2.5rem;margin-bottom:10px;">📦</div>
       <div style="font-family:'Fredoka One',cursive;font-size:1.25rem;color:var(--purple);margin-bottom:12px;">Lernvorlagen</div>
       <p style="font-size:.88rem;color:#555;line-height:1.6;margin:0 0 20px;">
-        Vorlagen sind fertige Wortsammlungen zum Loslegen. Du kannst ${MAX_PRESET_CATEGORIES} gleichzeitig aktiv haben — eine zum Neulernen, eine zum Auffrischen. Wähle mit Bedacht.
+        Für den Anfang empfehlen wir 1 Vorlage. Wer auffrischen will, kann 2 nehmen. Mehr als 2 gleichzeitig sind nicht möglich.
       </p>
       <button id="_preset-intro-ok" style="font-family:'Fredoka One',cursive;font-size:1rem;padding:12px 32px;background:linear-gradient(135deg,var(--purple),var(--pink));color:#fff;border:none;border-radius:50px;cursor:pointer;box-shadow:0 4px 0 #7a4ba8;">Verstanden</button>
     </div>
@@ -473,6 +474,30 @@ export function togglePresetCategory(categoryId) {
     return;
   }
   _doTogglePresetCategory(categoryId);
+}
+
+export function vmBack() {
+  const deck = activeDeck();
+  const hasActivePresets = (deck?.presetCategories?.length || 0) > 0;
+  if (!hasActivePresets) { showMenu(); return; }
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
+  overlay.innerHTML = `
+    <div style="background:#fff;border-radius:20px;padding:28px 22px;max-width:340px;width:100%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.2);">
+      <div style="font-size:2.5rem;margin-bottom:10px;">🔒</div>
+      <div style="font-family:'Fredoka One',cursive;font-size:1.25rem;color:var(--purple);margin-bottom:12px;">Sammlung gesperrt</div>
+      <p style="font-size:.88rem;color:#555;line-height:1.6;margin:0 0 20px;">
+        Solange Vorlagen aktiv sind, kannst du Vorlagen-Wörter nicht aus der Liste löschen.
+      </p>
+      <div style="display:flex;gap:10px;justify-content:center;">
+        <button id="_vmback-cancel" style="font-family:'Fredoka One',cursive;font-size:1rem;padding:12px 20px;background:#eee;color:#333;border:none;border-radius:50px;cursor:pointer;">Zurück</button>
+        <button id="_vmback-ok" style="font-family:'Fredoka One',cursive;font-size:1rem;padding:12px 20px;background:linear-gradient(135deg,var(--purple),var(--pink));color:#fff;border:none;border-radius:50px;cursor:pointer;box-shadow:0 4px 0 #7a4ba8;">Verstanden</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#_vmback-cancel').addEventListener('click', () => overlay.remove());
+  overlay.querySelector('#_vmback-ok').addEventListener('click', () => { overlay.remove(); showMenu(); });
 }
 
 function _doTogglePresetCategory(categoryId) {
