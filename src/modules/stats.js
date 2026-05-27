@@ -18,8 +18,18 @@ export function effectivePct(stat) {
 }
 
 export function isMastered(q) {
-  const s = window.SD.wordStats[q.statKey];
+  const store = q._presetId ? window.SD?.globalPresetStats?.wordStats : window.SD.wordStats;
+  const s = store?.[q.statKey];
   return s && Math.floor(s.asked || 0) >= MASTERY_MIN_ATTEMPTS && effectivePct(s) >= MASTERY_THRESHOLD;
+}
+
+// Gibt die Stat-Daten für ein Vokabel-Objekt zurück — routet automatisch:
+// Vorlage-Wörter (v._presetId gesetzt) → SD.globalPresetStats.wordStats
+// Manuelle Wörter → SD.wordStats (Spiegel des aktiven Decks)
+export function getVocabStat(v, suffix) {
+  const key = statKeyFor(v.de, v.en, suffix);
+  if (v._presetId) return window.SD?.globalPresetStats?.wordStats?.[key];
+  return window.SD?.wordStats?.[key];
 }
 
 // buildPool → src/modules/game.js (braucht Question-Builder die dort leben)

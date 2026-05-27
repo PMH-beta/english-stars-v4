@@ -95,7 +95,10 @@ export function deckProgress(deck) {
   function pf(suffix) {
     let score = 0, mastered = 0;
     deck.vocab.forEach(v => {
-      const s = deck.wordStats[statKeyFor(v.de, v.en, suffix)];
+      const key = statKeyFor(v.de, v.en, suffix);
+      const s = v._presetId
+        ? window.SD?.globalPresetStats?.wordStats?.[key]
+        : deck.wordStats[key];
       if (!s || !s.asked) return;
       const asked = s.asked, pct = effectivePct(s);
       if (Math.floor(asked) >= 3 && pct >= 0.9) { score += 1; mastered += 1; }

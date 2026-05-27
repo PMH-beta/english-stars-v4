@@ -170,3 +170,39 @@ CREATE INDEX idx_exams_user_deck ON exams(user_id, deck_id);
 ALTER TABLE decks ADD COLUMN IF NOT EXISTS presets_locked BOOLEAN NOT NULL DEFAULT false;
 -- v4.0.76: sort_order für manuelle Deck-Reihenfolge
 ALTER TABLE decks ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0;
+
+-- v4.0.77: Globaler Vorlage-Fortschritt pro User
+-- Wort-Stats für Vorlage-Wörter (deck-unabhängig, PK: user_id + stat_key)
+CREATE TABLE IF NOT EXISTS preset_stats (
+  user_id    UUID    NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  stat_key   TEXT    NOT NULL,
+  asked      NUMERIC NOT NULL DEFAULT 0,
+  correct    NUMERIC NOT NULL DEFAULT 0,
+  wrong      NUMERIC NOT NULL DEFAULT 0,
+  recent     TEXT    NOT NULL DEFAULT '',
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (user_id, stat_key)
+);
+ALTER TABLE preset_stats ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can read own preset stats"   ON preset_stats FOR SELECT TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own preset stats"  ON preset_stats FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update own preset stats"  ON preset_stats FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can delete own preset stats"  ON preset_stats FOR DELETE TO authenticated USING (auth.uid() = user_id);
+CREATE INDEX IF NOT EXISTS idx_preset_stats_user ON preset_stats(user_id);
+
+-- Kategorie-Fortschritt pro Vorlage (played-Gate + bestStreak; PK: user_id + preset_id)
+CREATE TABLE IF NOT EXISTS preset_category_progress (
+  user_id     UUID    NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  preset_id   UUID    NOT NULL REFERENCES preset_categories(id) ON DELETE CASCADE,
+  played      INTEGER NOT NULL DEFAULT 0,
+  correct     INTEGER NOT NULL DEFAULT 0,
+  best_streak INTEGER NOT NULL DEFAULT 0,
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (user_id, preset_id)
+);
+ALTER TABLE preset_category_progress ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can read own preset cat progress"   ON preset_category_progress FOR SELECT TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own preset cat progress"  ON preset_category_progress FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update own preset cat progress"  ON preset_category_progress FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can delete own preset cat progress"  ON preset_category_progress FOR DELETE TO authenticated USING (auth.uid() = user_id);
+CREATE INDEX IF NOT EXISTS idx_preset_cat_progress_user ON preset_category_progress(user_id);

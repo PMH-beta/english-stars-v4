@@ -1,6 +1,6 @@
 // src/modules/game.js
 import { QPERROUND, EXAM_QUESTIONS, calcGrade, gradeText } from './config.js';
-import { effectivePct, isMastered, statKeyFor } from './stats.js';
+import { effectivePct, isMastered, statKeyFor, getVocabStat } from './stats.js';
 import { activeDeck, syncMirrorFromActiveDeck } from './decks.js';
 import { showScreen, showMenu, hideFeedback, showFeedback } from './ui.js';
 import { ensureMicStream, releaseMicStream, voskStop, stopVisualizer, speakWord, speakWordOnce, startVoskRecognition, startRecording } from './speech.js';
@@ -61,42 +61,41 @@ function wrongVocab(correct, n=3) {
 
 // ── Question Builders ──
 function bVocabMC(item) {
-  return {type:'mc',badge:'vocab',statKey:statKeyFor(item.de, item.en, '_mc'),
+  return {type:'mc',badge:'vocab',statKey:statKeyFor(item.de, item.en, '_mc'),_presetId:item._presetId||null,
     question:`🇩🇪 ${item.de}`,hint:'',
     choices:shuffle([item.en,...wrongVocab(item,3)]),answer:item.en};
 }
 function bVocabType(item) {
-  return {type:'type',badge:'spelling',statKey:statKeyFor(item.de, item.en, '_sp'),
+  return {type:'type',badge:'spelling',statKey:statKeyFor(item.de, item.en, '_sp'),_presetId:item._presetId||null,
     question:`✏️ Schreibe auf Englisch:\n🇩🇪 ${item.de}`,hint:'',answer:item.en};
 }
 function bVocabPronounce(item) {
-  return {type:'pronounce',badge:'pronounce',statKey:statKeyFor(item.de, item.en, '_pr'),
+  return {type:'pronounce',badge:'pronounce',statKey:statKeyFor(item.de, item.en, '_pr'),_presetId:item._presetId||null,
     question:`🎙️ Sprich auf Englisch:\n🇩🇪 ${item.de}`,hint:'',answer:item.en};
 }
 
 export function buildPool(m) {
   const vocab=window.VOCAB;
-  const sd=window.SD;
   let qs=[];
   const examLimit=window.isExamMode ? Math.min(EXAM_QUESTIONS, vocab.length*3) : QPERROUND;
   const limit=window.isSchnellModus&&!window.isExamMode ? vocab.length : examLimit;
   if(m==='vocab'){
-    weightedPickUnique(vocab, v=>sd.wordStats[statKeyFor(v.de,v.en,'_mc')], limit).forEach(v=>qs.push(bVocabMC(v)));
+    weightedPickUnique(vocab, v=>getVocabStat(v,'_mc'), limit).forEach(v=>qs.push(bVocabMC(v)));
   }
   if(m==='spelling'){
-    weightedPickUnique(vocab, v=>sd.wordStats[statKeyFor(v.de,v.en,'_sp')], limit).forEach(v=>qs.push(bVocabType(v)));
+    weightedPickUnique(vocab, v=>getVocabStat(v,'_sp'), limit).forEach(v=>qs.push(bVocabType(v)));
   }
   if(m==='pronounce'){
-    weightedPickUnique(vocab, v=>sd.wordStats[statKeyFor(v.de,v.en,'_pr')], limit).forEach(v=>qs.push(bVocabPronounce(v)));
+    weightedPickUnique(vocab, v=>getVocabStat(v,'_pr'), limit).forEach(v=>qs.push(bVocabPronounce(v)));
   }
   if(m==='mixed_vocab'){
     if(window.isSchnellModus&&!window.isExamMode){
       vocab.forEach(v=>{qs.push(bVocabMC(v));qs.push(bVocabType(v));qs.push(bVocabPronounce(v));});
     } else {
       const n1=Math.round(examLimit/3), n2=Math.round(examLimit/3), n3=examLimit-n1-n2;
-      weightedPickUnique(vocab, v=>sd.wordStats[statKeyFor(v.de,v.en,'_mc')], n1).forEach(v=>qs.push(bVocabMC(v)));
-      weightedPickUnique(vocab, v=>sd.wordStats[statKeyFor(v.de,v.en,'_sp')], n2).forEach(v=>qs.push(bVocabType(v)));
-      weightedPickUnique(vocab, v=>sd.wordStats[statKeyFor(v.de,v.en,'_pr')], n3).forEach(v=>qs.push(bVocabPronounce(v)));
+      weightedPickUnique(vocab, v=>getVocabStat(v,'_mc'), n1).forEach(v=>qs.push(bVocabMC(v)));
+      weightedPickUnique(vocab, v=>getVocabStat(v,'_sp'), n2).forEach(v=>qs.push(bVocabType(v)));
+      weightedPickUnique(vocab, v=>getVocabStat(v,'_pr'), n3).forEach(v=>qs.push(bVocabPronounce(v)));
     }
   }
   if(window._skipMasteryFilter||window.isExamMode) return shuffle(qs).slice(0, limit);
@@ -418,8 +417,9 @@ function handlePronounceCorrect() { handleCorrect(); }
 // ── Stat Recording ──
 function recordStatSchnell(q) {
   if(!q||!q.statKey) return;
-  if(!window.SD.wordStats[q.statKey]) window.SD.wordStats[q.statKey]={asked:0,correct:0,wrong:0};
-  const s=window.SD.wordStats[q.statKey];
+  const store = q._presetId ? window.SD.globalPresetStats.wordStats : window.SD.wordStats;
+  if(!store[q.statKey]) store[q.statKey]={asked:0,correct:0,wrong:0};
+  const s=store[q.statKey];
   if(Math.floor(s.asked)<3){s.asked=3;s.correct=3;}
   else{s.asked+=1;s.correct+=1;}
   try{persist();}catch(e){}
@@ -428,8 +428,9 @@ function recordStatSchnell(q) {
 function recordStat(q, ok) {
   if(!q||!q.statKey) return;
   const inc=window.isRetryPhase?0.5:1;
-  if(!window.SD.wordStats[q.statKey]) window.SD.wordStats[q.statKey]={asked:0,correct:0,wrong:0,recent:''};
-  const s=window.SD.wordStats[q.statKey];
+  const store = q._presetId ? window.SD.globalPresetStats.wordStats : window.SD.wordStats;
+  if(!store[q.statKey]) store[q.statKey]={asked:0,correct:0,wrong:0,recent:''};
+  const s=store[q.statKey];
   s.asked+=inc;
   if(ok) s.correct+=inc; else s.wrong+=inc;
   if(!s.recent) s.recent='';
@@ -590,7 +591,7 @@ function progressForCurrentMode() {
   function pf(suffix){
     let score=0, mastered=0;
     window.VOCAB.forEach(v=>{
-      const s=window.SD.wordStats[statKeyFor(v.de,v.en,suffix)];
+      const s=getVocabStat(v,suffix);
       if(!s||!s.asked) return;
       const asked=s.asked;
       const pct=effectivePct(s);
@@ -665,22 +666,38 @@ function updateModeProgress(animate) {
   window._lastModePct=pct;
 }
 
+function _updateGlobalPresetCategoryProgress(deck) {
+  if (!deck?.presetCategories?.length || !window.SD.globalPresetStats) return;
+  for (const presetId of deck.presetCategories) {
+    if (!window.SD.globalPresetStats.categoryProgress[presetId]) {
+      window.SD.globalPresetStats.categoryProgress[presetId] = { played: 0, correct: 0, bestStreak: 0 };
+    }
+    const gcp = window.SD.globalPresetStats.categoryProgress[presetId];
+    gcp.played += window.questionIndex;
+    gcp.correct += window.totalCorrect;
+    if (window.bestStreak > gcp.bestStreak) gcp.bestStreak = window.bestStreak;
+  }
+}
+
 function saveProgress() {
   if(window._progressSaved||window.isFreePlay||window.isSchnellModus)return;
   window._progressSaved=true;
   const deck = activeDeck();
   if(window.isExamMode){
+    if(window.questionIndex > 0) _updateGlobalPresetCategoryProgress(deck);
     window.SD.totalPoints+=window.points;
     if(window.points>window.SD.highscore) window.SD.highscore=window.points;
     persist();
     if(window.currentUser && deck) {
       markDirty('word_stats', deck.id);
       markDirty('profile');
+      if(deck.presetCategories?.length > 0) markDirty('global_preset');
     }
     return;
   }
   const cp=window.SD.categoryProgress[window.mode];
   if(cp&&window.questionIndex>0){
+    _updateGlobalPresetCategoryProgress(deck);
     cp.played+=window.questionIndex;
     cp.correct+=window.totalCorrect;
     if(window.bestStreak>cp.bestStreak) cp.bestStreak=window.bestStreak;
@@ -690,6 +707,7 @@ function saveProgress() {
     if(window.currentUser && deck) {
       markDirty('word_stats', deck.id);
       markDirty('profile');
+      if(deck.presetCategories?.length > 0) markDirty('global_preset');
     }
   }
 }

@@ -19,6 +19,9 @@
 - Modus-Toggle-Gerüst: Dreier-Toggle (Freier Modus / Schülermodus
   / Kampagne) auf Startseite, SD.activeMode + profiles.active_mode
   Cloud-sync; Schülermodus + Kampagne = Platzhalter
+- Globaler Vorlage-Fortschritt (Auftrag 6): SD.globalPresetStats,
+  neue Supabase-Tabellen preset_stats + preset_category_progress,
+  Routing in game/stats/decks/vocab, Offline-Queue-Type 'global_preset'
 
 ## Offen
 - Live-Gang v4: wird DIE Hauptversion, v3.44/altes Repo verfällt,

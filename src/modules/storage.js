@@ -80,6 +80,7 @@ export function freshData() {
       mixed_vocab: { played: 0, correct: 0, bestStreak: 0 },
     },
     wordStats: {},
+    globalPresetStats: { wordStats: {}, categoryProgress: {} },
   };
 }
 

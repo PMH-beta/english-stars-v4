@@ -39,16 +39,38 @@ async function fetchWithRetry(fn) {
  * Gibt null zurück wenn User noch keine Decks hat (= neuer User).
  */
 export async function cloudLoad(userId) {
-  const [profileRes, decksRes, wordStatsRes] = await Promise.all([
+  const [profileRes, decksRes, wordStatsRes, presetStatsRes, presetCatProgRes] = await Promise.all([
     fetchWithRetry(() => supabase.from('profiles').select('player_name, highscore, total_points, active_deck_id, active_mode').eq('id', userId).maybeSingle()),
     fetchWithRetry(() => supabase.from('decks').select('*').eq('user_id', userId).order('sort_order').order('created_at')),
     fetchWithRetry(() => supabase.from('word_stats').select('*').eq('user_id', userId)),
+    fetchWithRetry(() => supabase.from('preset_stats').select('*').eq('user_id', userId)),
+    fetchWithRetry(() => supabase.from('preset_category_progress').select('*').eq('user_id', userId)),
   ]);
 
   if (decksRes.error) throw new Error('[sync] cloudLoad decks: ' + decksRes.error.message);
 
   const profile = profileRes.data || {};
   if (profileRes.error) console.error('[cloudLoad] profile error:', profileRes.error.message);
+
+  // Globale Vorlage-Stats aufbauen
+  const globalPresetStats = { wordStats: {}, categoryProgress: {} };
+  if (presetStatsRes.error) console.error('[cloudLoad] preset_stats:', presetStatsRes.error.message);
+  for (const ps of (presetStatsRes.data || [])) {
+    globalPresetStats.wordStats[ps.stat_key] = {
+      asked:   Number(ps.asked)   || 0,
+      correct: Number(ps.correct) || 0,
+      wrong:   Number(ps.wrong)   || 0,
+      recent:  ps.recent || '',
+    };
+  }
+  if (presetCatProgRes.error) console.error('[cloudLoad] preset_category_progress:', presetCatProgRes.error.message);
+  for (const pcp of (presetCatProgRes.data || [])) {
+    globalPresetStats.categoryProgress[pcp.preset_id] = {
+      played:     Number(pcp.played)      || 0,
+      correct:    Number(pcp.correct)     || 0,
+      bestStreak: Number(pcp.best_streak) || 0,
+    };
+  }
 
   if (!decksRes.data?.length) {
     // No decks yet. If profile has a name this is a returning user (e.g. after cloud reset).
@@ -63,6 +85,7 @@ export async function cloudLoad(userId) {
       decks:        {},
       categoryProgress: { ...EMPTY_CAT },
       wordStats:    {},
+      globalPresetStats,
     };
   }
 
@@ -107,6 +130,7 @@ export async function cloudLoad(userId) {
     decks,
     categoryProgress: { ...EMPTY_CAT },
     wordStats:        {},
+    globalPresetStats,
   };
 }
 
@@ -222,6 +246,44 @@ export async function saveWordStats(deckCloudId, stats, userId) {
   if (error) console.error('[sync] saveWordStats:', error.message);
 }
 
+/**
+ * Batch-Upsert der globalen Vorlage-Stats (preset_stats + preset_category_progress).
+ * Analog zu saveWordStats — schreibt SD.globalPresetStats in die Cloud.
+ */
+export async function saveGlobalPresetStats(stats, userId) {
+  if (!stats) return;
+  const now = new Date().toISOString();
+  const wordRows = Object.entries(stats.wordStats || {}).map(([statKey, s]) => ({
+    user_id:    userId,
+    stat_key:   statKey,
+    asked:      s.asked   || 0,
+    correct:    s.correct || 0,
+    wrong:      s.wrong   || 0,
+    recent:     s.recent  || '',
+    updated_at: now,
+  }));
+  if (wordRows.length) {
+    const { error } = await supabase
+      .from('preset_stats')
+      .upsert(wordRows, { onConflict: 'user_id,stat_key' });
+    if (error) console.error('[sync] saveGlobalPresetStats words:', error.message);
+  }
+  const catRows = Object.entries(stats.categoryProgress || {}).map(([presetId, cp]) => ({
+    user_id:     userId,
+    preset_id:   presetId,
+    played:      cp.played     || 0,
+    correct:     cp.correct    || 0,
+    best_streak: cp.bestStreak || 0,
+    updated_at:  now,
+  }));
+  if (catRows.length) {
+    const { error } = await supabase
+      .from('preset_category_progress')
+      .upsert(catRows, { onConflict: 'user_id,preset_id' });
+    if (error) console.error('[sync] saveGlobalPresetStats cats:', error.message);
+  }
+}
+
 /** Speichert eine Prüfung in der exams-Tabelle. */
 export async function saveExam({ deckId, grade, percent }, userId) {
   if (!isUUID(deckId)) return;
@@ -251,6 +313,13 @@ export async function cloudReset(userId) {
   const { error: decksErr } = await supabase
     .from('decks').delete().eq('user_id', userId);
   if (decksErr) throw new Error('[sync] cloudReset decks: ' + decksErr.message);
+
+  const { error: psErr } = await supabase
+    .from('preset_stats').delete().eq('user_id', userId);
+  if (psErr) console.error('[sync] cloudReset preset_stats:', psErr.message);
+  const { error: pcpErr } = await supabase
+    .from('preset_category_progress').delete().eq('user_id', userId);
+  if (pcpErr) console.error('[sync] cloudReset preset_category_progress:', pcpErr.message);
 
   const { error: profErr } = await supabase
     .from('profiles')
@@ -304,6 +373,8 @@ export async function flushPendingSync() {
       } else if (item.type === 'word_stats' && item.deckId) {
         const deck = sd.decks[item.deckId];
         if (deck) await saveWordStats(deck.id, deck.wordStats, userId);
+      } else if (item.type === 'global_preset') {
+        await saveGlobalPresetStats(sd.globalPresetStats, userId);
       }
       // 'exam': wird direkt in saveExam() gespeichert, nicht via Queue
     } catch(e) {

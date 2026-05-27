@@ -382,15 +382,17 @@ async function _loadPresetCategories() {
 }
 
 // Fortschritt einer Vorlage: null wenn Gate nicht erfüllt, sonst {mastered, total}.
-// Gate: Vorlage muss aktiv sein UND das Deck muss mindestens einmal gespielt worden sein.
+// Gate: Vorlage muss aktiv sein UND globally mindestens einmal gespielt worden sein.
+// Stats werden aus SD.globalPresetStats gelesen (deck-unabhängig).
 function _presetProgress(cat, deck) {
   if (!deck.presetCategories?.includes(cat.id)) return null;
-  const hasPlayed = Object.values(deck.categoryProgress || {}).some(cp => (cp.played || 0) > 0);
-  if (!hasPlayed) return null;
+  const globalCp = window.SD?.globalPresetStats?.categoryProgress?.[cat.id];
+  if (!(globalCp?.played > 0)) return null;
   const presetWords = deck.vocab.filter(v => v._presetId === cat.id);
   if (presetWords.length === 0) return null;
+  const globalWordStats = window.SD?.globalPresetStats?.wordStats || {};
   const mastered = presetWords.filter(v => {
-    const stat = deck.wordStats[statKeyFor(v.de, v.en, '_mc')];
+    const stat = globalWordStats[statKeyFor(v.de, v.en, '_mc')];
     return stat && Math.floor(stat.asked || 0) >= MASTERY_MIN_ATTEMPTS && effectivePct(stat) >= MASTERY_THRESHOLD;
   }).length;
   return { mastered, total: presetWords.length };

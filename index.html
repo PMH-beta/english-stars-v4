@@ -601,7 +601,8 @@ function freshData(){
       pronounce:{played:0,correct:0,bestStreak:0},
       mixed_vocab:{played:0,correct:0,bestStreak:0},
     },
-    wordStats:{}
+    wordStats:{},
+    globalPresetStats:{wordStats:{},categoryProgress:{}},
   };
 }
 
@@ -611,6 +612,7 @@ function migrateData(old){
   if(old.highscore)d.highscore=old.highscore;
   if(old.totalPoints)d.totalPoints=old.totalPoints;
 
+  if(old.globalPresetStats) d.globalPresetStats=old.globalPresetStats;
   // Wenn Deck-Format schon vorhanden: übernehmen
   if(old.decks && old.activeDeckId){
     d.decks=old.decks;

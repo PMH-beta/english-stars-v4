@@ -9,9 +9,9 @@
 | `storage.js` | LocalStorage-Operationen für window.SD | `persist`, `loadData`, `freshData`, `clearStorage`, `cleanupStorage`, `clearSWCache` |
 | `default-decks.js` | Starter-Vokabelsammlungen für neue Nutzer | `DEFAULT_DECKS` |
 | `auth.js` | Supabase Auth: Login, Registrierung, Passwort-Reset, Google-OAuth | `signIn`, `signUp`, `signOut`, `onAuthChange`, `requestPasswordReset`, `updatePassword`, `resendConfirmation`, `signInWithGoogle` |
-| `sync.js` | Cloud Read/Write zwischen Supabase und window.SD + Offline-Queue | `cloudLoad`, `saveProfile`, `saveDeck`, `saveWordStats`, `saveExam`, `deleteCloudDeck`, `loadProfile`, `cloudReset`, `markDirty`, `flushPendingSync`, `getPendingCount` |
+| `sync.js` | Cloud Read/Write zwischen Supabase und window.SD + Offline-Queue | `cloudLoad`, `saveProfile`, `saveDeck`, `saveWordStats`, `saveGlobalPresetStats`, `saveExam`, `deleteCloudDeck`, `loadProfile`, `cloudReset`, `markDirty`, `flushPendingSync`, `getPendingCount` |
 | `decks.js` | Deck CRUD + UI-State + Spiegel-Sync | `activeDeck`, `syncMirrorFromActiveDeck`, `switchDeck`, `createDeck`, `deckProgress`, `renderDecks`, `migrateStatKeys` |
-| `stats.js` | EMA-basierte Statistik-Berechnungen + statKey-Normalisierung | `effectivePct`, `isMastered`, `statKeyFor`, `normStatDE`, `normStatEN` |
+| `stats.js` | EMA-basierte Statistik-Berechnungen + statKey-Normalisierung | `effectivePct`, `isMastered`, `statKeyFor`, `normStatDE`, `normStatEN`, `getVocabStat` |
 | `speech.js` | TTS (Web Speech API) + Spracherkennung (Vosk offline) | `_initTTS`, `primeTTS`, `speakWord`, `speakWordOnce`, `ensureMicStream`, `releaseMicStream`, `startVoskRecognition`, `startRecording`, `voskStop`, `stopVisualizer` |
 | `audio.js` | Hintergrundmusik (MP3-Playlist, endlos) | `_discoverTracks`, `_initAudio`, `_trackUrl`, `startMusicSync`, `_setMusicBtns` |
 | `pwa.js` | PWA Install-Prompt + iOS-Hinweis-Banner | `pwaInstall`, `pwaSetup` |
@@ -63,6 +63,20 @@ window.SD = {
   // Spiegel-Felder — immer vom aktiven Deck via syncMirrorFromActiveDeck():
   wordStats: { ... },
   categoryProgress: { ... },
+
+  // Globaler Vorlage-Fortschritt — deck-unabhängig, kein Spiegel.
+  // Preset-Wörter (v._presetId gesetzt) schreiben hier; manuelle Wörter bleiben in deck.wordStats.
+  // Migration alter Daten: keine — globaler Topf startet bei 0.
+  globalPresetStats: {
+    wordStats: {
+      // identisches Format wie deck.wordStats — statKey → {asked, correct, wrong, recent}
+      [statKey]: { asked, correct, wrong, recent }
+    },
+    categoryProgress: {
+      // keyed by preset_id (UUID aus preset_categories.id)
+      [presetId]: { played, correct, bestStreak }
+    }
+  },
 }
 ```
 
@@ -77,8 +91,9 @@ window.SD = {
 | `saveProfile(sd, userId)` | `profiles` | nach Name-Änderung, Highscore, activeDeckId-Wechsel |
 | `saveDeck(deck, userId)` | `decks` | nach Vokabel-Änderung, Fortschritts-Reset; INSERT → Cloud gibt UUID zurück, ersetzt lokale ID in window.SD |
 | `saveWordStats(deckId, stats, userId)` | `word_stats` | nach jeder Spielrunde (Upsert per `user_id,deck_id,stat_key`) |
+| `saveGlobalPresetStats(stats, userId)` | `preset_stats` + `preset_category_progress` | nach jeder Runde mit aktiven Vorlagen (Upsert; Queue-Type `'global_preset'`) |
 | `saveExam(...)` | `exams` | direkt nach Prüfungs-Abschluss (kein Queue) |
-| `cloudReset(userId)` | `decks` + `profiles` | Reset im Profil-Screen (DELETE Decks → CASCADE auf word_stats + exams) |
+| `cloudReset(userId)` | `decks` + `preset_stats` + `preset_category_progress` + `profiles` | Reset im Profil-Screen |
 
 #### Offline-Queue (`markDirty` / `flushPendingSync`)
 
@@ -86,10 +101,11 @@ window.SD = {
 markDirty(type, deckId)
   → schreibt {type, deckId, ts} in localStorage:'pending_sync'
   → dedupliziert: gleicher type+deckId ersetzt alten Eintrag
+  → type 'global_preset' hat kein deckId (null)
 
 flushPendingSync()
   → liest Queue
-  → ruft je nach type: saveProfile | saveDeck | saveWordStats auf
+  → ruft je nach type: saveProfile | saveDeck | saveWordStats | saveGlobalPresetStats auf
   → fehlgeschlagene Einträge bleiben in der Queue (retry beim nächsten Aufruf)
 ```
 
@@ -114,8 +130,11 @@ handleLogin(user)                       ui.js
   ├─ cloudLoad(user.id)                 sync.js
   │    ├─ SELECT profiles WHERE id=userId
   │    ├─ SELECT decks WHERE user_id=userId
-  │    └─ SELECT word_stats WHERE user_id=userId
-  │         → baut window.SD auf, fügt word_stats in Decks ein
+  │    ├─ SELECT word_stats WHERE user_id=userId
+  │    ├─ SELECT preset_stats WHERE user_id=userId
+  │    └─ SELECT preset_category_progress WHERE user_id=userId
+  │         → baut window.SD auf, fügt word_stats in Decks ein,
+  │           baut SD.globalPresetStats aus preset_stats + preset_category_progress
   ├─ window.SD = cloudState
   ├─ persist(window.SD)
   ├─ syncMirrorFromActiveDeck()         → aktualisiert SD.wordStats + SD.categoryProgress

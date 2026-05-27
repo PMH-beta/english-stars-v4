@@ -363,6 +363,7 @@ export async function confirmReset() {
         mixed_vocab: { played: 0, correct: 0, bestStreak: 0 },
       },
       wordStats: {},
+      globalPresetStats: { wordStats: {}, categoryProgress: {} },
     };
   } else {
     window.SD = window.freshData();
