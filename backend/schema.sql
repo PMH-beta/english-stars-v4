@@ -189,6 +189,7 @@ CREATE POLICY "Users can insert own preset stats"  ON preset_stats FOR INSERT TO
 CREATE POLICY "Users can update own preset stats"  ON preset_stats FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users can delete own preset stats"  ON preset_stats FOR DELETE TO authenticated USING (auth.uid() = user_id);
 CREATE INDEX IF NOT EXISTS idx_preset_stats_user ON preset_stats(user_id);
+GRANT ALL ON preset_stats TO authenticated, anon, service_role;
 
 -- Kategorie-Fortschritt pro Vorlage (played-Gate + bestStreak; PK: user_id + preset_id)
 CREATE TABLE IF NOT EXISTS preset_category_progress (
@@ -206,3 +207,4 @@ CREATE POLICY "Users can insert own preset cat progress"  ON preset_category_pro
 CREATE POLICY "Users can update own preset cat progress"  ON preset_category_progress FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users can delete own preset cat progress"  ON preset_category_progress FOR DELETE TO authenticated USING (auth.uid() = user_id);
 CREATE INDEX IF NOT EXISTS idx_preset_cat_progress_user ON preset_category_progress(user_id);
+GRANT ALL ON preset_category_progress TO authenticated, anon, service_role;
