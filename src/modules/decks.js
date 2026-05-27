@@ -256,7 +256,7 @@ function _attachCardListeners(cardEl, deckId) {
   function onMove(e) {
     if (_dragState) return;
     const pt = e.touches ? e.touches[0] : e;
-    if (Math.abs(pt.clientY - startY) > 8 || Math.abs(pt.clientX - startX) > 8) {
+    if (Math.abs(pt.clientY - startY) > 12 || Math.abs(pt.clientX - startX) > 12) {
       clearTimeout(longPressTimer); longPressTimer = null; tapBlocked = true;
     }
   }
@@ -267,28 +267,35 @@ function _attachCardListeners(cardEl, deckId) {
 
   header.addEventListener('touchstart', onStart, { passive: true });
   header.addEventListener('touchmove', onMove, { passive: true });
-  header.addEventListener('touchend', onEnd);
+  // preventDefault verhindert synthetische mousedown/mouseup-Events nach Touch
+  header.addEventListener('touchend', e => { e.preventDefault(); onEnd(); }, { passive: false });
   header.addEventListener('mousedown', e => { if (e.button === 0) onStart(e); });
   header.addEventListener('mousemove', onMove);
   header.addEventListener('mouseup', e => { if (e.button === 0) onEnd(); });
 }
 
 function _initDrag(cardEl, deckId, clientY) {
+  // Finger-Offset VOR DOM-Änderungen berechnen — sonst verschiebt sich der Offset
+  // wenn eine aufgeklappte Karte oberhalb beim Collapse die Position ändert.
+  const preTop = cardEl.getBoundingClientRect().top;
+  const offsetY = clientY - preTop;
+
   if (_expandedDeckId) {
     _expandedDeckId = null;
     document.querySelectorAll('.deck-card.expanded').forEach(el => el.classList.remove('expanded'));
   }
+  // Post-Collapse-Rect für Breite/Links (Höhe kann sich geändert haben)
   const rect = cardEl.getBoundingClientRect();
   const ph = document.createElement('div');
   ph.style.cssText = `height:${rect.height}px;margin-bottom:10px;border-radius:18px;border:2px dashed var(--purple,#9b4dca);background:rgba(155,77,202,.06);box-sizing:border-box;`;
   cardEl.after(ph);
   Object.assign(cardEl.style, {
-    position: 'fixed', top: rect.top + 'px', left: rect.left + 'px',
+    position: 'fixed', top: preTop + 'px', left: rect.left + 'px',
     width: rect.width + 'px', zIndex: '1000', margin: '0',
     boxShadow: '0 16px 48px rgba(0,0,0,.25)',
     transform: 'scale(1.02)', transition: 'none', pointerEvents: 'none',
   });
-  _dragState = { deckId, el: cardEl, ph, offsetY: clientY - rect.top };
+  _dragState = { deckId, el: cardEl, ph, offsetY };
   document.body.style.userSelect = 'none';
   document.body.style.webkitUserSelect = 'none';
 }
