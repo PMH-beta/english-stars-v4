@@ -1,6 +1,6 @@
 // src/modules/game.js
 import { QPERROUND, EXAM_QUESTIONS, calcGrade, gradeText } from './config.js';
-import { effectivePct, isMastered, statKeyFor, getVocabStat } from './stats.js';
+import { effectivePct, isMastered, statKeyFor, getVocabStat, modePct } from './stats.js';
 import { activeDeck, syncMirrorFromActiveDeck } from './decks.js';
 import { showScreen, showMenu, hideFeedback, showFeedback } from './ui.js';
 import { ensureMicStream, releaseMicStream, voskStop, stopVisualizer, speakWord, speakWordOnce, startVoskRecognition, startRecording } from './speech.js';
@@ -588,31 +588,30 @@ export function playSfx(type) {
 
 // ── Progress + End ──
 function progressForCurrentMode() {
-  function pf(suffix){
-    let score=0, mastered=0;
-    window.VOCAB.forEach(v=>{
-      const s=getVocabStat(v,suffix);
-      if(!s||!s.asked) return;
-      const asked=s.asked;
-      const pct=effectivePct(s);
-      if(Math.floor(asked)>=3 && pct>=0.9){ score+=1; mastered+=1; }
-      else if(asked>=1){
-        const conf=Math.min(asked/3,1);
-        score+=Math.max(0,(pct-0.5)*2)*conf*0.85;
-      }
-    });
-    return {score,mastered,total:window.VOCAB.length};
-  }
-  if(window.mode==='vocab')    return {...pf('_mc'),title:'🔤 Vokabeln'};
-  if(window.mode==='spelling') return {...pf('_sp'),title:'📝 Rechtschreibung'};
-  if(window.mode==='pronounce')return {...pf('_pr'),title:'🎙️ Aussprache'};
+  const deck = activeDeck();
+  const ws = deck?.deckPath === 'preset'
+    ? (window.SD?.globalPresetStats?.wordStats || {})
+    : (window.SD?.wordStats || {});
+  const words = window.VOCAB;
+  const total = words.length;
+  const calcMode = (suf, title) => {
+    const pct = modePct(words, ws, suf);
+    const mastered = words.reduce((n, v) => {
+      const s = ws[statKeyFor(v.de, v.en, suf)];
+      return n + (s && Math.floor(s.asked||0) >= 3 && effectivePct(s) >= 0.9 ? 1 : 0);
+    }, 0);
+    return { pct, mastered, total, title };
+  };
+  if(window.mode==='vocab')    return calcMode('_mc','🔤 Vokabeln');
+  if(window.mode==='spelling') return calcMode('_sp','📝 Rechtschreibung');
+  if(window.mode==='pronounce')return calcMode('_pr','🎙️ Aussprache');
   if(window.mode==='mixed_vocab'){
-    const a=pf('_mc'),b=pf('_sp'),c=pf('_pr');
-    return {score:Math.min(a.score,b.score,c.score),
-            mastered:Math.min(a.mastered,b.mastered,c.mastered),
-            total:window.VOCAB.length,title:'🎯 Alle gemischt'};
+    const a=calcMode('_mc',''),b=calcMode('_sp',''),c=calcMode('_pr','');
+    return { pct:Math.round((a.pct+b.pct+c.pct)/3),
+             mastered:Math.min(a.mastered,b.mastered,c.mastered),
+             total, title:'🎯 Alle gemischt' };
   }
-  return {score:0,mastered:0,total:window.VOCAB.length,title:'Modus'};
+  return { pct:0, mastered:0, total, title:'Modus' };
 }
 
 function updateModeProgress(animate) {
@@ -645,10 +644,10 @@ function updateModeProgress(animate) {
   }
 
   const p=progressForCurrentMode();
-  const pct=Math.min(100,Math.round((p.score/p.total)*100));
+  const pct=p.pct;
   if(titleEl) titleEl.textContent=p.title;
   if(pctEl) pctEl.textContent=pct+'%';
-  if(subEl) subEl.textContent=p.mastered+'/'+p.total+' gemeistert';
+  if(subEl) subEl.textContent='';
   if(barEl){
     barEl.style.width=pct+'%';
     if(animate && pct>window._lastModePct){

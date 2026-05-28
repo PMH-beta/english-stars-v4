@@ -1,5 +1,5 @@
 // src/modules/vocab.js
-import { switchDeck, activeDeck, syncMirrorFromActiveDeck, createDeck, deckProgress } from './decks.js';
+import { switchDeck, activeDeck, syncMirrorFromActiveDeck, createDeck } from './decks.js';
 import { showScreen } from './ui.js';
 import { persist } from './storage.js';
 import { markDirty, flushPendingSync } from './sync.js';
@@ -20,16 +20,6 @@ export function openVocabManager(deckId) {
   if (!deck) return;
   const dn = document.getElementById('vm-deck-name');
   if (dn) dn.textContent = window._draftDeck ? 'Neue Sammlung' : 'Sammlung: ' + deck.name;
-  const ml = document.getElementById('vm-mastery-line');
-  if (ml) {
-    if (window._draftDeck || deck.vocab.length === 0) {
-      ml.style.display = 'none';
-    } else {
-      const p = deckProgress(deck);
-      ml.textContent = '⭐ ' + p.overallMastered + '/' + p.total + ' Wörter gemeistert';
-      ml.style.display = '';
-    }
-  }
   const backArea = document.getElementById('vm-back-area');
   if (backArea) {
     backArea.innerHTML = window._draftDeck

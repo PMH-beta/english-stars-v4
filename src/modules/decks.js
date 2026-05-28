@@ -108,28 +108,23 @@ export function deckProgress(deck) {
   const spPct = modePct(deck.vocab, ws, '_sp');
   const prPct = modePct(deck.vocab, ws, '_pr');
   const overallPct = total > 0 ? Math.round((mcPct + spPct + prPct) / 3) : 0;
-  let mcM = 0, spM = 0, prM = 0, overallMastered = 0;
+  let overallMastered = 0;
   for (const v of deck.vocab) {
-    const mc = chk(v, '_mc'), sp = chk(v, '_sp'), pr = chk(v, '_pr');
-    if (mc) mcM++;
-    if (sp) spM++;
-    if (pr) prM++;
-    if (mc && sp && pr) overallMastered++;
+    if (chk(v, '_mc') && chk(v, '_sp') && chk(v, '_pr')) overallMastered++;
   }
   return {
     overallPct, overallMastered, total,
     perMode: {
-      vocab:    { pct: mcPct,  total, mastered: mcM },
-      spelling: { pct: spPct,  total, mastered: spM },
-      pronounce:{ pct: prPct,  total, mastered: prM },
+      vocab:    { pct: mcPct,  total },
+      spelling: { pct: spPct,  total },
+      pronounce:{ pct: prPct,  total },
     }
   };
 }
 
 function renderModeSubBy(p) {
   return '<span class="btn-progress-text">' + p.pct + '%</span>' +
-         '<span class="btn-progress"><span class="btn-progress-fill" style="width:' + p.pct + '%"></span></span>' +
-         '<span class="btn-progress-text">' + p.mastered + '/' + p.total + ' fertig</span>';
+         '<span class="btn-progress"><span class="btn-progress-fill" style="width:' + p.pct + '%"></span></span>';
 }
 
 export function renderDecks() {
