@@ -593,18 +593,14 @@ export async function renderPresetsTab() {
     const progressLine = prog !== null
       ? `<span style="font-size:.72rem;font-weight:700;color:${prog.pct > 0 ? '#7a3aac' : '#ccc'};">${prog.pct}%</span>`
       : '';
-    const claimHint = isClaimed
-      ? `<span style="font-size:.70rem;color:#e03030;font-weight:700;">in "${window.escHtml(claimed.get(cat.id))}"</span>`
-      : '';
-    let rowStyle;
+    let rowStyle = '';
+    if (prog && prog.pct > 0) {
+      rowStyle = 'background:linear-gradient(to right,rgba(168,108,219,.15) ' + prog.pct + '%,#fff ' + prog.pct + '%);';
+    }
     if (greyOut) {
-      rowStyle = 'opacity:.38;';
+      rowStyle += 'opacity:.38;';
     } else if (isOn) {
-      rowStyle = 'background:#fff;box-shadow:inset 0 0 0 2.5px #a86cdb;';
-    } else if (prog && prog.pct > 0) {
-      rowStyle = 'background:linear-gradient(to right,rgba(168,108,219,.22) ' + prog.pct + '%,rgba(168,108,219,.04) ' + prog.pct + '%);';
-    } else {
-      rowStyle = '';
+      rowStyle += 'box-shadow:inset 0 0 0 2.5px #a86cdb;';
     }
     const btnLabel = isOn ? 'AN ✓' : (locked ? 'AUS' : 'Auswählen');
     return `<div class="preset-row" style="${rowStyle}">
@@ -615,7 +611,6 @@ export async function renderPresetsTab() {
         </div>
         <span class="preset-count">${wordCount} Wörter</span>
         ${progressLine}
-        ${claimHint}
       </div>
       <button class="preset-toggle${isOn ? ' on' : ''}" onclick="${btnDisabled ? '' : `togglePresetCategory('${cat.id}')`}" ${btnDisabled ? 'disabled' : ''}>
         ${btnLabel}

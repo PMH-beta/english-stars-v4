@@ -100,29 +100,36 @@ export function deckProgress(deck) {
     ? (window.SD?.globalPresetStats?.wordStats || {})
     : deck.wordStats;
   const total = deck.vocab.length;
+  const chk = (v, suf) => {
+    const s = ws[statKeyFor(v.de, v.en, suf)];
+    return s && Math.floor(s.asked || 0) >= 3 && effectivePct(s) >= 0.9;
+  };
   const mcPct = modePct(deck.vocab, ws, '_mc');
   const spPct = modePct(deck.vocab, ws, '_sp');
   const prPct = modePct(deck.vocab, ws, '_pr');
   const overallPct = total > 0 ? Math.round((mcPct + spPct + prPct) / 3) : 0;
-  const overallMastered = deck.vocab.reduce((n, v) => {
-    const chk = suf => { const s = ws[statKeyFor(v.de, v.en, suf)]; return s && Math.floor(s.asked || 0) >= 3 && effectivePct(s) >= 0.9; };
-    return n + (chk('_mc') && chk('_sp') && chk('_pr') ? 1 : 0);
-  }, 0);
+  let mcM = 0, spM = 0, prM = 0, overallMastered = 0;
+  for (const v of deck.vocab) {
+    const mc = chk(v, '_mc'), sp = chk(v, '_sp'), pr = chk(v, '_pr');
+    if (mc) mcM++;
+    if (sp) spM++;
+    if (pr) prM++;
+    if (mc && sp && pr) overallMastered++;
+  }
   return {
-    overallPct,
-    overallMastered,
-    total,
+    overallPct, overallMastered, total,
     perMode: {
-      vocab:    { pct: mcPct,  total },
-      spelling: { pct: spPct,  total },
-      pronounce:{ pct: prPct,  total },
+      vocab:    { pct: mcPct,  total, mastered: mcM },
+      spelling: { pct: spPct,  total, mastered: spM },
+      pronounce:{ pct: prPct,  total, mastered: prM },
     }
   };
 }
 
 function renderModeSubBy(p) {
   return '<span class="btn-progress-text">' + p.pct + '%</span>' +
-         '<span class="btn-progress"><span class="btn-progress-fill" style="width:' + p.pct + '%"></span></span>';
+         '<span class="btn-progress"><span class="btn-progress-fill" style="width:' + p.pct + '%"></span></span>' +
+         '<span class="btn-progress-text">' + p.mastered + '/' + p.total + ' fertig</span>';
 }
 
 export function renderDecks() {
@@ -158,7 +165,6 @@ export function renderDecks() {
           <div class="deck-meta">
             <span>📅 ${dateStr}</span>
             <span>📝 ${deck.vocab.length} Wörter</span>
-            <span style="color:#a86cdb;">⭐ ${p.overallMastered}/${p.total}</span>
             ${isActive ? '<span style="color:var(--purple);font-weight:800">● aktiv</span>' : '<span style="color:#bbb">○ inaktiv</span>'}
             ${deck.deckPath === 'preset' ? '<span style="font-size:.70rem;font-weight:700;background:rgba(168,108,219,.12);color:#8a4dcc;padding:2px 7px;border-radius:20px;">📦 Vorlage</span>' : deck.deckPath === 'custom' ? '<span style="font-size:.70rem;font-weight:700;background:rgba(77,150,255,.12);color:#2c7aec;padding:2px 7px;border-radius:20px;">✏️ Eigene</span>' : ''}
           </div>
