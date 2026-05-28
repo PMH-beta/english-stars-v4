@@ -44,7 +44,7 @@ export function switchDeck(deckId) {
 
 export function createDeck(name) {
   const id = 'deck_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
-  const maxSort = Math.max(0, ...Object.values(window.SD.decks).map(d => d.sortOrder || 0));
+  const maxSort = Math.max(0, ...Object.values(window.SD.decks).map(d => d.sortOrder != null ? d.sortOrder : (d.createdAt || 0)));
   window.SD.decks[id] = {
     id, name: name || 'Neue Vokabelsammlung', createdAt: Date.now(),
     vocab: [], wordStats: {},

@@ -34,13 +34,16 @@ export function getVocabStat(v, suffix) {
 
 export function presetWordsPct(words, wordStatsMap) {
   if (!words?.length) return 0;
-  function modeMastered(suffix) {
-    return words.filter(v => {
-      const s = wordStatsMap[statKeyFor(v.de, v.en, suffix)];
-      return s && Math.floor(s.asked || 0) >= MASTERY_MIN_ATTEMPTS && effectivePct(s) >= MASTERY_THRESHOLD;
-    }).length;
+  let totalPct = 0;
+  for (const v of words) {
+    let wordPct = 0;
+    for (const suf of ['_mc', '_sp', '_pr']) {
+      const s = wordStatsMap[statKeyFor(v.de, v.en, suf)];
+      wordPct += s ? effectivePct(s) : 0;
+    }
+    totalPct += wordPct / 3;
   }
-  return Math.round((modeMastered('_mc') + modeMastered('_sp') + modeMastered('_pr')) / 3 / words.length * 100);
+  return Math.round(totalPct / words.length * 100);
 }
 
 // buildPool → src/modules/game.js (braucht Question-Builder die dort leben)
