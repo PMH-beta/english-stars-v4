@@ -32,6 +32,17 @@ export function getVocabStat(v, suffix) {
   return window.SD?.wordStats?.[key];
 }
 
+export function presetWordsPct(words, wordStatsMap) {
+  if (!words?.length) return 0;
+  function modeMastered(suffix) {
+    return words.filter(v => {
+      const s = wordStatsMap[statKeyFor(v.de, v.en, suffix)];
+      return s && Math.floor(s.asked || 0) >= MASTERY_MIN_ATTEMPTS && effectivePct(s) >= MASTERY_THRESHOLD;
+    }).length;
+  }
+  return Math.round((modeMastered('_mc') + modeMastered('_sp') + modeMastered('_pr')) / 3 / words.length * 100);
+}
+
 // buildPool → src/modules/game.js (braucht Question-Builder die dort leben)
 
 // ════════════════════════════════════════════════

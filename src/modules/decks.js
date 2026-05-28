@@ -1,5 +1,5 @@
 // src/modules/decks.js
-import { effectivePct, statKeyFor } from './stats.js';
+import { effectivePct, statKeyFor, presetWordsPct } from './stats.js';
 import { markDirty, flushPendingSync, deleteCloudDeck, deleteCloudWordStats, saveDeck } from './sync.js';
 
 // ────────────────────────────────────────────────
@@ -18,6 +18,7 @@ export function activeDeck() {
 
 // Synchronisiert die Compatibility-Spiegel (SD.wordStats etc.) mit dem aktiven Deck
 export function syncMirrorFromActiveDeck(sd) {
+  if (window._draftDeck) return;
   sd = sd || window.SD;
   if (typeof window.VOCAB !== 'undefined') window.VOCAB.length = 0;
   const deck = sd.activeDeckId ? sd.decks[sd.activeDeckId] : null;
@@ -113,8 +114,15 @@ export function deckProgress(deck) {
   const a = pf('_mc'), b = pf('_sp'), c = pf('_pr');
   const totalScore = (a.score + b.score + c.score) / 3;
   const totalMastered = Math.min(a.mastered, b.mastered, c.mastered);
+  let overallPct;
+  if (deck.deckPath === 'preset' && deck.vocab.length > 0) {
+    const ws = window.SD?.globalPresetStats?.wordStats || {};
+    overallPct = presetWordsPct(deck.vocab, ws);
+  } else {
+    overallPct = deck.vocab.length > 0 ? Math.min(100, Math.round((totalScore / deck.vocab.length) * 100)) : 0;
+  }
   return {
-    overallPct: deck.vocab.length > 0 ? Math.min(100, Math.round((totalScore / deck.vocab.length) * 100)) : 0,
+    overallPct,
     overallMastered: totalMastered,
     total: deck.vocab.length,
     perMode: {vocab: a, spelling: b, pronounce: c}
@@ -140,7 +148,7 @@ export function renderDecks() {
   newBtn.className = 'big-btn purple center';
   newBtn.style.cssText = 'margin-bottom:14px;font-size:.95rem;';
   newBtn.innerHTML = '<span class="icon-btn">➕</span><span>Neue Vokabelsammlung anlegen</span>';
-  newBtn.addEventListener('click', () => window.newDeckPrompt());
+  newBtn.addEventListener('click', () => window.newDeckFlow());
   c.appendChild(newBtn);
 
   _getSortedDeckIds().forEach(id => {
@@ -408,20 +416,19 @@ export function confirmDeleteDeck(id) {
 //  VOCAB MANAGEMENT
 // ────────────────────────────────────────────────
 export function vmDeleteWord(idx) {
-  const deck = activeDeck();
+  const deck = window._draftDeck || activeDeck();
   const v = deck.vocab[idx];
   if (!v) return;
   if (!confirm('"' + v.de + ' → ' + v.en + '" wirklich löschen?')) return;
   deck.vocab.splice(idx, 1);
-  // wordStats NICHT löschen — schlummern für eventuelle Wiederherstellung.
-  // word_stats dirty markieren damit schlummernde Keys sofort in die Cloud gesichert werden
-  // und nach einem Logout/Login nicht durch den cloudLoad-Overwrite verloren gehen.
-  syncMirrorFromActiveDeck();
-  window.persist();
-  if (window.currentUser) {
-    markDirty('deck', deck.id);
-    markDirty('word_stats', deck.id);
-    flushPendingSync().catch(() => {});
+  if (!window._draftDeck) {
+    syncMirrorFromActiveDeck();
+    window.persist();
+    if (window.currentUser) {
+      markDirty('deck', deck.id);
+      markDirty('word_stats', deck.id);
+      flushPendingSync().catch(() => {});
+    }
   }
   window.renderVocabList();
 }
@@ -496,15 +503,17 @@ export function vmAddManual() {
   const de = (document.getElementById('vm-add-de')?.value || '').trim();
   const en = (document.getElementById('vm-add-en')?.value || '').trim();
   if (!de || !en) { alert('Bitte Deutsch UND Englisch eingeben.'); return; }
-  const deck = activeDeck();
+  const deck = window._draftDeck || activeDeck();
   if (deck.vocab.some(v => v.en.toLowerCase() === en.toLowerCase())) {
     alert('"' + en + '" ist bereits in der Sammlung.');
     return;
   }
   deck.vocab.push({de, en});
-  syncMirrorFromActiveDeck();
-  window.persist();
-  if (window.currentUser) { markDirty('deck', deck.id); flushPendingSync().catch(() => {}); }
+  if (!window._draftDeck) {
+    syncMirrorFromActiveDeck();
+    window.persist();
+    if (window.currentUser) { markDirty('deck', deck.id); flushPendingSync().catch(() => {}); }
+  }
   document.getElementById('vm-add-de').value = '';
   document.getElementById('vm-add-en').value = '';
   document.getElementById('vm-add-de').focus();

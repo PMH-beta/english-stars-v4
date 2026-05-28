@@ -1,24 +1,27 @@
 // src/modules/vocab.js
-import { switchDeck, activeDeck, syncMirrorFromActiveDeck } from './decks.js';
+import { switchDeck, activeDeck, syncMirrorFromActiveDeck, createDeck } from './decks.js';
 import { showScreen } from './ui.js';
 import { persist } from './storage.js';
 import { markDirty, flushPendingSync } from './sync.js';
 import { supabase } from './supabase.js';
-import { effectivePct, statKeyFor } from './stats.js';
-import { MAX_PRESET_CATEGORIES, MASTERY_MIN_ATTEMPTS, MASTERY_THRESHOLD } from './config.js';
+import { presetWordsPct } from './stats.js';
+import { MAX_PRESET_CATEGORIES } from './config.js';
+
+function _vmDeck() { return window._draftDeck || activeDeck(); }
 
 // window._reviewItems: muss global sein damit inline onchange-Handler ("_reviewItems[i].de=...") funktionieren
 window._reviewItems = [];
 let _lastOCRText = '';
 
 export function openVocabManager(deckId) {
-  if (deckId) switchDeck(deckId);
+  if (deckId && !window._draftDeck) switchDeck(deckId);
   showScreen('scan-screen');
-  const deck = activeDeck();
+  const deck = _vmDeck();
+  if (!deck) return;
   const dn = document.getElementById('vm-deck-name');
-  if (dn) dn.textContent = 'Sammlung: ' + deck.name;
+  if (dn) dn.textContent = window._draftDeck ? 'Neue Sammlung' : 'Sammlung: ' + deck.name;
   if (window.SD?.activeMode === 'free' && (!deck.deckPath || deck.deckPath === 'none')) {
-    _showPathChoiceDialog();
+    if (!window._draftDeck) _showPathChoiceDialog();
   } else {
     _renderVmTabsForMode();
   }
@@ -29,7 +32,7 @@ function _renderVmTabsForMode() {
   const tabsEl = document.querySelector('.vm-tabs');
   if (!tabsEl) return;
   if (mode === 'free') {
-    const dp = activeDeck()?.deckPath || 'none';
+    const dp = _vmDeck()?.deckPath || 'none';
     if (dp === 'preset') {
       tabsEl.innerHTML = `
         <button class="vm-tab" data-tab="presets" onclick="vmTab('presets')">📦 Vorlagen</button>
@@ -117,7 +120,7 @@ export function vmTab(tabName) {
 function _updateVmCount() {
   const cntEl = document.getElementById('vm-count');
   if (!cntEl) return;
-  const deck = activeDeck();
+  const deck = _vmDeck();
   if (!deck) return;
   const isPresetPath = deck.deckPath === 'preset' && (window.SD?.activeMode || 'free') === 'free';
   cntEl.textContent = isPresetPath
@@ -129,7 +132,7 @@ export function renderVocabList() {
   const listEl = document.getElementById('vm-list');
   if (!listEl) return;
   const search = (document.getElementById('vm-search')?.value || '').toLowerCase().trim();
-  const deck = activeDeck();
+  const deck = _vmDeck();
   const isPresetPath = deck.deckPath === 'preset' && (window.SD?.activeMode || 'free') === 'free';
   const vocabToShow = isPresetPath ? deck.vocab : deck.vocab.filter(v => !v._presetId);
   const items = vocabToShow.filter(v => {
@@ -419,14 +422,17 @@ export function confirmAddVocab() {
     alert('Keine neuen Wörter zum Hinzufügen (alle bereits vorhanden oder leer).');
     return;
   }
-  const deck = activeDeck();
+  const deck = _vmDeck();
   toAdd.forEach(i => {
     const v = { de: i.de.trim(), en: i.en.trim() };
-    window.VOCAB.push(v);
+    // In draft mode window.VOCAB IS deck.vocab — skip double-push
+    if (!window._draftDeck) window.VOCAB.push(v);
     deck.vocab.push(v);
   });
-  persist();
-  if (window.currentUser) { markDirty('deck', deck.id); flushPendingSync().catch(() => {}); }
+  if (!window._draftDeck) {
+    persist();
+    if (window.currentUser) { markDirty('deck', deck.id); flushPendingSync().catch(() => {}); }
+  }
   alert(`✅ ${toAdd.length} neue Vokabel${toAdd.length === 1 ? '' : 'n'} zur Lernliste hinzugefügt!`);
   window._reviewItems = [];
   openVocabManager();
@@ -473,17 +479,7 @@ function _presetProgress(cat, isActive = false) {
   const words = Array.isArray(cat.words) ? cat.words : [];
   if (words.length === 0) return isActive ? { pct: 0 } : null;
   const ws = window.SD?.globalPresetStats?.wordStats || {};
-  function modeMastered(suffix) {
-    return words.filter(v => {
-      const s = ws[statKeyFor(v.de, v.en, suffix)];
-      return s && Math.floor(s.asked || 0) >= MASTERY_MIN_ATTEMPTS && effectivePct(s) >= MASTERY_THRESHOLD;
-    }).length;
-  }
-  const mc = modeMastered('_mc');
-  const sp = modeMastered('_sp');
-  const pr = modeMastered('_pr');
-  const pct = Math.round((mc + sp + pr) / 3 / words.length * 100);
-  return { pct };
+  return { pct: presetWordsPct(words, ws) };
 }
 
 function _showPresetIntroModal(onDone) {
@@ -513,11 +509,12 @@ export async function renderPresetsTab() {
   if (!pane) return;
   pane.innerHTML = '<div style="text-align:center;padding:24px;color:#aaa;font-weight:700;">Lade Vorlagen…</div>';
   const categories = await _loadPresetCategories();
-  const deck = activeDeck();
+  const deck = _vmDeck();
   if (!deck) return;
   const activeSet = new Set(deck.presetCategories || []);
   const atLimit = activeSet.size >= MAX_PRESET_CATEGORIES;
   const locked = deck.presetsLocked || false;
+  const claimed = _getClaimedPresets();
 
   if (categories.length === 0) {
     pane.innerHTML = '<div style="text-align:center;padding:24px;color:#aaa;font-weight:700;">Noch keine Vorlagen verfügbar.</div>';
@@ -547,14 +544,18 @@ export async function renderPresetsTab() {
 
   pane.innerHTML = headerNote + sortedCategories.map(cat => {
     const isOn = activeSet.has(cat.id);
-    // Button-Sperre: bei lock immer, oder wenn Limit erreicht und nicht aktiv
-    const btnDisabled = locked || (!isOn && atLimit);
-    // Ausgrauung: nur für inaktive bei lock, oder für überlimit-inaktive
-    const greyOut = (locked && !isOn) || (!locked && !isOn && atLimit);
+    const isClaimed = !isOn && claimed.has(cat.id);
+    // Button-Sperre: bei lock immer, Limit erreicht, oder in anderer Sammlung beansprucht
+    const btnDisabled = locked || (!isOn && atLimit) || isClaimed;
+    // Ausgrauung: inaktive bei lock, überlimit-inaktive, oder beansprucht
+    const greyOut = (locked && !isOn) || (!locked && !isOn && atLimit) || isClaimed;
     const wordCount = Array.isArray(cat.words) ? cat.words.length : 0;
     const prog = _presetProgress(cat, isOn);
     const progressLine = prog !== null
       ? `<span style="font-size:.72rem;font-weight:700;color:${prog.pct > 0 ? '#7a3aac' : '#ccc'};">${prog.pct}%</span>`
+      : '';
+    const claimHint = isClaimed
+      ? `<span style="font-size:.70rem;color:#e03030;font-weight:700;">in "${window.escHtml(claimed.get(cat.id))}"</span>`
       : '';
     // Hintergrund-Fill: stärkerer Lila-Verlauf proportional zum Fortschritt
     const fillStyle = prog && prog.pct > 0
@@ -569,6 +570,7 @@ export async function renderPresetsTab() {
         </div>
         <span class="preset-count">${wordCount} Wörter</span>
         ${progressLine}
+        ${claimHint}
       </div>
       <button class="preset-toggle${isOn ? ' on' : ''}" onclick="${btnDisabled ? '' : `togglePresetCategory('${cat.id}')`}" ${btnDisabled ? 'disabled' : ''}>
         ${btnLabel}
@@ -578,9 +580,9 @@ export async function renderPresetsTab() {
 }
 
 export function togglePresetCategory(categoryId) {
-  const deck = activeDeck();
+  const deck = _vmDeck();
   if (deck?.presetsLocked) return; // Sicherheits-Guard — Button ist bereits disabled
-  if (!window.SD?.presetIntroSeen) {
+  if (!window.SD?.presetIntroSeen && !window._draftDeck) {
     _showPresetIntroModal(() => _doTogglePresetCategory(categoryId));
     return;
   }
@@ -588,6 +590,7 @@ export function togglePresetCategory(categoryId) {
 }
 
 export function vmBack() {
+  if (window._draftDeck) { _handleDraftBack(); return; }
   const deck = activeDeck();
   const hasActivePresets = (deck?.presetCategories?.length || 0) > 0;
   // Keine aktiven Vorlagen, oder bereits gesperrt → direkt weg
@@ -620,8 +623,159 @@ export function vmBack() {
   });
 }
 
+// ════════════════════════════════════════════════
+//  NEUES DECK — DRAFT-FLOW
+// ════════════════════════════════════════════════
+
+export function newDeckFlow() {
+  _showNewDeckPathDialog();
+}
+
+function _showNewDeckPathDialog() {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
+  overlay.innerHTML = `
+    <div style="background:#fff;border-radius:20px;padding:26px 20px;max-width:360px;width:100%;box-shadow:0 8px 36px rgba(0,0,0,.2);">
+      <div style="text-align:center;margin-bottom:18px;">
+        <div style="font-size:2rem;margin-bottom:8px;">📚</div>
+        <div style="font-family:'Fredoka One',cursive;font-size:1.15rem;color:#2D2D2D;margin-bottom:5px;">Wie soll diese Sammlung aufgebaut werden?</div>
+        <p style="font-size:.78rem;color:#bbb;margin:0;line-height:1.5;">Einmalige Wahl — kann später nicht mehr geändert werden</p>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px;">
+        <button id="_ndp-preset" style="display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border:none;border-radius:14px;cursor:pointer;background:linear-gradient(135deg,#a86cdb,#c084fc);color:#fff;text-align:left;font-family:'Nunito',sans-serif;width:100%;">
+          <span style="font-size:1.5rem;flex-shrink:0;margin-top:1px;">📦</span>
+          <div>
+            <div style="font-family:'Fredoka One',cursive;font-size:.98rem;">Vorlage nutzen</div>
+            <div style="font-size:.75rem;opacity:.88;margin-top:2px;line-height:1.4;">Fertige Wortgruppen auswählen und sofort starten</div>
+          </div>
+        </button>
+        <button id="_ndp-custom" style="display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border:none;border-radius:14px;cursor:pointer;background:linear-gradient(135deg,#4D96FF,#7ab4ff);color:#fff;text-align:left;font-family:'Nunito',sans-serif;width:100%;">
+          <span style="font-size:1.5rem;flex-shrink:0;margin-top:1px;">✏️</span>
+          <div>
+            <div style="font-family:'Fredoka One',cursive;font-size:.98rem;">Selbst zusammenstellen</div>
+            <div style="font-size:.75rem;opacity:.88;margin-top:2px;line-height:1.4;">Wörter manuell eingeben oder per Text einfügen</div>
+          </div>
+        </button>
+      </div>
+      <button id="_ndp-cancel" style="display:block;width:100%;padding:10px;background:none;border:none;cursor:pointer;font-family:'Nunito',sans-serif;font-size:.85rem;color:#bbb;">Abbrechen</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#_ndp-preset').addEventListener('click', () => {
+    overlay.remove();
+    window._draftDeck = { id: '_draft', name: 'Neue Sammlung', vocab: [], presetCategories: [], deckPath: 'preset', presetsLocked: false };
+    window.VOCAB = window._draftDeck.vocab;
+    openVocabManager();
+  });
+  overlay.querySelector('#_ndp-custom').addEventListener('click', () => {
+    overlay.remove();
+    window._draftDeck = { id: '_draft', name: 'Neue Sammlung', vocab: [], presetCategories: [], deckPath: 'custom', presetsLocked: false };
+    window.VOCAB = window._draftDeck.vocab;
+    openVocabManager();
+  });
+  overlay.querySelector('#_ndp-cancel').addEventListener('click', () => overlay.remove());
+}
+
+function _getClaimedPresets() {
+  const claimed = new Map(); // presetId → deckName
+  const currentDeckId = window._draftDeck ? null : window.SD?.activeDeckId;
+  for (const deck of Object.values(window.SD?.decks || {})) {
+    if (!deck.presetsLocked) continue;
+    if (deck.id === currentDeckId) continue;
+    for (const pid of (deck.presetCategories || [])) {
+      claimed.set(pid, deck.name);
+    }
+  }
+  return claimed;
+}
+
+function _handleDraftBack() {
+  const draft = window._draftDeck;
+  if (!draft) return;
+  if (draft.deckPath === 'preset') {
+    if (!draft.presetCategories.length) { _abortDraft(); return; }
+    _showDraftLockDialog(draft);
+  } else {
+    if (!draft.vocab.length) { _abortDraft(); return; }
+    _showCustomNameDialog(draft);
+  }
+}
+
+function _abortDraft() {
+  delete window._draftDeck;
+  syncMirrorFromActiveDeck(); // restores window.VOCAB to active deck
+  showMenu();
+}
+
+function _confirmDraftDeck(draft, name) {
+  const id = createDeck(name);
+  const deck = window.SD.decks[id];
+  deck.vocab = draft.vocab;
+  deck.presetCategories = draft.presetCategories;
+  deck.deckPath = draft.deckPath;
+  deck.presetsLocked = draft.presetsLocked;
+  delete window._draftDeck;
+  switchDeck(id); // calls syncMirrorFromActiveDeck + persist
+  if (window.currentUser) { markDirty('deck', id); flushPendingSync().catch(() => {}); }
+  showMenu();
+}
+
+function _showDraftLockDialog(draft) {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
+  overlay.innerHTML = `
+    <div style="background:#fff;border-radius:20px;padding:28px 22px;max-width:340px;width:100%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.2);">
+      <div style="font-size:2.5rem;margin-bottom:10px;">🔒</div>
+      <div style="font-family:'Fredoka One',cursive;font-size:1.25rem;color:var(--purple);margin-bottom:12px;">Sammlung abschließen?</div>
+      <p style="font-size:.88rem;color:#555;line-height:1.6;margin:0 0 20px;">
+        Die gewählten Vorlagen werden fest mit dieser neuen Sammlung verbunden. Danach können keine Vorlagen mehr gewechselt werden.
+      </p>
+      <div style="display:flex;gap:10px;justify-content:center;">
+        <button id="_dld-cancel" style="font-family:'Fredoka One',cursive;font-size:1rem;padding:12px 20px;background:#eee;color:#333;border:none;border-radius:50px;cursor:pointer;">Weiter wählen</button>
+        <button id="_dld-ok" style="font-family:'Fredoka One',cursive;font-size:1rem;padding:12px 20px;background:linear-gradient(135deg,var(--purple),var(--pink));color:#fff;border:none;border-radius:50px;cursor:pointer;box-shadow:0 4px 0 #7a4ba8;">Bestätigen</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#_dld-cancel').addEventListener('click', () => overlay.remove());
+  overlay.querySelector('#_dld-ok').addEventListener('click', () => {
+    overlay.remove();
+    draft.presetsLocked = true;
+    const cats = (_presetCache || []).filter(c => draft.presetCategories.includes(c.id));
+    const name = cats.map(c => c.name).join(' + ') || 'Neue Sammlung';
+    _confirmDraftDeck(draft, name);
+  });
+}
+
+function _showCustomNameDialog(draft) {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
+  overlay.innerHTML = `
+    <div style="background:#fff;border-radius:20px;padding:28px 22px;max-width:340px;width:100%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.2);">
+      <div style="font-size:2.5rem;margin-bottom:10px;">📝</div>
+      <div style="font-family:'Fredoka One',cursive;font-size:1.25rem;color:var(--purple);margin-bottom:12px;">Name der Sammlung</div>
+      <input id="_cnd-name" type="text" placeholder="z.B. Schule Klasse 3" style="width:100%;padding:12px 16px;border:2px solid #e0e0e0;border-radius:12px;font-family:'Nunito',sans-serif;font-size:1rem;box-sizing:border-box;margin-bottom:18px;" maxlength="50">
+      <div style="display:flex;gap:10px;justify-content:center;">
+        <button id="_cnd-cancel" style="font-family:'Fredoka One',cursive;font-size:1rem;padding:12px 20px;background:#eee;color:#333;border:none;border-radius:50px;cursor:pointer;">Weiter bearbeiten</button>
+        <button id="_cnd-ok" style="font-family:'Fredoka One',cursive;font-size:1rem;padding:12px 20px;background:linear-gradient(135deg,var(--purple),var(--pink));color:#fff;border:none;border-radius:50px;cursor:pointer;box-shadow:0 4px 0 #7a4ba8;">Fertig</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  const input = overlay.querySelector('#_cnd-name');
+  input.focus();
+  overlay.querySelector('#_cnd-cancel').addEventListener('click', () => overlay.remove());
+  overlay.querySelector('#_cnd-ok').addEventListener('click', () => {
+    const name = input.value.trim();
+    if (!name) { input.style.borderColor = 'var(--red)'; return; }
+    overlay.remove();
+    _confirmDraftDeck(draft, name);
+  });
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') overlay.querySelector('#_cnd-ok').click(); });
+}
+
 function _doTogglePresetCategory(categoryId) {
-  const deck = activeDeck();
+  const deck = _vmDeck();
   if (!deck) return;
   if (!Array.isArray(deck.presetCategories)) deck.presetCategories = [];
 
@@ -632,6 +786,8 @@ function _doTogglePresetCategory(categoryId) {
 
   if (!isOn) {
     if (deck.presetCategories.length >= MAX_PRESET_CATEGORIES) return; // Sicherheits-Guard
+    // Beanspruchte Vorlage nicht aktivieren
+    if (_getClaimedPresets().has(categoryId)) return;
     // Ein: Wörter der Kategorie ins Deck aufnehmen (Duplikate überspringen)
     const existingEn = new Set(deck.vocab.map(v => v.en.toLowerCase()));
     for (const w of (cat.words || [])) {
@@ -647,9 +803,11 @@ function _doTogglePresetCategory(categoryId) {
     deck.presetCategories = deck.presetCategories.filter(id => id !== categoryId);
   }
 
-  syncMirrorFromActiveDeck();
-  persist();
-  if (window.currentUser) { markDirty('deck', deck.id); flushPendingSync().catch(() => {}); }
+  syncMirrorFromActiveDeck(); // no-op in draft mode (guarded)
+  if (!window._draftDeck) {
+    persist();
+    if (window.currentUser) { markDirty('deck', deck.id); flushPendingSync().catch(() => {}); }
+  }
   renderPresetsTab();
   _updateVmCount();
 }
