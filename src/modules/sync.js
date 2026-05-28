@@ -220,6 +220,21 @@ export async function deleteCloudWordStats(deckId, userId) {
   else console.log('[sync] deleteCloudWordStats OK:', deckId);
 }
 
+export async function deleteCloudPresetStats(statKeys, presetIds, userId) {
+  if (statKeys.length) {
+    const { error } = await supabase
+      .from('preset_stats').delete().eq('user_id', userId).in('stat_key', statKeys);
+    if (error) console.error('[sync] deleteCloudPresetStats:', error.message);
+    else console.log('[sync] deleteCloudPresetStats OK:', statKeys.length, 'keys');
+  }
+  if (presetIds.length) {
+    const { error } = await supabase
+      .from('preset_category_progress').delete().eq('user_id', userId).in('preset_id', presetIds);
+    if (error) console.error('[sync] deleteCloudPresetCatProgress:', error.message);
+    else console.log('[sync] deleteCloudPresetCatProgress OK:', presetIds.length, 'presets');
+  }
+}
+
 /**
  * Batch-Upsert aller word_stats eines Decks.
  * Überspringt automatisch wenn deckId keine UUID ist.

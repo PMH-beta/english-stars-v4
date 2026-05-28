@@ -1,6 +1,6 @@
 // src/modules/decks.js
 import { effectivePct, statKeyFor, presetWordsPct } from './stats.js';
-import { markDirty, flushPendingSync, deleteCloudDeck, deleteCloudWordStats, saveDeck } from './sync.js';
+import { markDirty, flushPendingSync, deleteCloudDeck, deleteCloudWordStats, deleteCloudPresetStats, saveDeck } from './sync.js';
 
 // ────────────────────────────────────────────────
 //  UI STATE
@@ -170,6 +170,7 @@ export function renderDecks() {
             <span>📅 ${dateStr}</span>
             <span>📝 ${deck.vocab.length} Wörter</span>
             ${isActive ? '<span style="color:var(--purple);font-weight:800">● aktiv</span>' : '<span style="color:#bbb">○ inaktiv</span>'}
+            ${deck.deckPath === 'preset' ? '<span style="font-size:.70rem;font-weight:700;background:rgba(168,108,219,.12);color:#8a4dcc;padding:2px 7px;border-radius:20px;">📦 Vorlage</span>' : deck.deckPath === 'custom' ? '<span style="font-size:.70rem;font-weight:700;background:rgba(77,150,255,.12);color:#2c7aec;padding:2px 7px;border-radius:20px;">✏️ Eigene</span>' : ''}
           </div>
           <div class="deck-progress-mini"><div class="deck-progress-mini-fill" style="width:${p.overallPct}%"></div></div>
         </div>
@@ -201,7 +202,7 @@ export function renderDecks() {
           </button>
         </div>
         <div class="deck-actions">
-          <button class="deck-action-btn" onclick="renameDeckPrompt('${id}')">✏️ Umbenennen</button>
+          ${deck.deckPath !== 'preset' ? `<button class="deck-action-btn" onclick="renameDeckPrompt('${id}')">✏️ Umbenennen</button>` : ''}
           <button class="deck-action-btn" onclick="resetDeckProgress('${id}')">🔄 Zurücksetzen</button>
           <button class="deck-action-btn danger" onclick="confirmDeleteDeck('${id}')">🗑️ Löschen</button>
         </div>
@@ -383,7 +384,11 @@ export function renameDeckPrompt(id) {
 export function resetDeckProgress(id) {
   const deck = window.SD.decks[id];
   if (!deck) return;
-  if (!confirm(`Fortschritt von "${deck.name}" wirklich zurücksetzen?\n\nDie Wörter bleiben erhalten.`)) return;
+  const isPreset = deck.deckPath === 'preset';
+  const msg = isPreset
+    ? `Fortschritt von "${deck.name}" wirklich zurücksetzen?\n\nDie Vorlage-Statistiken werden ebenfalls zurückgesetzt. Die Wörter bleiben erhalten.`
+    : `Fortschritt von "${deck.name}" wirklich zurücksetzen?\n\nDie Wörter bleiben erhalten.`;
+  if (!confirm(msg)) return;
   deck.wordStats = {};
   deck.categoryProgress = {
     vocab:       { played: 0, correct: 0, bestStreak: 0 },
@@ -392,6 +397,25 @@ export function resetDeckProgress(id) {
     mixed_vocab: { played: 0, correct: 0, bestStreak: 0 },
   };
   deck.lastExam = null;
+  if (isPreset && deck.presetCategories?.length) {
+    const SUFFIXES = ['_mc', '_sp', '_pr'];
+    const statKeys = [];
+    for (const v of deck.vocab) {
+      if (!v._presetId) continue;
+      for (const suf of SUFFIXES) {
+        const key = statKeyFor(v.de, v.en, suf);
+        statKeys.push(key);
+        delete window.SD.globalPresetStats.wordStats[key];
+      }
+    }
+    for (const pid of deck.presetCategories) {
+      delete window.SD.globalPresetStats.categoryProgress[pid];
+    }
+    if (window.currentUser) {
+      deleteCloudPresetStats(statKeys, deck.presetCategories, window.currentUser.id)
+        .catch(e => console.error('[resetDeckProgress] deletePresetStats:', e));
+    }
+  }
   syncMirrorFromActiveDeck();
   window.persist();
   if (window.currentUser) {
