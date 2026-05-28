@@ -735,6 +735,7 @@ export async function handleLogin(user) {
   const localSDBeforeCloud = window.SD;
   console.log('[handleLogin] CALLED with user:', user?.email);
   const mergedDeckIds = [];
+  let presetStatsMerged = false;
   try {
     const cloudState = await cloudLoad(user.id);
     // Only replace SD when cloud returned actual data — never overwrite with empty state.
@@ -752,6 +753,15 @@ export async function handleLogin(user) {
             cloudDeck.wordStats[key] = localStat;
             if (!mergedDeckIds.includes(deckId)) mergedDeckIds.push(deckId);
           }
+        }
+      }
+      // Preset-Stats mergen — analog zu Deck-wordStats, defensiv gegen fehlgeschlagene Cloud-Writes
+      const localPresetWS = localSDBeforeCloud?.globalPresetStats?.wordStats || {};
+      for (const [key, localStat] of Object.entries(localPresetWS)) {
+        const cloudStat = cloudState.globalPresetStats.wordStats[key];
+        if (!cloudStat || (localStat.asked || 0) > (cloudStat.asked || 0)) {
+          cloudState.globalPresetStats.wordStats[key] = localStat;
+          presetStatsMerged = true;
         }
       }
       window.SD = cloudState;
@@ -779,8 +789,9 @@ export async function handleLogin(user) {
   if (migrateStatKeys()) persist(window.SD);
   // Zusammengeführte Stats zurück in die Cloud schreiben, damit beim nächsten
   // Login kein erneuter Merge-Konflikt entsteht.
-  if (mergedDeckIds.length > 0 && window.currentUser) {
+  if ((mergedDeckIds.length > 0 || presetStatsMerged) && window.currentUser) {
     mergedDeckIds.forEach(id => markDirty('word_stats', id));
+    if (presetStatsMerged) markDirty('global_preset');
     flushPendingSync().catch(() => {});
   }
   if (!window.SD?.playerName) showScreen('name-screen');

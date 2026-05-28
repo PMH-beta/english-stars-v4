@@ -149,17 +149,13 @@ export async function saveProfile(sd, userId) {
     active_mode:    sd.activeMode || 'free',
     updated_at:     new Date().toISOString(),
   };
-  try {
-    const { data, error } = await supabase
-      .from('profiles')
-      .update(payload)
-      .eq('id', userId)
-      .select();
-    if (error) console.error('[sync] saveProfile error:', error.message);
-    else if (!data?.length) console.warn('[sync] saveProfile: 0 rows updated — Auth oder RLS?');
-  } catch(ex) {
-    console.error('[saveProfile] EXCEPTION:', ex);
-  }
+  const { data, error } = await fetchWithRetry(() => supabase
+    .from('profiles')
+    .update(payload)
+    .eq('id', userId)
+    .select());
+  if (error) throw new Error('[sync] saveProfile: ' + error.message);
+  if (!data?.length) console.warn('[sync] saveProfile: 0 rows updated — Auth oder RLS?');
 }
 
 /**
@@ -184,17 +180,17 @@ export async function saveDeck(deck, userId) {
   console.log('[sync] saveDeck →', deck.id, '| vocab:', deck.vocab?.length ?? '?', 'words | row:', row);
 
   if (isUUID(deck.id)) {
-    const { error } = await supabase
-      .from('decks').update(row).eq('id', deck.id).eq('user_id', userId);
-    if (error) console.error('[sync] saveDeck update:', error.message);
-    else console.log('[sync] saveDeck update OK:', deck.id);
+    const { error } = await fetchWithRetry(() => supabase
+      .from('decks').update(row).eq('id', deck.id).eq('user_id', userId));
+    if (error) throw new Error('[sync] saveDeck update: ' + error.message);
+    console.log('[sync] saveDeck update OK:', deck.id);
     return;
   }
 
   // Neues Deck: INSERT → Cloud gibt UUID zurück → lokal ersetzen
-  const { data, error } = await supabase
-    .from('decks').insert({ ...row, created_at: now }).select('id').single();
-  if (error) { console.error('[sync] saveDeck insert:', error.message); return; }
+  const { data, error } = await fetchWithRetry(() => supabase
+    .from('decks').insert({ ...row, created_at: now }).select('id').single());
+  if (error) throw new Error('[sync] saveDeck insert: ' + error.message);
 
   const newId = data.id;
   if (window.SD?.decks[deck.id]) {
@@ -242,10 +238,10 @@ export async function saveWordStats(deckCloudId, stats, userId) {
     updated_at: now,
   }));
   if (!rows.length) return;
-  const { error } = await supabase
+  const { error } = await fetchWithRetry(() => supabase
     .from('word_stats')
-    .upsert(rows, { onConflict: 'user_id,deck_id,stat_key' });
-  if (error) console.error('[sync] saveWordStats:', error.message);
+    .upsert(rows, { onConflict: 'user_id,deck_id,stat_key' }));
+  if (error) throw new Error('[sync] saveWordStats: ' + error.message);
 }
 
 /**
@@ -265,10 +261,10 @@ export async function saveGlobalPresetStats(stats, userId) {
     updated_at: now,
   }));
   if (wordRows.length) {
-    const { error } = await supabase
+    const { error } = await fetchWithRetry(() => supabase
       .from('preset_stats')
-      .upsert(wordRows, { onConflict: 'user_id,stat_key' });
-    if (error) console.error('[sync] saveGlobalPresetStats words:', error.message);
+      .upsert(wordRows, { onConflict: 'user_id,stat_key' }));
+    if (error) throw new Error('[sync] saveGlobalPresetStats words: ' + error.message);
   }
   const catRows = Object.entries(stats.categoryProgress || {}).map(([presetId, cp]) => ({
     user_id:     userId,
@@ -279,23 +275,23 @@ export async function saveGlobalPresetStats(stats, userId) {
     updated_at:  now,
   }));
   if (catRows.length) {
-    const { error } = await supabase
+    const { error } = await fetchWithRetry(() => supabase
       .from('preset_category_progress')
-      .upsert(catRows, { onConflict: 'user_id,preset_id' });
-    if (error) console.error('[sync] saveGlobalPresetStats cats:', error.message);
+      .upsert(catRows, { onConflict: 'user_id,preset_id' }));
+    if (error) throw new Error('[sync] saveGlobalPresetStats cats: ' + error.message);
   }
 }
 
 /** Speichert eine Prüfung in der exams-Tabelle. */
 export async function saveExam({ deckId, grade, percent }, userId) {
   if (!isUUID(deckId)) return;
-  const { error } = await supabase.from('exams').insert({
+  const { error } = await fetchWithRetry(() => supabase.from('exams').insert({
     user_id: userId,
     deck_id: deckId,
     grade:   Math.round(grade),
     percent: Math.round(percent),
-  });
-  if (error) console.error('[sync] saveExam:', error.message);
+  }));
+  if (error) throw new Error('[sync] saveExam: ' + error.message);
 }
 
 /** Lädt nur das Profil eines Users aus der Cloud (playerName, Scores, activeDeckId). */
