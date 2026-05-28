@@ -61,7 +61,6 @@ export function createDeck(name) {
     lastExam: null,
   };
   window.persist();
-  if (window.currentUser) { markDirty('deck', id); flushPendingSync().catch(() => {}); }
   return id;
 }
 
@@ -367,6 +366,7 @@ export function newDeckPrompt() {
   const name = prompt('Name der neuen Vokabelsammlung:', '');
   if (!name || !name.trim()) return;
   const id = createDeck(name.trim());
+  if (window.currentUser) { markDirty('deck', id); flushPendingSync().catch(() => {}); }
   _expandedDeckId = id;
   switchDeck(id);
   renderDecks();
