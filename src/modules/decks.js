@@ -385,55 +385,112 @@ export function resetDeckProgress(id) {
   const deck = window.SD.decks[id];
   if (!deck) return;
   const isPreset = deck.deckPath === 'preset';
-  const msg = isPreset
-    ? `Fortschritt von "${deck.name}" wirklich zurücksetzen?\n\nDie Vorlage-Statistiken werden ebenfalls zurückgesetzt. Die Wörter bleiben erhalten.`
-    : `Fortschritt von "${deck.name}" wirklich zurücksetzen?\n\nDie Wörter bleiben erhalten.`;
-  if (!confirm(msg)) return;
-  deck.wordStats = {};
-  deck.categoryProgress = {
-    vocab:       { played: 0, correct: 0, bestStreak: 0 },
-    spelling:    { played: 0, correct: 0, bestStreak: 0 },
-    pronounce:   { played: 0, correct: 0, bestStreak: 0 },
-    mixed_vocab: { played: 0, correct: 0, bestStreak: 0 },
-  };
-  deck.lastExam = null;
-  if (isPreset && deck.presetCategories?.length) {
-    const SUFFIXES = ['_mc', '_sp', '_pr'];
-    const statKeys = [];
-    for (const v of deck.vocab) {
-      if (!v._presetId) continue;
-      for (const suf of SUFFIXES) {
-        const key = statKeyFor(v.de, v.en, suf);
-        statKeys.push(key);
-        delete window.SD.globalPresetStats.wordStats[key];
+  const bodyText = isPreset
+    ? `Der gesamte Lernfortschritt von »${window.escHtml(deck.name)}« wird gelöscht. Die Sammlung bleibt bestehen — alle Wörter und Vorlagen bleiben erhalten.`
+    : `Der Lernfortschritt von »${window.escHtml(deck.name)}« wird gelöscht. Die Wörter bleiben erhalten.`;
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
+  overlay.innerHTML = `
+    <div style="background:#fff;border-radius:20px;padding:28px 22px;max-width:340px;width:100%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.2);">
+      <div style="font-size:2.5rem;margin-bottom:10px;">🔄</div>
+      <div style="font-family:'Fredoka One',cursive;font-size:1.25rem;color:var(--purple);margin-bottom:12px;">Fortschritt zurücksetzen?</div>
+      <p style="font-size:.88rem;color:#555;line-height:1.6;margin:0 0 20px;">${bodyText}</p>
+      <div style="display:flex;gap:10px;justify-content:center;">
+        <button id="_rp-cancel" style="font-family:'Fredoka One',cursive;font-size:1rem;padding:12px 20px;background:#eee;color:#333;border:none;border-radius:50px;cursor:pointer;">Abbrechen</button>
+        <button id="_rp-ok" style="font-family:'Fredoka One',cursive;font-size:1rem;padding:12px 20px;background:linear-gradient(135deg,#e8920a,#f5a623);color:#fff;border:none;border-radius:50px;cursor:pointer;box-shadow:0 4px 0 #b86e08;">Zurücksetzen</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#_rp-cancel').addEventListener('click', () => overlay.remove());
+  overlay.querySelector('#_rp-ok').addEventListener('click', () => {
+    overlay.remove();
+    deck.wordStats = {};
+    deck.categoryProgress = {
+      vocab:       { played: 0, correct: 0, bestStreak: 0 },
+      spelling:    { played: 0, correct: 0, bestStreak: 0 },
+      pronounce:   { played: 0, correct: 0, bestStreak: 0 },
+      mixed_vocab: { played: 0, correct: 0, bestStreak: 0 },
+    };
+    deck.lastExam = null;
+    if (isPreset && deck.presetCategories?.length) {
+      const SUFFIXES = ['_mc', '_sp', '_pr'];
+      const statKeys = [];
+      for (const v of deck.vocab) {
+        if (!v._presetId) continue;
+        for (const suf of SUFFIXES) {
+          const key = statKeyFor(v.de, v.en, suf);
+          statKeys.push(key);
+          delete window.SD.globalPresetStats.wordStats[key];
+        }
+      }
+      for (const pid of deck.presetCategories) {
+        delete window.SD.globalPresetStats.categoryProgress[pid];
+      }
+      if (window.currentUser) {
+        deleteCloudPresetStats(statKeys, deck.presetCategories, window.currentUser.id)
+          .catch(e => console.error('[resetDeckProgress] deletePresetStats:', e));
       }
     }
-    for (const pid of deck.presetCategories) {
-      delete window.SD.globalPresetStats.categoryProgress[pid];
-    }
+    syncMirrorFromActiveDeck();
+    window.persist();
     if (window.currentUser) {
-      deleteCloudPresetStats(statKeys, deck.presetCategories, window.currentUser.id)
-        .catch(e => console.error('[resetDeckProgress] deletePresetStats:', e));
+      const userId = window.currentUser.id;
+      console.log('[decks] resetDeckProgress', id, '| cloud-sync');
+      deleteCloudWordStats(id, userId).catch(e => console.error('[resetDeckProgress] deleteWordStats:', e));
+      saveDeck(deck, userId).catch(e => console.error('[resetDeckProgress] saveDeck:', e));
     }
-  }
-  syncMirrorFromActiveDeck();
-  window.persist();
-  if (window.currentUser) {
-    const userId = window.currentUser.id;
-    console.log('[decks] resetDeckProgress', id, '| cloud-sync');
-    deleteCloudWordStats(id, userId).catch(e => console.error('[resetDeckProgress] deleteWordStats:', e));
-    saveDeck(deck, userId).catch(e => console.error('[resetDeckProgress] saveDeck:', e));
-  }
-  renderDecks();
+    renderDecks();
+  });
 }
 
 export function confirmDeleteDeck(id) {
   const cur = window.SD.decks[id];
   if (!cur) return;
-  if (!confirm(`Vokabelsammlung "${cur.name}" wirklich löschen?\n\nAlle ${cur.vocab.length} Vokabeln und der Fortschritt gehen verloren.`)) return;
-  deleteDeck(id);
-  if (_expandedDeckId === id) _expandedDeckId = null;
-  renderDecks();
+  const isPreset = cur.deckPath === 'preset' && (cur.presetCategories?.length > 0);
+  const bodyText = isPreset
+    ? `»${window.escHtml(cur.name)}« wird gelöscht und der Fortschritt entfernt. Die Vorlagen werden wieder frei und können in einer neuen Sammlung verwendet werden.`
+    : `»${window.escHtml(cur.name)}« wird gelöscht. Alle ${cur.vocab.length} Wörter und der Fortschritt gehen verloren.`;
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
+  overlay.innerHTML = `
+    <div style="background:#fff;border-radius:20px;padding:28px 22px;max-width:340px;width:100%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.2);">
+      <div style="font-size:2.5rem;margin-bottom:10px;">🗑️</div>
+      <div style="font-family:'Fredoka One',cursive;font-size:1.25rem;color:#e53935;margin-bottom:12px;">Sammlung löschen?</div>
+      <p style="font-size:.88rem;color:#555;line-height:1.6;margin:0 0 20px;">${bodyText}</p>
+      <div style="display:flex;gap:10px;justify-content:center;">
+        <button id="_cd-cancel" style="font-family:'Fredoka One',cursive;font-size:1rem;padding:12px 20px;background:#eee;color:#333;border:none;border-radius:50px;cursor:pointer;">Abbrechen</button>
+        <button id="_cd-ok" style="font-family:'Fredoka One',cursive;font-size:1rem;padding:12px 20px;background:linear-gradient(135deg,#e53935,#f44336);color:#fff;border:none;border-radius:50px;cursor:pointer;box-shadow:0 4px 0 #b71c1c;">Löschen</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#_cd-cancel').addEventListener('click', () => overlay.remove());
+  overlay.querySelector('#_cd-ok').addEventListener('click', () => {
+    overlay.remove();
+    if (isPreset) {
+      const SUFFIXES = ['_mc', '_sp', '_pr'];
+      const statKeys = [];
+      for (const v of cur.vocab) {
+        if (!v._presetId) continue;
+        for (const suf of SUFFIXES) {
+          const key = statKeyFor(v.de, v.en, suf);
+          statKeys.push(key);
+          if (window.SD.globalPresetStats?.wordStats) delete window.SD.globalPresetStats.wordStats[key];
+        }
+      }
+      for (const pid of cur.presetCategories) {
+        if (window.SD.globalPresetStats?.categoryProgress) delete window.SD.globalPresetStats.categoryProgress[pid];
+      }
+      if (window.currentUser) {
+        deleteCloudPresetStats(statKeys, cur.presetCategories, window.currentUser.id)
+          .catch(e => console.error('[confirmDeleteDeck] deletePresetStats:', e));
+      }
+    }
+    deleteDeck(id);
+    if (_expandedDeckId === id) _expandedDeckId = null;
+    renderDecks();
+  });
 }
 
 // ────────────────────────────────────────────────

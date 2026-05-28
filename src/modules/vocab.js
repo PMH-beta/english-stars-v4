@@ -710,8 +710,10 @@ function _abortDraft() {
 function _confirmDraftDeck(draft, name) {
   const id = createDeck(name);
   const deck = window.SD.decks[id];
-  deck.vocab = draft.vocab;
-  deck.presetCategories = draft.presetCategories;
+  // Spread-copy: window.VOCAB points to draft.vocab's same array; syncMirrorFromActiveDeck
+  // would call window.VOCAB.length=0 and wipe deck.vocab if they shared the reference.
+  deck.vocab = [...draft.vocab];
+  deck.presetCategories = [...draft.presetCategories];
   deck.deckPath = draft.deckPath;
   deck.presetsLocked = draft.presetsLocked;
   delete window._draftDeck;
