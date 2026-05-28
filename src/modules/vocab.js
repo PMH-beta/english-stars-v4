@@ -14,9 +14,14 @@ let _lastOCRText = '';
 export function openVocabManager(deckId) {
   if (deckId) switchDeck(deckId);
   showScreen('scan-screen');
-  _renderVmTabsForMode();
+  const deck = activeDeck();
   const dn = document.getElementById('vm-deck-name');
-  if (dn) dn.textContent = 'Sammlung: ' + activeDeck().name;
+  if (dn) dn.textContent = 'Sammlung: ' + deck.name;
+  if (window.SD?.activeMode === 'free' && (!deck.deckPath || deck.deckPath === 'none')) {
+    _showPathChoiceDialog();
+  } else {
+    _renderVmTabsForMode();
+  }
 }
 
 function _renderVmTabsForMode() {
@@ -25,16 +30,22 @@ function _renderVmTabsForMode() {
   if (!tabsEl) return;
   if (mode === 'free') {
     const dp = activeDeck()?.deckPath || 'none';
-    const presetsLocked = dp === 'custom'; // custom path → grey presets tab
-    const customLocked  = dp === 'preset'; // preset path → grey add/paste tabs
-    const _lockedAttr = 'disabled style="opacity:.4;cursor:not-allowed"';
-    tabsEl.innerHTML = `
-      <button class="vm-tab" data-tab="presets" ${presetsLocked ? _lockedAttr : "onclick=\"vmTab('presets')\""}>📦 Vorlagen</button>
-      <button class="vm-tab" data-tab="add" ${customLocked ? _lockedAttr : "onclick=\"vmTab('add')\""}>➕ Hinzufügen</button>
-      <button class="vm-tab" data-tab="paste" ${customLocked ? _lockedAttr : "onclick=\"vmTab('paste')\""}>📝 Text</button>
-      <button class="vm-tab" data-tab="list" onclick="vmTab('list')">📋 Liste <span id="vm-count" class="vm-count">0</span></button>
-    `;
-    vmTab(customLocked ? 'list' : 'presets');
+    if (dp === 'preset') {
+      tabsEl.innerHTML = `
+        <button class="vm-tab" data-tab="presets" onclick="vmTab('presets')">📦 Vorlagen</button>
+        <button class="vm-tab" data-tab="list" onclick="vmTab('list')">📋 Liste <span id="vm-count" class="vm-count">0</span></button>
+      `;
+      vmTab('presets');
+    } else if (dp === 'custom') {
+      tabsEl.innerHTML = `
+        <button class="vm-tab" data-tab="add" onclick="vmTab('add')">➕ Hinzufügen</button>
+        <button class="vm-tab" data-tab="paste" onclick="vmTab('paste')">📝 Text</button>
+        <button class="vm-tab" data-tab="list" onclick="vmTab('list')">📋 Liste <span id="vm-count" class="vm-count">0</span></button>
+      `;
+      vmTab('add');
+    } else {
+      tabsEl.innerHTML = '';
+    }
   } else {
     tabsEl.innerHTML = `
       <button class="vm-tab" data-tab="list" onclick="vmTab('list')">📋 Liste <span id="vm-count" class="vm-count">0</span></button>
@@ -43,6 +54,51 @@ function _renderVmTabsForMode() {
     `;
     vmTab('list');
   }
+}
+
+function _showPathChoiceDialog() {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
+  overlay.innerHTML = `
+    <div style="background:#fff;border-radius:20px;padding:26px 20px;max-width:360px;width:100%;box-shadow:0 8px 36px rgba(0,0,0,.2);">
+      <div style="text-align:center;margin-bottom:18px;">
+        <div style="font-size:2rem;margin-bottom:8px;">📚</div>
+        <div style="font-family:'Fredoka One',cursive;font-size:1.15rem;color:#2D2D2D;margin-bottom:5px;">Wie soll diese Sammlung aufgebaut werden?</div>
+        <p style="font-size:.78rem;color:#bbb;margin:0;line-height:1.5;">Einmalige Wahl — kann später nicht mehr geändert werden</p>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px;">
+        <button id="_path-preset" style="display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border:none;border-radius:14px;cursor:pointer;background:linear-gradient(135deg,#a86cdb,#c084fc);color:#fff;text-align:left;font-family:'Nunito',sans-serif;width:100%;">
+          <span style="font-size:1.5rem;flex-shrink:0;margin-top:1px;">📦</span>
+          <div>
+            <div style="font-family:'Fredoka One',cursive;font-size:.98rem;">Vorlage nutzen</div>
+            <div style="font-size:.75rem;opacity:.88;margin-top:2px;line-height:1.4;">Fertige Wortgruppen auswählen und sofort starten</div>
+          </div>
+        </button>
+        <button id="_path-custom" style="display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border:none;border-radius:14px;cursor:pointer;background:linear-gradient(135deg,#4D96FF,#7ab4ff);color:#fff;text-align:left;font-family:'Nunito',sans-serif;width:100%;">
+          <span style="font-size:1.5rem;flex-shrink:0;margin-top:1px;">✏️</span>
+          <div>
+            <div style="font-family:'Fredoka One',cursive;font-size:.98rem;">Selbst zusammenstellen</div>
+            <div style="font-size:.75rem;opacity:.88;margin-top:2px;line-height:1.4;">Wörter manuell eingeben oder per Text einfügen</div>
+          </div>
+        </button>
+      </div>
+      <button id="_path-cancel" style="display:block;width:100%;padding:10px;background:none;border:none;cursor:pointer;font-family:'Nunito',sans-serif;font-size:.85rem;color:#bbb;">Abbrechen</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  function _setPath(path) {
+    overlay.remove();
+    const deck = activeDeck();
+    if (!deck) return;
+    deck.deckPath = path;
+    persist();
+    if (window.currentUser) { markDirty('deck', deck.id); flushPendingSync().catch(() => {}); }
+    _renderVmTabsForMode();
+  }
+  overlay.querySelector('#_path-preset').addEventListener('click', () => _setPath('preset'));
+  overlay.querySelector('#_path-custom').addEventListener('click', () => _setPath('custom'));
+  overlay.querySelector('#_path-cancel').addEventListener('click', () => { overlay.remove(); showMenu(); });
 }
 
 export function vmTab(tabName) {
@@ -98,12 +154,6 @@ export function parsePastedText() {
   if (window._reviewItems.length === 0) {
     alert('Keine Vokabeln im Text erkannt. Format: pro Zeile ein Vokabelpaar, getrennt durch 2+ Leerzeichen oder Tab.\n\nBeispiel:\ncafeteria   Cafeteria\nplace   Platz');
     return;
-  }
-  const _ptDeck = activeDeck();
-  if (_ptDeck && (!_ptDeck.deckPath || _ptDeck.deckPath === 'none')) {
-    _ptDeck.deckPath = 'custom';
-    persist();
-    if (window.currentUser) { markDirty('deck', _ptDeck.id); flushPendingSync().catch(() => {}); }
   }
   showReview();
 }
@@ -353,7 +403,6 @@ export function confirmAddVocab() {
     window.VOCAB.push(v);
     deck.vocab.push(v);
   });
-  if (!deck.deckPath || deck.deckPath === 'none') deck.deckPath = 'custom';
   persist();
   if (window.currentUser) { markDirty('deck', deck.id); flushPendingSync().catch(() => {}); }
   alert(`✅ ${toAdd.length} neue Vokabel${toAdd.length === 1 ? '' : 'n'} zur Lernliste hinzugefügt!`);
@@ -396,11 +445,11 @@ async function _loadPresetCategories() {
 // Gibt null zurück wenn die Vorlage noch nie irgendwo gespielt wurde,
 // sonst { mastered, total, pct }.
 // Wörter kommen aus cat.words (Preset-Cache), nicht aus einem Deck.
-function _presetProgress(cat) {
+function _presetProgress(cat, isActive = false) {
   const globalCp = window.SD?.globalPresetStats?.categoryProgress?.[cat.id];
-  if (!(globalCp?.played > 0)) return null;
+  if (!isActive && !(globalCp?.played > 0)) return null;
   const words = Array.isArray(cat.words) ? cat.words : [];
-  if (words.length === 0) return null;
+  if (words.length === 0) return isActive ? { pct: 0 } : null;
   const ws = window.SD?.globalPresetStats?.wordStats || {};
   function modeMastered(suffix) {
     return words.filter(v => {
@@ -412,8 +461,7 @@ function _presetProgress(cat) {
   const sp = modeMastered('_sp');
   const pr = modeMastered('_pr');
   const pct = Math.round((mc + sp + pr) / 3 / words.length * 100);
-  const mastered = Math.min(mc, sp, pr);
-  return { mastered, total: words.length, pct };
+  return { pct };
 }
 
 function _showPresetIntroModal(onDone) {
@@ -482,15 +530,16 @@ export async function renderPresetsTab() {
     // Ausgrauung: nur für inaktive bei lock, oder für überlimit-inaktive
     const greyOut = (locked && !isOn) || (!locked && !isOn && atLimit);
     const wordCount = Array.isArray(cat.words) ? cat.words.length : 0;
-    const prog = _presetProgress(cat);
-    const progressLine = prog
-      ? `<span style="font-size:.72rem;font-weight:700;color:#2a7a35;">✓ ${prog.pct}% · ${prog.mastered}/${prog.total} gemeistert</span>`
+    const prog = _presetProgress(cat, isOn);
+    const progressLine = prog !== null
+      ? `<span style="font-size:.72rem;font-weight:700;color:${prog.pct > 0 ? '#7a3aac' : '#ccc'};">${prog.pct}%</span>`
       : '';
-    // Hintergrund-Fill: Lila-Verlauf proportional zum Fortschritt
+    // Hintergrund-Fill: stärkerer Lila-Verlauf proportional zum Fortschritt
     const fillStyle = prog && prog.pct > 0
-      ? `background:linear-gradient(to right,rgba(168,108,219,.13) ${prog.pct}%,transparent ${prog.pct}%);`
+      ? `background:linear-gradient(to right,rgba(168,108,219,.22) ${prog.pct}%,rgba(168,108,219,.04) ${prog.pct}%);`
       : '';
-    return `<div class="preset-row" style="${greyOut ? 'opacity:.4;' : ''}${fillStyle}">
+    const btnLabel = isOn ? 'AN ✓' : (locked ? 'AUS' : 'Auswählen');
+    return `<div class="preset-row" style="${greyOut ? 'opacity:.38;' : ''}${fillStyle}">
       <div class="preset-info">
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
           <span class="preset-name">${window.escHtml(cat.name)}</span>
@@ -500,7 +549,7 @@ export async function renderPresetsTab() {
         ${progressLine}
       </div>
       <button class="preset-toggle${isOn ? ' on' : ''}" onclick="${btnDisabled ? '' : `togglePresetCategory('${cat.id}')`}" ${btnDisabled ? 'disabled' : ''}>
-        ${isOn ? 'AN ✓' : 'AUS'}
+        ${btnLabel}
       </button>
     </div>`;
   }).join('');
@@ -561,7 +610,6 @@ function _doTogglePresetCategory(categoryId) {
 
   if (!isOn) {
     if (deck.presetCategories.length >= MAX_PRESET_CATEGORIES) return; // Sicherheits-Guard
-    if (!deck.deckPath || deck.deckPath === 'none') deck.deckPath = 'preset';
     // Ein: Wörter der Kategorie ins Deck aufnehmen (Duplikate überspringen)
     const existingEn = new Set(deck.vocab.map(v => v.en.toLowerCase()));
     for (const w of (cat.words || [])) {

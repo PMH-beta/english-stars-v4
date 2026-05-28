@@ -502,7 +502,6 @@ export function vmAddManual() {
     return;
   }
   deck.vocab.push({de, en});
-  if (!deck.deckPath || deck.deckPath === 'none') deck.deckPath = 'custom';
   syncMirrorFromActiveDeck();
   window.persist();
   if (window.currentUser) { markDirty('deck', deck.id); flushPendingSync().catch(() => {}); }
