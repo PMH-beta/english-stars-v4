@@ -1,5 +1,5 @@
 // src/modules/vocab.js
-import { switchDeck, activeDeck, syncMirrorFromActiveDeck, createDeck } from './decks.js';
+import { switchDeck, activeDeck, syncMirrorFromActiveDeck, createDeck, deckProgress } from './decks.js';
 import { showScreen } from './ui.js';
 import { persist } from './storage.js';
 import { markDirty, flushPendingSync } from './sync.js';
@@ -20,6 +20,16 @@ export function openVocabManager(deckId) {
   if (!deck) return;
   const dn = document.getElementById('vm-deck-name');
   if (dn) dn.textContent = window._draftDeck ? 'Neue Sammlung' : 'Sammlung: ' + deck.name;
+  const ml = document.getElementById('vm-mastery-line');
+  if (ml) {
+    if (window._draftDeck || deck.vocab.length === 0) {
+      ml.style.display = 'none';
+    } else {
+      const p = deckProgress(deck);
+      ml.textContent = '⭐ ' + p.overallMastered + '/' + p.total + ' Wörter gemeistert';
+      ml.style.display = '';
+    }
+  }
   const backArea = document.getElementById('vm-back-area');
   if (backArea) {
     backArea.innerHTML = window._draftDeck
@@ -579,19 +589,25 @@ export async function renderPresetsTab() {
     // Ausgrauung: inaktive bei lock, überlimit-inaktive, oder beansprucht
     const greyOut = (locked && !isOn) || (!locked && !isOn && atLimit) || isClaimed;
     const wordCount = Array.isArray(cat.words) ? cat.words.length : 0;
-    const prog = window._draftDeck ? null : _presetProgress(cat, isOn);
+    const prog = _presetProgress(cat, isOn);
     const progressLine = prog !== null
       ? `<span style="font-size:.72rem;font-weight:700;color:${prog.pct > 0 ? '#7a3aac' : '#ccc'};">${prog.pct}%</span>`
       : '';
     const claimHint = isClaimed
       ? `<span style="font-size:.70rem;color:#e03030;font-weight:700;">in "${window.escHtml(claimed.get(cat.id))}"</span>`
       : '';
-    // Hintergrund-Fill: stärkerer Lila-Verlauf proportional zum Fortschritt
-    const fillStyle = prog && prog.pct > 0
-      ? `background:linear-gradient(to right,rgba(168,108,219,.22) ${prog.pct}%,rgba(168,108,219,.04) ${prog.pct}%);`
-      : '';
+    let rowStyle;
+    if (greyOut) {
+      rowStyle = 'opacity:.38;';
+    } else if (isOn) {
+      rowStyle = 'background:#fff;box-shadow:inset 0 0 0 2.5px #a86cdb;';
+    } else if (prog && prog.pct > 0) {
+      rowStyle = 'background:linear-gradient(to right,rgba(168,108,219,.22) ' + prog.pct + '%,rgba(168,108,219,.04) ' + prog.pct + '%);';
+    } else {
+      rowStyle = '';
+    }
     const btnLabel = isOn ? 'AN ✓' : (locked ? 'AUS' : 'Auswählen');
-    return `<div class="preset-row" style="${greyOut ? 'opacity:.38;' : ''}${fillStyle}">
+    return `<div class="preset-row" style="${rowStyle}">
       <div class="preset-info">
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
           <span class="preset-name">${window.escHtml(cat.name)}</span>

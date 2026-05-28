@@ -158,6 +158,7 @@ export function renderDecks() {
           <div class="deck-meta">
             <span>📅 ${dateStr}</span>
             <span>📝 ${deck.vocab.length} Wörter</span>
+            <span style="color:#a86cdb;">⭐ ${p.overallMastered}/${p.total}</span>
             ${isActive ? '<span style="color:var(--purple);font-weight:800">● aktiv</span>' : '<span style="color:#bbb">○ inaktiv</span>'}
             ${deck.deckPath === 'preset' ? '<span style="font-size:.70rem;font-weight:700;background:rgba(168,108,219,.12);color:#8a4dcc;padding:2px 7px;border-radius:20px;">📦 Vorlage</span>' : deck.deckPath === 'custom' ? '<span style="font-size:.70rem;font-weight:700;background:rgba(77,150,255,.12);color:#2c7aec;padding:2px 7px;border-radius:20px;">✏️ Eigene</span>' : ''}
           </div>
