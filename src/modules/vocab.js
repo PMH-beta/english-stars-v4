@@ -22,26 +22,9 @@ export function openVocabManager(deckId) {
   if (dn) dn.textContent = window._draftDeck ? 'Neue Sammlung' : 'Sammlung: ' + deck.name;
   const backArea = document.getElementById('vm-back-area');
   if (backArea) {
-    if (window._draftDeck) {
-      backArea.innerHTML = '';
-      const row = document.createElement('div');
-      row.style.cssText = 'display:flex;gap:10px;margin-bottom:14px;position:sticky;top:8px;z-index:300;align-self:flex-start;width:100%;';
-      const abortBtn = document.createElement('button');
-      abortBtn.className = 'back-btn';
-      abortBtn.style.cssText = 'flex:1;';
-      abortBtn.textContent = '✕ Abbrechen';
-      abortBtn.addEventListener('click', () => { _abortDraft(); alert('Es wurde keine Sammlung angelegt.'); });
-      const confirmBtn = document.createElement('button');
-      confirmBtn.className = 'back-btn';
-      confirmBtn.style.cssText = 'flex:1;background:linear-gradient(135deg,#3aaa5c,#4ecb71);color:#fff;border:none;box-shadow:0 3px 0 #2a8a4a;';
-      confirmBtn.textContent = '✓ Bestätigen';
-      confirmBtn.addEventListener('click', vmBack);
-      row.appendChild(abortBtn);
-      row.appendChild(confirmBtn);
-      backArea.appendChild(row);
-    } else {
-      backArea.innerHTML = '<button class="back-btn sticky" onclick="vmBack()" style="margin-bottom:14px;">← Zurück</button>';
-    }
+    backArea.innerHTML = window._draftDeck
+      ? ''
+      : '<button class="back-btn sticky" onclick="vmBack()" style="margin-bottom:14px;">← Zurück</button>';
   }
   if (window.SD?.activeMode === 'free' && (!deck.deckPath || deck.deckPath === 'none')) {
     if (!window._draftDeck) _showPathChoiceDialog();
@@ -81,6 +64,28 @@ function _renderVmTabsForMode() {
     vmTab('list');
   }
   _updateVmCount();
+  const actionArea = document.getElementById('vm-action-area');
+  if (!actionArea) return;
+  if (window._draftDeck) {
+    actionArea.innerHTML = '';
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:10px;margin-bottom:12px;width:100%;';
+    const abortBtn = document.createElement('button');
+    abortBtn.className = 'back-btn';
+    abortBtn.style.cssText = 'flex:1;';
+    abortBtn.textContent = '✕ Abbrechen';
+    abortBtn.addEventListener('click', () => { _abortDraft(); alert('Es wurde keine Sammlung angelegt.'); });
+    const confirmBtn = document.createElement('button');
+    confirmBtn.className = 'back-btn';
+    confirmBtn.style.cssText = 'flex:1;background:linear-gradient(135deg,#3aaa5c,#4ecb71);color:#fff;border:none;box-shadow:0 3px 0 #2a8a4a;';
+    confirmBtn.textContent = '✓ Bestätigen';
+    confirmBtn.addEventListener('click', vmBack);
+    row.appendChild(abortBtn);
+    row.appendChild(confirmBtn);
+    actionArea.appendChild(row);
+  } else {
+    actionArea.innerHTML = '';
+  }
 }
 
 function _showPathChoiceDialog() {
@@ -574,7 +579,7 @@ export async function renderPresetsTab() {
     // Ausgrauung: inaktive bei lock, überlimit-inaktive, oder beansprucht
     const greyOut = (locked && !isOn) || (!locked && !isOn && atLimit) || isClaimed;
     const wordCount = Array.isArray(cat.words) ? cat.words.length : 0;
-    const prog = _presetProgress(cat, isOn);
+    const prog = window._draftDeck ? null : _presetProgress(cat, isOn);
     const progressLine = prog !== null
       ? `<span style="font-size:.72rem;font-weight:700;color:${prog.pct > 0 ? '#7a3aac' : '#ccc'};">${prog.pct}%</span>`
       : '';

@@ -44,7 +44,10 @@ export function switchDeck(deckId) {
 
 export function createDeck(name) {
   const id = 'deck_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
-  const maxSort = Math.max(0, ...Object.values(window.SD.decks).map(d => d.sortOrder != null ? d.sortOrder : (d.createdAt || 0)));
+  const existingDecks = Object.values(window.SD.decks);
+  const minSort = existingDecks.length
+    ? Math.min(...existingDecks.map(d => d.sortOrder != null ? d.sortOrder : (d.createdAt || 0)))
+    : 10;
   window.SD.decks[id] = {
     id, name: name || 'Neue Vokabelsammlung', createdAt: Date.now(),
     vocab: [], wordStats: {},
@@ -57,7 +60,7 @@ export function createDeck(name) {
     presetCategories: [],
     presetsLocked: false,
     deckPath: 'none',
-    sortOrder: maxSort + 10,
+    sortOrder: minSort - 10,
     lastExam: null,
   };
   window.persist();
