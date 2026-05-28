@@ -32,6 +32,18 @@ export function getVocabStat(v, suffix) {
   return window.SD?.wordStats?.[key];
 }
 
+// Anteiliger Fortschritt für einen einzelnen Modus (0–100).
+// Gleiche Logik wie presetWordsPct, aber nur für ein Suffix.
+export function modePct(words, wordStatsMap, suffix) {
+  if (!words?.length) return 0;
+  let total = 0;
+  for (const v of words) {
+    const s = wordStatsMap[statKeyFor(v.de, v.en, suffix)];
+    total += s ? effectivePct(s) : 0;
+  }
+  return Math.round(total / words.length * 100);
+}
+
 export function presetWordsPct(words, wordStatsMap) {
   if (!words?.length) return 0;
   let totalPct = 0;
