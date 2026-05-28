@@ -54,6 +54,7 @@ function _renderVmTabsForMode() {
     `;
     vmTab('list');
   }
+  _updateVmCount();
 }
 
 function _showPathChoiceDialog() {
@@ -113,23 +114,44 @@ export function vmTab(tabName) {
   if (tabName === 'presets') renderPresetsTab();
 }
 
+function _updateVmCount() {
+  const cntEl = document.getElementById('vm-count');
+  if (!cntEl) return;
+  const deck = activeDeck();
+  if (!deck) return;
+  const isPresetPath = deck.deckPath === 'preset' && (window.SD?.activeMode || 'free') === 'free';
+  cntEl.textContent = isPresetPath
+    ? deck.vocab.length
+    : deck.vocab.filter(v => !v._presetId).length;
+}
+
 export function renderVocabList() {
   const listEl = document.getElementById('vm-list');
-  const cntEl = document.getElementById('vm-count');
   if (!listEl) return;
   const search = (document.getElementById('vm-search')?.value || '').toLowerCase().trim();
   const deck = activeDeck();
-  const manualVocab = deck.vocab.filter(v => !v._presetId);
-  const items = manualVocab.filter(v => {
+  const isPresetPath = deck.deckPath === 'preset' && (window.SD?.activeMode || 'free') === 'free';
+  const vocabToShow = isPresetPath ? deck.vocab : deck.vocab.filter(v => !v._presetId);
+  const items = vocabToShow.filter(v => {
     if (!search) return true;
     return v.de.toLowerCase().includes(search) || v.en.toLowerCase().includes(search);
   });
-  if (cntEl) cntEl.textContent = manualVocab.length;
+  _updateVmCount();
   if (items.length === 0) {
-    listEl.innerHTML = '<div class="vm-empty">' + (search ? 'Keine Treffer für "' + window.escHtml(search) + '"' : 'Noch keine Vokabeln. Füge welche hinzu! 👇') + '</div>';
+    const emptyMsg = search
+      ? 'Keine Treffer für "' + window.escHtml(search) + '"'
+      : isPresetPath ? 'Noch keine Vorlage aktiv. Wähle eine im 📦-Tab.' : 'Noch keine Vokabeln. Füge welche hinzu! 👇';
+    listEl.innerHTML = '<div class="vm-empty">' + emptyMsg + '</div>';
     return;
   }
   listEl.innerHTML = items.map(v => {
+    if (isPresetPath) {
+      return `<div class="vm-row">
+        <div class="vm-row-de">${window.escHtml(v.de)}</div>
+        <div class="vm-row-arrow">→</div>
+        <div class="vm-row-en">${window.escHtml(v.en)}</div>
+      </div>`;
+    }
     const realIdx = deck.vocab.indexOf(v);
     return `<div class="vm-row">
       <div class="vm-row-de">${window.escHtml(v.de)}</div>
@@ -629,4 +651,5 @@ function _doTogglePresetCategory(categoryId) {
   persist();
   if (window.currentUser) { markDirty('deck', deck.id); flushPendingSync().catch(() => {}); }
   renderPresetsTab();
+  _updateVmCount();
 }
