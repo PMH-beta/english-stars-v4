@@ -505,7 +505,8 @@ async function _loadPresetCategories() {
 function _presetProgress(cat, isActive = false) {
   const globalCp = window.SD?.globalPresetStats?.categoryProgress?.[cat.id];
   if (!isActive && !(globalCp?.played > 0)) return null;
-  const words = Array.isArray(cat.words) ? cat.words : [];
+  const deck = _vmDeck();
+  const words = (deck?.vocab || []).filter(v => v._presetId === cat.id);
   if (words.length === 0) return isActive ? { pct: 0 } : null;
   const ws = window.SD?.globalPresetStats?.wordStats || {};
   let totalScore = 0;
