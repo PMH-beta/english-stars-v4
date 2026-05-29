@@ -256,16 +256,28 @@ export async function deleteCloudWordStats(deckId, userId) {
 
 export async function deleteCloudPresetStats(statKeys, presetIds, userId) {
   if (statKeys.length) {
-    const { error } = await supabase
-      .from('preset_stats').delete().eq('user_id', userId).in('stat_key', statKeys);
-    if (error) console.error('[sync] deleteCloudPresetStats:', error.message);
-    else console.log('[sync] deleteCloudPresetStats OK:', statKeys.length, 'keys');
+    const { data, error } = await supabase
+      .from('preset_stats').delete().eq('user_id', userId).in('stat_key', statKeys).select();
+    if (error) throw new Error('[sync] deleteCloudPresetStats: ' + error.message);
+    const deleted = data?.length ?? 0;
+    if (deleted < statKeys.length) {
+      // Kein throw — bereits gelöschte Zeilen würden sonst Endlos-Retries erzeugen.
+      console.warn('[sync] deleteCloudPresetStats: erwartet', statKeys.length, 'gelöscht', deleted,
+        '| nicht gefunden:', statKeys.filter(k => !data?.some(r => r.stat_key === k)));
+    } else {
+      console.log('[sync] deleteCloudPresetStats OK:', deleted, 'keys');
+    }
   }
   if (presetIds.length) {
-    const { error } = await supabase
-      .from('preset_category_progress').delete().eq('user_id', userId).in('preset_id', presetIds);
-    if (error) console.error('[sync] deleteCloudPresetCatProgress:', error.message);
-    else console.log('[sync] deleteCloudPresetCatProgress OK:', presetIds.length, 'presets');
+    const { data, error } = await supabase
+      .from('preset_category_progress').delete().eq('user_id', userId).in('preset_id', presetIds).select();
+    if (error) throw new Error('[sync] deleteCloudPresetCatProgress: ' + error.message);
+    const deleted = data?.length ?? 0;
+    if (deleted < presetIds.length) {
+      console.warn('[sync] deleteCloudPresetCatProgress: erwartet', presetIds.length, 'gelöscht', deleted);
+    } else {
+      console.log('[sync] deleteCloudPresetCatProgress OK:', deleted, 'presets');
+    }
   }
 }
 

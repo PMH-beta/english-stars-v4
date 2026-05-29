@@ -438,6 +438,7 @@ export function resetDeckProgress(id) {
       console.log('[decks] resetDeckProgress', id, '| cloud-sync');
       deleteCloudWordStats(id, userId).catch(e => console.error('[resetDeckProgress] deleteWordStats:', e));
       saveDeck(deck, userId).catch(e => console.error('[resetDeckProgress] saveDeck:', e));
+      flushPendingSync().catch(e => console.error('[resetDeckProgress] flush:', e));
     }
     renderDecks();
   });
@@ -494,6 +495,7 @@ export function confirmDeleteDeck(id) {
     if (isPreset) {
       const hasPresetDecks = Object.values(window.SD.decks).some(d => d.deckPath === 'preset');
       if (!hasPresetDecks) removePending('global_preset');
+      if (window.currentUser) flushPendingSync().catch(e => console.error('[confirmDeleteDeck] flush:', e));
     }
     if (_expandedDeckId === id) _expandedDeckId = null;
     renderDecks();
