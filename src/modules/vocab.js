@@ -4,7 +4,7 @@ import { showScreen } from './ui.js';
 import { persist } from './storage.js';
 import { markDirty, flushPendingSync } from './sync.js';
 import { supabase } from './supabase.js';
-import { presetWordsPct } from './stats.js';
+import { effectivePct, statKeyFor } from './stats.js';
 import { MAX_PRESET_CATEGORIES } from './config.js';
 
 function _vmDeck() { return window._draftDeck || activeDeck(); }
@@ -508,7 +508,20 @@ function _presetProgress(cat, isActive = false) {
   const words = Array.isArray(cat.words) ? cat.words : [];
   if (words.length === 0) return isActive ? { pct: 0 } : null;
   const ws = window.SD?.globalPresetStats?.wordStats || {};
-  return { pct: presetWordsPct(words, ws) };
+  let totalScore = 0;
+  for (const suf of ['_mc', '_sp', '_pr']) {
+    let score = 0;
+    for (const v of words) {
+      const s = ws[statKeyFor(v.de, v.en, suf)];
+      if (!s || !s.asked) continue;
+      const asked = s.asked, pct = effectivePct(s);
+      if (Math.floor(asked) >= 3 && pct >= 0.9) score += 1;
+      else if (asked >= 1) score += Math.max(0, (pct - 0.5) * 2) * Math.min(asked / 3, 1) * 0.85;
+    }
+    totalScore += score;
+  }
+  const pct = words.length > 0 ? Math.min(100, Math.round((totalScore / 3 / words.length) * 100)) : 0;
+  return { pct };
 }
 
 function _showPresetIntroModal(onDone) {

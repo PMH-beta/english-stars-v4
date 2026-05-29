@@ -1,5 +1,5 @@
 // src/modules/decks.js
-import { effectivePct, statKeyFor, presetWordsPct, modePct } from './stats.js';
+import { effectivePct, statKeyFor } from './stats.js';
 import { markDirty, flushPendingSync, deleteCloudDeck, deleteCloudWordStats, deleteCloudPresetStats, saveDeck } from './sync.js';
 
 // ────────────────────────────────────────────────
@@ -96,35 +96,38 @@ export function renameDeck(deckId, newName) {
 //  DECK RENDERING
 // ────────────────────────────────────────────────
 export function deckProgress(deck) {
-  const ws = deck.deckPath === 'preset'
-    ? (window.SD?.globalPresetStats?.wordStats || {})
-    : deck.wordStats;
-  const total = deck.vocab.length;
-  const chk = (v, suf) => {
-    const s = ws[statKeyFor(v.de, v.en, suf)];
-    return s && Math.floor(s.asked || 0) >= 3 && effectivePct(s) >= 0.9;
-  };
-  const mcPct = modePct(deck.vocab, ws, '_mc');
-  const spPct = modePct(deck.vocab, ws, '_sp');
-  const prPct = modePct(deck.vocab, ws, '_pr');
-  const overallPct = total > 0 ? Math.round((mcPct + spPct + prPct) / 3) : 0;
-  let overallMastered = 0;
-  for (const v of deck.vocab) {
-    if (chk(v, '_mc') && chk(v, '_sp') && chk(v, '_pr')) overallMastered++;
+  const presetWs = window.SD?.globalPresetStats?.wordStats || {};
+  function pf(suffix) {
+    let score = 0, mastered = 0;
+    deck.vocab.forEach(v => {
+      const ws = v._presetId ? presetWs : deck.wordStats;
+      const s = ws[statKeyFor(v.de, v.en, suffix)];
+      if (!s || !s.asked) return;
+      const asked = s.asked, pct = effectivePct(s);
+      if (Math.floor(asked) >= 3 && pct >= 0.9) { score += 1; mastered += 1; }
+      else if (asked >= 1) {
+        const conf = Math.min(asked / 3, 1);
+        score += Math.max(0, (pct - 0.5) * 2) * conf * 0.85;
+      }
+    });
+    return {score, mastered, total: deck.vocab.length};
   }
+  const a = pf('_mc'), b = pf('_sp'), c = pf('_pr');
+  const totalScore = (a.score + b.score + c.score) / 3;
+  const totalMastered = Math.min(a.mastered, b.mastered, c.mastered);
   return {
-    overallPct, overallMastered, total,
-    perMode: {
-      vocab:    { pct: mcPct,  total },
-      spelling: { pct: spPct,  total },
-      pronounce:{ pct: prPct,  total },
-    }
+    overallPct: deck.vocab.length > 0 ? Math.min(100, Math.round((totalScore / deck.vocab.length) * 100)) : 0,
+    overallMastered: totalMastered,
+    total: deck.vocab.length,
+    perMode: {vocab: a, spelling: b, pronounce: c},
   };
 }
 
 function renderModeSubBy(p) {
-  return '<span class="btn-progress-text">' + p.pct + '%</span>' +
-         '<span class="btn-progress"><span class="btn-progress-fill" style="width:' + p.pct + '%"></span></span>';
+  const total = p.total || 0;
+  const pct = total > 0 ? Math.min(100, Math.round((p.score / total) * 100)) : 0;
+  return '<span class="btn-progress-text">' + pct + '% · ' + p.mastered + '/' + total + ' gemeistert</span>' +
+         '<span class="btn-progress"><span class="btn-progress-fill" style="width:' + pct + '%"></span></span>';
 }
 
 export function renderDecks() {
