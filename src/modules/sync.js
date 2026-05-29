@@ -261,12 +261,10 @@ export async function deleteCloudPresetStats(statKeys, presetIds, userId) {
     if (error) throw new Error('[sync] deleteCloudPresetStats: ' + error.message);
     const deleted = data?.length ?? 0;
     if (deleted < statKeys.length) {
-      // Kein throw — bereits gelöschte Zeilen würden sonst Endlos-Retries erzeugen.
-      console.warn('[sync] deleteCloudPresetStats: erwartet', statKeys.length, 'gelöscht', deleted,
-        '| nicht gefunden:', statKeys.filter(k => !data?.some(r => r.stat_key === k)));
-    } else {
-      console.log('[sync] deleteCloudPresetStats OK:', deleted, 'keys');
+      const missing = statKeys.filter(k => !data?.some(r => r.stat_key === k));
+      throw new Error('[sync] deleteCloudPresetStats: ' + missing.length + ' Keys nicht gelöscht: ' + missing.join(', '));
     }
+    console.log('[sync] deleteCloudPresetStats OK:', deleted, 'keys');
   }
   if (presetIds.length) {
     const { data, error } = await supabase
@@ -274,10 +272,9 @@ export async function deleteCloudPresetStats(statKeys, presetIds, userId) {
     if (error) throw new Error('[sync] deleteCloudPresetCatProgress: ' + error.message);
     const deleted = data?.length ?? 0;
     if (deleted < presetIds.length) {
-      console.warn('[sync] deleteCloudPresetCatProgress: erwartet', presetIds.length, 'gelöscht', deleted);
-    } else {
-      console.log('[sync] deleteCloudPresetCatProgress OK:', deleted, 'presets');
+      throw new Error('[sync] deleteCloudPresetCatProgress: ' + (presetIds.length - deleted) + ' IDs nicht gelöscht');
     }
+    console.log('[sync] deleteCloudPresetCatProgress OK:', deleted, 'presets');
   }
 }
 
@@ -411,15 +408,25 @@ export function markDirty(type, deckId = null) {
   writePending(filtered);
 }
 
+const MAX_DELETE_ATTEMPTS = 3;
+
 /** Stellt sicher dass Preset-Stats beim nächsten Flush aus der Cloud gelöscht werden.
- *  Wird nach fehlgeschlagenem deleteCloudPresetStats als Retry-Eintrag gesetzt. */
+ *  Wird nach fehlgeschlagenem deleteCloudPresetStats als Retry-Eintrag gesetzt.
+ *  Gibt auf nach MAX_DELETE_ATTEMPTS Versuchen (verhindert Endlos-Retry bei Strukturmismatch). */
 export function markDeletePresetStats(statKeys, presetIds) {
   const pending = readPending();
   const existing = pending.find(p => p.type === 'delete_preset_stats');
   const rest = pending.filter(p => p.type !== 'delete_preset_stats');
+  const attempts = (existing?.attempts ?? 0) + 1;
+  if (attempts > MAX_DELETE_ATTEMPTS) {
+    console.error('[sync] markDeletePresetStats: aufgegeben nach', MAX_DELETE_ATTEMPTS, 'Versuchen.',
+      'Nicht gelöschte Keys:', statKeys, '| Preset-IDs:', presetIds);
+    writePending(rest); // Eintrag nicht wieder einreihen
+    return;
+  }
   const mergedKeys = [...new Set([...(existing?.statKeys || []), ...statKeys])];
   const mergedIds  = [...new Set([...(existing?.presetIds || []), ...presetIds])];
-  rest.push({ type: 'delete_preset_stats', statKeys: mergedKeys, presetIds: mergedIds, ts: Date.now() });
+  rest.push({ type: 'delete_preset_stats', statKeys: mergedKeys, presetIds: mergedIds, attempts, ts: Date.now() });
   writePending(rest);
 }
 
