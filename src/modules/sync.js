@@ -259,22 +259,13 @@ export async function deleteCloudPresetStats(statKeys, presetIds, userId) {
     const { data, error } = await supabase
       .from('preset_stats').delete().eq('user_id', userId).in('stat_key', statKeys).select();
     if (error) throw new Error('[sync] deleteCloudPresetStats: ' + error.message);
-    const deleted = data?.length ?? 0;
-    if (deleted < statKeys.length) {
-      const missing = statKeys.filter(k => !data?.some(r => r.stat_key === k));
-      throw new Error('[sync] deleteCloudPresetStats: ' + missing.length + ' Keys nicht gelöscht: ' + missing.join(', '));
-    }
-    console.log('[sync] deleteCloudPresetStats OK:', deleted, 'keys');
+    console.log('[sync] deleteCloudPresetStats OK:', data?.length ?? 0, 'von', statKeys.length, 'Keys gelöscht');
   }
   if (presetIds.length) {
     const { data, error } = await supabase
       .from('preset_category_progress').delete().eq('user_id', userId).in('preset_id', presetIds).select();
     if (error) throw new Error('[sync] deleteCloudPresetCatProgress: ' + error.message);
-    const deleted = data?.length ?? 0;
-    if (deleted < presetIds.length) {
-      throw new Error('[sync] deleteCloudPresetCatProgress: ' + (presetIds.length - deleted) + ' IDs nicht gelöscht');
-    }
-    console.log('[sync] deleteCloudPresetCatProgress OK:', deleted, 'presets');
+    console.log('[sync] deleteCloudPresetCatProgress OK:', data?.length ?? 0, 'von', presetIds.length, 'IDs gelöscht');
   }
 }
 
