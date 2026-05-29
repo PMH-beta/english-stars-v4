@@ -1,6 +1,6 @@
 // src/modules/decks.js
 import { effectivePct, statKeyFor } from './stats.js';
-import { markDirty, flushPendingSync, deleteCloudDeck, deleteCloudWordStats, deleteCloudPresetStats, saveDeck } from './sync.js';
+import { markDirty, flushPendingSync, deleteCloudDeck, deleteCloudWordStats, deleteCloudPresetStats, saveDeck, markDeletePresetStats, removePending } from './sync.js';
 
 // ────────────────────────────────────────────────
 //  UI STATE
@@ -398,7 +398,7 @@ export function resetDeckProgress(id) {
   `;
   document.body.appendChild(overlay);
   overlay.querySelector('#_rp-cancel').addEventListener('click', () => overlay.remove());
-  overlay.querySelector('#_rp-ok').addEventListener('click', () => {
+  overlay.querySelector('#_rp-ok').addEventListener('click', async () => {
     overlay.remove();
     deck.wordStats = {};
     deck.categoryProgress = {
@@ -423,8 +423,12 @@ export function resetDeckProgress(id) {
         delete window.SD.globalPresetStats.categoryProgress[pid];
       }
       if (window.currentUser) {
-        deleteCloudPresetStats(statKeys, deck.presetCategories, window.currentUser.id)
-          .catch(e => console.error('[resetDeckProgress] deletePresetStats:', e));
+        try {
+          await deleteCloudPresetStats(statKeys, deck.presetCategories, window.currentUser.id);
+        } catch (e) {
+          console.error('[resetDeckProgress] deletePresetStats fehlgeschlagen — Retry-Eintrag gesetzt:', e);
+          markDeletePresetStats(statKeys, deck.presetCategories);
+        }
       }
     }
     syncMirrorFromActiveDeck();
@@ -461,7 +465,7 @@ export function confirmDeleteDeck(id) {
   `;
   document.body.appendChild(overlay);
   overlay.querySelector('#_cd-cancel').addEventListener('click', () => overlay.remove());
-  overlay.querySelector('#_cd-ok').addEventListener('click', () => {
+  overlay.querySelector('#_cd-ok').addEventListener('click', async () => {
     overlay.remove();
     if (isPreset) {
       const SUFFIXES = ['_mc', '_sp', '_pr'];
@@ -478,11 +482,19 @@ export function confirmDeleteDeck(id) {
         if (window.SD.globalPresetStats?.categoryProgress) delete window.SD.globalPresetStats.categoryProgress[pid];
       }
       if (window.currentUser) {
-        deleteCloudPresetStats(statKeys, cur.presetCategories, window.currentUser.id)
-          .catch(e => console.error('[confirmDeleteDeck] deletePresetStats:', e));
+        try {
+          await deleteCloudPresetStats(statKeys, cur.presetCategories, window.currentUser.id);
+        } catch (e) {
+          console.error('[confirmDeleteDeck] deletePresetStats fehlgeschlagen — Retry-Eintrag gesetzt:', e);
+          markDeletePresetStats(statKeys, cur.presetCategories);
+        }
       }
     }
     deleteDeck(id);
+    if (isPreset) {
+      const hasPresetDecks = Object.values(window.SD.decks).some(d => d.deckPath === 'preset');
+      if (!hasPresetDecks) removePending('global_preset');
+    }
     if (_expandedDeckId === id) _expandedDeckId = null;
     renderDecks();
   });
