@@ -525,6 +525,27 @@ function _presetProgress(cat, isActive = false) {
   return { pct };
 }
 
+// Fortschrittsbalken für Vorlagen, die in einem anderen Deck aktiv sind.
+// Nutzt cat.words (DB-Quelle, identisch mit dem was in das andere Deck übernommen wurde).
+function _claimedBarPct(cat) {
+  const words = Array.isArray(cat.words) ? cat.words : [];
+  if (!words.length) return 0;
+  const ws = window.SD?.globalPresetStats?.wordStats || {};
+  let totalScore = 0;
+  for (const suf of ['_mc', '_sp', '_pr']) {
+    let score = 0;
+    for (const v of words) {
+      const s = ws[statKeyFor(v.de, v.en, suf)];
+      if (!s || !s.asked) continue;
+      const asked = s.asked, pct = effectivePct(s);
+      if (Math.floor(asked) >= 3 && pct >= 0.9) score += 1;
+      else if (asked >= 1) score += Math.max(0, (pct - 0.5) * 2) * Math.min(asked / 3, 1) * 0.85;
+    }
+    totalScore += score;
+  }
+  return words.length > 0 ? Math.min(100, Math.round((totalScore / 3 / words.length) * 100)) : 0;
+}
+
 function _showPresetIntroModal(onDone) {
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
@@ -588,26 +609,33 @@ export async function renderPresetsTab() {
   pane.innerHTML = headerNote + sortedCategories.map(cat => {
     const isOn = activeSet.has(cat.id);
     const isClaimed = !isOn && claimed.has(cat.id);
-    // Button-Sperre: bei lock immer, Limit erreicht, oder in anderer Sammlung beansprucht
-    const btnDisabled = locked || (!isOn && atLimit) || isClaimed;
-    // Ausgrauung: inaktive bei lock, überlimit-inaktive, oder beansprucht
-    const greyOut = (locked && !isOn) || (!locked && !isOn && atLimit) || isClaimed;
     const wordCount = Array.isArray(cat.words) ? cat.words.length : 0;
-    const prog = _presetProgress(cat, isOn);
-    const progressLine = prog !== null
-      ? `<span style="font-size:.72rem;font-weight:700;color:${prog.pct > 0 ? '#7a3aac' : '#ccc'};">${prog.pct}%</span>`
-      : '';
+
+    // Anlege-Flow: Karte ist direkt klickbar (nicht aktiv, nicht claimed, Limit nicht erreicht, nicht gesperrt)
+    const isSelectableCard = !locked && !isOn && !isClaimed && !atLimit;
+    // Ausgrauung: inaktiv + (gesperrt ODER claimed ODER Limit erreicht)
+    const greyOut = !isOn && (locked || isClaimed || atLimit);
+
+    // Fortschritt: aktive Vorlage → deck.vocab-gefiltert; claimed → cat.words-Näherung
+    const ownProg = _presetProgress(cat, isOn);
+    const ownPct = ownProg?.pct ?? 0;
+    const barPct = isOn ? ownPct : (isClaimed ? _claimedBarPct(cat) : 0);
+
     let rowStyle = '';
-    if (prog && prog.pct > 0) {
-      rowStyle = 'background:linear-gradient(to right,rgba(168,108,219,.15) ' + prog.pct + '%,#fff ' + prog.pct + '%);';
-    }
-    if (greyOut) {
-      rowStyle += 'opacity:.38;';
-    } else if (isOn) {
-      rowStyle += 'box-shadow:inset 0 0 0 2.5px #a86cdb;';
-    }
-    const btnLabel = isOn ? 'AN ✓' : (locked ? 'AUS' : 'Auswählen');
-    return `<div class="preset-row" style="${rowStyle}">
+    if (barPct > 0) rowStyle = 'background:linear-gradient(to right,rgba(168,108,219,.15) ' + barPct + '%,#fff ' + barPct + '%);';
+    if (greyOut) rowStyle += 'opacity:.38;';
+    else if (isOn) rowStyle += 'box-shadow:inset 0 0 0 2.5px #a86cdb;';
+    if (isSelectableCard) rowStyle += 'cursor:pointer;';
+
+    const rowClick = isSelectableCard ? `onclick="togglePresetCategory('${cat.id}')"` : '';
+    const progressLine = (isOn && ownPct > 0)
+      ? `<span style="font-size:.72rem;font-weight:700;color:#7a3aac;">${ownPct}%</span>`
+      : '';
+    const btnHtml = isOn
+      ? `<button class="preset-toggle on" ${locked ? 'disabled' : `onclick="togglePresetCategory('${cat.id}')"`}>AN ✓</button>`
+      : '';
+
+    return `<div class="preset-row" style="${rowStyle}" ${rowClick}>
       <div class="preset-info">
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
           <span class="preset-name">${window.escHtml(cat.name)}</span>
@@ -616,9 +644,7 @@ export async function renderPresetsTab() {
         <span class="preset-count">${wordCount} Wörter</span>
         ${progressLine}
       </div>
-      <button class="preset-toggle${isOn ? ' on' : ''}" onclick="${btnDisabled ? '' : `togglePresetCategory('${cat.id}')`}" ${btnDisabled ? 'disabled' : ''}>
-        ${btnLabel}
-      </button>
+      ${btnHtml}
     </div>`;
   }).join('');
 }
