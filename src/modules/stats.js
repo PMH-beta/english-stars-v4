@@ -32,30 +32,38 @@ export function getVocabStat(v, suffix) {
   return window.SD?.wordStats?.[key];
 }
 
-// Anteiliger Fortschritt für einen einzelnen Modus (0–100).
-// Gleiche Logik wie presetWordsPct, aber nur für ein Suffix.
+// Mastery-gewichteter Beitrag eines einzelnen Stat-Eintrags (0–1).
+// = 1.0 wenn gemeistert (asked≥3 UND effectivePct≥0.9), sonst (asked/3)*effectivePct,
+// geclampt auf [0,1]. Kein Eintrag → 0.
+function _wordContrib(s) {
+  if (!s || !s.asked) return 0;
+  const pct = effectivePct(s);
+  return (Math.floor(s.asked) >= 3 && pct >= 0.9) ? 1 : Math.min(1, (s.asked / 3) * pct);
+}
+
+// Anteiliger Fortschritt für einen einzelnen Modus (0–100), mastery-gewichtet.
+// 100% erst wenn alle Wörter gemeistert sind; jeder Versuch zählt sofort anteilig.
 export function modePct(words, wordStatsMap, suffix) {
   if (!words?.length) return 0;
   let total = 0;
   for (const v of words) {
-    const s = wordStatsMap[statKeyFor(v.de, v.en, suffix)];
-    total += s ? effectivePct(s) : 0;
+    total += _wordContrib(wordStatsMap[statKeyFor(v.de, v.en, suffix)]);
   }
   return Math.round(total / words.length * 100);
 }
 
+// Vorlagen-Gesamt-Fortschritt (0–100): pro Wort über _mc/_sp/_pr mitteln, dann über Wörter.
 export function presetWordsPct(words, wordStatsMap) {
   if (!words?.length) return 0;
-  let totalPct = 0;
+  let total = 0;
   for (const v of words) {
-    let wordPct = 0;
+    let w = 0;
     for (const suf of ['_mc', '_sp', '_pr']) {
-      const s = wordStatsMap[statKeyFor(v.de, v.en, suf)];
-      wordPct += s ? effectivePct(s) : 0;
+      w += _wordContrib(wordStatsMap[statKeyFor(v.de, v.en, suf)]);
     }
-    totalPct += wordPct / 3;
+    total += w / 3;
   }
-  return Math.round(totalPct / words.length * 100);
+  return Math.round(total / words.length * 100);
 }
 
 // buildPool → src/modules/game.js (braucht Question-Builder die dort leben)
