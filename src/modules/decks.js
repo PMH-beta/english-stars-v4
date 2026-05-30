@@ -614,6 +614,7 @@ export function vmAddManual() {
     window.persist();
     if (window.currentUser) { markDirty('deck', deck.id); flushPendingSync().catch(() => {}); }
   }
+  window.renderVocabList();
   document.getElementById('vm-add-de').value = '';
   document.getElementById('vm-add-en').value = '';
   document.getElementById('vm-add-de').focus();
