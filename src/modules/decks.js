@@ -164,7 +164,6 @@ export function renderDecks() {
           <div class="deck-meta">
             <span>📅 ${dateStr}</span>
             <span>📝 ${deck.vocab.length} Wörter</span>
-            ${isActive ? '<span style="color:var(--purple);font-weight:800">● aktiv</span>' : ''}
             ${deck.deckPath === 'preset' ? '<span style="font-size:.70rem;font-weight:700;background:rgba(168,108,219,.12);color:#8a4dcc;padding:2px 7px;border-radius:20px;">📦 Vorlage</span>' : deck.deckPath === 'custom' ? '<span style="font-size:.70rem;font-weight:700;background:rgba(77,150,255,.12);color:#2c7aec;padding:2px 7px;border-radius:20px;">✏️ Eigene</span>' : ''}
           </div>
           <div class="deck-progress-mini"><div class="deck-progress-mini-fill" style="width:${p.overallPct}%"></div></div>
@@ -173,7 +172,6 @@ export function renderDecks() {
         <div class="deck-chevron">▼</div>
       </div>
       <div class="deck-body">
-        ${isActive ? `<div class="deck-active-badge">⭐ Aktive Sammlung – Statistik bezieht sich auf diese</div>` : ''}
         <div class="mode-buttons">
           <button class="big-btn blue" onclick="startGameWithDeck('${id}','vocab')">
             <span class="icon-btn">🔤</span>

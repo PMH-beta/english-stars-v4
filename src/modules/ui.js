@@ -30,6 +30,8 @@ export function showScreen(id) {
   });
   const el = document.getElementById(id);
   el.style.display = ['loading-screen','menu-screen','game-screen','stats-screen','profile-screen','scan-screen','review-screen'].includes(id) ? 'flex' : 'block';
+  window.scrollTo(0, 0);
+  el.scrollTop = 0;
   if (id === 'game-screen') document.body.classList.add('in-game');
   else document.body.classList.remove('in-game');
   const ft = document.getElementById('menu-footer');
@@ -166,7 +168,7 @@ export function showProfile() {
           <span style="font-size:1.4rem;">${isActive ? '📖' : '📕'}</span>
           <div style="flex:1;min-width:0;">
             <div style="font-family:'Fredoka One',cursive;font-size:.95rem;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${window.escHtml(d.name)}</div>
-            <div style="font-size:.7rem;color:#888;font-weight:700;">${d.vocab.length} Wörter${isActive ? ' · aktiv' : ''}</div>
+            <div style="font-size:.7rem;color:#888;font-weight:700;">${d.vocab.length} Wörter</div>
           </div>
           <div style="font-family:'Fredoka One',cursive;font-size:1.15rem;background:linear-gradient(135deg,var(--purple),var(--pink));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">${p.overallPct}%</div>
         </div>`;

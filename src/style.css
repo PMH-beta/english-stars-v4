@@ -109,10 +109,10 @@ h1{font-family:'Fredoka One',cursive;font-size:2.3rem;color:var(--orange);text-s
   overflow:hidden;
 }
 .deck-card.deck-type-custom{
-  background:linear-gradient(135deg,#eaf3ff,#d6e8ff);
+  background:#B7E0B7;
 }
 .deck-card.deck-type-preset{
-  background:linear-gradient(135deg,#e0f8f7,#c8f0ee);
+  background:#fff;
 }
 .deck-card.expanded{
   border-color:var(--purple);
