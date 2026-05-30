@@ -611,8 +611,9 @@ export async function renderPresetsTab() {
     const isClaimed = !isOn && claimed.has(cat.id);
     const wordCount = Array.isArray(cat.words) ? cat.words.length : 0;
 
-    // Anlege-Flow: Karte ist direkt klickbar (nicht aktiv, nicht claimed, Limit nicht erreicht, nicht gesperrt)
+    // Karte klickbar: aktiv+nicht gesperrt (deaktivieren) ODER inaktiv+nicht claimed+nicht am Limit+nicht gesperrt (aktivieren)
     const isSelectableCard = !locked && !isOn && !isClaimed && !atLimit;
+    const isClickableCard = isOn ? !locked : isSelectableCard;
     // Ausgrauung: inaktiv + (gesperrt ODER claimed ODER Limit erreicht)
     const greyOut = !isOn && (locked || isClaimed || atLimit);
 
@@ -625,14 +626,14 @@ export async function renderPresetsTab() {
     if (barPct > 0) rowStyle = 'background:linear-gradient(to right,rgba(168,108,219,.15) ' + barPct + '%,#fff ' + barPct + '%);';
     if (greyOut) rowStyle += 'opacity:.38;';
     else if (isOn) rowStyle += 'box-shadow:inset 0 0 0 2.5px #a86cdb;';
-    if (isSelectableCard) rowStyle += 'cursor:pointer;';
+    if (isClickableCard) rowStyle += 'cursor:pointer;';
 
-    const rowClick = isSelectableCard ? `onclick="togglePresetCategory('${cat.id}')"` : '';
+    const rowClick = isClickableCard ? `onclick="togglePresetCategory('${cat.id}')"` : '';
     const progressLine = (isOn && ownPct > 0)
       ? `<span style="font-size:.72rem;font-weight:700;color:#7a3aac;">${ownPct}%</span>`
       : '';
     const btnHtml = isOn
-      ? `<button class="preset-toggle on" ${locked ? 'disabled' : `onclick="togglePresetCategory('${cat.id}')"`}>AN ✓</button>`
+      ? `<button class="preset-toggle on" ${locked ? 'disabled' : `onclick="event.stopPropagation();togglePresetCategory('${cat.id}')"`}>AN ✓</button>`
       : '';
 
     return `<div class="preset-row" style="${rowStyle}" ${rowClick}>
