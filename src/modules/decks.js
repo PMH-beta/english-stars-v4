@@ -153,17 +153,18 @@ export function renderDecks() {
     const dt = new Date(deck.createdAt);
     const dateStr = dt.toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit', year: 'numeric'});
     const card = document.createElement('div');
-    card.className = 'deck-card' + (isActive ? ' active' : '') + (isExpanded ? ' expanded' : '') + (!isActive ? ' inactive' : '');
+    const typeClass = deck.deckPath === 'preset' ? 'deck-type-preset' : 'deck-type-custom';
+    card.className = 'deck-card ' + typeClass + (isExpanded ? ' expanded' : '') + (isActive ? ' active' : '');
     card.dataset.deckId = id;
     card.innerHTML = `
       <div class="deck-header">
-        <div class="deck-icon">${isActive ? '📖' : '📕'}</div>
+        <div class="deck-icon">${deck.deckPath === 'preset' ? '📦' : '📚'}</div>
         <div class="deck-info">
           <div class="deck-name">${window.escHtml(deck.name)}</div>
           <div class="deck-meta">
             <span>📅 ${dateStr}</span>
             <span>📝 ${deck.vocab.length} Wörter</span>
-            ${isActive ? '<span style="color:var(--purple);font-weight:800">● aktiv</span>' : '<span style="color:#bbb">○ inaktiv</span>'}
+            ${isActive ? '<span style="color:var(--purple);font-weight:800">● aktiv</span>' : ''}
             ${deck.deckPath === 'preset' ? '<span style="font-size:.70rem;font-weight:700;background:rgba(168,108,219,.12);color:#8a4dcc;padding:2px 7px;border-radius:20px;">📦 Vorlage</span>' : deck.deckPath === 'custom' ? '<span style="font-size:.70rem;font-weight:700;background:rgba(77,150,255,.12);color:#2c7aec;padding:2px 7px;border-radius:20px;">✏️ Eigene</span>' : ''}
           </div>
           <div class="deck-progress-mini"><div class="deck-progress-mini-fill" style="width:${p.overallPct}%"></div></div>
@@ -235,14 +236,13 @@ function _getSortedDeckIds() {
 }
 
 function _handleTap(deckId) {
-  const SD = window.SD;
-  if (SD.activeDeckId !== deckId) {
-    SD.activeDeckId = deckId;
+  if (_expandedDeckId === deckId) {
     _expandedDeckId = null;
-    syncMirrorFromActiveDeck();
-    window.persist();
   } else {
-    _expandedDeckId = (_expandedDeckId === deckId) ? null : deckId;
+    _expandedDeckId = deckId;
+    if (window.SD.activeDeckId !== deckId) {
+      switchDeck(deckId);
+    }
   }
   renderDecks();
 }

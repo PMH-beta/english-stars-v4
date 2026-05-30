@@ -108,16 +108,16 @@ h1{font-family:'Fredoka One',cursive;font-size:2.3rem;color:var(--orange);text-s
   border:2px solid transparent;transition:all .25s ease;
   overflow:hidden;
 }
-.deck-card.active{
+.deck-card.deck-type-custom{
+  background:linear-gradient(135deg,#eaf3ff,#d6e8ff);
+}
+.deck-card.deck-type-preset{
+  background:linear-gradient(135deg,#e0f8f7,#c8f0ee);
+}
+.deck-card.expanded{
   border-color:var(--purple);
-  background:#fff;
+  box-shadow:0 6px 20px rgba(0,0,0,.10);
 }
-.deck-card.inactive{
-  background:linear-gradient(135deg,#f0e8f7,#e6dcef);
-}
-.deck-card.inactive .deck-name{color:#5a3d7a;}
-.deck-card.inactive .deck-meta{color:#7a5d97;}
-.deck-card.expanded{box-shadow:0 6px 20px rgba(0,0,0,.10);}
 .deck-activate-btn{
   width:100%;font-family:'Fredoka One',cursive;font-size:.88rem;
   padding:10px 14px;background:linear-gradient(135deg,var(--purple),var(--pink));
