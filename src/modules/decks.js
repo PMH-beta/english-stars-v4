@@ -101,7 +101,7 @@ export function deckProgress(deck) {
     let score = 0, mastered = 0;
     deck.vocab.forEach(v => {
       const ws = v._presetId ? presetWs : deck.wordStats;
-      const s = ws[statKeyFor(v.de, v.en, suffix)];
+      const s = ws[statKeyFor(v.de, v.en, suffix, v._presetId || null)];
       if (!s || !s.asked) return;
       const asked = s.asked, pct = effectivePct(s);
       if (Math.floor(asked) >= 3 && pct >= 0.9) { score += 1; mastered += 1; }
@@ -414,7 +414,7 @@ export function resetDeckProgress(id) {
       for (const v of deck.vocab) {
         if (!v._presetId) continue;
         for (const suf of SUFFIXES) {
-          const key = statKeyFor(v.de, v.en, suf);
+          const key = statKeyFor(v.de, v.en, suf, v._presetId);
           statKeys.push(key);
           delete window.SD.globalPresetStats.wordStats[key];
         }
@@ -473,7 +473,7 @@ export function confirmDeleteDeck(id) {
       for (const v of cur.vocab) {
         if (!v._presetId) continue;
         for (const suf of SUFFIXES) {
-          const key = statKeyFor(v.de, v.en, suf);
+          const key = statKeyFor(v.de, v.en, suf, v._presetId);
           statKeys.push(key);
           if (window.SD.globalPresetStats?.wordStats) delete window.SD.globalPresetStats.wordStats[key];
         }

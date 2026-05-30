@@ -61,16 +61,16 @@ function wrongVocab(correct, n=3) {
 
 // ── Question Builders ──
 function bVocabMC(item) {
-  return {type:'mc',badge:'vocab',statKey:statKeyFor(item.de, item.en, '_mc'),_presetId:item._presetId||null,
+  return {type:'mc',badge:'vocab',statKey:statKeyFor(item.de, item.en, '_mc', item._presetId||null),_presetId:item._presetId||null,
     question:`🇩🇪 ${item.de}`,hint:'',
     choices:shuffle([item.en,...wrongVocab(item,3)]),answer:item.en};
 }
 function bVocabType(item) {
-  return {type:'type',badge:'spelling',statKey:statKeyFor(item.de, item.en, '_sp'),_presetId:item._presetId||null,
+  return {type:'type',badge:'spelling',statKey:statKeyFor(item.de, item.en, '_sp', item._presetId||null),_presetId:item._presetId||null,
     question:`✏️ Schreibe auf Englisch:\n🇩🇪 ${item.de}`,hint:'',answer:item.en};
 }
 function bVocabPronounce(item) {
-  return {type:'pronounce',badge:'pronounce',statKey:statKeyFor(item.de, item.en, '_pr'),_presetId:item._presetId||null,
+  return {type:'pronounce',badge:'pronounce',statKey:statKeyFor(item.de, item.en, '_pr', item._presetId||null),_presetId:item._presetId||null,
     question:`🎙️ Sprich auf Englisch:\n🇩🇪 ${item.de}`,hint:'',answer:item.en};
 }
 
@@ -593,7 +593,7 @@ function progressForCurrentMode() {
   function pf(suffix) {
     let score=0, mastered=0;
     window.VOCAB.forEach(v=>{
-      const s=(v._presetId ? presetWs : deckWs)[statKeyFor(v.de,v.en,suffix)];
+      const s=(v._presetId ? presetWs : deckWs)[statKeyFor(v.de,v.en,suffix,v._presetId||null)];
       if(!s||!s.asked) return;
       const asked=s.asked, pct=effectivePct(s);
       if(Math.floor(asked)>=3 && pct>=0.9){ score+=1; mastered+=1; }

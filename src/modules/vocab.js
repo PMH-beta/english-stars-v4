@@ -513,7 +513,7 @@ function _presetProgress(cat, isActive = false) {
   for (const suf of ['_mc', '_sp', '_pr']) {
     let score = 0;
     for (const v of words) {
-      const s = ws[statKeyFor(v.de, v.en, suf)];
+      const s = ws[statKeyFor(v.de, v.en, suf, v._presetId)];
       if (!s || !s.asked) continue;
       const asked = s.asked, pct = effectivePct(s);
       if (Math.floor(asked) >= 3 && pct >= 0.9) score += 1;
@@ -535,7 +535,7 @@ function _claimedBarPct(cat) {
   for (const suf of ['_mc', '_sp', '_pr']) {
     let score = 0;
     for (const v of words) {
-      const s = ws[statKeyFor(v.de, v.en, suf)];
+      const s = ws[statKeyFor(v.de, v.en, suf, cat.id)];
       if (!s || !s.asked) continue;
       const asked = s.asked, pct = effectivePct(s);
       if (Math.floor(asked) >= 3 && pct >= 0.9) score += 1;

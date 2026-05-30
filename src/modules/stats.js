@@ -27,7 +27,7 @@ export function isMastered(q) {
 // Vorlage-Wörter (v._presetId gesetzt) → SD.globalPresetStats.wordStats
 // Manuelle Wörter → SD.wordStats (Spiegel des aktiven Decks)
 export function getVocabStat(v, suffix) {
-  const key = statKeyFor(v.de, v.en, suffix);
+  const key = statKeyFor(v.de, v.en, suffix, v._presetId || null);
   if (v._presetId) return window.SD?.globalPresetStats?.wordStats?.[key];
   return window.SD?.wordStats?.[key];
 }
@@ -38,15 +38,15 @@ export function getVocabStat(v, suffix) {
 //  STAT-KEY NORMALISIERUNG
 // ════════════════════════════════════════════════
 
-// Format: normDE(de) + '|' + normEN(en) + suffix ('_mc'|'_sp'|'_pr')
-// Normalisierung: trim + lowercase + führendes "to " beim EN entfernen.
-// "to go" und "go" treffen denselben Key; DE und EN zusammen müssen passen.
+// Vorlagen-Wörter:   normDE|normEN|presetId + suffix  (2 Pipes)
+// Eigene Vokabeln:   normDE|normEN + suffix            (1 Pipe, altes Format)
 export function normStatDE(de) {
   return (de || '').trim().toLowerCase();
 }
 export function normStatEN(en) {
   return (en || '').trim().toLowerCase().replace(/^to /, '');
 }
-export function statKeyFor(de, en, suffix) {
-  return normStatDE(de) + '|' + normStatEN(en) + suffix;
+export function statKeyFor(de, en, suffix, presetId = null) {
+  const base = normStatDE(de) + '|' + normStatEN(en);
+  return presetId ? base + '|' + presetId + suffix : base + suffix;
 }

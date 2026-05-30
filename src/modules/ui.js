@@ -282,9 +282,9 @@ export function showStats() {
   if (dl) dl.textContent = SD.activeDeckId ? ('Aktive Sammlung: ' + activeDeck().name + ' · ' + activeDeck().vocab.length + ' Vokabeln') : 'Keine aktive Sammlung';
 
   const wSrc = v => v._presetId ? SD.globalPresetStats.wordStats : SD.wordStats;
-  const vocabMastered    = VOCAB.filter(v => { const s = wSrc(v)[statKeyFor(v.de,v.en,'_mc')]; return s && Math.floor(s.asked||0) >= 3 && s.correct/s.asked >= 0.9; }).length;
-  const spellMastered    = VOCAB.filter(v => { const s = wSrc(v)[statKeyFor(v.de,v.en,'_sp')]; return s && Math.floor(s.asked||0) >= 3 && s.correct/s.asked >= 0.9; }).length;
-  const pronounceMastered = VOCAB.filter(v => { const s = wSrc(v)[statKeyFor(v.de,v.en,'_pr')]; return s && Math.floor(s.asked||0) >= 3 && s.correct/s.asked >= 0.9; }).length;
+  const vocabMastered    = VOCAB.filter(v => { const s = wSrc(v)[statKeyFor(v.de,v.en,'_mc',v._presetId||null)]; return s && Math.floor(s.asked||0) >= 3 && s.correct/s.asked >= 0.9; }).length;
+  const spellMastered    = VOCAB.filter(v => { const s = wSrc(v)[statKeyFor(v.de,v.en,'_sp',v._presetId||null)]; return s && Math.floor(s.asked||0) >= 3 && s.correct/s.asked >= 0.9; }).length;
+  const pronounceMastered = VOCAB.filter(v => { const s = wSrc(v)[statKeyFor(v.de,v.en,'_pr',v._presetId||null)]; return s && Math.floor(s.asked||0) >= 3 && s.correct/s.asked >= 0.9; }).length;
 
   const catData = [
     {label:'🔤 Vokabeln',    color:'var(--blue)',   done:vocabMastered,     total:VOCAB.length, cat:'vocab'},
@@ -313,21 +313,21 @@ export function showStats() {
 
   const vt = document.getElementById('stats-vocab-table').querySelector('tbody');
   vt.innerHTML = VOCAB.map(v => {
-    const s = wSrc(v)[statKeyFor(v.de,v.en,'_mc')];
+    const s = wSrc(v)[statKeyFor(v.de,v.en,'_mc',v._presetId||null)];
     const st = wordStatus(s, 3);
     return `<tr><td>${v.de}</td><td>${v.en}</td><td><span class="ws-badge ${st.cls}">${st.label}</span></td><td>${wrongDots(s)}</td></tr>`;
   }).join('');
 
   const st2 = document.getElementById('stats-spelling-table').querySelector('tbody');
   st2.innerHTML = VOCAB.map(v => {
-    const s = wSrc(v)[statKeyFor(v.de,v.en,'_sp')];
+    const s = wSrc(v)[statKeyFor(v.de,v.en,'_sp',v._presetId||null)];
     const st = wordStatus(s, 3);
     return `<tr><td>${v.de}</td><td>${v.en}</td><td><span class="ws-badge ${st.cls}">${st.label}</span></td><td>${wrongDots(s)}</td></tr>`;
   }).join('');
 
   const pt = document.getElementById('stats-pronounce-table').querySelector('tbody');
   pt.innerHTML = VOCAB.map(v => {
-    const s = wSrc(v)[statKeyFor(v.de,v.en,'_pr')];
+    const s = wSrc(v)[statKeyFor(v.de,v.en,'_pr',v._presetId||null)];
     const st = wordStatus(s, 3);
     return `<tr><td>${v.de}</td><td>${v.en}</td><td><span class="ws-badge ${st.cls}">${st.label}</span></td><td>${wrongDots(s)}</td></tr>`;
   }).join('');
