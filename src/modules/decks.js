@@ -195,7 +195,7 @@ export function renderDecks() {
           </button>` : ''}
         </div>
         <div class="deck-actions">
-          <button class="deck-action-btn" onclick="openDeckStats('${id}')">📊 Statistik</button>
+          <button class="deck-action-btn" onclick="${deck.deckPath === 'preset' ? `openVocabManager('${id}')` : `openDeckStats('${id}')`}">📊 Statistik</button>
           <button class="deck-action-btn" onclick="resetDeckProgress('${id}')">🔄 Zurücksetzen</button>
           <button class="deck-action-btn danger" onclick="confirmDeleteDeck('${id}')">🗑️ Löschen</button>
         </div>
