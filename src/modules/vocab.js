@@ -1,6 +1,6 @@
 // src/modules/vocab.js
 import { switchDeck, activeDeck, syncMirrorFromActiveDeck, createDeck } from './decks.js';
-import { showScreen } from './ui.js';
+import { showScreen, wordStatus, wrongDots } from './ui.js';
 import { persist } from './storage.js';
 import { markDirty, flushPendingSync } from './sync.js';
 import { supabase } from './supabase.js';
@@ -43,6 +43,7 @@ function _renderVmTabsForMode() {
       tabsEl.innerHTML = `
         <button class="vm-tab" data-tab="presets" onclick="vmTab('presets')">📦 Vorlagen</button>
         <button class="vm-tab" data-tab="list" onclick="vmTab('list')">📋 Liste <span id="vm-count" class="vm-count">0</span></button>
+        <button class="vm-tab" data-tab="deck-stats" onclick="vmTab('deck-stats')">📊 Statistik</button>
       `;
       vmTab('presets');
     } else if (dp === 'custom') {
@@ -154,13 +155,35 @@ export function vmTab(tabName) {
   document.querySelectorAll('.vm-tab').forEach(t => {
     t.classList.toggle('active', t.dataset.tab === tabName);
   });
-  ['list','add','scan','paste','presets'].forEach(name => {
+  ['list','add','scan','paste','presets','deck-stats'].forEach(name => {
     const el = document.getElementById('vm-pane-' + name);
     if (el) el.style.display = (name === tabName) ? 'block' : 'none';
   });
   if (tabName === 'list') renderVocabList();
   if (tabName === 'presets') renderPresetsTab();
+  if (tabName === 'deck-stats') _renderDeckStatsPane();
   _updateVmCount();
+}
+
+function _renderDeckStatsPane() {
+  const pane = document.getElementById('vm-pane-deck-stats');
+  if (!pane) return;
+  const deck = _vmDeck();
+  if (!deck) { pane.innerHTML = '<p style="text-align:center;color:#999;padding:20px;">Keine Sammlung ausgewählt.</p>'; return; }
+  const vocab = deck.vocab || [];
+  if (!vocab.length) { pane.innerHTML = '<p style="text-align:center;color:#999;padding:20px;">Noch keine Wörter.</p>'; return; }
+  const presetWs = window.SD?.globalPresetStats?.wordStats || {};
+  function makeTable(suf, title) {
+    const rows = vocab.map(v => {
+      const ws = v._presetId ? presetWs : deck.wordStats;
+      const s = ws[statKeyFor(v.de, v.en, suf, v._presetId || null)];
+      const st = wordStatus(s, 3);
+      return `<tr><td>${window.escHtml(v.de)}</td><td>${window.escHtml(v.en)}</td><td><span class="ws-badge ${st.cls}">${st.label}</span></td><td>${wrongDots(s)}</td></tr>`;
+    }).join('');
+    return `<h3 style="font-family:'Fredoka One',cursive;color:var(--purple);font-size:1rem;margin:16px 0 6px;">${title}</h3>
+<table class="word-table"><thead><tr><th>Deutsch</th><th>Englisch</th><th>Stand</th><th>Richtig/Falsch</th></tr></thead><tbody>${rows}</tbody></table>`;
+  }
+  pane.innerHTML = makeTable('_mc','🔤 Vokabeln') + makeTable('_sp','✏️ Rechtschreibung') + makeTable('_pr','🎙️ Aussprache');
 }
 
 function _updateVmCount() {

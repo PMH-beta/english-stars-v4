@@ -366,7 +366,19 @@ export function newDeckPrompt() {
 }
 
 export function openDeckStats(id) {
-  // Platzhalter — Statistik-Ansicht folgt
+  if (id) switchDeck(id);
+  window.showScreen('scan-screen');
+  const deck = activeDeck();
+  if (!deck) return;
+  const dn = document.getElementById('vm-deck-name');
+  if (dn) dn.textContent = 'Statistik: ' + deck.name;
+  const ba = document.getElementById('vm-back-area');
+  if (ba) ba.innerHTML = '<button class="back-btn sticky" onclick="vmBack()" style="margin-bottom:14px;">← Zurück</button>';
+  const tabsEl = document.querySelector('.vm-tabs');
+  if (tabsEl) tabsEl.innerHTML = '<button class="vm-tab active" data-tab="deck-stats" onclick="vmTab(\'deck-stats\')">📊 Statistik</button>';
+  const aa = document.getElementById('vm-action-area');
+  if (aa) aa.innerHTML = '';
+  window.vmTab('deck-stats');
 }
 
 export function renameDeckPrompt(id) {

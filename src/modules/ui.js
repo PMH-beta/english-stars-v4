@@ -222,7 +222,7 @@ export function editPlayerName() {
 // ────────────────────────────────────────────────
 //  STATS SCREEN
 // ────────────────────────────────────────────────
-function wordStatus(stat, minAsked) {
+export function wordStatus(stat, minAsked) {
   if (!stat || !stat.asked) return {cls:'ws-gray', label:'–', pct:0};
   const asked = stat.asked, correct = stat.correct || 0;
   const pct = effectivePct(stat);
@@ -242,7 +242,7 @@ function wordStatus(stat, minAsked) {
   return {cls:'ws-red', label:'✗ ' + display + '%', pct};
 }
 
-function wrongDots(stat) {
+export function wrongDots(stat) {
   if (!stat || !stat.asked) return '<span style="color:#bbb;font-size:.75rem">–</span>';
   const a = Math.floor(stat.asked || 0);
   const c = Math.floor(stat.correct || 0);
