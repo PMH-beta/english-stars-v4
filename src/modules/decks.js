@@ -189,10 +189,13 @@ export function renderDecks() {
             <span class="icon-btn">🎲</span>
             <div><span>Alle gemischt</span><span class="btn-sub">${deck.lastExam ? '📊 Note ' + deck.lastExam.grade + ' · ' + new Date(deck.lastExam.date).toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'}) : '📊 Noch keine Prüfung'}</span></div>
           </button>` : ''}
+          ${deck.deckPath !== 'preset' ? `<button class="big-btn teal" onclick="openVocabManager('${id}')">
+            <span class="icon-btn">📷</span>
+            <div><span>Vokabeln verwalten</span><span class="btn-sub">Hinzufügen, scannen, löschen</span></div>
+          </button>` : ''}
         </div>
         <div class="deck-actions">
-          <button class="deck-action-btn" onclick="openVocabManager('${id}')">📊 Statistik</button>
-          ${deck.deckPath !== 'preset' ? `<button class="deck-action-btn" onclick="renameDeckPrompt('${id}')">✏️ Umbenennen</button>` : ''}
+          <button class="deck-action-btn" onclick="openDeckStats('${id}')">📊 Statistik</button>
           <button class="deck-action-btn" onclick="resetDeckProgress('${id}')">🔄 Zurücksetzen</button>
           <button class="deck-action-btn danger" onclick="confirmDeleteDeck('${id}')">🗑️ Löschen</button>
         </div>
@@ -360,6 +363,10 @@ export function newDeckPrompt() {
   _expandedDeckId = id;
   switchDeck(id);
   renderDecks();
+}
+
+export function openDeckStats(id) {
+  // Platzhalter — Statistik-Ansicht folgt
 }
 
 export function renameDeckPrompt(id) {

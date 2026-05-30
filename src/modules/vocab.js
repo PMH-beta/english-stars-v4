@@ -85,6 +85,23 @@ function _renderVmTabsForMode() {
     actionArea.appendChild(row);
   } else {
     actionArea.innerHTML = '';
+    if ((_vmDeck()?.deckPath || '') === 'custom') {
+      const renameBtn = document.createElement('button');
+      renameBtn.className = 'deck-action-btn';
+      renameBtn.style.cssText = 'width:100%;margin-bottom:10px;';
+      renameBtn.textContent = '✏️ Sammlung umbenennen';
+      renameBtn.addEventListener('click', () => {
+        const id = window.SD.activeDeckId;
+        if (!id || !window.SD.decks[id]) return;
+        const name = prompt('Neuer Name:', window.SD.decks[id].name);
+        if (!name || !name.trim()) return;
+        window.renameDeck(id, name.trim());
+        const dn = document.getElementById('vm-deck-name');
+        if (dn) dn.textContent = 'Sammlung: ' + name.trim();
+        window.renderDecks();
+      });
+      actionArea.appendChild(renameBtn);
+    }
   }
 }
 
