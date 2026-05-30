@@ -121,40 +121,6 @@ export async function cloudLoad(userId) {
 
   const activeDeckId = profile.active_deck_id || decksRes.data[0]?.id || null;
 
-  // Reconcile: Preset-Stats aus der Cloud herausfiltern, die zu keinem aktiven Deck gehören.
-  // Sicherheitsnetz gegen Zombie-Einträge die durch fehlgeschlagene Deletes überlebt haben.
-  {
-    const boundStatKeys  = new Set();
-    const boundPresetIds = new Set();
-    for (const deck of Object.values(decks)) {
-      if (deck.deckPath !== 'preset') continue;
-      for (const pid of (deck.presetCategories || [])) boundPresetIds.add(pid);
-      for (const v of (deck.vocab || [])) {
-        if (!v._presetId) continue;
-        const de = (v.de || '').trim().toLowerCase();
-        const en = (v.en || '').trim().toLowerCase().replace(/^to /, '');
-        for (const suf of ['_mc', '_sp', '_pr']) boundStatKeys.add(de + '|' + en + suf);
-      }
-    }
-    const orphanStatKeys  = Object.keys(globalPresetStats.wordStats).filter(k => !boundStatKeys.has(k));
-    const orphanPresetIds = Object.keys(globalPresetStats.categoryProgress).filter(id => !boundPresetIds.has(id));
-    if (orphanStatKeys.length || orphanPresetIds.length) {
-      console.log('[cloudLoad] Reconcile:', orphanStatKeys.length, 'orphane stat_keys,', orphanPresetIds.length, 'orphane preset_ids → Queue-Eintrag für Cloud-Löschung');
-      for (const k of orphanStatKeys)  delete globalPresetStats.wordStats[k];
-      for (const id of orphanPresetIds) delete globalPresetStats.categoryProgress[id];
-      const pending  = readPending();
-      const existing = pending.find(p => p.type === 'delete_preset_stats');
-      const rest     = pending.filter(p => p.type !== 'delete_preset_stats');
-      rest.push({
-        type:       'delete_preset_stats',
-        statKeys:   [...new Set([...(existing?.statKeys || []), ...orphanStatKeys])],
-        presetIds:  [...new Set([...(existing?.presetIds || []), ...orphanPresetIds])],
-        ts:         Date.now(),
-      });
-      writePending(rest);
-    }
-  }
-
   return {
     _version:         4,
     playerName:       profile.player_name || '',
@@ -399,32 +365,6 @@ export function markDirty(type, deckId = null) {
   writePending(filtered);
 }
 
-const MAX_DELETE_ATTEMPTS = 3;
-
-/** Stellt sicher dass Preset-Stats beim nächsten Flush aus der Cloud gelöscht werden.
- *  Wird nach fehlgeschlagenem deleteCloudPresetStats als Retry-Eintrag gesetzt.
- *  Gibt auf nach MAX_DELETE_ATTEMPTS Versuchen (verhindert Endlos-Retry bei Strukturmismatch). */
-export function markDeletePresetStats(statKeys, presetIds) {
-  const pending = readPending();
-  const existing = pending.find(p => p.type === 'delete_preset_stats');
-  const rest = pending.filter(p => p.type !== 'delete_preset_stats');
-  const attempts = (existing?.attempts ?? 0) + 1;
-  if (attempts > MAX_DELETE_ATTEMPTS) {
-    console.error('[sync] markDeletePresetStats: aufgegeben nach', MAX_DELETE_ATTEMPTS, 'Versuchen.',
-      'Nicht gelöschte Keys:', statKeys, '| Preset-IDs:', presetIds);
-    writePending(rest); // Eintrag nicht wieder einreihen
-    return;
-  }
-  const mergedKeys = [...new Set([...(existing?.statKeys || []), ...statKeys])];
-  const mergedIds  = [...new Set([...(existing?.presetIds || []), ...presetIds])];
-  rest.push({ type: 'delete_preset_stats', statKeys: mergedKeys, presetIds: mergedIds, attempts, ts: Date.now() });
-  writePending(rest);
-}
-
-/** Entfernt alle Queue-Einträge eines bestimmten Typs. */
-export function removePending(type) {
-  writePending(readPending().filter(p => p.type !== type));
-}
 
 /** Schreibt alle pending Änderungen in die Cloud. Fehlgeschlagene bleiben in der Queue. */
 export async function flushPendingSync() {
@@ -449,8 +389,6 @@ export async function flushPendingSync() {
         if (deck) await saveWordStats(deck.id, deck.wordStats, userId);
       } else if (item.type === 'global_preset') {
         await saveGlobalPresetStats(sd.globalPresetStats, userId);
-      } else if (item.type === 'delete_preset_stats') {
-        await deleteCloudPresetStats(item.statKeys || [], item.presetIds || [], userId);
       }
       // 'exam': wird direkt in saveExam() gespeichert, nicht via Queue
     } catch(e) {

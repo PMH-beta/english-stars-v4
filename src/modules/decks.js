@@ -1,6 +1,6 @@
 // src/modules/decks.js
 import { effectivePct, statKeyFor } from './stats.js';
-import { markDirty, flushPendingSync, deleteCloudDeck, deleteCloudWordStats, deleteCloudPresetStats, saveDeck, markDeletePresetStats, removePending } from './sync.js';
+import { markDirty, flushPendingSync, deleteCloudDeck, deleteCloudWordStats, deleteCloudPresetStats, saveDeck } from './sync.js';
 
 // ────────────────────────────────────────────────
 //  UI STATE
@@ -426,8 +426,7 @@ export function resetDeckProgress(id) {
         try {
           await deleteCloudPresetStats(statKeys, deck.presetCategories, window.currentUser.id);
         } catch (e) {
-          console.error('[resetDeckProgress] deletePresetStats fehlgeschlagen — Retry-Eintrag gesetzt:', e);
-          markDeletePresetStats(statKeys, deck.presetCategories);
+          console.error('[resetDeckProgress] Cloud-Delete fehlgeschlagen — kein Retry:', window.currentUser.id, statKeys, e.message);
         }
       }
     }
@@ -486,16 +485,13 @@ export function confirmDeleteDeck(id) {
         try {
           await deleteCloudPresetStats(statKeys, cur.presetCategories, window.currentUser.id);
         } catch (e) {
-          console.error('[confirmDeleteDeck] deletePresetStats fehlgeschlagen — Retry-Eintrag gesetzt:', e);
-          markDeletePresetStats(statKeys, cur.presetCategories);
+          console.error('[confirmDeleteDeck] Cloud-Delete fehlgeschlagen — kein Retry:', window.currentUser.id, statKeys, e.message);
         }
       }
     }
     deleteDeck(id);
-    if (isPreset) {
-      const hasPresetDecks = Object.values(window.SD.decks).some(d => d.deckPath === 'preset');
-      if (!hasPresetDecks) removePending('global_preset');
-      if (window.currentUser) await flushPendingSync().catch(e => console.error('[confirmDeleteDeck] flush:', e));
+    if (isPreset && window.currentUser) {
+      await flushPendingSync().catch(e => console.error('[confirmDeleteDeck] flush:', e));
     }
     if (_expandedDeckId === id) _expandedDeckId = null;
     renderDecks();

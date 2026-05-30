@@ -5,7 +5,7 @@ import { activeDeck, syncMirrorFromActiveDeck } from './decks.js';
 import { showScreen, showMenu, hideFeedback, showFeedback } from './ui.js';
 import { ensureMicStream, releaseMicStream, voskStop, stopVisualizer, speakWord, speakWordOnce, startVoskRecognition, startRecording } from './speech.js';
 import { persist } from './storage.js';
-import { markDirty, flushPendingSync, saveExam } from './sync.js';
+import { markDirty, flushPendingSync, saveExam, saveWordStats, saveGlobalPresetStats } from './sync.js';
 
 // Game state – all on window.* so Commit B functions (still in index.html) can read them as globals
 window.isSchnellModus = false;
@@ -690,9 +690,11 @@ function saveProgress() {
     if(window.points>window.SD.highscore) window.SD.highscore=window.points;
     persist();
     if(window.currentUser && deck) {
-      markDirty('word_stats', deck.id);
+      const uid=window.currentUser.id;
+      saveWordStats(deck.id, deck.wordStats, uid).catch(()=>markDirty('word_stats', deck.id));
+      if(deck.presetCategories?.length > 0)
+        saveGlobalPresetStats(window.SD.globalPresetStats, uid).catch(()=>markDirty('global_preset'));
       markDirty('profile');
-      if(deck.presetCategories?.length > 0) markDirty('global_preset');
     }
     return;
   }
@@ -706,9 +708,11 @@ function saveProgress() {
     if(window.points>window.SD.highscore) window.SD.highscore=window.points;
     persist();
     if(window.currentUser && deck) {
-      markDirty('word_stats', deck.id);
+      const uid=window.currentUser.id;
+      saveWordStats(deck.id, deck.wordStats, uid).catch(()=>markDirty('word_stats', deck.id));
+      if(deck.presetCategories?.length > 0)
+        saveGlobalPresetStats(window.SD.globalPresetStats, uid).catch(()=>markDirty('global_preset'));
       markDirty('profile');
-      if(deck.presetCategories?.length > 0) markDirty('global_preset');
     }
   }
 }
