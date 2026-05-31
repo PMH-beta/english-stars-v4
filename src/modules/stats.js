@@ -17,10 +17,15 @@ export function effectivePct(stat) {
   return ema * recentWeight + total * (1 - recentWeight);
 }
 
+// Zentrales Mastery-Kriterium für eine einzelne Stat (ein Wort, ein Modus).
+// Quelle der Wahrheit — von isMastered und allen Aggregationen wiederverwendet.
+export function isStatMastered(s) {
+  return !!s && Math.floor(s.asked || 0) >= MASTERY_MIN_ATTEMPTS && effectivePct(s) >= MASTERY_THRESHOLD;
+}
+
 export function isMastered(q) {
   const store = q._presetId ? window.SD?.globalPresetStats?.wordStats : window.SD.wordStats;
-  const s = store?.[q.statKey];
-  return s && Math.floor(s.asked || 0) >= MASTERY_MIN_ATTEMPTS && effectivePct(s) >= MASTERY_THRESHOLD;
+  return isStatMastered(store?.[q.statKey]);
 }
 
 // Gibt die Stat-Daten für ein Vokabel-Objekt zurück — routet automatisch:

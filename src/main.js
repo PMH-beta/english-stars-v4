@@ -9,7 +9,7 @@ import { buildPool, toggleSchnell, startGame, confirmHome, nextQuestion, restart
 import { syncMirrorFromActiveDeck, activeDeck, switchDeck, createDeck, deleteDeck, renameDeck, deckProgress, renderDecks, toggleDeck, activateDeck, startGameWithDeck, newDeckPrompt, renameDeckPrompt, confirmDeleteDeck, resetDeckProgress, vmDeleteWord, vmAddManual, openDeckStats } from './modules/decks.js';
 import { showScreen, saveName, showMenu, saveApiKey, skipApiKey, showProfile, editPlayerName, showStats, confirmReset, showFeedback, hideFeedback, exportData, importData, showAuth, authToggleMode, authSubmit, authResend, authLogout, authGoogleSignIn, handleLogin, handleLogout, showPasswordReset, submitPasswordReset, showNewPasswordScreen, submitNewPassword, cancelNewPassword, setActiveMode, renderModeContent } from './modules/ui.js';
 import { pwaInstall } from './modules/pwa.js';
-import { openVocabManager, vmTab, renderVocabList, parsePastedText, onScanFile, showReview, renderReviewList, removeReviewItem, addReviewItem, confirmAddVocab, renderPresetsTab, togglePresetCategory, vmBack, newDeckFlow } from './modules/vocab.js';
+import { openVocabManager, openPresetDeckStats, vmTab, renderVocabList, parsePastedText, onScanFile, showReview, renderReviewList, removeReviewItem, addReviewItem, confirmAddVocab, renderPresetsTab, togglePresetCategory, vmBack, newDeckFlow } from './modules/vocab.js';
 import { startupSequence, finishStartup } from './modules/startup.js';
 import { supabase, testConnection } from './modules/supabase.js';
 import { flushPendingSync } from './modules/sync.js';
@@ -146,6 +146,7 @@ window.finishStartup = finishStartup;
 
 // Vocab via window für Legacy-Code
 window.openVocabManager = openVocabManager;
+window.openPresetDeckStats = openPresetDeckStats;
 window.vmTab = vmTab;
 window.renderVocabList = renderVocabList;
 window.parsePastedText = parsePastedText;

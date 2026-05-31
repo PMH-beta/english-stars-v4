@@ -1,7 +1,8 @@
 // src/modules/ui.js
 import { persist, freshData, clearStorage } from './storage.js';
-import { effectivePct } from './stats.js';
-import { syncMirrorFromActiveDeck, activeDeck, deckProgress, renderDecks, migrateStatKeys } from './decks.js';
+import { effectivePct, isStatMastered, statKeyFor } from './stats.js';
+import { syncMirrorFromActiveDeck, activeDeck, deckProgress, presetProgressPct, renderDecks, migrateStatKeys } from './decks.js';
+import { getPresetCategories } from './vocab.js';
 import { releaseMicStream, stopVisualizer, voskStop, speakWord } from './speech.js';
 import { signIn, signUp, signOut, resendConfirmation, requestPasswordReset, updatePassword, signInWithGoogle } from './auth.js';
 import { cloudLoad, saveProfile, cloudReset, loadProfile, saveDeck, saveWordStats, saveExam, markDirty, flushPendingSync } from './sync.js';
@@ -253,34 +254,105 @@ export function wrongDots(stat) {
     '</span>';
 }
 
-export function showStats() {
+export async function showStats() {
   showScreen('stats-screen');
   const SD = window.SD;
   const pn = document.getElementById('profile-name');
   const pm = document.getElementById('profile-meta');
-  const pds = document.getElementById('profile-decks-summary');
   if (pn) pn.textContent = SD.playerName || 'Spieler';
   if (pm) pm.textContent = '🏆 Highscore: ' + SD.highscore + ' · ⭐ ' + SD.totalPoints + ' Pkt gesamt';
-  if (pds) {
-    const deckIds = Object.keys(SD.decks || {});
-    if (deckIds.length === 0) {
-      pds.innerHTML = '<div style="font-size:.78rem;color:#999;text-align:center;padding:8px;">Keine Vokabelsammlungen vorhanden.</div>';
-    } else {
-      pds.innerHTML = deckIds.map(id => {
-        const d = SD.decks[id];
-        const p = deckProgress(d);
-        const isActive = id === SD.activeDeckId;
-        return `<div style="display:flex;align-items:center;gap:10px;padding:6px 10px;background:${isActive?'rgba(168,108,219,.08)':'#f7f7f7'};border-radius:10px;font-size:.82rem;">
-          <span>${isActive ? '📖' : '📕'}</span>
-          <span style="flex:1;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${window.escHtml(d.name)}</span>
-          <span style="font-size:.7rem;color:#888;">${d.vocab.length} W.</span>
-          <span style="font-family:'Fredoka One',cursive;color:var(--purple);">${p.overallPct}%</span>
-        </div>`;
-      }).join('');
-    }
-  }
   const dl = document.getElementById('stats-deck-label');
   if (dl) dl.textContent = SD.activeDeckId ? ('Aktive Sammlung: ' + activeDeck().name + ' · ' + activeDeck().vocab.length + ' Vokabeln') : 'Keine aktive Sammlung';
+
+  const host = document.getElementById('profile-decks-summary');
+  if (!host) return;
+  const decks = Object.values(SD.decks || {});
+
+  // ── a) Custom-Wörter-Übersicht + b) Liste der fertigen Custom-Wörter ──
+  let customTotal = 0;
+  const doneWords = [];
+  for (const deck of decks) {
+    if (deck.deckPath !== 'custom') continue;
+    for (const v of deck.vocab || []) {
+      if (v._presetId) continue; // Custom-Deck → nur eigene Wörter zählen
+      customTotal++;
+      const allDone = ['_mc', '_sp', '_pr'].every(suf =>
+        isStatMastered((deck.wordStats || {})[statKeyFor(v.de, v.en, suf)]));
+      if (allDone) doneWords.push({ de: v.de, en: v.en, deck: deck.name });
+    }
+  }
+  const customDone = doneWords.length;
+  const customPct = customTotal > 0 ? Math.round((customDone / customTotal) * 100) : 0;
+
+  const blockA = `
+    <div style="margin-bottom:16px;">
+      <h3 style="font-family:'Fredoka One',cursive;color:var(--purple);font-size:1rem;margin:0 0 8px;">✏️ Eigene Wörter</h3>
+      <div style="display:flex;justify-content:space-between;font-size:.85rem;font-weight:700;color:var(--text);margin-bottom:6px;">
+        <span>${customDone} von ${customTotal} Wörtern gelöst</span><span style="color:var(--purple);">${customPct}%</span>
+      </div>
+      <div style="height:14px;background:#eee;border-radius:10px;overflow:hidden;">
+        <div style="height:100%;width:${customPct}%;background:linear-gradient(90deg,var(--purple),var(--pink));border-radius:10px;"></div>
+      </div>
+    </div>`;
+
+  const blockB = `
+    <div style="margin-bottom:16px;">
+      <h3 style="font-family:'Fredoka One',cursive;color:var(--purple);font-size:1rem;margin:0 0 8px;">🏅 Fertige Wörter</h3>
+      ${doneWords.length === 0
+        ? '<div style="font-size:.82rem;color:#999;text-align:center;padding:10px;">Noch keine eigenen Wörter komplett gelöst.</div>'
+        : doneWords.map(w => `<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:#f7f7f7;border-radius:10px;font-size:.82rem;margin-bottom:5px;">
+            <span style="font-weight:700;color:var(--text);">${window.escHtml(w.de)}</span>
+            <span style="color:#bbb;">→</span>
+            <span style="flex:1;color:var(--text);">${window.escHtml(w.en)}</span>
+            <span style="font-size:.68rem;color:#888;background:rgba(168,108,219,.1);padding:2px 8px;border-radius:20px;white-space:nowrap;">${window.escHtml(w.deck)}</span>
+          </div>`).join('')}
+    </div>`;
+
+  host.innerHTML = blockA + blockB +
+    '<div style="font-size:.82rem;color:#999;text-align:center;padding:10px;">Lade Vorlagen…</div>';
+
+  // ── c) Aktive Vorlagen-Decks mit Fortschritt (async: Namen aus DB) ──
+  const categories = await getPresetCategories();
+  const catById = Object.fromEntries((categories || []).map(c => [c.id, c]));
+  const activePresets = [];
+  for (const deck of decks) {
+    const ids = deck.presetCategories || [];
+    if (!ids.length) continue;
+    const deckComplete = deckProgress(deck).overallPct === 100;
+    for (const pid of ids) {
+      const cat = catById[pid];
+      activePresets.push({
+        name: cat ? cat.name : 'Vorlage',
+        deck: deck.name,
+        pct: presetProgressPct(deck, pid),
+        done: deckComplete,
+      });
+    }
+  }
+
+  const blockC = `
+    <div>
+      <h3 style="font-family:'Fredoka One',cursive;color:var(--purple);font-size:1rem;margin:0 0 8px;">📦 Aktive Vorlagen</h3>
+      ${activePresets.length === 0
+        ? '<div style="font-size:.82rem;color:#999;text-align:center;padding:10px;">Keine aktiven Vorlagen.</div>'
+        : activePresets.map(p => {
+            const bg = p.done
+              ? 'background:linear-gradient(to right,rgba(58,170,92,.18) 100%,#fff 100%);box-shadow:inset 0 0 0 2px #3aaa5c;'
+              : 'background:linear-gradient(to right,rgba(168,108,219,.15) ' + p.pct + '%,#f7f7f7 ' + p.pct + '%);';
+            const right = p.done
+              ? '<span style="font-size:.72rem;font-weight:700;color:#2a8a4a;background:rgba(58,170,92,.15);padding:3px 9px;border-radius:20px;white-space:nowrap;">✓ erledigt</span>'
+              : '<span style="font-family:\'Fredoka One\',cursive;font-size:.95rem;color:#7a3aac;">' + p.pct + '%</span>';
+            return `<div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:12px;margin-bottom:6px;${bg}">
+              <div style="flex:1;min-width:0;">
+                <div style="font-weight:700;color:var(--text);font-size:.86rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${window.escHtml(p.name)}</div>
+                <div style="font-size:.68rem;color:#888;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${window.escHtml(p.deck)}</div>
+              </div>
+              ${right}
+            </div>`;
+          }).join('')}
+    </div>`;
+
+  host.innerHTML = blockA + blockB + blockC;
 }
 
 // ────────────────────────────────────────────────

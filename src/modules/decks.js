@@ -123,6 +123,28 @@ export function deckProgress(deck) {
   };
 }
 
+// Fortschritt einer einzelnen aktiven Vorlage innerhalb eines Decks (0–100).
+// Nutzt dieselbe Score-Formel wie deckProgress, aber nur über die Wörter dieser
+// Vorlage (v._presetId === presetId), Stat-Quelle = globalPresetStats.
+export function presetProgressPct(deck, presetId) {
+  const presetWs = window.SD?.globalPresetStats?.wordStats || {};
+  const words = (deck.vocab || []).filter(v => v._presetId === presetId);
+  if (!words.length) return 0;
+  let totalScore = 0;
+  for (const suffix of ['_mc', '_sp', '_pr']) {
+    let score = 0;
+    for (const v of words) {
+      const s = presetWs[statKeyFor(v.de, v.en, suffix, presetId)];
+      if (!s || !s.asked) continue;
+      const asked = s.asked, pct = effectivePct(s);
+      if (Math.floor(asked) >= 3 && pct >= 0.9) score += 1;
+      else if (asked >= 1) score += Math.max(0, (pct - 0.5) * 2) * Math.min(asked / 3, 1) * 0.85;
+    }
+    totalScore += score;
+  }
+  return Math.min(100, Math.round((totalScore / 3 / words.length) * 100));
+}
+
 function renderModeSubBy(p) {
   const total = p.total || 0;
   const pct = total > 0 ? Math.min(100, Math.round((p.score / total) * 100)) : 0;
@@ -195,7 +217,7 @@ export function renderDecks() {
           </button>` : ''}
         </div>
         <div class="deck-actions">
-          <button class="deck-action-btn" onclick="${deck.deckPath === 'preset' ? `openVocabManager('${id}')` : `openDeckStats('${id}')`}">📊 Statistik</button>
+          <button class="deck-action-btn" onclick="${deck.deckPath === 'preset' ? `openPresetDeckStats('${id}')` : `openDeckStats('${id}')`}">📊 Statistik</button>
           <button class="deck-action-btn" onclick="resetDeckProgress('${id}')">🔄 Zurücksetzen</button>
           <button class="deck-action-btn danger" onclick="confirmDeleteDeck('${id}')">🗑️ Löschen</button>
         </div>

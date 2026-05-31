@@ -22,6 +22,11 @@
 - Globaler Vorlage-Fortschritt (Auftrag 6): SD.globalPresetStats,
   neue Supabase-Tabellen preset_stats + preset_category_progress,
   Routing in game/stats/decks/vocab, Offline-Queue-Type 'global_preset'
+- Statistik-Ansichten neu aufgeteilt: (1) Vorlagen-Deck-Statistik
+  tablos (aktive Vorlagen-Kacheln + 3 Wort-Tabellen, openPresetDeckStats),
+  (2) Custom-Deck-Statistik unverändert, (3) Fortschritt-Seite neu:
+  Custom-Wörter-Übersicht + fertige Custom-Wörter + aktive Vorlagen
+  über alle Decks; Mastery zentral in stats.js (isStatMastered)
 
 ## Offen
 - Live-Gang v4: wird DIE Hauptversion, v3.44/altes Repo verfällt,

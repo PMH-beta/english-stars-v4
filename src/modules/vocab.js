@@ -1,5 +1,5 @@
 // src/modules/vocab.js
-import { switchDeck, activeDeck, syncMirrorFromActiveDeck, createDeck } from './decks.js';
+import { switchDeck, activeDeck, syncMirrorFromActiveDeck, createDeck, presetProgressPct } from './decks.js';
 import { showScreen, wordStatus, wrongDots } from './ui.js';
 import { persist } from './storage.js';
 import { markDirty, flushPendingSync } from './sync.js';
@@ -165,13 +165,11 @@ export function vmTab(tabName) {
   _updateVmCount();
 }
 
-function _renderDeckStatsPane() {
-  const pane = document.getElementById('vm-pane-deck-stats');
-  if (!pane) return;
-  const deck = _vmDeck();
-  if (!deck) { pane.innerHTML = '<p style="text-align:center;color:#999;padding:20px;">Keine Sammlung ausgewählt.</p>'; return; }
+// Die drei Wort-Tabellen (Vokabeln/Rechtschreibung/Aussprache) als HTML.
+// Geteilt von Custom-Deck-Statistik (_renderDeckStatsPane) und Vorlagen-Deck-
+// Statistik (openPresetDeckStats).
+function _wordTablesHtml(deck) {
   const vocab = deck.vocab || [];
-  if (!vocab.length) { pane.innerHTML = '<p style="text-align:center;color:#999;padding:20px;">Noch keine Wörter.</p>'; return; }
   const presetWs = window.SD?.globalPresetStats?.wordStats || {};
   function makeTable(suf, title) {
     const rows = vocab.map(v => {
@@ -183,7 +181,68 @@ function _renderDeckStatsPane() {
     return `<h3 style="font-family:'Fredoka One',cursive;color:var(--purple);font-size:1rem;margin:16px 0 6px;">${title}</h3>
 <table class="word-table"><thead><tr><th>Deutsch</th><th>Englisch</th><th>Stand</th><th>Richtig/Falsch</th></tr></thead><tbody>${rows}</tbody></table>`;
   }
-  pane.innerHTML = makeTable('_mc','🔤 Vokabeln') + makeTable('_sp','✏️ Rechtschreibung') + makeTable('_pr','🎙️ Aussprache');
+  return makeTable('_mc','🔤 Vokabeln') + makeTable('_sp','✏️ Rechtschreibung') + makeTable('_pr','🎙️ Aussprache');
+}
+
+function _renderDeckStatsPane() {
+  const pane = document.getElementById('vm-pane-deck-stats');
+  if (!pane) return;
+  const deck = _vmDeck();
+  if (!deck) { pane.innerHTML = '<p style="text-align:center;color:#999;padding:20px;">Keine Sammlung ausgewählt.</p>'; return; }
+  if (!(deck.vocab || []).length) { pane.innerHTML = '<p style="text-align:center;color:#999;padding:20px;">Noch keine Wörter.</p>'; return; }
+  pane.innerHTML = _wordTablesHtml(deck);
+}
+
+// BEREICH 1 — Vorlagen-Deck-Statistik: tablos, eine durchgehende Ansicht.
+// Oben aktive Vorlagen-Kacheln (Balken+%), darunter die drei Wort-Tabellen.
+export async function openPresetDeckStats(deckId) {
+  if (deckId) switchDeck(deckId);
+  showScreen('scan-screen');
+  const deck = activeDeck();
+  if (!deck) return;
+  const dn = document.getElementById('vm-deck-name');
+  if (dn) dn.textContent = 'Statistik: ' + deck.name;
+  const ba = document.getElementById('vm-back-area');
+  if (ba) ba.innerHTML = '<button class="back-btn sticky" onclick="vmBack()" style="margin-bottom:14px;">← Zurück</button>';
+  const tabsEl = document.querySelector('.vm-tabs');
+  if (tabsEl) tabsEl.innerHTML = '';
+  const aa = document.getElementById('vm-action-area');
+  if (aa) aa.innerHTML = '';
+  ['list','add','scan','paste','presets'].forEach(name => {
+    const el = document.getElementById('vm-pane-' + name);
+    if (el) el.style.display = 'none';
+  });
+  const pane = document.getElementById('vm-pane-deck-stats');
+  if (!pane) return;
+  pane.style.display = 'block';
+  pane.innerHTML = '<div style="text-align:center;padding:24px;color:#aaa;font-weight:700;">Lade Statistik…</div>';
+
+  const categories = await _loadPresetCategories();
+  const catById = Object.fromEntries(categories.map(c => [c.id, c]));
+  const activeIds = deck.presetCategories || [];
+
+  let tilesHtml = '';
+  if (activeIds.length) {
+    tilesHtml = '<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:6px;">' + activeIds.map(pid => {
+      const cat = catById[pid];
+      const name = cat ? cat.name : 'Vorlage';
+      const wordCount = deck.vocab.filter(v => v._presetId === pid).length;
+      const pct = presetProgressPct(deck, pid);
+      return `<div class="preset-row" style="background:linear-gradient(to right,rgba(168,108,219,.15) ${pct}%,#fff ${pct}%);box-shadow:inset 0 0 0 2.5px #a86cdb;">
+        <div class="preset-info">
+          <span class="preset-name">${window.escHtml(name)}</span>
+          <span class="preset-count">${wordCount} Wörter</span>
+        </div>
+        <span style="font-family:'Fredoka One',cursive;font-size:1rem;color:#7a3aac;flex-shrink:0;">${pct}%</span>
+      </div>`;
+    }).join('') + '</div>';
+  }
+
+  const tablesHtml = (deck.vocab || []).length
+    ? _wordTablesHtml(deck)
+    : '<p style="text-align:center;color:#999;padding:20px;">Noch keine Wörter.</p>';
+
+  pane.innerHTML = tilesHtml + tablesHtml;
 }
 
 function _updateVmCount() {
@@ -536,6 +595,12 @@ async function _loadPresetCategories() {
   }
   _presetLoading = false;
   return _presetCache || [];
+}
+
+// Öffentlicher Zugriff auf die (gecachten) Vorlagen-Kategorien — für Aggregationen
+// außerhalb dieses Moduls (z.B. Fortschritt-Seite, Vorlagen-Namen-Lookup).
+export async function getPresetCategories() {
+  return _loadPresetCategories();
 }
 
 // Globaler Fortschritt einer Vorlage — deck-unabhängig.
