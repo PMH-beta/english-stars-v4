@@ -9,6 +9,23 @@ import { MAX_PRESET_CATEGORIES } from './config.js';
 
 function _vmDeck() { return window._draftDeck || activeDeck(); }
 
+// Sammlungsname + kompakter „Umbenennen"-Button direkt darunter (Custom-Decks)
+function _deckNameWithRename(name) {
+  return 'Sammlung: ' + window.escHtml(name) +
+    '<br><button class="vm-rename-btn" onclick="vmRenameActiveDeck()">✏️ Umbenennen</button>';
+}
+
+export function vmRenameActiveDeck() {
+  const id = window.SD?.activeDeckId;
+  if (!id || !window.SD.decks[id]) return;
+  const name = prompt('Neuer Name:', window.SD.decks[id].name);
+  if (!name || !name.trim()) return;
+  window.renameDeck(id, name.trim());
+  const dn = document.getElementById('vm-deck-name');
+  if (dn) dn.innerHTML = _deckNameWithRename(name.trim());
+  window.renderDecks();
+}
+
 // window._reviewItems: muss global sein damit inline onchange-Handler ("_reviewItems[i].de=...") funktionieren
 window._reviewItems = [];
 let _lastOCRText = '';
@@ -18,8 +35,14 @@ export function openVocabManager(deckId) {
   showScreen('scan-screen');
   const deck = _vmDeck();
   if (!deck) return;
+  const title = document.getElementById('vm-title');
+  if (title) title.textContent = '📚 Vokabeln verwalten';
   const dn = document.getElementById('vm-deck-name');
-  if (dn) dn.textContent = window._draftDeck ? 'Neue Sammlung' : 'Sammlung: ' + deck.name;
+  if (dn) {
+    if (window._draftDeck) dn.textContent = 'Neue Sammlung';
+    else if (deck.deckPath === 'custom') dn.innerHTML = _deckNameWithRename(deck.name);
+    else dn.textContent = 'Sammlung: ' + deck.name;
+  }
   const backArea = document.getElementById('vm-back-area');
   if (backArea) {
     backArea.innerHTML = window._draftDeck
@@ -85,24 +108,8 @@ function _renderVmTabsForMode() {
     row.appendChild(confirmBtn);
     actionArea.appendChild(row);
   } else {
+    // Umbenennen sitzt jetzt direkt unter dem Sammlungsnamen (siehe openVocabManager)
     actionArea.innerHTML = '';
-    if ((_vmDeck()?.deckPath || '') === 'custom') {
-      const renameBtn = document.createElement('button');
-      renameBtn.className = 'deck-action-btn';
-      renameBtn.style.cssText = 'width:100%;margin-bottom:10px;';
-      renameBtn.textContent = '✏️ Sammlung umbenennen';
-      renameBtn.addEventListener('click', () => {
-        const id = window.SD.activeDeckId;
-        if (!id || !window.SD.decks[id]) return;
-        const name = prompt('Neuer Name:', window.SD.decks[id].name);
-        if (!name || !name.trim()) return;
-        window.renameDeck(id, name.trim());
-        const dn = document.getElementById('vm-deck-name');
-        if (dn) dn.textContent = 'Sammlung: ' + name.trim();
-        window.renderDecks();
-      });
-      actionArea.appendChild(renameBtn);
-    }
   }
 }
 
@@ -200,6 +207,8 @@ export async function openPresetDeckStats(deckId) {
   showScreen('scan-screen');
   const deck = activeDeck();
   if (!deck) return;
+  const title = document.getElementById('vm-title');
+  if (title) title.textContent = '📊 Statistik';
   const dn = document.getElementById('vm-deck-name');
   if (dn) dn.textContent = 'Statistik: ' + deck.name;
   const ba = document.getElementById('vm-back-area');

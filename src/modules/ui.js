@@ -1,7 +1,7 @@
 // src/modules/ui.js
 import { persist, freshData, clearStorage } from './storage.js';
 import { effectivePct, isStatMastered, statKeyFor } from './stats.js';
-import { syncMirrorFromActiveDeck, activeDeck, deckProgress, presetProgressPct, renderDecks, migrateStatKeys } from './decks.js';
+import { syncMirrorFromActiveDeck, deckProgress, presetProgressPct, renderDecks, migrateStatKeys } from './decks.js';
 import { getPresetCategories } from './vocab.js';
 import { releaseMicStream, stopVisualizer, voskStop, speakWord } from './speech.js';
 import { signIn, signUp, signOut, resendConfirmation, requestPasswordReset, updatePassword, signInWithGoogle } from './auth.js';
@@ -156,26 +156,6 @@ export function showProfile() {
     totalMastered += p.overallMastered || 0;
   });
   const pm = document.getElementById('prof-mastered'); if (pm) pm.textContent = totalMastered;
-  const pdl = document.getElementById('prof-decks-list');
-  if (pdl) {
-    if (deckIds.length === 0) {
-      pdl.innerHTML = '<div style="font-size:.85rem;color:#999;text-align:center;padding:10px;">Keine Sammlungen vorhanden.</div>';
-    } else {
-      pdl.innerHTML = deckIds.map(id => {
-        const d = SD.decks[id];
-        const p = deckProgress(d);
-        const isActive = id === SD.activeDeckId;
-        return `<div style="display:flex;align-items:center;gap:10px;padding:10px;background:${isActive?'rgba(168,108,219,.08)':'#f7f7f7'};border-radius:12px;">
-          <span style="font-size:1.4rem;">${isActive ? '📖' : '📕'}</span>
-          <div style="flex:1;min-width:0;">
-            <div style="font-family:'Fredoka One',cursive;font-size:.95rem;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${window.escHtml(d.name)}</div>
-            <div style="font-size:.7rem;color:#888;font-weight:700;">${d.vocab.length} Wörter</div>
-          </div>
-          <div style="font-family:'Fredoka One',cursive;font-size:1.15rem;background:linear-gradient(135deg,var(--purple),var(--pink));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">${p.overallPct}%</div>
-        </div>`;
-      }).join('');
-    }
-  }
 
   const cloudSection = document.getElementById('prof-cloud-section');
   if (cloudSection) {
@@ -261,8 +241,6 @@ export async function showStats() {
   const pm = document.getElementById('profile-meta');
   if (pn) pn.textContent = SD.playerName || 'Spieler';
   if (pm) pm.textContent = '🏆 Highscore: ' + SD.highscore + ' · ⭐ ' + SD.totalPoints + ' Pkt gesamt';
-  const dl = document.getElementById('stats-deck-label');
-  if (dl) dl.textContent = SD.activeDeckId ? ('Aktive Sammlung: ' + activeDeck().name + ' · ' + activeDeck().vocab.length + ' Vokabeln') : 'Keine aktive Sammlung';
 
   const host = document.getElementById('profile-decks-summary');
   if (!host) return;
@@ -308,8 +286,8 @@ export async function showStats() {
           </div>`).join('')}
     </div>`;
 
-  host.innerHTML = blockA + blockB +
-    '<div style="font-size:.82rem;color:#999;text-align:center;padding:10px;">Lade Vorlagen…</div>';
+  host.innerHTML = '<div style="font-size:.82rem;color:#999;text-align:center;padding:10px;">Lade Vorlagen…</div>' +
+    blockA + blockB;
 
   // ── c) Aktive Vorlagen-Decks mit Fortschritt (async: Namen aus DB) ──
   const categories = await getPresetCategories();
@@ -352,7 +330,7 @@ export async function showStats() {
           }).join('')}
     </div>`;
 
-  host.innerHTML = blockA + blockB + blockC;
+  host.innerHTML = blockC + blockA + blockB;
 }
 
 // ────────────────────────────────────────────────

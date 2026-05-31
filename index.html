@@ -275,11 +275,6 @@
     </div>
   </div>
 
-  <div class="stats-panel">
-    <h3 style="color:var(--purple);margin-top:0">📚 Deine Sammlungen</h3>
-    <div id="prof-decks-list" style="display:flex;flex-direction:column;gap:8px;"></div>
-  </div>
-
   <div class="stats-panel" id="prof-cloud-section">
     <!-- gefüllt durch showProfile() -->
   </div>
@@ -299,8 +294,7 @@
 <!-- ═══ STATS SCREEN ═══ -->
 <div id="stats-screen" style="display:none;width:100%;max-width:540px;flex-direction:column;align-items:flex-start;">
   <button class="back-btn sticky" onclick="showMenu()">← Zurück</button>
-  <h1 style="width:100%;margin-bottom:4px">📊 Profil & Fortschritt</h1>
-  <p id="stats-deck-label" style="color:#888;font-size:.85rem;font-weight:700;margin-bottom:14px;width:100%;"></p>
+  <h1 style="width:100%;margin-bottom:14px">📊 Fortschritt</h1>
 
   <!-- Profil-Panel -->
   <div class="stats-panel">
@@ -312,9 +306,6 @@
       </div>
     </div>
     <div id="profile-decks-summary" style="display:flex;flex-direction:column;gap:6px;"></div>
-    <div style="font-size:.7rem;color:#aaa;margin-top:10px;font-weight:700;text-align:center;">
-      💾 Tipp: Nutze "Exportieren" im Profil um deine Daten zu sichern
-    </div>
   </div>
 
 </div>
@@ -322,7 +313,7 @@
 <!-- ═══ SCAN SCREEN ═══ -->
 <div id="scan-screen" style="display:none;width:100%;max-width:580px;flex-direction:column;align-items:center;">
   <div id="vm-back-area"><button class="back-btn sticky" onclick="vmBack()" style="margin-bottom:14px;">← Zurück</button></div>
-  <h1 style="margin-bottom:4px">📚 Vokabeln verwalten</h1>
+  <h1 id="vm-title" style="margin-bottom:4px">📚 Vokabeln verwalten</h1>
   <p id="vm-deck-name" style="color:#888;font-size:.85rem;font-weight:700;margin-bottom:14px;text-align:center;"></p>
 
   <!-- Tabs -->

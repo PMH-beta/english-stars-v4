@@ -392,6 +392,8 @@ export function openDeckStats(id) {
   window.showScreen('scan-screen');
   const deck = activeDeck();
   if (!deck) return;
+  const title = document.getElementById('vm-title');
+  if (title) title.textContent = '📊 Statistik';
   const dn = document.getElementById('vm-deck-name');
   if (dn) dn.textContent = 'Statistik: ' + deck.name;
   const ba = document.getElementById('vm-back-area');
