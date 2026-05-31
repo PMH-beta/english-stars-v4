@@ -45,7 +45,6 @@ export async function startupSequence() {
     if (!prev && user) handleLogin(user);         // Email-Bestätigung redirect in anderem Tab
   });
 
-  const alreadyLoaded = (() => { try { return localStorage.getItem('es_vosk_loaded') === '1'; } catch(e) { return false; } })();
   const ring = document.getElementById('progress-ring');
   const pctEl = document.getElementById('loading-pct');
   const status = document.getElementById('loading-status');
@@ -96,23 +95,13 @@ export async function startupSequence() {
     }
   } catch(e) { console.warn('[Startup] Musik:', e); }
 
-  if (!alreadyLoaded) {
-    setProgress(60, 'Spracherkennung wird geladen…');
-    if (hint) hint.textContent = 'Nur beim ersten Start — kann 1–3 Min. dauern.';
-    try {
-      if (window._voskLoad) await window._voskLoad();
-      if (window._voskStatus === 'ready') {
-        try { localStorage.setItem('es_vosk_loaded', '1'); } catch(e) {}
-      }
-    } catch(e) { console.warn('Vosk Load fehler beim Start:', e); }
-  } else {
-    setProgress(75, 'Spracherkennung wird gestartet…');
-    if (window._voskLoad) {
-      try { await window._voskLoad(); } catch(e) {}
-    }
-  }
+  // Vosk ENTKOPPELT im Hintergrund laden — blockiert NICHT den Bereit-Zustand.
+  // Das Modell (~40 MB) braucht beim ersten Mal lange; die App ist trotzdem sofort
+  // bedienbar. Ist Vosk bei der ersten Aussprache-Übung noch nicht fertig, wartet
+  // startVoskRecognition dort freundlich mit sichtbarem Status (siehe speech.js).
+  try { if (window._voskLoad) window._voskLoad(); } catch(e) {}
 
-  setProgress(88, 'Mikrofon wird vorbereitet…');
+  setProgress(80, 'Mikrofon wird vorbereitet…');
   try {
     if (navigator.mediaDevices && navigator.permissions) {
       await navigator.permissions.query({ name: 'microphone' }).catch(() => {});

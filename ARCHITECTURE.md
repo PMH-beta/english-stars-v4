@@ -199,7 +199,9 @@ Es gibt **keinen** Boot-Cache-/localStorage-Wipe mehr (früher in `startup.js`).
 
 **Vosk-Modell** liegt same-origin unter `models/vosk-model-small-en-us-0.15.tar.gz` (~40 MB), URL via `new URL('models/…', document.baseURI)`. `Vosk.createModel` lädt es per Voll-GET (200) und untart es im Worker → vom SW cache-first persistent gecacht.
 
-**Musik** (`audio.js`): `visibilitychange`+`document.hidden` → pausiert. **Kein** Auto-Resume bei Rückkehr (Wiedereinschalten nur per Button).
+**Vosk-Laden entkoppelt** vom Startup: `startup.js` blockiert **nicht** mehr mit `await _voskLoad()`, sondern stößt es fire-and-forget an → App ist in 1–2 s „bereit". Flag `window._voskReady` zeigt Fertigstellung. Öffnet jemand eine Aussprache-Übung bevor Vosk fertig ist, wartet `startVoskRecognition` (speech.js) freundlich mit sichtbarem Status („⏳ Spracherkennung wird vorbereitet…") und startet automatisch, sobald bereit — kein Blockieren, kein stilles Fehlschlagen.
+
+**Musik** (`audio.js`): `visibilitychange`+`document.hidden` → pausiert. Auto-Resume bei Rückkehr ist an die **gespeicherte bewusste Einstellung** `localStorage['es_music']` gekoppelt (nicht an einen flüchtigen „lief gerade"-Zustand): war Musik bewusst an und die Session entsperrt (`_musicOn`), läuft sie wieder; war sie aus, bleibt sie aus. Toggle-Button schreibt `es_music`; Start-Button (`startup.js`) stellt die Einstellung nach der Audio-Unlock-Geste wieder her.
 
 **Relaunch-Restore** (`ui.js`): `showScreen` merkt Menü/Profil/Fortschritt in `localStorage['es_last_screen']`; `handleLogin` → `restoreLastScreen()` landet nach Relaunch dort (kein Restore mitten in Spiel/Scan/Review).
 

@@ -22,6 +22,11 @@
 - Globaler Vorlage-Fortschritt (Auftrag 6): SD.globalPresetStats,
   neue Supabase-Tabellen preset_stats + preset_category_progress,
   Routing in game/stats/decks/vocab, Offline-Queue-Type 'global_preset'
+- Vosk vom Startup entkoppelt: kein blockierendes await mehr (App-Ready
+  vorher >180s, jetzt 1-2s); Vosk lädt fire-and-forget im Hintergrund,
+  window._voskReady-Flag; Aussprache-Übung wartet freundlich mit Status
+  falls Vosk noch lädt. Musik-An/Aus an gespeicherte es_music-Einstellung
+  gekoppelt (Resume bei Rückkehr nur wenn bewusst an)
 - PWA-Lifecycle: Boot-Cache-/localStorage-Wipe entfernt; SW jetzt
   network-first für App-Code, cache-first für Modell/Statik; Vosk-Modell
   same-origin (models/, ~40 MB) statt Fremd-CDN → persistent gecacht;

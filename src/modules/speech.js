@@ -94,8 +94,9 @@ window.addEventListener('load', () => { _initTTS(); });
 //  VOSK LOADER (shared state auf window)
 // ════════════════════════════════════════════════
 window._voskStatus = 'idle';
+window._voskReady = false; // true sobald Modell geladen+initialisiert — entkoppelt vom Startup-Gate
 window._voskLoad = async function() {
-  if (window._voskModel) return window._voskModel;
+  if (window._voskModel) { window._voskReady = true; return window._voskModel; }
   if (window._voskStatus === 'loading') {
     const start = Date.now();
     while (window._voskStatus === 'loading' && Date.now() - start < 90000) {
@@ -117,6 +118,8 @@ window._voskLoad = async function() {
     const model = await Vosk.createModel(modelUrl);
     window._voskModel = model;
     window._voskStatus = 'ready';
+    window._voskReady = true;
+    try { localStorage.setItem('es_vosk_loaded', '1'); } catch(e) {}
     console.log('[Vosk] Modell geladen');
     return model;
   } catch(e) {
@@ -585,10 +588,42 @@ export function startRecording() {
 }
 
 export function startVoskRecognition(targetWord, resultEl, btn) {
+  if (!targetWord) return;
+  // Vosk noch nicht bereit (Hintergrund-Load läuft)? Freundlich warten und automatisch
+  // starten, sobald bereit — statt die App zu blockieren oder einfach fehlzuschlagen.
+  if (!window._voskModel) {
+    if (window._voskStatus !== 'loading' && window._voskStatus !== 'ready') {
+      try { window._voskLoad && window._voskLoad(); } catch(e) {}
+    }
+    if (resultEl) {
+      resultEl.style.display = 'block'; resultEl.className = 'pronounce-result';
+      resultEl.textContent = '⏳ Spracherkennung wird vorbereitet, einen Moment…';
+    }
+    if (btn) { btn.disabled = true; btn.className = 'mic-btn'; btn.textContent = '⏳ Bitte warten…'; }
+    const _waitStart = Date.now();
+    const _poll = setInterval(() => {
+      // Abbrechen, wenn Frage beantwortet oder Spiel-Screen verlassen wurde
+      if (window.answered || !document.body.classList.contains('in-game')) { clearInterval(_poll); return; }
+      if (window._voskModel) {
+        clearInterval(_poll);
+        if (btn) btn.disabled = false;
+        _beginVosk(targetWord, resultEl, btn);
+      } else if (window._voskStatus === 'failed' || Date.now() - _waitStart > 90000) {
+        clearInterval(_poll);
+        if (btn) { btn.disabled = false; btn.className = 'mic-btn'; btn.textContent = '🎙️ Nochmal'; btn.onclick = window.startRecording; }
+        if (resultEl) { resultEl.style.display = 'block'; resultEl.className = 'pronounce-result'; resultEl.textContent = '⚠️ Spracherkennung nicht verfügbar'; }
+        try { window.showSelfRateButtons && window.showSelfRateButtons(); } catch(e) {}
+      }
+    }, 300);
+    return;
+  }
+  _beginVosk(targetWord, resultEl, btn);
+}
+
+function _beginVosk(targetWord, resultEl, btn) {
   let _voskAlts = [];
   let _voskTimeout = null;
   window._activeVoskTimeout = null;
-  if (!targetWord) return;
   function finishVosk() {
     if (window.answered) return;
     if (_voskTimeout) { clearTimeout(_voskTimeout); _voskTimeout = null; }

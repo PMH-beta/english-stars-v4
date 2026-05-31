@@ -234,13 +234,18 @@ export function toggleVolPopup() {
   }
 }
 
-// Musik stoppt, wenn die App in den Hintergrund geht. KEIN Auto-Resume bei
-// Rückkehr — Wiedereinschalten nur bewusst über den Musik-Button. (Der frühere
-// Resume-Zweig würde sonst feuern, sobald die App das Backgrounding überlebt.)
+// Hintergrund → pausieren. Rückkehr → an der GESPEICHERTEN bewussten Einstellung
+// (es_music) orientieren, NICHT am flüchtigen "lief gerade"-Zustand (das war der
+// alte Bug). War Musik bewusst an und diese Session bereits per Geste entsperrt
+// (_musicOn), läuft sie wieder; war sie aus, bleibt sie aus.
 document.addEventListener('visibilitychange', () => {
   if (!window._musicAudio) return;
-  if (document.hidden && window._musicOn) {
-    window._musicAudio.pause();
+  if (document.hidden) {
+    if (window._musicOn) window._musicAudio.pause();
+  } else {
+    let pref = '1';
+    try { const v = localStorage.getItem('es_music'); if (v !== null) pref = v; } catch(e) {}
+    if (pref === '1' && window._musicOn) window._musicAudio.play().catch(() => {});
   }
 });
 
