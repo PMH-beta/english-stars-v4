@@ -3,7 +3,7 @@ import { QPERROUND, EXAM_QUESTIONS, calcGrade, gradeText } from './config.js';
 import { effectivePct, isMastered, statKeyFor, getVocabStat } from './stats.js';
 import { activeDeck, syncMirrorFromActiveDeck } from './decks.js';
 import { showScreen, showMenu, hideFeedback, showFeedback } from './ui.js';
-import { ensureMicStream, releaseMicStream, voskStop, stopVisualizer, speakWord, speakWordOnce, startVoskRecognition, startRecording } from './speech.js';
+import { ensureMicStream, releaseMicStream, voskStop, stopVisualizer, speakWord, speakWordOnce, startVoskRecognition, startRecording, _shouldUseVosk } from './speech.js';
 import { persist } from './storage.js';
 import { markDirty, flushPendingSync, saveExam, saveWordStats, saveGlobalPresetStats } from './sync.js';
 
@@ -316,8 +316,9 @@ export function retryPronounce() {
   try{ releaseMicStream(); }catch(e){}
   try{ stopVisualizer(); }catch(e){}
   try{ voskStop(); }catch(e){}
-  if(window._voskModel || window._voskStatus==='ready'){
-    if(result){ result.style.display='block'; result.className='pronounce-result'; result.textContent='🎤 Sprich jetzt – Offline-Erkennung läuft…'; }
+  // Wie startRecording: bei Vosk-Geräten immer startVoskRecognition (regelt Warten/
+  // Status selbst); iOS/Desktop (_shouldUseVosk()=false) bleiben im Web-Speech-Pfad.
+  if(_shouldUseVosk() || window._webSpeechFailed){
     if(btn){ btn.disabled=false; }
     startVoskRecognition(window.currentQ.answer, result, btn);
   } else {

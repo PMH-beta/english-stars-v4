@@ -51,18 +51,41 @@ export function _initTTS() {
   }
 }
 
+// Stellt sicher, dass Stimmen geladen sind, BEVOR gesprochen wird. Auf Android ist
+// getVoices() beim ersten Aufruf leer und füllt sich erst per voiceschanged (das
+// manchmal erst nach dem ersten speak() feuert) → sonst spricht der Browser ohne
+// gesetzte Stimme = stumm. Desktop: Stimmen sofort da → cb läuft synchron.
+// Startup-unabhängig: funktioniert egal wann/ob der Startup gepollt hat.
+function _withVoices(cb) {
+  const get = () => (window.speechSynthesis.getVoices && window.speechSynthesis.getVoices()) || [];
+  if (get().length) { window._ttsVoices = get(); cb(); return; }
+  let done = false;
+  let poll = null;
+  const go = () => {
+    if (done) return; done = true;
+    if (poll) { clearInterval(poll); poll = null; }
+    window._ttsVoices = get();
+    cb();
+  };
+  try { window.speechSynthesis.addEventListener('voiceschanged', go, { once: true }); } catch(e) {}
+  // Poll-Fallback für Android (voiceschanged feuert unzuverlässig) + harter Timeout:
+  // nach ~1.5s notfalls trotzdem sprechen (Default-Stimme), statt stumm zu bleiben.
+  let tries = 0;
+  poll = setInterval(() => { if (get().length || ++tries >= 15) go(); }, 100);
+}
+
 function _speakImmediate(word, onDone) {
-  if (!window._ttsVoices || window._ttsVoices.length === 0) {
-    window._ttsVoices = window.speechSynthesis.getVoices();
-  }
-  const utt = new SpeechSynthesisUtterance(word);
-  utt.lang = 'en-US'; utt.rate = 0.85; utt.pitch = 1.0;
-  const preferred = window._ttsVoices.find(v => v.lang === 'en-US' && (v.name.includes('Google US') || v.name.includes('Samantha') || v.name.includes('Alex')))
-    || window._ttsVoices.find(v => v.lang === 'en-US')
-    || window._ttsVoices.find(v => v.lang.startsWith('en'));
-  if (preferred) utt.voice = preferred;
-  if (onDone) utt.onend = onDone;
-  window.speechSynthesis.speak(utt);
+  _withVoices(() => {
+    const voices = window._ttsVoices || [];
+    const utt = new SpeechSynthesisUtterance(word);
+    utt.lang = 'en-US'; utt.rate = 0.85; utt.pitch = 1.0;
+    const preferred = voices.find(v => v.lang === 'en-US' && (v.name.includes('Google US') || v.name.includes('Samantha') || v.name.includes('Alex')))
+      || voices.find(v => v.lang === 'en-US')
+      || voices.find(v => v.lang.startsWith('en'));
+    if (preferred) utt.voice = preferred;
+    if (onDone) utt.onend = onDone;
+    window.speechSynthesis.speak(utt);
+  });
 }
 
 export function speakWord(word, onDone) {
@@ -404,11 +427,11 @@ export function startRecording() {
   const result = document.getElementById('pronounce-result');
   if (!result) return;
 
-  if ((_shouldUseVosk() || window._webSpeechFailed) && (window._voskModel || window._voskStatus === 'ready')) {
-    console.log('[Recording] Android/Rest → Vosk');
-    result.style.display = 'block';
-    result.className = 'pronounce-result';
-    result.textContent = '🎤 Sprich jetzt…';
+  // Vosk-Pfad: Readiness NICHT hier prüfen — startVoskRecognition zeigt bei noch
+  // ladendem Modell den Warte-Status und startet automatisch, sobald bereit.
+  // _shouldUseVosk() trennt sauber: iOS/Desktop → false → Web-Speech-Pfad unten.
+  if (_shouldUseVosk() || window._webSpeechFailed) {
+    console.log('[Recording] Vosk-Pfad (Status/Warten regelt startVoskRecognition)');
     startVoskRecognition(window.currentQ.answer, result, btn);
     return;
   }
