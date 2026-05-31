@@ -8,6 +8,22 @@ let _ttsWarmupDone = false;
 let _ttsWarmingUp = false;
 let _afterWarmup = null;
 
+// ── TEMP TTS-DIAGNOSE — sichtbarer On-Screen-Log (nach Analyse wieder entfernen) ──
+function _ttsDebug(msg) {
+  try {
+    console.log('[TTS]', msg);
+    let el = document.getElementById('_tts-debug');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = '_tts-debug';
+      el.style.cssText = 'position:fixed;left:6px;right:6px;bottom:6px;z-index:99999;background:rgba(0,0,0,.85);color:#3f6;font:11px/1.45 monospace;padding:6px 8px;border-radius:8px;max-height:42vh;overflow:auto;white-space:pre-wrap;pointer-events:none;';
+      (document.body || document.documentElement).appendChild(el);
+    }
+    el.textContent += (el.textContent ? '\n' : '') + msg;
+    el.scrollTop = el.scrollHeight;
+  } catch(e) {}
+}
+
 // Wärmt die TTS-Engine auf — browser-gesperrt bis zur ersten User-Geste.
 // Mehrfache Aufrufe während Warmup läuft: letzter Callback gewinnt.
 function _ensureTTSWarm(callback) {
@@ -16,17 +32,19 @@ function _ensureTTSWarm(callback) {
   if (_ttsWarmingUp) return;
   if (!window.speechSynthesis) { _ttsWarmupDone = true; callback(); return; }
   _ttsWarmingUp = true;
+  _ttsDebug('warmup START (Geste?) voices=' + (window.speechSynthesis.getVoices()||[]).length);
   try {
     const w = new SpeechSynthesisUtterance(' ');
     w.volume = 0; w.rate = 10;
-    const done = () => {
+    const done = (via) => {
       if (_ttsWarmupDone) return;
+      _ttsDebug('warmup DONE via ' + (via || '?'));
       _ttsWarmupDone = true; _ttsWarmingUp = false;
       const f = _afterWarmup; _afterWarmup = null; if (f) f();
     };
-    w.onend = done; w.onerror = done;
+    w.onend = () => done('onend'); w.onerror = (e) => { _ttsDebug('warmup onerror ' + (e && e.error)); done('onerror'); };
     window.speechSynthesis.speak(w);
-    setTimeout(done, 400); // Fallback: manche Browser feuern onend bei volume=0 nicht
+    setTimeout(() => done('timeout400'), 400); // Fallback: manche Browser feuern onend bei volume=0 nicht
   } catch(e) {
     _ttsWarmupDone = true; _ttsWarmingUp = false;
     const f = _afterWarmup; _afterWarmup = null; if (f) f();
@@ -58,20 +76,22 @@ export function _initTTS() {
 // Startup-unabhängig: funktioniert egal wann/ob der Startup gepollt hat.
 function _withVoices(cb) {
   const get = () => (window.speechSynthesis.getVoices && window.speechSynthesis.getVoices()) || [];
-  if (get().length) { window._ttsVoices = get(); cb(); return; }
+  if (get().length) { window._ttsVoices = get(); _ttsDebug('_withVoices: ' + get().length + ' Stimmen sofort'); cb(); return; }
+  _ttsDebug('_withVoices: 0 Stimmen → warte (voiceschanged/poll)');
   let done = false;
   let poll = null;
-  const go = () => {
+  const go = (via) => {
     if (done) return; done = true;
     if (poll) { clearInterval(poll); poll = null; }
     window._ttsVoices = get();
+    _ttsDebug('_withVoices: weiter via ' + via + ' → ' + window._ttsVoices.length + ' Stimmen');
     cb();
   };
-  try { window.speechSynthesis.addEventListener('voiceschanged', go, { once: true }); } catch(e) {}
+  try { window.speechSynthesis.addEventListener('voiceschanged', () => go('voiceschanged'), { once: true }); } catch(e) {}
   // Poll-Fallback für Android (voiceschanged feuert unzuverlässig) + harter Timeout:
   // nach ~1.5s notfalls trotzdem sprechen (Default-Stimme), statt stumm zu bleiben.
   let tries = 0;
-  poll = setInterval(() => { if (get().length || ++tries >= 15) go(); }, 100);
+  poll = setInterval(() => { if (get().length) go('poll'); else if (++tries >= 15) go('TIMEOUT'); }, 100);
 }
 
 function _speakImmediate(word, onDone) {
@@ -83,13 +103,17 @@ function _speakImmediate(word, onDone) {
       || voices.find(v => v.lang === 'en-US')
       || voices.find(v => v.lang.startsWith('en'));
     if (preferred) utt.voice = preferred;
-    if (onDone) utt.onend = onDone;
+    utt.onstart = () => _ttsDebug('utt.onstart ▶ (Ton sollte kommen)');
+    utt.onend = () => { _ttsDebug('utt.onend ✓'); if (onDone) onDone(); };
+    utt.onerror = (e) => _ttsDebug('utt.onerror ✗ ' + (e && e.error));
+    _ttsDebug('speak() → voice=' + (preferred ? preferred.name : 'KEINE/default') + ' speaking=' + window.speechSynthesis.speaking + ' paused=' + window.speechSynthesis.paused);
     window.speechSynthesis.speak(utt);
   });
 }
 
 export function speakWord(word, onDone) {
-  if (!window.speechSynthesis || !word) return;
+  if (!window.speechSynthesis || !word) { _ttsDebug('speakWord SKIP synth=' + !!window.speechSynthesis + ' word=' + word); return; }
+  _ttsDebug('speakWord("' + word + '") warmupDone=' + _ttsWarmupDone + ' voices=' + (window.speechSynthesis.getVoices()||[]).length);
   if (!_ttsWarmupDone) {
     if (_ttsWarmingUp) {
       _afterWarmup = () => speakWord(word, onDone);
