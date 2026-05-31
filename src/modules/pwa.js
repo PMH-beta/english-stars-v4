@@ -53,6 +53,14 @@ if ('serviceWorker' in navigator) {
       navigator.serviceWorker.addEventListener('controllerchange', () => {
         if (refreshing) return;
         refreshing = true;
+        // Nicht mitten in Nutzung neuladen (Spiel/Scan/Review) — Reload aufschieben,
+        // showMenu() führt ihn beim nächsten Menübesuch aus.
+        const busy = document.body.classList.contains('in-game')
+          || ['scan-screen','review-screen'].some(id => {
+               const el = document.getElementById(id);
+               return el && el.style.display !== 'none';
+             });
+        if (busy) { window._pendingReload = true; return; }
         window.location.reload();
       });
     }).catch(e => console.warn('SW reg failed:', e));

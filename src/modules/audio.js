@@ -8,7 +8,6 @@ window._musicIdx = 0;
 window._musicOn = false;
 window._musicVolume = 0.50;
 window._musicErrorRetries = 0;
-let _pausedByVisibility = false;
 
 const MUSIC_BASE = 'music/';
 
@@ -177,7 +176,6 @@ export function startMusicSync() {
 }
 
 export function stopMusic() {
-  _pausedByVisibility = false;
   window._musicOn = false;
   if (window._musicAudio) window._musicAudio.pause();
 }
@@ -236,18 +234,13 @@ export function toggleVolPopup() {
   }
 }
 
+// Musik stoppt, wenn die App in den Hintergrund geht. KEIN Auto-Resume bei
+// Rückkehr — Wiedereinschalten nur bewusst über den Musik-Button. (Der frühere
+// Resume-Zweig würde sonst feuern, sobald die App das Backgrounding überlebt.)
 document.addEventListener('visibilitychange', () => {
   if (!window._musicAudio) return;
-  if (document.hidden) {
-    if (window._musicOn) {
-      window._musicAudio.pause();
-      _pausedByVisibility = true;
-    }
-  } else {
-    if (_pausedByVisibility && window._musicOn) {
-      _pausedByVisibility = false;
-      window._musicAudio.play().catch(() => {});
-    }
+  if (document.hidden && window._musicOn) {
+    window._musicAudio.pause();
   }
 });
 

@@ -44,6 +44,11 @@ export function showScreen(id) {
   const musicVolBtn = document.getElementById('music-vol-btn');
   if (musicBtnGlobal) musicBtnGlobal.style.display = isLoading ? 'none' : '';
   if (musicVolBtn) musicVolBtn.style.display = isLoading ? 'none' : '';
+  // Letzten "wiederherstellbaren" Screen merken — ein Relaunch landet so näher dran.
+  // Bewusst nur Menü/Profil/Fortschritt (kein mitten-im-Spiel/Scan/Review-Restore).
+  if (['menu-screen','profile-screen','stats-screen'].includes(id)) {
+    try { localStorage.setItem('es_last_screen', id); } catch(e) {}
+  }
 }
 
 // ────────────────────────────────────────────────
@@ -118,6 +123,9 @@ export function setActiveMode(mode) {
 //  MENU
 // ────────────────────────────────────────────────
 export function showMenu() {
+  // Aufgeschobenen SW-Reload (controllerchange während Nutzung) hier ausführen —
+  // sicherer Moment, nicht mitten im Spiel. Siehe pwa.js.
+  if (window._pendingReload) { window._pendingReload = false; window.location.reload(); return; }
   try { releaseMicStream(); } catch (e) {}
   try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) {}
   hideFeedback();
@@ -762,7 +770,17 @@ export async function handleLogin(user) {
   if (migrateStatKeys()) persist(window.SD);
   if (window.currentUser) flushPendingSync().catch(() => {});
   if (!window.SD?.playerName) showScreen('name-screen');
-  else showMenu();
+  else restoreLastScreen();
+}
+
+// Baustein 4: Nach Relaunch näher am letzten Ort landen. Menü immer als Basis
+// initialisieren (Back-Navigation), dann ggf. Profil/Fortschritt darüberlegen.
+function restoreLastScreen() {
+  showMenu();
+  let last = null;
+  try { last = localStorage.getItem('es_last_screen'); } catch(e) {}
+  if (last === 'profile-screen') showProfile();
+  else if (last === 'stats-screen') showStats();
 }
 
 export function handleLogout() {

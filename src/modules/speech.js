@@ -110,7 +110,10 @@ window._voskLoad = async function() {
   }
   try {
     window._voskStatus = 'loading';
-    const modelUrl = 'https://ccoreilly.github.io/vosk-browser/models/vosk-model-small-en-us-0.15.tar.gz';
+    // Same-origin gehostet (models/) → vom Service Worker cache-first persistent
+    // gecacht, kein Re-Download bei jedem Kaltstart. document.baseURI macht den
+    // Pfad unter dem GitHub-Pages-Projektpfad (/english-stars-v4/) korrekt.
+    const modelUrl = new URL('models/vosk-model-small-en-us-0.15.tar.gz', document.baseURI).href;
     const model = await Vosk.createModel(modelUrl);
     window._voskModel = model;
     window._voskStatus = 'ready';

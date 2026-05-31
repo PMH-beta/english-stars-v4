@@ -22,6 +22,12 @@
 - Globaler Vorlage-Fortschritt (Auftrag 6): SD.globalPresetStats,
   neue Supabase-Tabellen preset_stats + preset_category_progress,
   Routing in game/stats/decks/vocab, Offline-Queue-Type 'global_preset'
+- PWA-Lifecycle: Boot-Cache-/localStorage-Wipe entfernt; SW jetzt
+  network-first für App-Code, cache-first für Modell/Statik; Vosk-Modell
+  same-origin (models/, ~40 MB) statt Fremd-CDN → persistent gecacht;
+  Musik-Auto-Resume entfernt (stoppt im Hintergrund, kein Selbststart);
+  Relaunch-Restore (es_last_screen → Menü/Profil/Fortschritt);
+  controllerchange-Reload aufgeschoben bei Nutzung
 - Statistik-Ansichten neu aufgeteilt: (1) Vorlagen-Deck-Statistik
   tablos (aktive Vorlagen-Kacheln + 3 Wort-Tabellen, openPresetDeckStats),
   (2) Custom-Deck-Statistik unverändert, (3) Fortschritt-Seite neu:

@@ -14,23 +14,11 @@ let _pendingRecovery = (window.location.hash || '').includes('type=recovery');
 export async function startupSequence() {
   console.log('[Startup] Boot-Start:', performance.now().toFixed(0) + 'ms');
 
-  try {
-    if ('caches' in window) {
-      const names = await caches.keys();
-      await Promise.all(names.map(n => caches.delete(n)));
-    }
-  } catch(e) { console.warn('[Cache] Löschen fehlgeschlagen:', e); }
-
-  const KEEP_KEYS = ['english_stars_v3', 'english_stars_v2', 'es_apikey', 'es_vosk_loaded'];
-  try {
-    const toRemove = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      // sb-* Keys: Supabase Auth-Token — niemals löschen
-      if (k && !KEEP_KEYS.includes(k) && !k.startsWith('sb-')) toRemove.push(k);
-    }
-    toRemove.forEach(k => { try { localStorage.removeItem(k); } catch(e) {} });
-  } catch(e) {}
+  // Hinweis: Früher wurde hier bei JEDEM Boot der komplette Cache + localStorage
+  // gelöscht ("immer neueste App-Version"). Das untergrub den Service Worker und
+  // machte jeden Kaltstart teuer (Vosk-Re-Download, Verlust von pending_sync).
+  // Cache-Invalidierung übernimmt jetzt der Service Worker: network-first für
+  // App-Code (frische Updates online), cache-first für Modell/Statik (persistent).
 
   // Auth-Session aus Cache laden (funktioniert auch offline wenn vorher eingeloggt)
   try {

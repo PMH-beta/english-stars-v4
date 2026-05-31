@@ -1,7 +1,7 @@
 // src/main.js
 // Einstiegspunkt - lädt die Legacy-App und ergänzt sie schrittweise mit Modulen
 import { APP_VERSION, isIOS, isStandalone } from './modules/config.js';
-import { persist, loadData, freshData, cleanupStorage, clearSWCache } from './modules/storage.js';
+import { persist, loadData, freshData } from './modules/storage.js';
 import { _initTTS, speakWord, speakWordOnce, ensureMicStream, releaseMicStream, startVisualizer, stopVisualizer, voskStart, voskStop, _shouldUseVosk, startRecording, startVoskRecognition } from './modules/speech.js';
 import { _trackUrl, _discoverTracks, _playNext, _initAudio, startMusic, startMusicSync, stopMusic, setMusicVolume, _setMusicBtns, toggleMusic, toggleVolPopup } from './modules/audio.js';
 import { effectivePct, isMastered } from './modules/stats.js';
@@ -16,19 +16,12 @@ import { flushPendingSync } from './modules/sync.js';
 
 console.log('[main] English Stars', APP_VERSION, 'startet…');
 
-// Vor Legacy-App: Storage aufräumen (Service Worker Cache + temporäre LocalStorage Keys)
-async function preBoot() {
-  await clearSWCache();
-  cleanupStorage();
-  console.log('[main] Pre-Boot abgeschlossen');
-}
-
-// Boot starten
-preBoot().then(() => {
-  console.log('[main] Legacy-App startet');
-  // Die alte index.html-Logik wird parallel als <script> geladen.
-  // In den folgenden Refactor-Iterationen ziehen wir mehr Funktionalität nach src/modules/
-});
+// Hinweis: Früher löschte ein preBoot() hier bei JEDEM Boot den kompletten
+// SW-Cache (clearSWCache) + temporäre localStorage-Keys (cleanupStorage).
+// Entfernt — der Service Worker verwaltet Caching jetzt korrekt (network-first
+// für App-Code, cache-first für Modell/Statik). Der Wipe kostete einen Vosk-
+// Re-Download pro Kaltstart und löschte pending_sync (Offline-Queue).
+// clearSWCache/cleanupStorage bleiben in storage.js für bewusste Aufräum-Aktionen.
 
 // Module global verfügbar machen für die Legacy-App (damit alte Funktionen darauf zugreifen können)
 import * as storage from './modules/storage.js';

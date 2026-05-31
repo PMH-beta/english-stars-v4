@@ -186,3 +186,21 @@ App lädt neu → startupSequence()              startup.js
 - Nach Hard-Logout (`authLogout`) → `sessionStorage:'force_account_picker'='1'` → nächster Google-Button-Click → `prompt:'select_account'` → Kontoauswahl erzwingen
 
 **Identity Linking:** Supabase-Setting "Allow email-based account linking across providers" muss aktiv sein, damit Google-OAuth und E-Mail+Passwort-Konto mit gleicher bestätigter E-Mail auf denselben User zeigen.
+
+---
+
+## PWA-Lifecycle & Caching
+
+**Service Worker (`sw.js`)** — Cache-Name `english-stars-<VERSION>`, `activate` löscht alle Caches außer der aktuellen Version. Fetch-Strategie:
+- **network-first** für same-origin App-Code/Shell (HTML, JS, CSS, manifest, JSON) → Deploy-Updates kommen online sofort an, offline Cache-Fallback.
+- **cache-first** für große/statische Assets (Vosk-Modell `.tar.gz`, Bilder, Fonts, Audio) + alle Cross-Origin-Libs (CDN) → persistent über Kaltstarts.
+
+Es gibt **keinen** Boot-Cache-/localStorage-Wipe mehr (früher in `startup.js`). Der Wipe untergrub den SW und kostete bei jedem Start einen Vosk-Re-Download + Verlust von `pending_sync`.
+
+**Vosk-Modell** liegt same-origin unter `models/vosk-model-small-en-us-0.15.tar.gz` (~40 MB), URL via `new URL('models/…', document.baseURI)`. `Vosk.createModel` lädt es per Voll-GET (200) und untart es im Worker → vom SW cache-first persistent gecacht.
+
+**Musik** (`audio.js`): `visibilitychange`+`document.hidden` → pausiert. **Kein** Auto-Resume bei Rückkehr (Wiedereinschalten nur per Button).
+
+**Relaunch-Restore** (`ui.js`): `showScreen` merkt Menü/Profil/Fortschritt in `localStorage['es_last_screen']`; `handleLogin` → `restoreLastScreen()` landet nach Relaunch dort (kein Restore mitten in Spiel/Scan/Review).
+
+**controllerchange-Reload** (`pwa.js`): neuer SW → Reload, aber **aufgeschoben** wenn in Spiel/Scan/Review (`window._pendingReload`), ausgeführt beim nächsten `showMenu`.

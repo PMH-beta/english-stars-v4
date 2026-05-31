@@ -1,4 +1,4 @@
-const VERSION = 'v3.35';
+const VERSION = 'v4.0.119';
 const CACHE = 'english-stars-' + VERSION;
 const PRECACHE = ['./','./index.html','./manifest.json','./icon-192.png','./icon-512.png','./favicon.png'];
 
@@ -7,6 +7,7 @@ self.addEventListener('install', e => {
 });
 
 self.addEventListener('activate', e => {
+  // Alle Caches außer der aktuellen Version löschen — purged u.a. den alten v3.35-Cache
   e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));
 });
 
@@ -15,16 +16,27 @@ self.addEventListener('message', e => {
   if (e.data && e.data.action === 'skipWaiting') self.skipWaiting();
 });
 
+// Cache-first geeignet für große/statische Assets, die sich pro Deploy NICHT ändern:
+// Vosk-Modell (.tar.gz), Bilder, Fonts, Audio — plus alle Cross-Origin-Libs (CDN).
+const CACHE_FIRST_RE = /\.(tar\.gz|png|jpe?g|gif|svg|webp|ico|woff2?|ttf|otf|eot|mp3|wav)$/i;
+
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   const url = new URL(e.request.url);
+
   // Alte URL → neue URL umleiten
   if (url.pathname.endsWith('/english_stars_v2.html')) {
     e.respondWith(Response.redirect(url.pathname.replace('english_stars_v2.html','index.html'), 302));
     return;
   }
-  // Network-first für HTML & manifest (damit Updates ankommen)
-  if (url.pathname.endsWith('.html') || url.pathname.endsWith('/') || url.pathname.endsWith('manifest.json')) {
+
+  const sameOrigin = url.origin === self.location.origin;
+  // Network-first NUR für same-origin App-Code/Shell (HTML, JS, CSS, manifest, JSON):
+  // damit Deploy-Updates online sofort ankommen — kein Boot-Cache-Wipe mehr nötig.
+  // Cross-Origin (CDN-Libs) + große statische Assets bleiben cache-first.
+  const networkFirst = sameOrigin && !CACHE_FIRST_RE.test(url.pathname);
+
+  if (networkFirst) {
     e.respondWith(
       fetch(e.request).then(r => {
         const clone = r.clone();
@@ -34,7 +46,8 @@ self.addEventListener('fetch', e => {
     );
     return;
   }
-  // Cache-first für Rest
+
+  // Cache-first für Rest (Modell, Bilder, Fonts, Audio, CDN). 200er werden persistent gecacht.
   e.respondWith(
     caches.match(e.request).then(cached => cached || fetch(e.request).then(r => {
       if (r.ok && r.status === 200) {
