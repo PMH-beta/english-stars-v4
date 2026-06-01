@@ -7,6 +7,11 @@ let _ttsReady = false;
 let _ttsWarmupDone = false;
 let _ttsWarmingUp = false;
 let _afterWarmup = null;
+// Cleanup-Handle des laufenden Vosk-Warte-Previews (Mic+AudioContext früh offen).
+// Wird gesetzt solange ein Preview läuft, sonst null. Erlaubt, den Preview von
+// überall sauber abzubauen — speziell bevor TTS spricht (sonst belegt das Mic die
+// Android-Audio-Route → speechSynthesis wirft synthesis-failed für alle Stimmen).
+let _activePreviewCleanup = null;
 
 // ── TEMP TTS-DIAGNOSE — sichtbarer On-Screen-Log (nach Analyse wieder entfernen) ──
 function _ttsDebug(msg) {
@@ -112,10 +117,28 @@ function _ttsVoiceChain() {
   return chain;
 }
 
+// Räumt vor jedem TTS-speak() einen evtl. offenen Mic-Stream / AudioContext /
+// Visualizer und einen laufenden Vosk-Warte-Preview ab. Sonst hält Android die
+// Audio-Route im Communication-Modus → speechSynthesis.speak() failt mit
+// synthesis-failed für ALLE Stimmen (System-TTS funktioniert trotzdem). No-op
+// wenn nichts offen ist — normales Sprechen wird nicht belastet.
+function _freeAudioRouteForTTS() {
+  if (_activePreviewCleanup) { try { _activePreviewCleanup(); } catch(e) {} _activePreviewCleanup = null; }
+  const ctxOpen = _audioCtx && _audioCtx.state !== 'closed';
+  if (_micActive || _activeSR || ctxOpen || _vizSrc || _micStream) {
+    _ttsDebug('TTS: Audio-Route freiräumen (mic/ctx/viz aktiv)');
+    try { stopVisualizer(); } catch(e) {}
+    try { releaseMicStream(); } catch(e) {}
+  }
+}
+
 // Spricht mit der ersten Stimme der Kette, die nicht mit synthesis-failed o.ä.
 // abbricht. Funktionierende Stimme wird gemerkt (localStorage), damit die kaputte
-// nicht jedes Mal zuerst probiert wird.
+// nicht jedes Mal zuerst probiert wird. Gesundes Gerät = EIN speak() mit bester
+// Stimme (wie vor dem PWA-Push); die Kette greift nur bei echtem onerror, dann
+// sequenziell mit kleiner Pause statt als Salve (Salve wedged die Android-Engine).
 function _speakImmediate(word, onDone) {
+  _freeAudioRouteForTTS(); // gegen Hypothese 1: belegte Audio-Route
   _withVoices(() => {
     const chain = _ttsVoiceChain();
     const RETRY_ERRORS = ['synthesis-failed', 'voice-unavailable', 'synthesis-unavailable', 'language-unavailable'];
@@ -139,9 +162,14 @@ function _speakImmediate(word, onDone) {
       utt.onerror = (e) => {
         const err = e && e.error;
         _ttsDebug('onerror ✗ ' + err + ' [' + label + ']');
-        if (!started && RETRY_ERRORS.includes(err)) tryNext(); // nächste Stimme probieren
-        else finish();
+        // Nächste Stimme NUR bei echtem Fehler vor dem Start — und gegen Engine-Wedge
+        // (Hypothese 2): Queue räumen + kurze Pause statt sofortiger zweiter speak().
+        if (!started && RETRY_ERRORS.includes(err)) {
+          try { window.speechSynthesis.cancel(); } catch(_) {}
+          setTimeout(tryNext, 250);
+        } else finish();
       };
+      try { window.speechSynthesis.cancel(); } catch(_) {} // vor JEDEM speak() Queue leeren
       _ttsDebug('speak() → ' + label);
       window.speechSynthesis.speak(utt);
     };
@@ -153,11 +181,13 @@ export function speakWord(word, onDone) {
   if (!window.speechSynthesis || !word) { _ttsDebug('speakWord SKIP synth=' + !!window.speechSynthesis + ' word=' + word); return; }
   _ttsDebug('speakWord("' + word + '") warmupDone=' + _ttsWarmupDone + ' voices=' + (window.speechSynthesis.getVoices()||[]).length);
   if (!_ttsWarmupDone) {
+    // Entzerren (Hypothese 2): reales speak() ~180 ms NACH Warmup-Ende, nicht direkt
+    // dahinter — Android verträgt zwei zu schnelle speak()-Aufrufe schlecht.
     if (_ttsWarmingUp) {
-      _afterWarmup = () => speakWord(word, onDone);
+      _afterWarmup = () => setTimeout(() => speakWord(word, onDone), 180);
     } else {
       window.speechSynthesis.cancel();
-      _ensureTTSWarm(() => speakWord(word, onDone));
+      _ensureTTSWarm(() => setTimeout(() => speakWord(word, onDone), 180));
     }
     return;
   }
@@ -690,19 +720,27 @@ export function startVoskRecognition(targetWord, resultEl, btn) {
     // in der User-Geste anlegen; Übergabe an die echte Vosk-Erkennung sobald bereit.
     _ensureAudioCtx();
     let _previewActive = true;
+    let _poll = null;
+    // EIN Cleanup für ALLE Ausgänge: Poll stoppen + Mic/Visualizer/AudioContext abbauen
+    // + Handle freigeben. Idempotent. Wird auch von _freeAudioRouteForTTS aufgerufen,
+    // falls TTS spricht bevor der Preview von selbst endet → keine belegte Audio-Route.
+    const _stopPreview = () => {
+      _previewActive = false;
+      if (_poll) { clearInterval(_poll); _poll = null; }
+      try { stopVisualizer(); } catch(e) {} // schließt AudioContext + gibt Mic frei
+      if (_activePreviewCleanup === _stopPreview) _activePreviewCleanup = null;
+    };
+    _activePreviewCleanup = _stopPreview;
     ensureMicStream().then(stream => { if (_previewActive && stream) { try { startVisualizer(stream); } catch(e) {} } });
-    const _stopPreview = () => { _previewActive = false; try { stopVisualizer(); } catch(e) {} };
     const _waitStart = Date.now();
-    const _poll = setInterval(() => {
+    _poll = setInterval(() => {
       // Abbrechen, wenn Frage beantwortet oder Spiel-Screen verlassen wurde
-      if (window.answered || !document.body.classList.contains('in-game')) { clearInterval(_poll); _stopPreview(); return; }
+      if (window.answered || !document.body.classList.contains('in-game')) { _stopPreview(); return; }
       if (window._voskModel) {
-        clearInterval(_poll);
         _stopPreview(); // Preview-Mic/Visualizer abbauen, bevor _beginVosk eigenen Mic öffnet
         if (btn) btn.disabled = false;
         _beginVosk(targetWord, resultEl, btn);
       } else if (window._voskStatus === 'failed' || Date.now() - _waitStart > 90000) {
-        clearInterval(_poll);
         _stopPreview();
         if (btn) { btn.disabled = false; btn.className = 'mic-btn'; btn.textContent = '🎙️ Nochmal'; btn.onclick = window.startRecording; }
         if (resultEl) { resultEl.style.display = 'block'; resultEl.className = 'pronounce-result'; resultEl.textContent = '⚠️ Spracherkennung nicht verfügbar'; }
