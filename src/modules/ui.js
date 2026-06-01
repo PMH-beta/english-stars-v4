@@ -86,6 +86,14 @@ function _armGuard() {
   try { history.pushState({ esBackGuard: true }, ''); } catch(e) {}
 }
 
+// Re-Arming NACH einem abgefangenen Back: auf Android-Chrome (standalone) wird
+// pushState SYNCHRON im popstate-Handler teils verschluckt → der Wächter fehlt
+// und der nächste Back verlässt die App. Daher in einen Makrotask verschieben,
+// sobald die Navigation steht.
+function _rearm() {
+  setTimeout(_armGuard, 0);
+}
+
 // Oberstes offenes Overlay finden — generisch über die gemeinsame Kennung der
 // dynamischen Dialoge (position:fixed + z-index:9999) bzw. optional .es-overlay.
 // Letztes Body-Kind = zuletzt geöffnet = oberstes.
@@ -94,8 +102,12 @@ function _topOverlay() {
   for (let i = kids.length - 1; i >= 0; i--) {
     const el = kids[i];
     if (el.nodeType !== 1) continue;
-    if (el.classList && el.classList.contains('es-overlay')) return el;
     const s = el.style;
+    // Versteckte Dauer-Elemente ignorieren (z.B. #init-overlay, das nach dem
+    // Laden nur display:none gesetzt, nicht entfernt wird) — sonst „schluckt"
+    // der erste Back dieses tote Overlay statt das Schließen-Popup zu öffnen.
+    if (s && s.display === 'none') continue;
+    if (el.classList && el.classList.contains('es-overlay')) return el;
     if (s && s.position === 'fixed' && s.zIndex === '9999') return el;
   }
   return null;
@@ -106,27 +118,27 @@ function _onBackNavPop() {
   if (_doExit) return;
 
   // Schließen-Popup offen? Hardware-Zurück = Abbrechen.
-  if (_exitPopupOpen) { _closeExitPopup(); _armGuard(); return; }
+  if (_exitPopupOpen) { _closeExitPopup(); _rearm(); return; }
 
   // 1) Modal zuerst: oberstes Overlay schließen.
   const ov = _topOverlay();
-  if (ov) { try { ov.remove(); } catch(e) {} _armGuard(); return; }
+  if (ov) { try { ov.remove(); } catch(e) {} _rearm(); return; }
 
   // 2) Nicht im Menü (und kein Pre-Login-Screen) → zum Menü. Spiel: Speichern-Nachfrage.
   if (_currentScreen === 'game-screen') {
     try { (window.confirmHome || function(){})(); } catch(e) {}
-    _armGuard();   // Wächter IMMER neu, egal wie confirmHome ausgeht (sonst hängt keiner)
+    _rearm();   // Wächter IMMER neu, egal wie confirmHome ausgeht (sonst hängt keiner)
     return;
   }
   if (_currentScreen !== 'menu-screen' && !NAV_IGNORE.includes(_currentScreen)) {
     try { showMenu(); } catch(e) {}
-    _armGuard();
+    _rearm();
     return;
   }
 
   // 3) Im Menü (oder Pre-Login): „App schließen?"-Popup.
   _openExitPopup();
-  _armGuard(); // in der App bleiben; das Popup regelt Ja/Abbrechen
+  _rearm(); // in der App bleiben; das Popup regelt Ja/Abbrechen
 }
 
 // Sofort beim Laden aktivieren — entkoppelt von jedem Screen-Flow.
