@@ -94,20 +94,58 @@ function _withVoices(cb) {
   poll = setInterval(() => { if (get().length) go('poll'); else if (++tries >= 15) go('TIMEOUT'); }, 100);
 }
 
+// Geordnete Stimmen-Kandidaten: gemerkte funktionierende → benannte en-US →
+// en-US → en-GB → übrige en-* → null (System-Default, keine voice gesetzt).
+// Letzte Rückfalllinie deckt Geräte ohne brauchbare gelistete en-Stimme ab.
+function _ttsVoiceChain() {
+  const voices = window._ttsVoices || [];
+  const chain = [];
+  const add = v => { if (v && !chain.includes(v)) chain.push(v); };
+  let remembered = null;
+  try { remembered = localStorage.getItem('es_tts_voice'); } catch(e) {}
+  if (remembered) add(voices.find(v => (v.voiceURI || v.name) === remembered));
+  add(voices.find(v => v.lang === 'en-US' && (v.name.includes('Google US') || v.name.includes('Samantha') || v.name.includes('Alex'))));
+  voices.filter(v => v.lang === 'en-US').forEach(add);
+  voices.filter(v => v.lang === 'en-GB').forEach(add);
+  voices.filter(v => /^en/i.test(v.lang)).forEach(add);
+  chain.push(null); // System-Default — Qualität zuerst, Default als Garantie
+  return chain;
+}
+
+// Spricht mit der ersten Stimme der Kette, die nicht mit synthesis-failed o.ä.
+// abbricht. Funktionierende Stimme wird gemerkt (localStorage), damit die kaputte
+// nicht jedes Mal zuerst probiert wird.
 function _speakImmediate(word, onDone) {
   _withVoices(() => {
-    const voices = window._ttsVoices || [];
-    const utt = new SpeechSynthesisUtterance(word);
-    utt.lang = 'en-US'; utt.rate = 0.85; utt.pitch = 1.0;
-    const preferred = voices.find(v => v.lang === 'en-US' && (v.name.includes('Google US') || v.name.includes('Samantha') || v.name.includes('Alex')))
-      || voices.find(v => v.lang === 'en-US')
-      || voices.find(v => v.lang.startsWith('en'));
-    if (preferred) utt.voice = preferred;
-    utt.onstart = () => _ttsDebug('utt.onstart ▶ (Ton sollte kommen)');
-    utt.onend = () => { _ttsDebug('utt.onend ✓'); if (onDone) onDone(); };
-    utt.onerror = (e) => _ttsDebug('utt.onerror ✗ ' + (e && e.error));
-    _ttsDebug('speak() → voice=' + (preferred ? preferred.name : 'KEINE/default') + ' speaking=' + window.speechSynthesis.speaking + ' paused=' + window.speechSynthesis.paused);
-    window.speechSynthesis.speak(utt);
+    const chain = _ttsVoiceChain();
+    const RETRY_ERRORS = ['synthesis-failed', 'voice-unavailable', 'synthesis-unavailable', 'language-unavailable'];
+    let idx = 0;
+    let finished = false;
+    const finish = () => { if (finished) return; finished = true; if (onDone) onDone(); };
+    const tryNext = () => {
+      if (idx >= chain.length) { _ttsDebug('TTS: alle Kandidaten erschöpft'); finish(); return; }
+      const voice = chain[idx++];
+      const label = voice ? (voice.name + ' (' + voice.lang + ')') : 'SYSTEM-DEFAULT';
+      const utt = new SpeechSynthesisUtterance(word);
+      utt.lang = 'en-US'; utt.rate = 0.85; utt.pitch = 1.0;
+      if (voice) utt.voice = voice;
+      let started = false;
+      utt.onstart = () => {
+        started = true;
+        _ttsDebug('onstart ▶ ' + label);
+        if (voice) { try { localStorage.setItem('es_tts_voice', voice.voiceURI || voice.name); } catch(e) {} }
+      };
+      utt.onend = () => { _ttsDebug('onend ✓ ' + label); finish(); };
+      utt.onerror = (e) => {
+        const err = e && e.error;
+        _ttsDebug('onerror ✗ ' + err + ' [' + label + ']');
+        if (!started && RETRY_ERRORS.includes(err)) tryNext(); // nächste Stimme probieren
+        else finish();
+      };
+      _ttsDebug('speak() → ' + label);
+      window.speechSynthesis.speak(utt);
+    };
+    tryNext();
   });
 }
 
@@ -644,19 +682,28 @@ export function startVoskRecognition(targetWord, resultEl, btn) {
     }
     if (resultEl) {
       resultEl.style.display = 'block'; resultEl.className = 'pronounce-result';
-      resultEl.textContent = '⏳ Spracherkennung wird vorbereitet, einen Moment…';
+      resultEl.textContent = '⏳ Spracherkennung lädt – einen Moment, dann sprechen…';
     }
-    if (btn) { btn.disabled = true; btn.className = 'mic-btn'; btn.textContent = '⏳ Bitte warten…'; }
+    if (btn) { btn.disabled = true; btn.className = 'mic-btn'; btn.textContent = '⏳ Bereite vor…'; }
+    // Generischer Mic-Visualizer SOFORT (modell-unabhängig) → es fühlt sich flüssig an
+    // wie früher, statt dass bis zum Vollladen nichts passiert. AudioContext synchron
+    // in der User-Geste anlegen; Übergabe an die echte Vosk-Erkennung sobald bereit.
+    _ensureAudioCtx();
+    let _previewActive = true;
+    ensureMicStream().then(stream => { if (_previewActive && stream) { try { startVisualizer(stream); } catch(e) {} } });
+    const _stopPreview = () => { _previewActive = false; try { stopVisualizer(); } catch(e) {} };
     const _waitStart = Date.now();
     const _poll = setInterval(() => {
       // Abbrechen, wenn Frage beantwortet oder Spiel-Screen verlassen wurde
-      if (window.answered || !document.body.classList.contains('in-game')) { clearInterval(_poll); return; }
+      if (window.answered || !document.body.classList.contains('in-game')) { clearInterval(_poll); _stopPreview(); return; }
       if (window._voskModel) {
         clearInterval(_poll);
+        _stopPreview(); // Preview-Mic/Visualizer abbauen, bevor _beginVosk eigenen Mic öffnet
         if (btn) btn.disabled = false;
         _beginVosk(targetWord, resultEl, btn);
       } else if (window._voskStatus === 'failed' || Date.now() - _waitStart > 90000) {
         clearInterval(_poll);
+        _stopPreview();
         if (btn) { btn.disabled = false; btn.className = 'mic-btn'; btn.textContent = '🎙️ Nochmal'; btn.onclick = window.startRecording; }
         if (resultEl) { resultEl.style.display = 'block'; resultEl.className = 'pronounce-result'; resultEl.textContent = '⚠️ Spracherkennung nicht verfügbar'; }
         try { window.showSelfRateButtons && window.showSelfRateButtons(); } catch(e) {}
