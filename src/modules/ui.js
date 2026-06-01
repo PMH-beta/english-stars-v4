@@ -66,6 +66,7 @@ let _currentScreen = 'loading-screen';
 let _navActive = false;
 let _exitPopupOpen = false;
 let _doExit = false;
+let _exiting = false; // Verlassen-Sequenz aktiv: nächster popstate = Schritt 2
 
 // Pre-Login/Transient-Screens: hier führt „zurück" NICHT ins Menü (kein Login),
 // sondern direkt zum Schließen-Popup.
@@ -114,11 +115,16 @@ function _topOverlay() {
 }
 
 function _onBackNavPop() {
-  // Wir verlassen gerade absichtlich (history.go) → eigene popstate ignorieren.
+  // Verlassen-Sequenz, Schritt 2: der Wächter ist weg, wir stehen auf dem Ursprungs-
+  // Eintrag → EIN weiterer back() verlässt die App (unterster Eintrag). Kein Re-Arm.
+  if (_exiting) { _exiting = false; try { history.back(); } catch(e) {} return; }
+
+  // Wir verlassen gerade absichtlich → eigene/weitere popstate ignorieren.
   if (_doExit) return;
 
-  // Schließen-Popup offen? Hardware-Zurück = Abbrechen.
-  if (_exitPopupOpen) { _closeExitPopup(); _rearm(); return; }
+  // Schließen-Popup offen? Hardware-Zurück = Abbrechen (Popup zu, in der App bleiben).
+  // Wächter SYNCHRON neu (s. Schritt 3) — sonst Race mit einem schnellen Folge-Back.
+  if (_exitPopupOpen) { _closeExitPopup(); _armGuard(); return; }
 
   // 1) Modal zuerst: oberstes Overlay schließen.
   const ov = _topOverlay();
@@ -138,7 +144,10 @@ function _onBackNavPop() {
 
   // 3) Im Menü (oder Pre-Login): „App schließen?"-Popup.
   _openExitPopup();
-  _rearm(); // in der App bleiben; das Popup regelt Ja/Abbrechen
+  // SYNCHRON (nicht _rearm): das Popup braucht SOFORT einen Wächter, sonst sitzen wir
+  // bis zum verzögerten setTimeout auf dem untersten Eintrag → ein schneller zweiter
+  // Back fällt durch und verlässt die App, statt als „Abbrechen" abgefangen zu werden.
+  _armGuard();
 }
 
 // Sofort beim Laden aktivieren — entkoppelt von jedem Screen-Flow.
@@ -180,14 +189,20 @@ function _closeExitPopup() {
 
 function _confirmExit() {
   _exitPopupOpen = false;
-  _doExit = true;
   const ov = document.getElementById('_es-exit-popup');
   if (ov) ov.remove();
-  // Falls das Verlassen scheitert (z.B. einziger History-Eintrag), Back-Layer wieder
-  // freigeben, statt dauerhaft alle Zurück-Drücke zu schlucken.
-  setTimeout(() => { _doExit = false; }, 1500);
-  // go(-2): aktuellen Wächter + den Ursprungs-Eintrag überspringen → App verlassen.
-  try { history.go(-2); } catch(e) { try { history.back(); } catch(_) {} }
+  // Eine PWA kann sich nicht per JS schließen: history.back() verlässt die App nur,
+  // wenn der aktuelle Eintrag der UNTERSTE der Session ist. Im Popup-Zustand liegt
+  // über dem Ursprungs-Eintrag aber genau ein Wächter. Daher in ZWEI Schritten:
+  //   Schritt 1 (hier): back() poppt den Wächter → wir landen auf dem Ursprungs-Eintrag.
+  //   Schritt 2 (popstate, _exiting): von dort EIN weiterer back() → App verlässt.
+  // KEIN neuer Wächter — der Ursprungs-Eintrag wird durchgelassen.
+  _exiting = true;
+  _doExit = true; // unterdrückt Re-Arming während der Sequenz
+  try { history.back(); } catch(e) {}
+  // Läuft Schritt 1 ins Leere (kein Wächter/kein Eintrag): Flags wieder lösen, statt
+  // dauerhaft alle Zurück-Drücke zu schlucken.
+  setTimeout(() => { _exiting = false; _doExit = false; }, 1500);
 }
 
 // ────────────────────────────────────────────────
