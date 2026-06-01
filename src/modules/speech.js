@@ -13,22 +13,6 @@ let _afterWarmup = null;
 // Android-Audio-Route → speechSynthesis wirft synthesis-failed für alle Stimmen).
 let _activePreviewCleanup = null;
 
-// ── TEMP TTS-DIAGNOSE — sichtbarer On-Screen-Log (nach Analyse wieder entfernen) ──
-function _ttsDebug(msg) {
-  try {
-    console.log('[TTS]', msg);
-    let el = document.getElementById('_tts-debug');
-    if (!el) {
-      el = document.createElement('div');
-      el.id = '_tts-debug';
-      el.style.cssText = 'position:fixed;left:6px;right:6px;bottom:6px;z-index:99999;background:rgba(0,0,0,.85);color:#3f6;font:11px/1.45 monospace;padding:6px 8px;border-radius:8px;max-height:42vh;overflow:auto;white-space:pre-wrap;pointer-events:none;';
-      (document.body || document.documentElement).appendChild(el);
-    }
-    el.textContent += (el.textContent ? '\n' : '') + msg;
-    el.scrollTop = el.scrollHeight;
-  } catch(e) {}
-}
-
 // Wärmt die TTS-Engine auf — browser-gesperrt bis zur ersten User-Geste.
 // Mehrfache Aufrufe während Warmup läuft: letzter Callback gewinnt.
 function _ensureTTSWarm(callback) {
@@ -37,17 +21,15 @@ function _ensureTTSWarm(callback) {
   if (_ttsWarmingUp) return;
   if (!window.speechSynthesis) { _ttsWarmupDone = true; callback(); return; }
   _ttsWarmingUp = true;
-  _ttsDebug('warmup START (Geste?) voices=' + (window.speechSynthesis.getVoices()||[]).length);
   try {
     const w = new SpeechSynthesisUtterance(' ');
     w.volume = 0; w.rate = 10;
     const done = (via) => {
       if (_ttsWarmupDone) return;
-      _ttsDebug('warmup DONE via ' + (via || '?'));
       _ttsWarmupDone = true; _ttsWarmingUp = false;
       const f = _afterWarmup; _afterWarmup = null; if (f) f();
     };
-    w.onend = () => done('onend'); w.onerror = (e) => { _ttsDebug('warmup onerror ' + (e && e.error)); done('onerror'); };
+    w.onend = () => done('onend'); w.onerror = () => done('onerror');
     window.speechSynthesis.speak(w);
     setTimeout(() => done('timeout400'), 400); // Fallback: manche Browser feuern onend bei volume=0 nicht
   } catch(e) {
@@ -81,22 +63,20 @@ export function _initTTS() {
 // Startup-unabhängig: funktioniert egal wann/ob der Startup gepollt hat.
 function _withVoices(cb) {
   const get = () => (window.speechSynthesis.getVoices && window.speechSynthesis.getVoices()) || [];
-  if (get().length) { window._ttsVoices = get(); _ttsDebug('_withVoices: ' + get().length + ' Stimmen sofort'); cb(); return; }
-  _ttsDebug('_withVoices: 0 Stimmen → warte (voiceschanged/poll)');
+  if (get().length) { window._ttsVoices = get(); cb(); return; }
   let done = false;
   let poll = null;
-  const go = (via) => {
+  const go = () => {
     if (done) return; done = true;
     if (poll) { clearInterval(poll); poll = null; }
     window._ttsVoices = get();
-    _ttsDebug('_withVoices: weiter via ' + via + ' → ' + window._ttsVoices.length + ' Stimmen');
     cb();
   };
-  try { window.speechSynthesis.addEventListener('voiceschanged', () => go('voiceschanged'), { once: true }); } catch(e) {}
+  try { window.speechSynthesis.addEventListener('voiceschanged', () => go(), { once: true }); } catch(e) {}
   // Poll-Fallback für Android (voiceschanged feuert unzuverlässig) + harter Timeout:
   // nach ~1.5s notfalls trotzdem sprechen (Default-Stimme), statt stumm zu bleiben.
   let tries = 0;
-  poll = setInterval(() => { if (get().length) go('poll'); else if (++tries >= 15) go('TIMEOUT'); }, 100);
+  poll = setInterval(() => { if (get().length) go(); else if (++tries >= 15) go(); }, 100);
 }
 
 // Geordnete Stimmen-Kandidaten: gemerkte funktionierende → benannte en-US →
@@ -126,7 +106,6 @@ function _freeAudioRouteForTTS() {
   if (_activePreviewCleanup) { try { _activePreviewCleanup(); } catch(e) {} _activePreviewCleanup = null; }
   const ctxOpen = _audioCtx && _audioCtx.state !== 'closed';
   if (_micActive || _activeSR || ctxOpen || _vizSrc || _micStream) {
-    _ttsDebug('TTS: Audio-Route freiräumen (mic/ctx/viz aktiv)');
     try { stopVisualizer(); } catch(e) {}
     try { releaseMicStream(); } catch(e) {}
   }
@@ -146,22 +125,19 @@ function _speakImmediate(word, onDone) {
     let finished = false;
     const finish = () => { if (finished) return; finished = true; if (onDone) onDone(); };
     const tryNext = () => {
-      if (idx >= chain.length) { _ttsDebug('TTS: alle Kandidaten erschöpft'); finish(); return; }
+      if (idx >= chain.length) { finish(); return; }
       const voice = chain[idx++];
-      const label = voice ? (voice.name + ' (' + voice.lang + ')') : 'SYSTEM-DEFAULT';
       const utt = new SpeechSynthesisUtterance(word);
       utt.lang = 'en-US'; utt.rate = 0.85; utt.pitch = 1.0;
       if (voice) utt.voice = voice;
       let started = false;
       utt.onstart = () => {
         started = true;
-        _ttsDebug('onstart ▶ ' + label);
         if (voice) { try { localStorage.setItem('es_tts_voice', voice.voiceURI || voice.name); } catch(e) {} }
       };
-      utt.onend = () => { _ttsDebug('onend ✓ ' + label); finish(); };
+      utt.onend = () => { finish(); };
       utt.onerror = (e) => {
         const err = e && e.error;
-        _ttsDebug('onerror ✗ ' + err + ' [' + label + ']');
         // Nächste Stimme NUR bei echtem Fehler vor dem Start — und gegen Engine-Wedge
         // (Hypothese 2): Queue räumen + kurze Pause statt sofortiger zweiter speak().
         if (!started && RETRY_ERRORS.includes(err)) {
@@ -170,7 +146,6 @@ function _speakImmediate(word, onDone) {
         } else finish();
       };
       try { window.speechSynthesis.cancel(); } catch(_) {} // vor JEDEM speak() Queue leeren
-      _ttsDebug('speak() → ' + label);
       window.speechSynthesis.speak(utt);
     };
     tryNext();
@@ -178,8 +153,7 @@ function _speakImmediate(word, onDone) {
 }
 
 export function speakWord(word, onDone) {
-  if (!window.speechSynthesis || !word) { _ttsDebug('speakWord SKIP synth=' + !!window.speechSynthesis + ' word=' + word); return; }
-  _ttsDebug('speakWord("' + word + '") warmupDone=' + _ttsWarmupDone + ' voices=' + (window.speechSynthesis.getVoices()||[]).length);
+  if (!window.speechSynthesis || !word) return;
   if (!_ttsWarmupDone) {
     // Entzerren (Hypothese 2): reales speak() ~180 ms NACH Warmup-Ende, nicht direkt
     // dahinter — Android verträgt zwei zu schnelle speak()-Aufrufe schlecht.
