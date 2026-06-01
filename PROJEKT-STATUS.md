@@ -33,13 +33,13 @@
   Musik-Auto-Resume entfernt (stoppt im Hintergrund, kein Selbststart);
   Relaunch-Restore (es_last_screen → Menü/Profil/Fortschritt);
   controllerchange-Reload aufgeschoben bei Nutzung
-- Android Zurück-Button: generischer Screen-Verlaufsstapel in
-  showScreen (ui.js); Zurück navigiert schrittweise bis Startseite,
-  neue Screens laufen automatisch mit. Overlays schließen zuerst
-  (generische Kennung position:fixed+z-index:9999/.es-overlay);
-  Spiel→confirmHome (Speichern-Nachfrage), End-Screen→Menü; Startseite
-  Double-Back-Toast zum Schließen. History-Wächter mit gleicher URL
-  (Recovery-Hash unberührt), Seed nach restoreLastScreen, erst ab Menü
+- Android Zurück-Button: Back-Layer SOFORT beim Laden aktiv (ui.js,
+  initBackNav via DOMContentLoaded — nicht an Menü/Login gekoppelt,
+  sonst kein Wächter → PWA schließt sich). Zurück: offenes Overlay
+  schließen (Kennung position:fixed+z-index:9999/.es-overlay), sonst
+  nicht im Menü → Menü (Spiel vorher confirmHome mit Speichern-Nachfrage),
+  im Menü → „App schließen?"-Popup (Ja/Abbrechen). History-Wächter mit
+  gleicher URL (Recovery-Hash unberührt), nach jedem Zurück neu gesetzt
 - Statistik-Ansichten neu aufgeteilt: (1) Vorlagen-Deck-Statistik
   tablos (aktive Vorlagen-Kacheln + 3 Wort-Tabellen, openPresetDeckStats),
   (2) Custom-Deck-Statistik unverändert, (3) Fortschritt-Seite neu:

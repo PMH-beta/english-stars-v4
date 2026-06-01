@@ -49,50 +49,29 @@ export function showScreen(id) {
   if (['menu-screen','profile-screen','stats-screen'].includes(id)) {
     try { localStorage.setItem('es_last_screen', id); } catch(e) {}
   }
-  _trackScreen(id); // generischen Zurück-Stapel pflegen (Android-Back)
+  _currentScreen = id; // aktuellen Screen merken (Android-Back-Layer)
 }
 
 // ────────────────────────────────────────────────
-//  ANDROID ZURÜCK-BUTTON — generischer Screen-Verlaufsstapel
+//  ANDROID ZURÜCK-BUTTON — Back-Layer
 // ────────────────────────────────────────────────
-// Prinzip: showScreen() ist die EINZIGE Stelle, durch die alle Screen-Wechsel
-// laufen → hier wird automatisch ein Stapel der besuchten Screens geführt. Der
-// Android-Zurück-Button (popstate) nimmt den obersten Eintrag und kehrt schrittweise
-// zurück, bis zur Startseite (menu = Ebene 0). Neue Screens laufen ohne weitere
-// Verkabelung mit, solange sie über showScreen geöffnet werden.
+// SOFORT beim App-Start aktiv (nicht an menu-screen gekoppelt): ein History-
+// Wächter + popstate-Listener fangen den Hardware-/Gesten-Zurück ab, bevor er die
+// PWA verlässt. showScreen merkt nur den aktuellen Screen (_currentScreen).
 //
-// Sonderfälle: (1) offene Overlays/Modals werden ZUERST geschlossen; (2) einzelne
-// Screens können eine eigene Zurück-Aktion erzwingen (BACK_OVERRIDES, z.B. Spiel →
-// confirmHome mit Speichern-Nachfrage); (3) auf der Startseite → Double-Back-Toast.
-let _screenStack = [];
+// Zurück-Logik (popstate): (1) offenes Overlay schließen; (2) nicht im Menü → zum
+// Menü (Spiel vorher confirmHome mit Speichern-Nachfrage); (3) im Menü → „App
+// schließen?"-Popup. Wächter nach JEDEM abgefangenen Zurück neu setzen.
+let _currentScreen = 'loading-screen';
 let _navActive = false;
-let _exitArmed = false;
-let _exitTimer = null;
+let _exitPopupOpen = false;
+let _doExit = false;
 
-// Pre-Login/Transient-Screens: NICHT Teil des Zurück-Stapels (Back-Layer erst ab menu).
+// Pre-Login/Transient-Screens: hier führt „zurück" NICHT ins Menü (kein Login),
+// sondern direkt zum Schließen-Popup.
 const NAV_IGNORE = ['loading-screen','auth-screen','email-confirm-screen',
   'password-reset-screen','password-reset-sent-screen','new-password-screen',
   'name-screen','apikey-screen'];
-
-// Screens mit eigener Zurück-Aktion statt generischem "eine Ebene zurück":
-const BACK_OVERRIDES = {
-  // Spiel: Speichern-Nachfrage statt blindem Verlassen (Datenverlust-Schutz).
-  'game-screen': () => { try { (window.confirmHome || function(){})(); } catch(e) {} },
-  // End-Screen: Spiel ist vorbei → zur Startseite, NICHT zurück ins beendete Spiel.
-  'end-screen':  () => { try { showMenu(); } catch(e) {} },
-};
-
-function _trackScreen(id) {
-  if (NAV_IGNORE.includes(id)) return;
-  if (id === 'menu-screen') {
-    _screenStack = ['menu-screen'];          // Startseite = Basis, alles darunter weg
-    if (!_navActive) initBackNav();          // Wächter-Seed NACH restoreLastScreen/Menü
-    return;
-  }
-  const i = _screenStack.indexOf(id);
-  if (i !== -1) _screenStack.length = i + 1; // schon im Pfad → dorthin zurück (Back-Button)
-  else _screenStack.push(id);                // neu → eine Ebene tiefer
-}
 
 function initBackNav() {
   if (_navActive) return;
@@ -123,53 +102,80 @@ function _topOverlay() {
 }
 
 function _onBackNavPop() {
+  // Wir verlassen gerade absichtlich (history.go) → eigene popstate ignorieren.
+  if (_doExit) return;
+
+  // Schließen-Popup offen? Hardware-Zurück = Abbrechen.
+  if (_exitPopupOpen) { _closeExitPopup(); _armGuard(); return; }
+
   // 1) Modal zuerst: oberstes Overlay schließen.
   const ov = _topOverlay();
   if (ov) { try { ov.remove(); } catch(e) {} _armGuard(); return; }
 
-  // 2) Screen-eigene Zurück-Aktion (z.B. Spiel → confirmHome).
-  const cur = _screenStack[_screenStack.length - 1];
-  if (cur && BACK_OVERRIDES[cur]) {
-    BACK_OVERRIDES[cur]();
-    _armGuard();   // WICHTIG: Wächter IMMER neu setzen, egal wie der Dialog ausgeht,
-    return;        // sonst hängt nach "Abbrechen" kein Wächter mehr (Risiko 2).
+  // 2) Nicht im Menü (und kein Pre-Login-Screen) → zum Menü. Spiel: Speichern-Nachfrage.
+  if (_currentScreen === 'game-screen') {
+    try { (window.confirmHome || function(){})(); } catch(e) {}
+    _armGuard();   // Wächter IMMER neu, egal wie confirmHome ausgeht (sonst hängt keiner)
+    return;
   }
-
-  // 3) Generisch: eine Ebene zurück zum vorherigen Screen.
-  if (_screenStack.length > 1) {
-    const prev = _screenStack[_screenStack.length - 2];
-    showScreen(prev); // _trackScreen kürzt den Stapel automatisch um eine Ebene
+  if (_currentScreen !== 'menu-screen' && !NAV_IGNORE.includes(_currentScreen)) {
+    try { showMenu(); } catch(e) {}
     _armGuard();
     return;
   }
 
-  // 4) Startseite (Stapel leer): Double-Back zum Schließen.
-  if (_exitArmed) {
-    _exitArmed = false;
-    if (_exitTimer) { clearTimeout(_exitTimer); _exitTimer = null; }
-    try { history.back(); } catch(e) {} // App verlassen (Wächter NICHT neu setzen)
-    return;
-  }
-  _exitArmed = true;
-  _showExitToast();
-  _exitTimer = setTimeout(() => { _exitArmed = false; }, 3000);
-  _armGuard(); // in der App bleiben
+  // 3) Im Menü (oder Pre-Login): „App schließen?"-Popup.
+  _openExitPopup();
+  _armGuard(); // in der App bleiben; das Popup regelt Ja/Abbrechen
 }
 
-// Dezenter Toast — bewusst z-index 10000 (NICHT 9999), damit _topOverlay ihn nicht
-// für ein Modal hält und der nächste Zurück die App schließt statt den Toast.
-function _showExitToast() {
-  let t = document.getElementById('_es-exit-toast');
-  if (!t) {
-    t = document.createElement('div');
-    t.id = '_es-exit-toast';
-    t.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:10000;background:rgba(0,0,0,.85);color:#fff;font-family:Nunito,sans-serif;font-size:.9rem;padding:10px 18px;border-radius:50px;pointer-events:none;box-shadow:0 4px 16px rgba(0,0,0,.3);transition:opacity .25s;';
-    (document.body || document.documentElement).appendChild(t);
+// Sofort beim Laden aktivieren — entkoppelt von jedem Screen-Flow.
+if (typeof window !== 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initBackNav);
+  } else {
+    initBackNav();
   }
-  t.textContent = 'Nochmal „Zurück" zum Schließen';
-  t.style.opacity = '1';
-  clearTimeout(t._hideT);
-  t._hideT = setTimeout(() => { t.style.opacity = '0'; }, 2600);
+}
+
+// „App schließen?"-Popup — z-index 10001 (NICHT 9999), damit _topOverlay es nicht
+// als Modal behandelt; Status über _exitPopupOpen gesteuert.
+function _openExitPopup() {
+  if (_exitPopupOpen) return;
+  _exitPopupOpen = true;
+  const ov = document.createElement('div');
+  ov.id = '_es-exit-popup';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;';
+  ov.innerHTML = `
+    <div style="background:#fff;border-radius:20px;padding:26px 22px;max-width:320px;width:100%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.25);">
+      <div style="font-size:2.2rem;margin-bottom:8px;">👋</div>
+      <div style="font-family:'Fredoka One',cursive;font-size:1.2rem;color:var(--purple);margin-bottom:18px;">App schließen?</div>
+      <div style="display:flex;gap:10px;justify-content:center;">
+        <button id="_es-exit-cancel" style="font-family:'Fredoka One',cursive;font-size:1rem;padding:12px 22px;background:#eee;color:#333;border:none;border-radius:50px;cursor:pointer;">Abbrechen</button>
+        <button id="_es-exit-yes" style="font-family:'Fredoka One',cursive;font-size:1rem;padding:12px 22px;background:linear-gradient(135deg,var(--purple),var(--pink));color:#fff;border:none;border-radius:50px;cursor:pointer;box-shadow:0 4px 0 #7a4ba8;">Ja</button>
+      </div>
+    </div>`;
+  (document.body || document.documentElement).appendChild(ov);
+  ov.querySelector('#_es-exit-cancel').addEventListener('click', () => { _closeExitPopup(); });
+  ov.querySelector('#_es-exit-yes').addEventListener('click', () => { _confirmExit(); });
+}
+
+function _closeExitPopup() {
+  _exitPopupOpen = false;
+  const ov = document.getElementById('_es-exit-popup');
+  if (ov) ov.remove();
+}
+
+function _confirmExit() {
+  _exitPopupOpen = false;
+  _doExit = true;
+  const ov = document.getElementById('_es-exit-popup');
+  if (ov) ov.remove();
+  // Falls das Verlassen scheitert (z.B. einziger History-Eintrag), Back-Layer wieder
+  // freigeben, statt dauerhaft alle Zurück-Drücke zu schlucken.
+  setTimeout(() => { _doExit = false; }, 1500);
+  // go(-2): aktuellen Wächter + den Ursprungs-Eintrag überspringen → App verlassen.
+  try { history.go(-2); } catch(e) { try { history.back(); } catch(_) {} }
 }
 
 // ────────────────────────────────────────────────
