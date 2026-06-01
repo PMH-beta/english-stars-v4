@@ -49,6 +49,127 @@ export function showScreen(id) {
   if (['menu-screen','profile-screen','stats-screen'].includes(id)) {
     try { localStorage.setItem('es_last_screen', id); } catch(e) {}
   }
+  _trackScreen(id); // generischen Zurück-Stapel pflegen (Android-Back)
+}
+
+// ────────────────────────────────────────────────
+//  ANDROID ZURÜCK-BUTTON — generischer Screen-Verlaufsstapel
+// ────────────────────────────────────────────────
+// Prinzip: showScreen() ist die EINZIGE Stelle, durch die alle Screen-Wechsel
+// laufen → hier wird automatisch ein Stapel der besuchten Screens geführt. Der
+// Android-Zurück-Button (popstate) nimmt den obersten Eintrag und kehrt schrittweise
+// zurück, bis zur Startseite (menu = Ebene 0). Neue Screens laufen ohne weitere
+// Verkabelung mit, solange sie über showScreen geöffnet werden.
+//
+// Sonderfälle: (1) offene Overlays/Modals werden ZUERST geschlossen; (2) einzelne
+// Screens können eine eigene Zurück-Aktion erzwingen (BACK_OVERRIDES, z.B. Spiel →
+// confirmHome mit Speichern-Nachfrage); (3) auf der Startseite → Double-Back-Toast.
+let _screenStack = [];
+let _navActive = false;
+let _exitArmed = false;
+let _exitTimer = null;
+
+// Pre-Login/Transient-Screens: NICHT Teil des Zurück-Stapels (Back-Layer erst ab menu).
+const NAV_IGNORE = ['loading-screen','auth-screen','email-confirm-screen',
+  'password-reset-screen','password-reset-sent-screen','new-password-screen',
+  'name-screen','apikey-screen'];
+
+// Screens mit eigener Zurück-Aktion statt generischem "eine Ebene zurück":
+const BACK_OVERRIDES = {
+  // Spiel: Speichern-Nachfrage statt blindem Verlassen (Datenverlust-Schutz).
+  'game-screen': () => { try { (window.confirmHome || function(){})(); } catch(e) {} },
+  // End-Screen: Spiel ist vorbei → zur Startseite, NICHT zurück ins beendete Spiel.
+  'end-screen':  () => { try { showMenu(); } catch(e) {} },
+};
+
+function _trackScreen(id) {
+  if (NAV_IGNORE.includes(id)) return;
+  if (id === 'menu-screen') {
+    _screenStack = ['menu-screen'];          // Startseite = Basis, alles darunter weg
+    if (!_navActive) initBackNav();          // Wächter-Seed NACH restoreLastScreen/Menü
+    return;
+  }
+  const i = _screenStack.indexOf(id);
+  if (i !== -1) _screenStack.length = i + 1; // schon im Pfad → dorthin zurück (Back-Button)
+  else _screenStack.push(id);                // neu → eine Ebene tiefer
+}
+
+function initBackNav() {
+  if (_navActive) return;
+  _navActive = true;
+  window.addEventListener('popstate', _onBackNavPop);
+  _armGuard();
+}
+
+// Wächter-Eintrag legen — gleiche URL (kein Hash-Wechsel!), damit die Passwort-
+// Recovery-Erkennung (location.hash type=recovery in startup.js) unberührt bleibt.
+function _armGuard() {
+  try { history.pushState({ esBackGuard: true }, ''); } catch(e) {}
+}
+
+// Oberstes offenes Overlay finden — generisch über die gemeinsame Kennung der
+// dynamischen Dialoge (position:fixed + z-index:9999) bzw. optional .es-overlay.
+// Letztes Body-Kind = zuletzt geöffnet = oberstes.
+function _topOverlay() {
+  const kids = document.body ? document.body.children : [];
+  for (let i = kids.length - 1; i >= 0; i--) {
+    const el = kids[i];
+    if (el.nodeType !== 1) continue;
+    if (el.classList && el.classList.contains('es-overlay')) return el;
+    const s = el.style;
+    if (s && s.position === 'fixed' && s.zIndex === '9999') return el;
+  }
+  return null;
+}
+
+function _onBackNavPop() {
+  // 1) Modal zuerst: oberstes Overlay schließen.
+  const ov = _topOverlay();
+  if (ov) { try { ov.remove(); } catch(e) {} _armGuard(); return; }
+
+  // 2) Screen-eigene Zurück-Aktion (z.B. Spiel → confirmHome).
+  const cur = _screenStack[_screenStack.length - 1];
+  if (cur && BACK_OVERRIDES[cur]) {
+    BACK_OVERRIDES[cur]();
+    _armGuard();   // WICHTIG: Wächter IMMER neu setzen, egal wie der Dialog ausgeht,
+    return;        // sonst hängt nach "Abbrechen" kein Wächter mehr (Risiko 2).
+  }
+
+  // 3) Generisch: eine Ebene zurück zum vorherigen Screen.
+  if (_screenStack.length > 1) {
+    const prev = _screenStack[_screenStack.length - 2];
+    showScreen(prev); // _trackScreen kürzt den Stapel automatisch um eine Ebene
+    _armGuard();
+    return;
+  }
+
+  // 4) Startseite (Stapel leer): Double-Back zum Schließen.
+  if (_exitArmed) {
+    _exitArmed = false;
+    if (_exitTimer) { clearTimeout(_exitTimer); _exitTimer = null; }
+    try { history.back(); } catch(e) {} // App verlassen (Wächter NICHT neu setzen)
+    return;
+  }
+  _exitArmed = true;
+  _showExitToast();
+  _exitTimer = setTimeout(() => { _exitArmed = false; }, 3000);
+  _armGuard(); // in der App bleiben
+}
+
+// Dezenter Toast — bewusst z-index 10000 (NICHT 9999), damit _topOverlay ihn nicht
+// für ein Modal hält und der nächste Zurück die App schließt statt den Toast.
+function _showExitToast() {
+  let t = document.getElementById('_es-exit-toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = '_es-exit-toast';
+    t.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:10000;background:rgba(0,0,0,.85);color:#fff;font-family:Nunito,sans-serif;font-size:.9rem;padding:10px 18px;border-radius:50px;pointer-events:none;box-shadow:0 4px 16px rgba(0,0,0,.3);transition:opacity .25s;';
+    (document.body || document.documentElement).appendChild(t);
+  }
+  t.textContent = 'Nochmal „Zurück" zum Schließen';
+  t.style.opacity = '1';
+  clearTimeout(t._hideT);
+  t._hideT = setTimeout(() => { t.style.opacity = '0'; }, 2600);
 }
 
 // ────────────────────────────────────────────────
