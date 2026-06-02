@@ -175,7 +175,7 @@ function _showExitToast() {
   if (!t) {
     t = document.createElement('div');
     t.id = '_es-exit-toast';
-    t.style.cssText = "position:fixed;left:50%;bottom:48px;transform:translateX(-50%);z-index:10000;background:rgba(0,0,0,.82);color:#fff;font-family:'Fredoka One',cursive;font-size:1rem;padding:12px 22px;border-radius:50px;box-shadow:0 4px 16px rgba(0,0,0,.3);pointer-events:none;opacity:0;transition:opacity .2s;";
+    t.style.cssText = "position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:10000;background:rgba(0,0,0,.82);color:#fff;font-family:'Fredoka One',cursive;font-size:1.15rem;text-align:center;padding:16px 28px;border-radius:24px;box-shadow:0 8px 28px rgba(0,0,0,.35);pointer-events:none;opacity:0;transition:opacity .2s;";
     t.textContent = 'Zum Schließen erneut zurück';
     (document.body || document.documentElement).appendChild(t);
   }
