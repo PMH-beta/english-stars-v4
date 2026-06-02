@@ -38,8 +38,11 @@
   sonst kein Wächter → PWA schließt sich). Zurück: offenes Overlay
   schließen (Kennung position:fixed+z-index:9999/.es-overlay), sonst
   nicht im Menü → Menü (Spiel vorher confirmHome mit Speichern-Nachfrage),
-  im Menü → „App schließen?"-Popup (Ja/Abbrechen). History-Wächter mit
-  gleicher URL (Recovery-Hash unberührt), nach jedem Zurück neu gesetzt
+  im Menü → Double-Back-to-Exit: 1. Zurück Toast „Zum Schließen erneut
+  zurück" + Wächter NICHT re-armen (Zeitfenster ~2,5 s), 2. Zurück im
+  Fenster läuft durch → App verlässt von selbst; Fenster verstreicht →
+  re-armen. History-Wächter mit gleicher URL (Recovery-Hash unberührt),
+  nach jedem abgefangenen Zurück neu gesetzt (außer 1. Menü-Back)
 - Statistik-Ansichten neu aufgeteilt: (1) Vorlagen-Deck-Statistik
   tablos (aktive Vorlagen-Kacheln + 3 Wort-Tabellen, openPresetDeckStats),
   (2) Custom-Deck-Statistik unverändert, (3) Fortschritt-Seite neu:

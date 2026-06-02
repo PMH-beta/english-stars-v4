@@ -60,16 +60,16 @@ export function showScreen(id) {
 // PWA verlässt. showScreen merkt nur den aktuellen Screen (_currentScreen).
 //
 // Zurück-Logik (popstate): (1) offenes Overlay schließen; (2) nicht im Menü → zum
-// Menü (Spiel vorher confirmHome mit Speichern-Nachfrage); (3) im Menü → „App
-// schließen?"-Popup. Wächter nach JEDEM abgefangenen Zurück neu setzen.
+// Menü (Spiel vorher confirmHome mit Speichern-Nachfrage); (3) im Menü → Double-
+// Back-to-Exit (Toast + Zeitfenster). Wächter nach JEDEM abgefangenen Zurück neu
+// setzen — AUSSER beim ersten Menü-Back (s. _onBackNavPop Schritt 3).
 let _currentScreen = 'loading-screen';
 let _navActive = false;
-let _exitPopupOpen = false;
-let _doExit = false;
-let _exiting = false; // Verlassen-Sequenz aktiv: nächster popstate = Schritt 2
+let _exitArmed = false;  // erster Menü-Back erfolgt: Zeitfenster läuft, kein Wächter liegt
+let _exitTimer = null;   // Re-Arm-Timer; feuert am Fensterende
 
 // Pre-Login/Transient-Screens: hier führt „zurück" NICHT ins Menü (kein Login),
-// sondern direkt zum Schließen-Popup.
+// sondern direkt zum Double-Back-to-Exit.
 const NAV_IGNORE = ['loading-screen','auth-screen','email-confirm-screen',
   'password-reset-screen','password-reset-sent-screen','new-password-screen',
   'name-screen','apikey-screen'];
@@ -115,16 +115,15 @@ function _topOverlay() {
 }
 
 function _onBackNavPop() {
-  // Verlassen-Sequenz, Schritt 2: der Wächter ist weg, wir stehen auf dem Ursprungs-
-  // Eintrag → EIN weiterer back() verlässt die App (unterster Eintrag). Kein Re-Arm.
-  if (_exiting) { _exiting = false; try { history.back(); } catch(e) {} return; }
-
-  // Wir verlassen gerade absichtlich → eigene/weitere popstate ignorieren.
-  if (_doExit) return;
-
-  // Schließen-Popup offen? Hardware-Zurück = Abbrechen (Popup zu, in der App bleiben).
-  // Wächter SYNCHRON neu (s. Schritt 3) — sonst Race mit einem schnellen Folge-Back.
-  if (_exitPopupOpen) { _closeExitPopup(); _armGuard(); return; }
+  // Zeitfenster aktiv (kein Wächter liegt): normal verlässt der zweite Zurück die App
+  // direkt, ohne hier durchzulaufen. Feuert er DOCH einen popstate (Plattform-Edge),
+  // werten wir das als zweiten Zurück → Fenster beenden, NICHT re-armen, durchlassen.
+  if (_exitArmed) {
+    _exitArmed = false;
+    if (_exitTimer) { clearTimeout(_exitTimer); _exitTimer = null; }
+    _hideExitToast();
+    return;
+  }
 
   // 1) Modal zuerst: oberstes Overlay schließen.
   const ov = _topOverlay();
@@ -142,12 +141,22 @@ function _onBackNavPop() {
     return;
   }
 
-  // 3) Im Menü (oder Pre-Login): „App schließen?"-Popup.
-  _openExitPopup();
-  // SYNCHRON (nicht _rearm): das Popup braucht SOFORT einen Wächter, sonst sitzen wir
-  // bis zum verzögerten setTimeout auf dem untersten Eintrag → ein schneller zweiter
-  // Back fällt durch und verlässt die App, statt als „Abbrechen" abgefangen zu werden.
-  _armGuard();
+  // 3) Im Menü (oder Pre-Login): Double-Back-to-Exit.
+  // Dieser popstate hat den Wächter gepoppt → wir sitzen jetzt auf dem Ursprungs-
+  // Eintrag (dem untersten der Session). Statt SOFORT neu zu armen, zeigen wir einen
+  // Toast und WARTEN das Zeitfenster ab: solange KEIN Wächter liegt, verlässt ein
+  // zweiter Zurück die App von selbst (Ursprungs-Eintrag = unterster, der Back läuft
+  // natürlich durch — kein history.go/back, kein JS-Close). Bleibt der zweite Zurück
+  // aus, armen wir am Fensterende wieder → nächster Zurück zeigt erneut den Toast.
+  _showExitToast();
+  _exitArmed = true;
+  if (_exitTimer) clearTimeout(_exitTimer);
+  _exitTimer = setTimeout(() => {
+    _exitArmed = false;
+    _exitTimer = null;
+    _hideExitToast();
+    _armGuard();   // Wächter wiederherstellen — App ist wieder geschützt
+  }, 2500);
 }
 
 // Sofort beim Laden aktivieren — entkoppelt von jedem Screen-Flow.
@@ -159,50 +168,26 @@ if (typeof window !== 'undefined') {
   }
 }
 
-// „App schließen?"-Popup — z-index 10001 (NICHT 9999), damit _topOverlay es nicht
-// als Modal behandelt; Status über _exitPopupOpen gesteuert.
-function _openExitPopup() {
-  if (_exitPopupOpen) return;
-  _exitPopupOpen = true;
-  const ov = document.createElement('div');
-  ov.id = '_es-exit-popup';
-  ov.style.cssText = 'position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;';
-  ov.innerHTML = `
-    <div style="background:#fff;border-radius:20px;padding:26px 22px;max-width:320px;width:100%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.25);">
-      <div style="font-size:2.2rem;margin-bottom:8px;">👋</div>
-      <div style="font-family:'Fredoka One',cursive;font-size:1.2rem;color:var(--purple);margin-bottom:18px;">App schließen?</div>
-      <div style="display:flex;gap:10px;justify-content:center;">
-        <button id="_es-exit-cancel" style="font-family:'Fredoka One',cursive;font-size:1rem;padding:12px 22px;background:#eee;color:#333;border:none;border-radius:50px;cursor:pointer;">Abbrechen</button>
-        <button id="_es-exit-yes" style="font-family:'Fredoka One',cursive;font-size:1rem;padding:12px 22px;background:linear-gradient(135deg,var(--purple),var(--pink));color:#fff;border:none;border-radius:50px;cursor:pointer;box-shadow:0 4px 0 #7a4ba8;">Ja</button>
-      </div>
-    </div>`;
-  (document.body || document.documentElement).appendChild(ov);
-  ov.querySelector('#_es-exit-cancel').addEventListener('click', () => { _closeExitPopup(); });
-  ov.querySelector('#_es-exit-yes').addEventListener('click', () => { _confirmExit(); });
+// Double-Back-Toast — z-index 10000 (NICHT 9999), damit _topOverlay ihn nicht als
+// Modal greift. Dezenter Hinweis beim ersten Menü-Back; blendet am Fensterende aus.
+function _showExitToast() {
+  let t = document.getElementById('_es-exit-toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = '_es-exit-toast';
+    t.style.cssText = "position:fixed;left:50%;bottom:48px;transform:translateX(-50%);z-index:10000;background:rgba(0,0,0,.82);color:#fff;font-family:'Fredoka One',cursive;font-size:1rem;padding:12px 22px;border-radius:50px;box-shadow:0 4px 16px rgba(0,0,0,.3);pointer-events:none;opacity:0;transition:opacity .2s;";
+    t.textContent = 'Zum Schließen erneut zurück';
+    (document.body || document.documentElement).appendChild(t);
+  }
+  void t.offsetWidth; // reflow → fade-in greift
+  t.style.opacity = '1';
 }
 
-function _closeExitPopup() {
-  _exitPopupOpen = false;
-  const ov = document.getElementById('_es-exit-popup');
-  if (ov) ov.remove();
-}
-
-function _confirmExit() {
-  _exitPopupOpen = false;
-  const ov = document.getElementById('_es-exit-popup');
-  if (ov) ov.remove();
-  // Eine PWA kann sich nicht per JS schließen: history.back() verlässt die App nur,
-  // wenn der aktuelle Eintrag der UNTERSTE der Session ist. Im Popup-Zustand liegt
-  // über dem Ursprungs-Eintrag aber genau ein Wächter. Daher in ZWEI Schritten:
-  //   Schritt 1 (hier): back() poppt den Wächter → wir landen auf dem Ursprungs-Eintrag.
-  //   Schritt 2 (popstate, _exiting): von dort EIN weiterer back() → App verlässt.
-  // KEIN neuer Wächter — der Ursprungs-Eintrag wird durchgelassen.
-  _exiting = true;
-  _doExit = true; // unterdrückt Re-Arming während der Sequenz
-  try { history.back(); } catch(e) {}
-  // Läuft Schritt 1 ins Leere (kein Wächter/kein Eintrag): Flags wieder lösen, statt
-  // dauerhaft alle Zurück-Drücke zu schlucken.
-  setTimeout(() => { _exiting = false; _doExit = false; }, 1500);
+function _hideExitToast() {
+  const t = document.getElementById('_es-exit-toast');
+  if (!t) return;
+  t.style.opacity = '0';
+  setTimeout(() => { if (t && t.parentNode) t.remove(); }, 250);
 }
 
 // ────────────────────────────────────────────────
