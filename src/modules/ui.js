@@ -155,7 +155,8 @@ function _onBackNavPop() {
     _exitArmed = false;
     _exitTimer = null;
     _hideExitToast();
-    _armGuard();   // Wächter wiederherstellen — App ist wieder geschützt
+    _rearm();      // Wächter wiederherstellen (per setTimeout, sonst auf Android-
+                   // Chrome verschluckt) — nächster Back zeigt wieder den Toast
   }, 2500);
 }
 
