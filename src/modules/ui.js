@@ -61,12 +61,16 @@ export function showScreen(id) {
 //
 // Zurück-Logik (popstate): (1) offenes Overlay schließen; (2) nicht im Menü → zum
 // Menü (Spiel vorher confirmHome mit Speichern-Nachfrage); (3) im Menü → Double-
-// Back-to-Exit (Toast + Zeitfenster). Wächter nach JEDEM abgefangenen Zurück neu
-// setzen — AUSSER beim ersten Menü-Back (s. _onBackNavPop Schritt 3).
+// Back-to-Exit (Toast + Zeitfenster).
+//
+// GRUNDREGEL: Es liegt IMMER genau ein Wächter. Re-Arming passiert ausschließlich
+// im popstate (= Folge des Back-Drucks → gestennah, pushState wird NICHT von
+// Android-Chrome verschluckt), nie per Timer ohne Geste. Ob die App verlassen
+// wird, entscheidet allein das Flag _exitArmed — nicht das Fehlen eines Wächters.
 let _currentScreen = 'loading-screen';
 let _navActive = false;
-let _exitArmed = false;  // erster Menü-Back erfolgt: Zeitfenster läuft, kein Wächter liegt
-let _exitTimer = null;   // Re-Arm-Timer; feuert am Fensterende
+let _exitArmed = false;  // erster Menü-Back erfolgt: Zeitfenster läuft (Wächter liegt trotzdem)
+let _exitTimer = null;   // Fenster-Timer; feuert am Fensterende (löscht nur das Flag)
 
 // Pre-Login/Transient-Screens: hier führt „zurück" NICHT ins Menü (kein Login),
 // sondern direkt zum Double-Back-to-Exit.
@@ -78,6 +82,9 @@ function initBackNav() {
   if (_navActive) return;
   _navActive = true;
   window.addEventListener('popstate', _onBackNavPop);
+  // Rückkehr aus einer anderen App / bfcache: Exit-Fenster verfällt, Wächter sichern.
+  document.addEventListener('visibilitychange', _onAppResume);
+  window.addEventListener('pageshow', _onAppResume);
   _armGuard();
 }
 
@@ -87,12 +94,16 @@ function _armGuard() {
   try { history.pushState({ esBackGuard: true }, ''); } catch(e) {}
 }
 
-// Re-Arming NACH einem abgefangenen Back: auf Android-Chrome (standalone) wird
-// pushState SYNCHRON im popstate-Handler teils verschluckt → der Wächter fehlt
-// und der nächste Back verlässt die App. Daher in einen Makrotask verschieben,
-// sobald die Navigation steht.
-function _rearm() {
-  setTimeout(_armGuard, 0);
+// Beim Wiederkehren (sichtbar / pageshow): Zeitfenster verfällt. Flag löschen —
+// das allein garantiert, dass der nächste Back den Toast zeigt statt zu verlassen,
+// selbst falls der (gestenlose) pushState hier verschluckt würde. Wächter nur neu
+// legen, wenn laut history.state keiner mehr liegt.
+function _onAppResume() {
+  if (document.visibilityState !== 'visible') return;
+  _exitArmed = false;
+  if (_exitTimer) { clearTimeout(_exitTimer); _exitTimer = null; }
+  _hideExitToast();
+  if (!history.state || !history.state.esBackGuard) _armGuard();
 }
 
 // Oberstes offenes Overlay finden — generisch über die gemeinsame Kennung der
@@ -115,48 +126,49 @@ function _topOverlay() {
 }
 
 function _onBackNavPop() {
-  // Zeitfenster aktiv (kein Wächter liegt): normal verlässt der zweite Zurück die App
-  // direkt, ohne hier durchzulaufen. Feuert er DOCH einen popstate (Plattform-Edge),
-  // werten wir das als zweiten Zurück → Fenster beenden, NICHT re-armen, durchlassen.
+  // Der gepoppte Eintrag war unser Wächter. In jedem abgefangenen Zweig legen wir
+  // ihn SYNCHRON neu (gestennah im popstate → nicht verschluckt), sodass immer
+  // genau einer liegt.
+
+  // Zweiter Back im offenen Exit-Fenster → App verlassen. NICHT über „kein Wächter",
+  // sondern aktiv über das Flag: der Wächter wurde eben gepoppt, wir sitzen auf dem
+  // Ursprungs-Eintrag; ein einzelner history.back() verlässt die PWA (kein go(-2)).
   if (_exitArmed) {
     _exitArmed = false;
     if (_exitTimer) { clearTimeout(_exitTimer); _exitTimer = null; }
     _hideExitToast();
+    try { history.back(); } catch(e) {}
     return;
   }
 
-  // 1) Modal zuerst: oberstes Overlay schließen.
+  // 1) Modal zuerst: oberstes Overlay schließen, Wächter sofort neu.
   const ov = _topOverlay();
-  if (ov) { try { ov.remove(); } catch(e) {} _rearm(); return; }
+  if (ov) { try { ov.remove(); } catch(e) {} _armGuard(); return; }
 
   // 2) Nicht im Menü (und kein Pre-Login-Screen) → zum Menü. Spiel: Speichern-Nachfrage.
   if (_currentScreen === 'game-screen') {
     try { (window.confirmHome || function(){})(); } catch(e) {}
-    _rearm();   // Wächter IMMER neu, egal wie confirmHome ausgeht (sonst hängt keiner)
+    _armGuard();   // Wächter IMMER neu, egal wie confirmHome ausgeht (sonst hängt keiner)
     return;
   }
   if (_currentScreen !== 'menu-screen' && !NAV_IGNORE.includes(_currentScreen)) {
     try { showMenu(); } catch(e) {}
-    _rearm();
+    _armGuard();
     return;
   }
 
-  // 3) Im Menü (oder Pre-Login): Double-Back-to-Exit.
-  // Dieser popstate hat den Wächter gepoppt → wir sitzen jetzt auf dem Ursprungs-
-  // Eintrag (dem untersten der Session). Statt SOFORT neu zu armen, zeigen wir einen
-  // Toast und WARTEN das Zeitfenster ab: solange KEIN Wächter liegt, verlässt ein
-  // zweiter Zurück die App von selbst (Ursprungs-Eintrag = unterster, der Back läuft
-  // natürlich durch — kein history.go/back, kein JS-Close). Bleibt der zweite Zurück
-  // aus, armen wir am Fensterende wieder → nächster Zurück zeigt erneut den Toast.
+  // 3) Im Menü (oder Pre-Login): erster Back des Double-Back-to-Exit.
+  // Toast + Fenster öffnen UND sofort neuen Wächter legen → es liegt weiter genau
+  // einer. Läuft das Fenster ohne zweiten Back ab, löscht der Timer NUR das Flag
+  // (Wächter bleibt) → nächster Back landet wieder hier und zeigt erneut den Toast.
   _showExitToast();
   _exitArmed = true;
+  _armGuard();
   if (_exitTimer) clearTimeout(_exitTimer);
   _exitTimer = setTimeout(() => {
     _exitArmed = false;
     _exitTimer = null;
     _hideExitToast();
-    _rearm();      // Wächter wiederherstellen (per setTimeout, sonst auf Android-
-                   // Chrome verschluckt) — nächster Back zeigt wieder den Toast
   }, 2500);
 }
 
