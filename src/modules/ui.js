@@ -78,6 +78,8 @@ let _navActive = false;
 let _depth = 0;          // Anzahl unserer Wächter-Einträge über dem Ausgang
 let _exitArmed = false;  // erster Menü-Back erfolgt: Zeitfenster läuft (Tiefe bewusst 1)
 let _exitTimer = null;   // Fenster-Timer; feuert am Fensterende (Flag löschen + Tiefe auffüllen)
+let _lastPopTs = 0;      // TEMP-DIAG: Zeitpunkt des letzten popstate (Back-Folge erkennen)
+let _backSeq = 0;        // TEMP-DIAG: Zähler aufeinanderfolgender Backs (<3s = in Folge)
 
 // Pre-Login/Transient-Screens: hier führt „zurück" NICHT ins Menü (kein Login),
 // sondern direkt zum Double-Back-to-Exit.
@@ -86,8 +88,9 @@ const NAV_IGNORE = ['loading-screen','auth-screen','email-confirm-screen',
   'name-screen','apikey-screen'];
 
 // ===================== TEMP-DIAG (Android-Back) — WIEDER ENTFERNEN! =====================
-// Einmalige On-Screen-Diagnose: protokolliert init/popstate/_armGuard/Resume
-// zeitgestempelt. Robust (kein throw), ändert keine Funktionalität, konsumiert nichts.
+// Einmalige On-Screen-Diagnose: protokolliert init/popstate(seq)/armGuard/gesture/
+// resume/pageshow(persisted)/EXIT zeitgestempelt. hs = Wächter-Tiefe. Robust (kein
+// throw), ändert keine Funktionalität, konsumiert nichts.
 let _diagBox = null;
 function _esDiag(msg) {
   try {
@@ -119,9 +122,15 @@ function initBackNav() {
   _navActive = true;
   _esDiag('initBackNav run');  // TEMP-DIAG
   window.addEventListener('popstate', _onBackNavPop);
-  // Rückkehr aus einer anderen App / bfcache: Exit-Fenster verfällt, Tiefe sichern.
+  // Rückkehr aus einer anderen App (Task-Switch): Exit-Fenster verfällt, Tiefe sichern.
   document.addEventListener('visibilitychange', _onAppResume);
-  window.addEventListener('pageshow', _onAppResume);
+  // bfcache-Restore separat behandeln (persisted).
+  window.addEventListener('pageshow', _onPageShow);
+  // Geste-Auffrischung ZUSÄTZLICH zur Tiefen-Mechanik: bei jeder echten Geste auf 2
+  // auffüllen (capture, konsumiert nichts; touchstart passive → Scroll ungestört).
+  document.addEventListener('pointerdown', _refreshGuardOnGesture, true);
+  document.addEventListener('click', _refreshGuardOnGesture, true);
+  document.addEventListener('touchstart', _refreshGuardOnGesture, { capture: true, passive: true });
   _ensureDepth();   // zwei Einträge über dem Ausgang anlegen
   _esDiag('init armed ' + _diagState());  // TEMP-DIAG
 }
@@ -138,9 +147,18 @@ function _ensureDepth() {
   while (_depth < _GUARD_DEPTH) _armGuard();
 }
 
-// Beim Wiederkehren (sichtbar / pageshow): Zeitfenster verfällt → Flag löschen und
-// Tiefe wieder auf 2 auffüllen, damit der nächste Back auf einem Wächter landet
-// (Toast) statt durchzufallen. Funktioniert ohne Nutzer-Interaktion.
+// Geste-Auffrischung ZUSÄTZLICH zur Tiefen-Mechanik. Während des Exit-Fensters
+// (_exitArmed) NICHT auffüllen — dort ist die Tiefe bewusst 1, damit der zweite
+// Back durchpoppt. Sonst: liegt weniger als 2, auf 2 auffüllen (im Geste-Kontext).
+function _refreshGuardOnGesture() {
+  if (_exitArmed || _depth >= _GUARD_DEPTH) return;
+  _ensureDepth();
+  _esDiag('gesture fill ' + _diagState());  // TEMP-DIAG
+}
+
+// Beim Wiederkehren aus einem App-Wechsel (sichtbar): Zeitfenster verfällt → Flag
+// löschen und Tiefe wieder auf 2 auffüllen, damit der nächste Back auf einem
+// Wächter landet (Toast) statt durchzufallen. Ohne Nutzer-Interaktion.
 function _onAppResume() {
   if (document.visibilityState !== 'visible') return;
   _exitArmed = false;
@@ -148,6 +166,21 @@ function _onAppResume() {
   _hideExitToast();
   _ensureDepth();
   _esDiag('resume ' + _diagState());  // TEMP-DIAG
+}
+
+// bfcache-Restore: pageshow mit event.persisted === true. History-Stack kann dann
+// verändert sein → Wächter komplett neu aufbauen (Zähler nullen, zweimal pushState
+// auf hs=2) und Exit-Flag zurücksetzen. Bei normalem Load (persisted=false) nur loggen.
+function _onPageShow(e) {
+  const persisted = !!(e && e.persisted);
+  _esDiag('pageshow persisted=' + (persisted ? 1 : 0) + ' ' + _diagState());  // TEMP-DIAG
+  if (!persisted) return;
+  _depth = 0;
+  _exitArmed = false;
+  if (_exitTimer) { clearTimeout(_exitTimer); _exitTimer = null; }
+  _hideExitToast();
+  _ensureDepth();   // zweimal pushState → hs=2
+  _esDiag('bfcache rebuild ' + _diagState());  // TEMP-DIAG
 }
 
 // Oberstes offenes Overlay finden — generisch über die gemeinsame Kennung der
@@ -171,12 +204,18 @@ function _topOverlay() {
 
 function _onBackNavPop() {
   _depth = Math.max(0, _depth - 1);   // ein Wächter wurde gerade gepoppt
-  _esDiag('POPSTATE ' + _diagState() + ' scr=' + _currentScreen + ' exit=' + (_exitArmed ? 1 : 0));  // TEMP-DIAG
+  // TEMP-DIAG: Back-Folge erkennen (<3s seit letztem popstate = in Folge)
+  const _now = Date.now();
+  _backSeq = (_now - _lastPopTs < 3000) ? _backSeq + 1 : 1;
+  _lastPopTs = _now;
+  _esDiag('POPSTATE seq=' + _backSeq + ' ' + _diagState() + ' scr=' + _currentScreen +
+          ' armed=' + (_exitArmed ? 1 : 0) + ' exitNow=' + (_exitArmed ? 1 : 0));  // TEMP-DIAG
 
   // Zweiter Back im offenen Exit-Fenster → App verlassen. Tiefe wurde eben auf 0
   // gepoppt (wir sitzen auf dem Ausgang); ein einzelner history.back() verlässt
   // die PWA (kein go(-2)). KEIN Auffüllen → Durchpoppen erlaubt.
   if (_exitArmed) {
+    _esDiag('EXIT TRIGGERED ' + _diagState());  // TEMP-DIAG
     _exitArmed = false;
     if (_exitTimer) { clearTimeout(_exitTimer); _exitTimer = null; }
     _hideExitToast();
