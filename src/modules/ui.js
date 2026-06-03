@@ -50,6 +50,9 @@ export function showScreen(id) {
     try { localStorage.setItem('es_last_screen', id); } catch(e) {}
   }
   _currentScreen = id; // aktuellen Screen merken (Android-Back-Layer)
+  _lastBackTs = 0;     // jede Screen-Navigation (vorwärts per Button ODER rückwärts)
+                       // macht das Double-Back-Exit-Fenster ungültig — nur ein echter
+                       // Menü-Back (Branch 4, ohne showScreen) startet es.
 }
 
 // ────────────────────────────────────────────────
