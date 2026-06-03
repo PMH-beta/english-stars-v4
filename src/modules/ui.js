@@ -63,21 +63,20 @@ export function showScreen(id) {
 // Menü (Spiel vorher confirmHome mit Speichern-Nachfrage); (3) im Menü → Double-
 // Back-to-Exit (Toast + Zeitfenster).
 //
-// GRUNDREGEL: Es liegen IMMER zwei Wächter-Einträge über dem Ausgang (_depth=2).
-// Diagnose hat gezeigt: pushState greift auch OHNE Geste — das Problem war die
-// TIEFE. Bei nur einem Eintrag popt der erste Back ihn weg und der zweite fällt
-// durch und verlässt. Mit zwei Einträgen landet der erste (Menü-)Back auf einem
-// Wächter (Toast); erst ein bewusster zweiter Back im Fenster verlässt. Nach
-// jedem abgefangenen Pop wird die Tiefe wieder auf 2 aufgefüllt — auch nach
-// Timer-Ablauf und App-Wechsel, ganz ohne Nutzer-Interaktion (kein Geste-Listener
-// mehr). Ob verlassen wird, entscheidet das Flag _exitArmed. Best-effort: 100%
-// ist auf reiner PWA nicht garantiert.
+// GRUNDREGEL: Der volle Stand ist IMMER zwei Wächter-Einträge über dem Ausgang
+// (_depth=_GUARD_DEPTH=2). Nach JEDEM abgefangenen Ereignis wird via
+// _ensureTwoGuards() wieder voll auf 2 aufgefüllt — abgefangener popstate (inkl.
+// Toast/armed), Timer-Ablauf, Geste (_refreshGuardOnGesture), App-Wechsel
+// (_onAppResume) und pageshow/bfcache (_onPageShow). Der EINZIGE Moment ohne
+// Auffüllen ist der bewusste Exit (zweiter Back im Fenster, _exitArmed) → dort
+// poppt der letzte Eintrag durch und die PWA wird verlassen. So kann ein einzelner
+// Stray-Back nie durchfallen. Best-effort: 100% ist auf reiner PWA nicht garantiert.
 const _GUARD_DEPTH = 2;
 let _currentScreen = 'loading-screen';
 let _navActive = false;
-let _depth = 0;          // Anzahl unserer Wächter-Einträge über dem Ausgang
-let _exitArmed = false;  // erster Menü-Back erfolgt: Zeitfenster läuft (Tiefe bewusst 1)
-let _exitTimer = null;   // Fenster-Timer; feuert am Fensterende (Flag löschen + Tiefe auffüllen)
+let _depth = 0;          // Anzahl unserer Wächter-Einträge über dem Ausgang (Ziel: 2)
+let _exitArmed = false;  // erster Menü-Back erfolgt: Zeitfenster läuft (zweiter Back verlässt)
+let _exitTimer = null;   // Fenster-Timer; feuert am Fensterende (Flag löschen + auf 2 auffüllen)
 let _lastPopTs = 0;      // TEMP-DIAG: Zeitpunkt des letzten popstate (Back-Folge erkennen)
 let _backSeq = 0;        // TEMP-DIAG: Zähler aufeinanderfolgender Backs (<3s = in Folge)
 
@@ -131,7 +130,7 @@ function initBackNav() {
   document.addEventListener('pointerdown', _refreshGuardOnGesture, true);
   document.addEventListener('click', _refreshGuardOnGesture, true);
   document.addEventListener('touchstart', _refreshGuardOnGesture, { capture: true, passive: true });
-  _ensureDepth();   // zwei Einträge über dem Ausgang anlegen
+  _ensureTwoGuards();   // zwei Einträge über dem Ausgang anlegen
   _esDiag('init armed ' + _diagState());  // TEMP-DIAG
 }
 
@@ -143,16 +142,15 @@ function _armGuard() {
 }
 
 // Tiefe auf _GUARD_DEPTH (2) auffüllen — pushState greift auch ohne Geste.
-function _ensureDepth() {
+function _ensureTwoGuards() {
   while (_depth < _GUARD_DEPTH) _armGuard();
 }
 
-// Geste-Auffrischung ZUSÄTZLICH zur Tiefen-Mechanik. Während des Exit-Fensters
-// (_exitArmed) NICHT auffüllen — dort ist die Tiefe bewusst 1, damit der zweite
-// Back durchpoppt. Sonst: liegt weniger als 2, auf 2 auffüllen (im Geste-Kontext).
+// Geste-Auffrischung ZUSÄTZLICH zur Tiefen-Mechanik: bei jeder echten Geste den
+// vollen Stand (hs=2) wiederherstellen. Selbst-drosselnd (No-op wenn schon 2).
 function _refreshGuardOnGesture() {
-  if (_exitArmed || _depth >= _GUARD_DEPTH) return;
-  _ensureDepth();
+  if (_depth >= _GUARD_DEPTH) return;
+  _ensureTwoGuards();
   _esDiag('gesture fill ' + _diagState());  // TEMP-DIAG
 }
 
@@ -164,23 +162,23 @@ function _onAppResume() {
   _exitArmed = false;
   if (_exitTimer) { clearTimeout(_exitTimer); _exitTimer = null; }
   _hideExitToast();
-  _ensureDepth();
+  _ensureTwoGuards();
   _esDiag('resume ' + _diagState());  // TEMP-DIAG
 }
 
-// bfcache-Restore: pageshow mit event.persisted === true. History-Stack kann dann
-// verändert sein → Wächter komplett neu aufbauen (Zähler nullen, zweimal pushState
-// auf hs=2) und Exit-Flag zurücksetzen. Bei normalem Load (persisted=false) nur loggen.
+// pageshow: bei event.persisted (bfcache-Restore) kann der History-Stack verändert
+// sein → Zähler nullen und komplett neu aufbauen. Aber AUCH bei persisted=false
+// (normaler Restore, wie im Log nach App-Wechsel) auf hs=2 auffüllen — der nächste
+// Back muss immer auf einem Wächter landen. Exit-Flag zurücksetzen.
 function _onPageShow(e) {
   const persisted = !!(e && e.persisted);
   _esDiag('pageshow persisted=' + (persisted ? 1 : 0) + ' ' + _diagState());  // TEMP-DIAG
-  if (!persisted) return;
-  _depth = 0;
   _exitArmed = false;
   if (_exitTimer) { clearTimeout(_exitTimer); _exitTimer = null; }
   _hideExitToast();
-  _ensureDepth();   // zweimal pushState → hs=2
-  _esDiag('bfcache rebuild ' + _diagState());  // TEMP-DIAG
+  if (persisted) _depth = 0;   // bfcache: Stack evtl. zerstört → von 0 neu aufbauen
+  _ensureTwoGuards();          // immer auf hs=2 bringen
+  _esDiag('pageshow filled ' + _diagState());  // TEMP-DIAG
 }
 
 // Oberstes offenes Overlay finden — generisch über die gemeinsame Kennung der
@@ -211,9 +209,9 @@ function _onBackNavPop() {
   _esDiag('POPSTATE seq=' + _backSeq + ' ' + _diagState() + ' scr=' + _currentScreen +
           ' armed=' + (_exitArmed ? 1 : 0) + ' exitNow=' + (_exitArmed ? 1 : 0));  // TEMP-DIAG
 
-  // Zweiter Back im offenen Exit-Fenster → App verlassen. Tiefe wurde eben auf 0
-  // gepoppt (wir sitzen auf dem Ausgang); ein einzelner history.back() verlässt
-  // die PWA (kein go(-2)). KEIN Auffüllen → Durchpoppen erlaubt.
+  // Zweiter Back im offenen Exit-Fenster → bewusster Exit. EINZIGER Moment ohne
+  // _ensureTwoGuards: wir füllen NICHT auf, sondern lassen durchpoppen; ein
+  // history.back() schiebt zum Verlassen nach (kein go(-2)).
   if (_exitArmed) {
     _esDiag('EXIT TRIGGERED ' + _diagState());  // TEMP-DIAG
     _exitArmed = false;
@@ -225,33 +223,35 @@ function _onBackNavPop() {
 
   // 1) Modal zuerst: oberstes Overlay schließen, Tiefe wieder auf 2.
   const ov = _topOverlay();
-  if (ov) { try { ov.remove(); } catch(e) {} _ensureDepth(); return; }
+  if (ov) { try { ov.remove(); } catch(e) {} _ensureTwoGuards(); return; }
 
   // 2) Nicht im Menü (und kein Pre-Login-Screen) → zum Menü. Spiel: Speichern-Nachfrage.
   if (_currentScreen === 'game-screen') {
     try { (window.confirmHome || function(){})(); } catch(e) {}
-    _ensureDepth();   // Tiefe IMMER wieder auffüllen, egal wie confirmHome ausgeht
+    _ensureTwoGuards();   // Tiefe IMMER wieder auffüllen, egal wie confirmHome ausgeht
     return;
   }
   if (_currentScreen !== 'menu-screen' && !NAV_IGNORE.includes(_currentScreen)) {
     try { showMenu(); } catch(e) {}
-    _ensureDepth();
+    _ensureTwoGuards();
     return;
   }
 
   // 3) Im Menü (oder Pre-Login): erster Back des Double-Back-to-Exit.
-  // Tiefe ist jetzt 1 (ein Eintrag gepoppt) und wird BEWUSST nicht aufgefüllt →
-  // ein zweiter Back im Fenster poppt den letzten weg und verlässt. Läuft das
-  // Fenster ohne zweiten Back ab, füllt der Timer wieder auf 2 → nächster Back
-  // landet wieder hier und zeigt erneut den Toast.
+  // Toast + Fenster öffnen und SOFORT wieder auf hs=2 auffüllen — der volle Stand
+  // muss nach JEDEM abgefangenen Back wiederhergestellt sein (sonst fällt der
+  // nächste Back durch und verlässt). Verstreicht das Fenster ohne zweiten Back,
+  // füllt der Timer erneut auf 2 (Sicherheitsnetz). Der einzige Moment OHNE
+  // Auffüllen ist der bewusste Exit (exitNow=1, oben behandelt).
   _showExitToast();
   _exitArmed = true;
+  _ensureTwoGuards();
   if (_exitTimer) clearTimeout(_exitTimer);
   _exitTimer = setTimeout(() => {
     _exitArmed = false;
     _exitTimer = null;
     _hideExitToast();
-    _ensureDepth();
+    _ensureTwoGuards();
   }, 2500);
 }
 
