@@ -65,10 +65,15 @@ export function showScreen(id) {
 // Wächter wird NUR gestengedeckt gesetzt (Chrome ignoriert gestenlos erzeugte
 // Einträge beim Back): einmal beim Init, im popstate selbst (gestennah) nach einem
 // abgefangenen In-App-Back, und bei echter Nutzer-Geste, wenn gerade keiner liegt
-// (hält den In-App-Back nach App-Wechsel am Leben). Den finalen Exit fangen wir
-// NICHT mehr ab — auf reiner PWA nicht zuverlässig (Plattformgrenze, s. TWA-To-do).
+// (hält den In-App-Back nach App-Wechsel am Leben). Im Menü: erster Zurück zeigt
+// einen Hinweis-Toast, ein zweiter Zurück innerhalb EXIT_WINDOW verlässt die PWA
+// (zeitbasiert, unabhängig vom Wächter-Stand — sonst hebelt der Wisch-touchstart,
+// der den Wächter sofort nacharmt, das Verlassen aus). Den finalen Exit erzwingen
+// wir nicht (Plattformgrenze, s. TWA-To-do).
+const EXIT_WINDOW = 2000;   // ms: zweiter Menü-Zurück innerhalb = Exit
 let _currentScreen = 'loading-screen';
 let _navActive = false;
+let _lastBackTs = 0;        // Zeitstempel des ersten Menü-Zurück (Double-Back-Fenster)
 
 // Pre-Login/Transient-Screens: hier führt „zurück" NICHT ins Menü (kein Login),
 // sondern direkt zum Toast-Hinweis (Branch 4).
@@ -143,11 +148,17 @@ function _onBackNavPop() {
     return;
   }
 
-  // 4) Im Menü (oder Pre-Login): nur Hinweis-Toast, KEIN Re-Arm → es liegt jetzt
-  // kein Wächter mehr, der nächste Zurück verlässt die PWA (Exit nicht abgefangen,
-  // Plattformgrenze akzeptiert). Tippt das Kind vorher, frischt die Geste den
-  // Wächter wieder auf und der nächste Zurück zeigt erneut den Toast.
-  _showExitToast();
+  // 4) Im Menü (oder Pre-Login): zeitbasierter Double-Back-to-Exit.
+  const now = Date.now();
+  if (_lastBackTs && now - _lastBackTs < EXIT_WINDOW) {
+    _lastBackTs = 0;                 // zweiter Zurück im Fenster → Exit
+    _hideExitToast();
+    try { history.back(); } catch (e) {}
+    return;
+  }
+  _lastBackTs = now;                 // erster Zurück → Hinweis + Zeitstempel
+  _showExitToast();                  // (hat eigenen Auto-Hide)
+  _armGuard();                       // re-armen, damit der 2. Zurück wieder popstate auslöst
 }
 
 // Sofort beim Laden aktivieren — entkoppelt von jedem Screen-Flow.

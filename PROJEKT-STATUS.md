@@ -43,8 +43,10 @@
   gestengedeckt (Init / popstate / Geste wenn keiner liegt) — gestenloses
   Am-Leben-Halten scheitert an Chromes Geste-Sperre. Finaler Exit-Abfang
   BEWUSST aufgegeben (Plattformgrenze, s. TWA-To-do unten). Nach 8
-  Iterationen aufgeräumt: Zwei-Wächter-/Doppel-Klick-/bfcache-/Diagnose-
-  Code entfernt
+  Iterationen aufgeräumt: Zwei-Wächter-/bfcache-/Diagnose-Code entfernt.
+  Im Menü zeitbasierter Double-Back wieder drin (minimal: _lastBackTs +
+  EXIT_WINDOW≈2s; erster Zurück Toast, zweiter <2s verlässt) — unabhängig
+  vom Wächter-Stand, weil der Zurück-Wisch via touchstart sofort nacharmt
 - Statistik-Ansichten neu aufgeteilt: (1) Vorlagen-Deck-Statistik
   tablos (aktive Vorlagen-Kacheln + 3 Wort-Tabellen, openPresetDeckStats),
   (2) Custom-Deck-Statistik unverändert, (3) Fortschritt-Seite neu:
