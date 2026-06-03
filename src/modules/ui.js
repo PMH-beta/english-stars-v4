@@ -53,6 +53,14 @@ export function showScreen(id) {
   _lastBackTs = 0;     // jede Screen-Navigation (vorwärts per Button ODER rückwärts)
                        // macht das Double-Back-Exit-Fenster ungültig — nur ein echter
                        // Menü-Back (Branch 4, ohne showScreen) startet es.
+  // Echte VORWÄRTS-Navigation zu einem In-App-Screen (nicht Menü, nicht Pre-Login)
+  // bekommt einen eigenen History-Eintrag, damit der Zurück erst zum Menü navigiert
+  // (Branch 3) statt sofort den Menü-Exit (Branch 4) auszulösen. NICHT aus dem
+  // popstate-Handler heraus (= Zurück-Navigation) und nicht doppelt stapeln.
+  const _isInAppScreen = id !== 'menu-screen' && !NAV_IGNORE.includes(id);
+  if (!_inPopstate && _isInAppScreen && !(history.state && history.state.esScreen)) {
+    try { history.pushState({ esScreen: true }, ''); } catch (e) {}
+  }
 }
 
 // ────────────────────────────────────────────────
@@ -77,6 +85,7 @@ const EXIT_WINDOW = 2000;   // ms: zweiter Menü-Zurück innerhalb = Exit
 let _currentScreen = 'loading-screen';
 let _navActive = false;
 let _lastBackTs = 0;        // Zeitstempel des ersten Menü-Zurück (Double-Back-Fenster)
+let _inPopstate = false;    // true während _onBackNavPop läuft → unterdrückt Screen-Push in showScreen
 
 // Pre-Login/Transient-Screens: hier führt „zurück" NICHT ins Menü (kein Login),
 // sondern direkt zum Toast-Hinweis (Branch 4).
@@ -98,20 +107,27 @@ function initBackNav() {
 
 // Einen Wächter-Eintrag legen — gleiche URL (kein Hash-Wechsel!), damit die
 // Passwort-Recovery-Erkennung (location.hash type=recovery in startup.js) bleibt.
-// Marker esBackGuard, damit _guardPresent() ihn erkennt.
 function _armGuard() {
   try { history.pushState({ esBackGuard: true }, ''); } catch(e) {}
 }
 
-// Liegt aktuell ein Wächter oben auf der History? history.state als Quelle der Wahrheit.
-function _guardPresent() {
-  return !!(history.state && history.state.esBackGuard);
+// Liegt oben ein abfangbarer Back-Eintrag? Das ist ENTWEDER der Menü-Wächter
+// (esBackGuard) ODER ein Screen-Eintrag (esScreen, von showScreen gepusht). Beide
+// lösen beim Zurück ein popstate aus, das wir abfangen — ein zweiter darf NICHT
+// drauf (sonst Stapel-Aufbau).
+function _hasBackEntry() {
+  return !!(history.state && (history.state.esBackGuard || history.state.esScreen));
+}
+
+// Genau einen Back-Eintrag oben sicherstellen — nur pushen, wenn keiner liegt.
+function _ensureGuard() {
+  if (!_hasBackEntry()) _armGuard();
 }
 
 // Bei echter Nutzer-Geste den Wächter wiederherstellen, wenn keiner liegt (z.B. nach
 // App-Wechsel, wo der Eintrag verlorenging) — gestengedeckt, von Chrome akzeptiert.
 function _refreshGuardOnGesture() {
-  if (!_guardPresent()) _armGuard();
+  _ensureGuard();
 }
 
 // Oberstes offenes Overlay finden — generisch über die gemeinsame Kennung der
@@ -134,38 +150,45 @@ function _topOverlay() {
 }
 
 function _onBackNavPop() {
-  // In-App-Navigation (Branch 1–3) ist KEIN Menü-Back: das Exit-Fenster zurück-
-  // setzen, damit der erste Zurück IM Menü danach frisch als „erster" zählt.
-  // 1) Modal zuerst: oberstes Overlay schließen, Wächter gestennah neu setzen.
-  const ov = _topOverlay();
-  if (ov) { try { ov.remove(); } catch(e) {} _lastBackTs = 0; _armGuard(); return; }
+  // _inPopstate unterdrückt den Screen-Push in showScreen, wenn showMenu/confirmHome
+  // aus diesem Handler heraus (= Zurück-Navigation) gerufen werden. finally stellt
+  // sicher, dass das Flag auch bei frühem return / Fehler zurückgesetzt wird.
+  _inPopstate = true;
+  try {
+    // In-App-Navigation (Branch 1–3) ist KEIN Menü-Back → Exit-Fenster voiden.
+    // 1) Modal zuerst: oberstes Overlay schließen, Back-Eintrag sicherstellen.
+    const ov = _topOverlay();
+    if (ov) { try { ov.remove(); } catch(e) {} _lastBackTs = 0; _ensureGuard(); return; }
 
-  // 2) Spiel → Menü mit Speichern-Nachfrage.
-  if (_currentScreen === 'game-screen') {
-    try { (window.confirmHome || function(){})(); } catch(e) {}
-    _lastBackTs = 0;
-    _armGuard();   // Wächter IMMER neu, egal wie confirmHome ausgeht (sonst hängt keiner)
-    return;
-  }
-  // 3) Sonst nicht im Menü (und kein Pre-Login-Screen) → Menü.
-  if (_currentScreen !== 'menu-screen' && !NAV_IGNORE.includes(_currentScreen)) {
-    try { showMenu(); } catch(e) {}
-    _lastBackTs = 0;
-    _armGuard();
-    return;
-  }
+    // 2) Spiel → Menü mit Speichern-Nachfrage.
+    if (_currentScreen === 'game-screen') {
+      try { (window.confirmHome || function(){})(); } catch(e) {}
+      _lastBackTs = 0;
+      _ensureGuard();   // Back-Eintrag IMMER sicherstellen, egal wie confirmHome ausgeht
+      return;
+    }
+    // 3) Sonst nicht im Menü (und kein Pre-Login-Screen) → Menü.
+    if (_currentScreen !== 'menu-screen' && !NAV_IGNORE.includes(_currentScreen)) {
+      try { showMenu(); } catch(e) {}
+      _lastBackTs = 0;
+      _ensureGuard();
+      return;
+    }
 
-  // 4) Im Menü (oder Pre-Login): zeitbasierter Double-Back-to-Exit.
-  const now = Date.now();
-  if (_lastBackTs && now - _lastBackTs < EXIT_WINDOW) {
-    _lastBackTs = 0;                 // zweiter Zurück im Fenster → Exit
-    _hideExitToast();
-    try { history.back(); } catch (e) {}
-    return;
+    // 4) Im Menü (oder Pre-Login): zeitbasierter Double-Back-to-Exit.
+    const now = Date.now();
+    if (_lastBackTs && now - _lastBackTs < EXIT_WINDOW) {
+      _lastBackTs = 0;                 // zweiter Zurück im Fenster → Exit
+      _hideExitToast();
+      try { history.back(); } catch (e) {}
+      return;
+    }
+    _lastBackTs = now;                 // erster Zurück → Hinweis + Zeitstempel
+    _showExitToast();                  // (hat eigenen Auto-Hide)
+    _ensureGuard();                    // re-armen, damit der 2. Zurück wieder popstate auslöst
+  } finally {
+    _inPopstate = false;
   }
-  _lastBackTs = now;                 // erster Zurück → Hinweis + Zeitstempel
-  _showExitToast();                  // (hat eigenen Auto-Hide)
-  _armGuard();                       // re-armen, damit der 2. Zurück wieder popstate auslöst
 }
 
 // Sofort beim Laden aktivieren — entkoppelt von jedem Screen-Flow.
