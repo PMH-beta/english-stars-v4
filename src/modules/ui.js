@@ -81,9 +81,40 @@ const NAV_IGNORE = ['loading-screen','auth-screen','email-confirm-screen',
   'password-reset-screen','password-reset-sent-screen','new-password-screen',
   'name-screen','apikey-screen'];
 
+// ===================== TEMP-DIAG (Android-Back) — WIEDER ENTFERNEN! =====================
+// Einmalige On-Screen-Diagnose: protokolliert init/popstate/_armGuard/Geste/Resume
+// zeitgestempelt. Robust (kein throw), ändert keine Funktionalität, konsumiert nichts.
+let _diagBox = null;
+let _diagLastGesture = 0;
+function _esDiag(msg) {
+  try {
+    if (!_diagBox) {
+      _diagBox = document.createElement('div');
+      _diagBox.id = '_es-diag';
+      _diagBox.style.cssText = 'position:fixed;top:4px;right:4px;z-index:2147483647;' +
+        'max-width:64vw;max-height:48vh;overflow:hidden;pointer-events:none;' +
+        'background:rgba(0,0,0,.55);color:#0f0;font:10px/1.25 monospace;' +
+        'padding:4px 6px;border-radius:6px;white-space:pre-wrap;word-break:break-word;';
+      (document.body || document.documentElement).appendChild(_diagBox);
+    }
+    const t = new Date().toISOString().slice(11, 23); // HH:MM:SS.mmm
+    const line = document.createElement('div');
+    line.textContent = t + ' ' + msg;
+    _diagBox.insertBefore(line, _diagBox.firstChild);  // neueste oben
+    while (_diagBox.childNodes.length > 24) _diagBox.removeChild(_diagBox.lastChild);
+  } catch (e) {}
+}
+function _diagState() {  // hs = history.state vorhanden?  g = Wächter laut esBackGuard?
+  let hs = 0, g = 0;
+  try { hs = history.state ? 1 : 0; g = _guardPresent() ? 1 : 0; } catch (e) {}
+  return 'hs=' + hs + ' g=' + g;
+}
+// =================== /TEMP-DIAG ===================
+
 function initBackNav() {
   if (_navActive) return;
   _navActive = true;
+  _esDiag('initBackNav run');  // TEMP-DIAG
   window.addEventListener('popstate', _onBackNavPop);
   // Rückkehr aus einer anderen App / bfcache: Exit-Fenster verfällt, Wächter sichern.
   document.addEventListener('visibilitychange', _onAppResume);
@@ -96,12 +127,14 @@ function initBackNav() {
   document.addEventListener('click', _refreshGuardOnGesture, true);
   document.addEventListener('touchstart', _refreshGuardOnGesture, { capture: true, passive: true });
   _armGuard();
+  _esDiag('init armed ' + _diagState());  // TEMP-DIAG
 }
 
 // Wächter-Eintrag legen — gleiche URL (kein Hash-Wechsel!), damit die Passwort-
 // Recovery-Erkennung (location.hash type=recovery in startup.js) unberührt bleibt.
 function _armGuard() {
   try { history.pushState({ esBackGuard: true }, ''); } catch(e) {}
+  _esDiag('armGuard ' + _diagState());  // TEMP-DIAG
 }
 
 // Liegt aktuell ein gültiger Wächter oben auf der History? history.state ist die
@@ -117,7 +150,14 @@ function _guardPresent() {
 // wenn nicht, jetzt im Geste-Kontext einen legen (von Chrome akzeptiert). Selbst-
 // drosselnd: gepusht wird nur, wenn keiner liegt (sonst No-op pro Tap).
 function _refreshGuardOnGesture() {
-  if (!_guardPresent()) _armGuard();
+  const had = _guardPresent();  // TEMP-DIAG: Zustand VOR dem evtl. Neusetzen
+  if (!had) _armGuard();
+  // TEMP-DIAG: gedrosselt ~1 Zeile pro Tap (pointerdown+touchstart+click koaleszieren)
+  const now = Date.now();
+  if (now - _diagLastGesture > 250) {
+    _diagLastGesture = now;
+    _esDiag('gesture ' + (had ? 'lay' : 'SET') + ' ' + _diagState());
+  }
 }
 
 // Beim Wiederkehren (sichtbar / pageshow): Zeitfenster verfällt. Flag löschen —
@@ -127,10 +167,12 @@ function _refreshGuardOnGesture() {
 // Auffrischung beim nächsten Tap (_refreshGuardOnGesture).
 function _onAppResume() {
   if (document.visibilityState !== 'visible') return;
+  const had = _guardPresent();  // TEMP-DIAG
   _exitArmed = false;
   if (_exitTimer) { clearTimeout(_exitTimer); _exitTimer = null; }
   _hideExitToast();
   if (!_guardPresent()) _armGuard();
+  _esDiag('resume guardWas=' + (had ? 1 : 0) + ' ' + _diagState());  // TEMP-DIAG
 }
 
 // Oberstes offenes Overlay finden — generisch über die gemeinsame Kennung der
@@ -153,6 +195,7 @@ function _topOverlay() {
 }
 
 function _onBackNavPop() {
+  _esDiag('POPSTATE ' + _diagState() + ' scr=' + _currentScreen + ' exit=' + (_exitArmed ? 1 : 0));  // TEMP-DIAG
   // Der gepoppte Eintrag war unser Wächter. In jedem abgefangenen Zweig legen wir
   // ihn SYNCHRON neu (gestennah im popstate → nicht verschluckt), sodass immer
   // genau einer liegt.
