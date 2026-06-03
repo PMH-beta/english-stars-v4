@@ -90,8 +90,11 @@ function initBackNav() {
   window.addEventListener('pageshow', _onAppResume);
   // Geste-gedeckte Auffrischung (s. _refreshGuardOnGesture). Capture, damit auch
   // Events mit stopPropagation uns erreichen; wir konsumieren das Event nicht.
+  // touchstart zusätzlich (passive) → auch Berührungsbeginn von Scroll/Wisch
+  // frischt auf, ohne Scrollen zu blockieren.
   document.addEventListener('pointerdown', _refreshGuardOnGesture, true);
   document.addEventListener('click', _refreshGuardOnGesture, true);
+  document.addEventListener('touchstart', _refreshGuardOnGesture, { capture: true, passive: true });
   _armGuard();
 }
 
