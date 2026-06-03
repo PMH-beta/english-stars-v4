@@ -63,10 +63,13 @@ export function showScreen(id) {
 // Menü (Spiel vorher confirmHome mit Speichern-Nachfrage); (3) im Menü → Double-
 // Back-to-Exit (Toast + Zeitfenster).
 //
-// GRUNDREGEL: Es liegt IMMER genau ein Wächter. Re-Arming passiert ausschließlich
-// im popstate (= Folge des Back-Drucks → gestennah, pushState wird NICHT von
-// Android-Chrome verschluckt), nie per Timer ohne Geste. Ob die App verlassen
-// wird, entscheidet allein das Flag _exitArmed — nicht das Fehlen eines Wächters.
+// GRUNDREGEL: Es liegt möglichst immer genau ein Wächter. Re-Arming passiert
+// gestengedeckt — im popstate (Folge des Back-Drucks) und bei jeder Nutzer-Geste
+// (_refreshGuardOnGesture), weil Chrome gestenlos erzeugte History-Einträge beim
+// Back überspringt (Anti-Trap-Intervention). Gestenlose Versuche (Lade-Wächter,
+// _onAppResume) sind nur Fallback; verlässlich wird der Wächter beim nächsten Tap.
+// Ob die App verlassen wird, entscheidet allein das Flag _exitArmed — NICHT das
+// Fehlen eines Wächters. Best-effort: 100% ist auf reiner PWA nicht erreichbar.
 let _currentScreen = 'loading-screen';
 let _navActive = false;
 let _exitArmed = false;  // erster Menü-Back erfolgt: Zeitfenster läuft (Wächter liegt trotzdem)
@@ -85,6 +88,10 @@ function initBackNav() {
   // Rückkehr aus einer anderen App / bfcache: Exit-Fenster verfällt, Wächter sichern.
   document.addEventListener('visibilitychange', _onAppResume);
   window.addEventListener('pageshow', _onAppResume);
+  // Geste-gedeckte Auffrischung (s. _refreshGuardOnGesture). Capture, damit auch
+  // Events mit stopPropagation uns erreichen; wir konsumieren das Event nicht.
+  document.addEventListener('pointerdown', _refreshGuardOnGesture, true);
+  document.addEventListener('click', _refreshGuardOnGesture, true);
   _armGuard();
 }
 
@@ -94,16 +101,33 @@ function _armGuard() {
   try { history.pushState({ esBackGuard: true }, ''); } catch(e) {}
 }
 
+// Liegt aktuell ein gültiger Wächter oben auf der History? history.state ist die
+// echte Quelle der Wahrheit (selbst-heilend): überspringt Chrome unseren Eintrag,
+// fällt dies hier auf, und die nächste Geste legt einen neuen.
+function _guardPresent() {
+  return !!(history.state && history.state.esBackGuard);
+}
+
+// Best-effort-Härtung gegen Chromes Anti-Trap-Intervention: Einträge, die OHNE
+// Nutzer-Geste erzeugt wurden (Lade-Wächter, Timer, _onAppResume), überspringt
+// Chrome beim Back. Darum bei JEDER echten Geste prüfen, ob ein Wächter liegt —
+// wenn nicht, jetzt im Geste-Kontext einen legen (von Chrome akzeptiert). Selbst-
+// drosselnd: gepusht wird nur, wenn keiner liegt (sonst No-op pro Tap).
+function _refreshGuardOnGesture() {
+  if (!_guardPresent()) _armGuard();
+}
+
 // Beim Wiederkehren (sichtbar / pageshow): Zeitfenster verfällt. Flag löschen —
 // das allein garantiert, dass der nächste Back den Toast zeigt statt zu verlassen,
-// selbst falls der (gestenlose) pushState hier verschluckt würde. Wächter nur neu
-// legen, wenn laut history.state keiner mehr liegt.
+// selbst falls der (gestenlose) pushState hier verschluckt würde. Der gestenlose
+// _armGuard() ist nur ein Versuch; die echte Absicherung ist die geste-gedeckte
+// Auffrischung beim nächsten Tap (_refreshGuardOnGesture).
 function _onAppResume() {
   if (document.visibilityState !== 'visible') return;
   _exitArmed = false;
   if (_exitTimer) { clearTimeout(_exitTimer); _exitTimer = null; }
   _hideExitToast();
-  if (!history.state || !history.state.esBackGuard) _armGuard();
+  if (!_guardPresent()) _armGuard();
 }
 
 // Oberstes offenes Overlay finden — generisch über die gemeinsame Kennung der
