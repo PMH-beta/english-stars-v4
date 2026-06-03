@@ -33,16 +33,18 @@
   Musik-Auto-Resume entfernt (stoppt im Hintergrund, kein Selbststart);
   Relaunch-Restore (es_last_screen → Menü/Profil/Fortschritt);
   controllerchange-Reload aufgeschoben bei Nutzung
-- Android Zurück-Button: Back-Layer SOFORT beim Laden aktiv (ui.js,
-  initBackNav via DOMContentLoaded — nicht an Menü/Login gekoppelt,
-  sonst kein Wächter → PWA schließt sich). Zurück: offenes Overlay
-  schließen (Kennung position:fixed+z-index:9999/.es-overlay), sonst
-  nicht im Menü → Menü (Spiel vorher confirmHome mit Speichern-Nachfrage),
-  im Menü → Double-Back-to-Exit: 1. Zurück Toast „Zum Schließen erneut
-  zurück" + Wächter NICHT re-armen (Zeitfenster ~2,5 s), 2. Zurück im
-  Fenster läuft durch → App verlässt von selbst; Fenster verstreicht →
-  re-armen. History-Wächter mit gleicher URL (Recovery-Hash unberührt),
-  nach jedem abgefangenen Zurück neu gesetzt (außer 1. Menü-Back)
+- Android Zurück-Button (In-App-Back): Back-Layer SOFORT beim Laden aktiv
+  (ui.js, initBackNav via DOMContentLoaded — nicht an Menü/Login gekoppelt).
+  History-Wächter (pushState, gleiche URL → Recovery-Hash unberührt) +
+  popstate: (1) offenes Overlay schließen (Kennung position:fixed+
+  z-index:9999/.es-overlay), (2) Spiel → confirmHome, (3) sonst nicht im
+  Menü → Menü; danach Wächter gestennah neu. (4) im Menü → Hinweis-Toast
+  (auto-hide), KEIN Re-Arm → nächster Zurück verlässt die PWA. Wächter NUR
+  gestengedeckt (Init / popstate / Geste wenn keiner liegt) — gestenloses
+  Am-Leben-Halten scheitert an Chromes Geste-Sperre. Finaler Exit-Abfang
+  BEWUSST aufgegeben (Plattformgrenze, s. TWA-To-do unten). Nach 8
+  Iterationen aufgeräumt: Zwei-Wächter-/Doppel-Klick-/bfcache-/Diagnose-
+  Code entfernt
 - Statistik-Ansichten neu aufgeteilt: (1) Vorlagen-Deck-Statistik
   tablos (aktive Vorlagen-Kacheln + 3 Wort-Tabellen, openPresetDeckStats),
   (2) Custom-Deck-Statistik unverändert, (3) Fortschritt-Seite neu:
@@ -50,6 +52,12 @@
   über alle Decks; Mastery zentral in stats.js (isStatMastered)
 
 ## Offen
+- TWA-Wrapper (Trusted Web Activity, Bubblewrap/Play Store): einziger
+  Weg, den Android-Hardware-Back zuverlässig abzufangen (onBackPressed)
+  → echtes Double-Back-to-Exit. Auf reiner PWA nicht möglich (Chrome
+  ignoriert gestenlos gesetzte History-Wächter). Aktuell: In-App-Back
+  funktioniert, finaler Exit verlässt direkt. Erst beim Store-Schritt
+  relevant (zusammen mit DSGVO/COPPA-Punkten unten)
 - Live-Gang v4: wird DIE Hauptversion, v3.44/altes Repo verfällt,
   Repo-Umbenennung später
 - Größerer Ausbau / Lehrer-Funktionen (Schul-Pitch verworfen,

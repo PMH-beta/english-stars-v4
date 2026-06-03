@@ -53,129 +53,57 @@ export function showScreen(id) {
 }
 
 // ────────────────────────────────────────────────
-//  ANDROID ZURÜCK-BUTTON — Back-Layer
+//  ANDROID ZURÜCK-BUTTON — Back-Layer (In-App-Back)
 // ────────────────────────────────────────────────
-// SOFORT beim App-Start aktiv (nicht an menu-screen gekoppelt): ein History-
-// Wächter + popstate-Listener fangen den Hardware-/Gesten-Zurück ab, bevor er die
-// PWA verlässt. showScreen merkt nur den aktuellen Screen (_currentScreen).
+// Ein History-Wächter (pushState) + popstate-Listener fangen den Hardware-/Gesten-
+// Zurück ab, solange ein Wächter liegt. showScreen merkt nur _currentScreen.
 //
-// Zurück-Logik (popstate): (1) offenes Overlay schließen; (2) nicht im Menü → zum
-// Menü (Spiel vorher confirmHome mit Speichern-Nachfrage); (3) im Menü → Double-
-// Back-to-Exit (Toast + Zeitfenster).
+// Zurück-Logik (popstate): (1) offenes Overlay schließen; (2) Spiel → confirmHome
+// (Speichern-Nachfrage); (3) nicht im Menü → Menü; (4) im Menü → Toast-Hinweis und
+// KEIN Re-Arm, sodass der nächste Zurück die PWA verlässt.
 //
-// ANSATZ (letzter PWA-Versuch): NICHT mehr gegen Chromes Geste-Sperre kämpfen.
-// Chrome ignoriert Wächter-Einträge, die OHNE frische Nutzergeste gesetzt wurden
-// (Timer, pageshow, resume) → künstliches Am-Leben-Halten scheitert. Deshalb:
-//  • Wächter NUR gestengedeckt setzen: einmal beim Init, bei echten Gesten
-//    (_refreshGuardOnGesture) und im popstate selbst (gilt als gestennah).
-//  • KEIN gestenloses Re-Arm: kein _ensureTwoGuards per Timer/pageshow/resume.
-//  • Exit rein ZEITBASIERT (Double-Back < EXIT_WINDOW), unabhängig vom Wächter.
-// Bewusst akzeptiert: nach langer Inaktivität OHNE Geste KANN der erste Zurück die
-// App verlassen (Plattformgrenze). Solange das Kind tippt, liegt ein Wächter und
-// der erste Zurück zeigt den Toast.
-const _GUARD_DEPTH = 2;
-const EXIT_WINDOW = 2000;   // ms: zweiter Zurück innerhalb = Exit
+// Wächter wird NUR gestengedeckt gesetzt (Chrome ignoriert gestenlos erzeugte
+// Einträge beim Back): einmal beim Init, im popstate selbst (gestennah) nach einem
+// abgefangenen In-App-Back, und bei echter Nutzer-Geste, wenn gerade keiner liegt
+// (hält den In-App-Back nach App-Wechsel am Leben). Den finalen Exit fangen wir
+// NICHT mehr ab — auf reiner PWA nicht zuverlässig (Plattformgrenze, s. TWA-To-do).
 let _currentScreen = 'loading-screen';
 let _navActive = false;
-let _depth = 0;          // Anzahl unserer Wächter-Einträge über dem Ausgang (Ziel: 2)
-let _lastBackTs = 0;     // Zeitstempel des ersten Menü-Zurück (Double-Back-Fenster)
-let _exitTimer = null;   // blendet Toast nach EXIT_WINDOW aus — KEIN Re-Arm
-let _lastPopTs = 0;      // TEMP-DIAG: Zeitpunkt des letzten popstate (Back-Folge erkennen)
-let _backSeq = 0;        // TEMP-DIAG: Zähler aufeinanderfolgender Backs (<3s = in Folge)
 
 // Pre-Login/Transient-Screens: hier führt „zurück" NICHT ins Menü (kein Login),
-// sondern direkt zum Double-Back-to-Exit.
+// sondern direkt zum Toast-Hinweis (Branch 4).
 const NAV_IGNORE = ['loading-screen','auth-screen','email-confirm-screen',
   'password-reset-screen','password-reset-sent-screen','new-password-screen',
   'name-screen','apikey-screen'];
 
-// ===================== TEMP-DIAG (Android-Back) — WIEDER ENTFERNEN! =====================
-// Einmalige On-Screen-Diagnose: protokolliert init/popstate(seq)/armGuard/gesture/
-// resume/pageshow(persisted)/EXIT zeitgestempelt. hs = Wächter-Tiefe. Robust (kein
-// throw), ändert keine Funktionalität, konsumiert nichts.
-let _diagBox = null;
-function _esDiag(msg) {
-  try {
-    if (!_diagBox) {
-      _diagBox = document.createElement('div');
-      _diagBox.id = '_es-diag';
-      _diagBox.style.cssText = 'position:fixed;top:4px;right:4px;z-index:2147483647;' +
-        'max-width:64vw;max-height:48vh;overflow:hidden;pointer-events:none;' +
-        'background:rgba(0,0,0,.55);color:#0f0;font:10px/1.25 monospace;' +
-        'padding:4px 6px;border-radius:6px;white-space:pre-wrap;word-break:break-word;';
-      (document.body || document.documentElement).appendChild(_diagBox);
-    }
-    const t = new Date().toISOString().slice(11, 23); // HH:MM:SS.mmm
-    const line = document.createElement('div');
-    line.textContent = t + ' ' + msg;
-    _diagBox.insertBefore(line, _diagBox.firstChild);  // neueste oben
-    while (_diagBox.childNodes.length > 24) _diagBox.removeChild(_diagBox.lastChild);
-  } catch (e) {}
-}
-function _diagState() {  // hs = Wächter-Tiefe über Ausgang;  st = history.state vorhanden?
-  let st = 0;
-  try { st = history.state ? 1 : 0; } catch (e) {}
-  return 'hs=' + _depth + ' st=' + st;
-}
-// =================== /TEMP-DIAG ===================
-
 function initBackNav() {
   if (_navActive) return;
   _navActive = true;
-  _esDiag('initBackNav run');  // TEMP-DIAG
   window.addEventListener('popstate', _onBackNavPop);
-  // Rückkehr aus einer anderen App (Task-Switch): Exit-Fenster verfällt, Tiefe sichern.
-  document.addEventListener('visibilitychange', _onAppResume);
-  // bfcache-Restore separat behandeln (persisted).
-  window.addEventListener('pageshow', _onPageShow);
-  // Geste-Auffrischung ZUSÄTZLICH zur Tiefen-Mechanik: bei jeder echten Geste auf 2
-  // auffüllen (capture, konsumiert nichts; touchstart passive → Scroll ungestört).
+  // Gestengedeckter Re-Arm: stellt den Wächter nach App-Wechsel beim nächsten Tap
+  // wieder her (capture, konsumiert nichts; touchstart passive → Scroll ungestört).
   document.addEventListener('pointerdown', _refreshGuardOnGesture, true);
   document.addEventListener('click', _refreshGuardOnGesture, true);
   document.addEventListener('touchstart', _refreshGuardOnGesture, { capture: true, passive: true });
-  _ensureTwoGuards();   // zwei Einträge über dem Ausgang anlegen
-  _esDiag('init armed ' + _diagState());  // TEMP-DIAG
+  _armGuard();
 }
 
 // Einen Wächter-Eintrag legen — gleiche URL (kein Hash-Wechsel!), damit die
 // Passwort-Recovery-Erkennung (location.hash type=recovery in startup.js) bleibt.
+// Marker esBackGuard, damit _guardPresent() ihn erkennt.
 function _armGuard() {
-  try { history.pushState({ esBackGuard: true }, ''); _depth++; } catch(e) {}
-  _esDiag('armGuard ' + _diagState());  // TEMP-DIAG
+  try { history.pushState({ esBackGuard: true }, ''); } catch(e) {}
 }
 
-// Tiefe auf _GUARD_DEPTH (2) auffüllen — pushState greift auch ohne Geste.
-function _ensureTwoGuards() {
-  while (_depth < _GUARD_DEPTH) _armGuard();
+// Liegt aktuell ein Wächter oben auf der History? history.state als Quelle der Wahrheit.
+function _guardPresent() {
+  return !!(history.state && history.state.esBackGuard);
 }
 
-// Geste-Auffrischung ZUSÄTZLICH zur Tiefen-Mechanik: bei jeder echten Geste den
-// vollen Stand (hs=2) wiederherstellen. Selbst-drosselnd (No-op wenn schon 2).
+// Bei echter Nutzer-Geste den Wächter wiederherstellen, wenn keiner liegt (z.B. nach
+// App-Wechsel, wo der Eintrag verlorenging) — gestengedeckt, von Chrome akzeptiert.
 function _refreshGuardOnGesture() {
-  if (_depth >= _GUARD_DEPTH) return;
-  _ensureTwoGuards();
-  _esDiag('gesture fill ' + _diagState());  // TEMP-DIAG
-}
-
-// Beim Wiederkehren aus einem App-Wechsel (sichtbar): nur Zustand resetten, KEIN
-// Re-Arm — ein gestenloser pushState würde von Chrome ignoriert. Der Wächter kommt
-// beim nächsten Tap (gestengedeckt) zurück.
-function _onAppResume() {
-  if (document.visibilityState !== 'visible') return;
-  _lastBackTs = 0;
-  if (_exitTimer) { clearTimeout(_exitTimer); _exitTimer = null; }
-  _hideExitToast();
-  _esDiag('resume (no re-arm) ' + _diagState());  // TEMP-DIAG
-}
-
-// pageshow (auch bfcache, event.persisted): ebenfalls KEIN gestenloses Re-Arm.
-// Nur Zustand resetten und loggen; Wächter kommt beim nächsten Tap zurück.
-function _onPageShow(e) {
-  const persisted = !!(e && e.persisted);
-  _esDiag('pageshow persisted=' + (persisted ? 1 : 0) + ' ' + _diagState());  // TEMP-DIAG
-  _lastBackTs = 0;
-  if (_exitTimer) { clearTimeout(_exitTimer); _exitTimer = null; }
-  _hideExitToast();
+  if (!_guardPresent()) _armGuard();
 }
 
 // Oberstes offenes Overlay finden — generisch über die gemeinsame Kennung der
@@ -198,52 +126,28 @@ function _topOverlay() {
 }
 
 function _onBackNavPop() {
-  _depth = Math.max(0, _depth - 1);   // ein Wächter wurde gerade gepoppt
-  // TEMP-DIAG: Back-Folge erkennen (<3s seit letztem popstate = in Folge)
-  const _now = Date.now();
-  _backSeq = (_now - _lastPopTs < 3000) ? _backSeq + 1 : 1;
-  _lastPopTs = _now;
-  _esDiag('POPSTATE seq=' + _backSeq + ' ' + _diagState() + ' scr=' + _currentScreen +
-          ' dtBack=' + (_lastBackTs ? (_now - _lastBackTs) : -1));  // TEMP-DIAG
-
-  // 1) Modal zuerst: oberstes Overlay schließen, gestennah wieder auffüllen.
+  // 1) Modal zuerst: oberstes Overlay schließen, Wächter gestennah neu setzen.
   const ov = _topOverlay();
-  if (ov) { try { ov.remove(); } catch(e) {} _ensureTwoGuards(); return; }
+  if (ov) { try { ov.remove(); } catch(e) {} _armGuard(); return; }
 
-  // 2) Nicht im Menü (und kein Pre-Login-Screen) → zum Menü. Spiel: Speichern-Nachfrage.
+  // 2) Spiel → Menü mit Speichern-Nachfrage.
   if (_currentScreen === 'game-screen') {
     try { (window.confirmHome || function(){})(); } catch(e) {}
-    _ensureTwoGuards();   // Tiefe IMMER wieder auffüllen, egal wie confirmHome ausgeht
+    _armGuard();   // Wächter IMMER neu, egal wie confirmHome ausgeht (sonst hängt keiner)
     return;
   }
+  // 3) Sonst nicht im Menü (und kein Pre-Login-Screen) → Menü.
   if (_currentScreen !== 'menu-screen' && !NAV_IGNORE.includes(_currentScreen)) {
     try { showMenu(); } catch(e) {}
-    _ensureTwoGuards();
+    _armGuard();
     return;
   }
 
-  // 3) Im Menü (oder Pre-Login): Double-Back-to-Exit, ZEITBASIERT (unabhängig vom
-  // Wächter-Stand). Zweiter Zurück innerhalb EXIT_WINDOW → Exit: NICHT auffüllen,
-  // durchlassen; ein history.back() schiebt zum Verlassen nach (best-effort).
-  if (_lastBackTs && _now - _lastBackTs < EXIT_WINDOW) {
-    _esDiag('EXIT (double-back) ' + _diagState());  // TEMP-DIAG
-    _lastBackTs = 0;
-    if (_exitTimer) { clearTimeout(_exitTimer); _exitTimer = null; }
-    _hideExitToast();
-    try { history.back(); } catch(e) {}
-    return;
-  }
-  // Erster Zurück (oder letzter >EXIT_WINDOW her): Toast, Zeitstempel, gestennah
-  // auffüllen (im popstate gilt als gestennah → Chrome akzeptiert den pushState).
+  // 4) Im Menü (oder Pre-Login): nur Hinweis-Toast, KEIN Re-Arm → es liegt jetzt
+  // kein Wächter mehr, der nächste Zurück verlässt die PWA (Exit nicht abgefangen,
+  // Plattformgrenze akzeptiert). Tippt das Kind vorher, frischt die Geste den
+  // Wächter wieder auf und der nächste Zurück zeigt erneut den Toast.
   _showExitToast();
-  _lastBackTs = _now;
-  _ensureTwoGuards();
-  if (_exitTimer) clearTimeout(_exitTimer);
-  _exitTimer = setTimeout(() => {   // nur Optik: Toast aus + Fenster schließen, KEIN Re-Arm
-    _exitTimer = null;
-    _hideExitToast();
-    _lastBackTs = 0;
-  }, EXIT_WINDOW);
 }
 
 // Sofort beim Laden aktivieren — entkoppelt von jedem Screen-Flow.
@@ -255,8 +159,9 @@ if (typeof window !== 'undefined') {
   }
 }
 
-// Double-Back-Toast — z-index 10000 (NICHT 9999), damit _topOverlay ihn nicht als
-// Modal greift. Dezenter Hinweis beim ersten Menü-Back; blendet am Fensterende aus.
+// Hinweis-Toast beim ersten Menü-Back — z-index 10000 (NICHT 9999), damit
+// _topOverlay ihn nicht als Modal greift. Blendet sich nach kurzer Zeit selbst aus.
+let _toastTimer = null;
 function _showExitToast() {
   let t = document.getElementById('_es-exit-toast');
   if (!t) {
@@ -268,6 +173,8 @@ function _showExitToast() {
   }
   void t.offsetWidth; // reflow → fade-in greift
   t.style.opacity = '1';
+  if (_toastTimer) clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(_hideExitToast, 2000);   // Auto-Hide (reine Kosmetik)
 }
 
 function _hideExitToast() {
