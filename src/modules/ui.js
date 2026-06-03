@@ -131,19 +131,23 @@ function _topOverlay() {
 }
 
 function _onBackNavPop() {
+  // In-App-Navigation (Branch 1–3) ist KEIN Menü-Back: das Exit-Fenster zurück-
+  // setzen, damit der erste Zurück IM Menü danach frisch als „erster" zählt.
   // 1) Modal zuerst: oberstes Overlay schließen, Wächter gestennah neu setzen.
   const ov = _topOverlay();
-  if (ov) { try { ov.remove(); } catch(e) {} _armGuard(); return; }
+  if (ov) { try { ov.remove(); } catch(e) {} _lastBackTs = 0; _armGuard(); return; }
 
   // 2) Spiel → Menü mit Speichern-Nachfrage.
   if (_currentScreen === 'game-screen') {
     try { (window.confirmHome || function(){})(); } catch(e) {}
+    _lastBackTs = 0;
     _armGuard();   // Wächter IMMER neu, egal wie confirmHome ausgeht (sonst hängt keiner)
     return;
   }
   // 3) Sonst nicht im Menü (und kein Pre-Login-Screen) → Menü.
   if (_currentScreen !== 'menu-screen' && !NAV_IGNORE.includes(_currentScreen)) {
     try { showMenu(); } catch(e) {}
+    _lastBackTs = 0;
     _armGuard();
     return;
   }
