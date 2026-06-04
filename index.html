@@ -608,11 +608,13 @@ loadData();
 
 function escHtml(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');}
 
-// Click-Sound auf alle Buttons automatisch
+// Click-Sound auf alles Interaktive automatisch: echte Buttons + klickbare
+// Nicht-Buttons (onclick-Divs wie Profil-Banner/Scan-Zone, role=button,
+// Deck-Kopf zum Auf-/Zuklappen). Ein Handler, ein Sound pro Klick.
 document.addEventListener('click',e=>{
   const t=e.target;
-  if(!t) return;
-  if(t.tagName==='BUTTON' || t.closest('button')){
+  if(!t||!t.closest) return;
+  if(t.closest('button, [onclick], [role="button"], .deck-header')){
     playSfx('click');
   }
 },true);
