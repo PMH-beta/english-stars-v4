@@ -135,6 +135,9 @@ window.load
                  └─ currentUser?      → handleLogin(user)          ui.js
 
 handleLogin(user)                       ui.js
+  ├─ flushPendingSync()                 → lokale, noch nicht synchronisierte
+  │                                       Änderungen ZUERST hochschieben, BEVOR
+  │                                       cloudLoad sie lokal überschreibt
   ├─ cloudLoad(user.id)                 sync.js
   │    ├─ SELECT profiles WHERE id=userId
   │    ├─ SELECT decks WHERE user_id=userId

@@ -375,7 +375,11 @@ export function editPlayerName() {
     window.SD.playerName = trimmed;
     persist(window.SD);
     if (window.currentUser) {
-      saveProfile(window.SD, window.currentUser.id).catch(e => console.error('[editPlayerName] sync:', e));
+      // Durable Queue + sofortiger Push (wie renameDeck): schlägt der Sofort-Write
+      // fehl, bleibt 'profile' in der Queue und wird beim nächsten Login VOR
+      // cloudLoad nachgeschoben — sonst holt der Cloud-Read den alten Namen zurück.
+      markDirty('profile');
+      flushPendingSync().catch(e => console.error('[editPlayerName] sync:', e));
     }
     const profEl = document.getElementById('profile-screen');
     if (profEl && profEl.style.display !== 'none') showProfile();
@@ -917,6 +921,10 @@ export async function handleLogin(user) {
   window.currentUser = user;
   console.log('[handleLogin] CALLED with user:', user?.email);
   try {
+    // Lokale, noch nicht synchronisierte Änderungen (Namens-/Deck-Umbenennung etc.)
+    // ZUERST hochschieben, BEVOR cloudLoad das lokale SD überschreibt — sonst holt
+    // der Cloud-Read den alten Wert zurück und übermalt die lokale Änderung.
+    await flushPendingSync().catch(e => console.error('[handleLogin] pre-load flush:', e?.message));
     const cloudState = await cloudLoad(user.id);
     // Cloud ist die Wahrheit — lokalen Stand vollständig überschreiben.
     // Falls cloudLoad null zurückgibt (neuer User), lokalen Cache behalten.
@@ -944,7 +952,8 @@ export async function handleLogin(user) {
   }
   console.log('[handleLogin] SD nach Load:', window.SD.playerName, window.SD.highscore);
   if (migrateStatKeys()) persist(window.SD);
-  if (window.currentUser) flushPendingSync().catch(() => {});
+  // Kein Flush mehr NACH cloudLoad: der würde den von cloudLoad überschriebenen
+  // (alten) Stand hochschieben. Pending wird oben VOR cloudLoad geflusht.
   if (!window.SD?.playerName) showScreen('name-screen');
   else restoreLastScreen();
 }
