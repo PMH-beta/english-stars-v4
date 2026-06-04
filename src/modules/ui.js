@@ -368,18 +368,19 @@ export function showProfile() {
 
 export function editPlayerName() {
   const cur = window.SD.playerName || '';
-  const nn = prompt('Dein Name:', cur);
-  if (nn === null) return;
-  const trimmed = nn.trim();
-  if (!trimmed) return;
-  window.SD.playerName = trimmed;
-  persist(window.SD);
-  if (window.currentUser) {
-    saveProfile(window.SD, window.currentUser.id).catch(e => console.error('[editPlayerName] sync:', e));
-  }
-  const profEl = document.getElementById('profile-screen');
-  if (profEl && profEl.style.display !== 'none') showProfile();
-  else showStats();
+  window.esPrompt({ icon: '✏️', title: 'Dein Name', value: cur, ok: 'Speichern' }).then(nn => {
+    if (nn === null) return;
+    const trimmed = nn.trim();
+    if (!trimmed) return;
+    window.SD.playerName = trimmed;
+    persist(window.SD);
+    if (window.currentUser) {
+      saveProfile(window.SD, window.currentUser.id).catch(e => console.error('[editPlayerName] sync:', e));
+    }
+    const profEl = document.getElementById('profile-screen');
+    if (profEl && profEl.style.display !== 'none') showProfile();
+    else showStats();
+  });
 }
 
 // ────────────────────────────────────────────────
@@ -519,7 +520,8 @@ export async function showStats() {
 //  RESET
 // ────────────────────────────────────────────────
 export async function confirmReset() {
-  if (!confirm('⚠️ Bist du dir wirklich sicher?\n\nALL dein Fortschritt wird gelöscht!')) return;
+  const ok = await window.esConfirm({ icon: '⚠️', title: 'Bist du dir wirklich sicher?', body: 'ALL dein Fortschritt wird gelöscht!', ok: 'Löschen', cancel: 'Abbrechen', danger: true });
+  if (!ok) return;
 
   const name = window.SD.playerName;
 
@@ -532,7 +534,7 @@ export async function confirmReset() {
     } catch(e) {
       console.error('[confirmReset] Cloud-Reset Fehler:', e.message);
       if (btn) { btn.disabled = false; btn.textContent = '🗑️'; }
-      alert('Fehler beim Zurücksetzen. Bitte erneut versuchen.');
+      window.esAlert({ icon: '❌', title: 'Fehler', body: 'Fehler beim Zurücksetzen. Bitte erneut versuchen.' });
       return;
     }
     if (btn) { btn.disabled = false; btn.textContent = '🗑️'; }
@@ -556,7 +558,7 @@ export async function confirmReset() {
   syncMirrorFromActiveDeck();
   persist(window.SD);
   showMenu();
-  setTimeout(() => alert('✅ Fortschritt zurückgesetzt!'), 100);
+  window.esAlert({ icon: '✅', title: 'Erledigt', body: 'Fortschritt zurückgesetzt!' });
 }
 
 // ────────────────────────────────────────────────
@@ -608,11 +610,11 @@ export async function importData(event) {
   try {
     const text = await file.text();
     parsed = JSON.parse(text);
-  } catch(e) { alert('❌ Datei konnte nicht gelesen werden.'); return; }
+  } catch(e) { window.esAlert({ icon: '❌', title: 'Fehler', body: 'Datei konnte nicht gelesen werden.' }); return; }
 
   const imported = window.migrateData ? window.migrateData(parsed) : parsed;
   const srcDecks = Object.values(imported?.decks || {});
-  if (!srcDecks.length) { alert('❌ Keine Sammlungen in der Datei gefunden.'); return; }
+  if (!srcDecks.length) { window.esAlert({ icon: '❌', title: 'Leer', body: 'Keine Sammlungen in der Datei gefunden.' }); return; }
 
   const userId = window.currentUser?.id;
   console.log('[import] Starte Import von', srcDecks.length, 'Sammlung(en) | userId:', userId);
@@ -671,7 +673,7 @@ export async function importData(event) {
   syncMirrorFromActiveDeck();
   renderDecks();
   showMenu();
-  setTimeout(() => alert('✅ ' + count + ' Sammlung' + (count !== 1 ? 'en' : '') + ' importiert!'), 100);
+  window.esAlert({ icon: '✅', title: 'Importiert', body: count + ' Sammlung' + (count !== 1 ? 'en' : '') + ' importiert!' });
 }
 
 // ────────────────────────────────────────────────

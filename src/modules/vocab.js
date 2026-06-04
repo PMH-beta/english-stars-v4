@@ -18,12 +18,13 @@ function _deckNameWithRename(name) {
 export function vmRenameActiveDeck() {
   const id = window.SD?.activeDeckId;
   if (!id || !window.SD.decks[id]) return;
-  const name = prompt('Neuer Name:', window.SD.decks[id].name);
-  if (!name || !name.trim()) return;
-  window.renameDeck(id, name.trim());
-  const dn = document.getElementById('vm-deck-name');
-  if (dn) dn.innerHTML = _deckNameWithRename(name.trim());
-  window.renderDecks();
+  window.esPrompt({ icon: '✏️', title: 'Sammlung umbenennen', value: window.SD.decks[id].name, ok: 'Speichern' }).then(name => {
+    if (!name || !name.trim()) return;
+    window.renameDeck(id, name.trim());
+    const dn = document.getElementById('vm-deck-name');
+    if (dn) dn.innerHTML = _deckNameWithRename(name.trim());
+    window.renderDecks();
+  });
 }
 
 // window._reviewItems: muss global sein damit inline onchange-Handler ("_reviewItems[i].de=...") funktionieren
@@ -98,7 +99,7 @@ function _renderVmTabsForMode() {
     abortBtn.className = 'back-btn';
     abortBtn.style.cssText = 'flex:1;';
     abortBtn.textContent = '✕ Abbrechen';
-    abortBtn.addEventListener('click', () => { _abortDraft(); alert('Es wurde keine Sammlung angelegt.'); });
+    abortBtn.addEventListener('click', () => { _abortDraft(); window.esAlert({ icon: '🗑️', title: 'Abgebrochen', body: 'Es wurde keine Sammlung angelegt.' }); });
     const confirmBtn = document.createElement('button');
     confirmBtn.className = 'back-btn';
     confirmBtn.style.cssText = 'flex:1;background:linear-gradient(135deg,#3aaa5c,#4ecb71);color:#fff;border:none;box-shadow:0 3px 0 #2a8a4a;';
@@ -305,7 +306,7 @@ export function renderVocabList() {
 export function parsePastedText() {
   const ta = document.getElementById('paste-text');
   const text = (ta && ta.value || '').trim();
-  if (!text) { alert('Bitte erst Text einfügen.'); return; }
+  if (!text) { window.esAlert({ icon: '⚠️', title: 'Kein Text', body: 'Bitte erst Text einfügen.' }); return; }
   window._reviewItems = []; _lastOCRText = text;
   const items = parseVocabFromOCR(text);
   const existing = new Set(window.VOCAB.map(v => v.en.toLowerCase()));
@@ -314,7 +315,7 @@ export function parsePastedText() {
     isDuplicate: existing.has(i.en.toLowerCase())
   }));
   if (window._reviewItems.length === 0) {
-    alert('Keine Vokabeln im Text erkannt. Format: pro Zeile ein Vokabelpaar, getrennt durch 2+ Leerzeichen oder Tab.\n\nBeispiel:\ncafeteria   Cafeteria\nplace   Platz');
+    window.esAlert({ icon: '🤔', title: 'Nichts erkannt', body: 'Keine Vokabeln im Text erkannt. Format: pro Zeile ein Vokabelpaar, getrennt durch 2+ Leerzeichen oder Tab.\n\nBeispiel:\ncafeteria   Cafeteria\nplace   Platz' });
     return;
   }
   showReview();
@@ -556,7 +557,7 @@ export function addReviewItem() {
 export function confirmAddVocab() {
   const toAdd = window._reviewItems.filter(i => i.de.trim() && i.en.trim() && !i.isDuplicate);
   if (toAdd.length === 0) {
-    alert('Keine neuen Wörter zum Hinzufügen (alle bereits vorhanden oder leer).');
+    window.esAlert({ icon: 'ℹ️', title: 'Nichts hinzuzufügen', body: 'Keine neuen Wörter zum Hinzufügen (alle bereits vorhanden oder leer).' });
     return;
   }
   const deck = _vmDeck();
@@ -570,9 +571,10 @@ export function confirmAddVocab() {
     persist();
     if (window.currentUser) { markDirty('deck', deck.id); flushPendingSync().catch(() => {}); }
   }
-  alert(`✅ ${toAdd.length} neue Vokabel${toAdd.length === 1 ? '' : 'n'} zur Lernliste hinzugefügt!`);
-  window._reviewItems = [];
-  openVocabManager();
+  window.esAlert({ icon: '✅', title: 'Hinzugefügt', body: `${toAdd.length} neue Vokabel${toAdd.length === 1 ? '' : 'n'} zur Lernliste hinzugefügt!` }).then(() => {
+    window._reviewItems = [];
+    openVocabManager();
+  });
 }
 
 // ════════════════════════════════════════════════

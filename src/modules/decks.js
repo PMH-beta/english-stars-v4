@@ -378,13 +378,14 @@ export function startGameWithDeck(deckId, modeName) {
 }
 
 export function newDeckPrompt() {
-  const name = prompt('Name der neuen Vokabelsammlung:', '');
-  if (!name || !name.trim()) return;
-  const id = createDeck(name.trim());
-  if (window.currentUser) { markDirty('deck', id); flushPendingSync().catch(() => {}); }
-  _expandedDeckId = id;
-  switchDeck(id);
-  renderDecks();
+  window.esPrompt({ icon: '📚', title: 'Neue Vokabelsammlung', placeholder: 'Name der Sammlung', ok: 'Erstellen' }).then(name => {
+    if (!name || !name.trim()) return;
+    const id = createDeck(name.trim());
+    if (window.currentUser) { markDirty('deck', id); flushPendingSync().catch(() => {}); }
+    _expandedDeckId = id;
+    switchDeck(id);
+    renderDecks();
+  });
 }
 
 export function openDeckStats(id) {
@@ -408,10 +409,11 @@ export function openDeckStats(id) {
 export function renameDeckPrompt(id) {
   const cur = window.SD.decks[id];
   if (!cur) return;
-  const name = prompt('Neuer Name:', cur.name);
-  if (!name || !name.trim()) return;
-  renameDeck(id, name.trim());
-  renderDecks();
+  window.esPrompt({ icon: '✏️', title: 'Sammlung umbenennen', value: cur.name, ok: 'Speichern' }).then(name => {
+    if (!name || !name.trim()) return;
+    renameDeck(id, name.trim());
+    renderDecks();
+  });
 }
 
 export function resetDeckProgress(id) {
@@ -543,18 +545,20 @@ export function vmDeleteWord(idx) {
   const deck = window._draftDeck || activeDeck();
   const v = deck.vocab[idx];
   if (!v) return;
-  if (!confirm('"' + v.de + ' → ' + v.en + '" wirklich löschen?')) return;
-  deck.vocab.splice(idx, 1);
-  if (!window._draftDeck) {
-    syncMirrorFromActiveDeck();
-    window.persist();
-    if (window.currentUser) {
-      markDirty('deck', deck.id);
-      markDirty('word_stats', deck.id);
-      flushPendingSync().catch(() => {});
+  window.esConfirm({ icon: '🗑️', title: 'Wort löschen?', body: '"' + v.de + ' → ' + v.en + '" wirklich löschen?', ok: 'Löschen', danger: true }).then(ok => {
+    if (!ok) return;
+    deck.vocab.splice(idx, 1);
+    if (!window._draftDeck) {
+      syncMirrorFromActiveDeck();
+      window.persist();
+      if (window.currentUser) {
+        markDirty('deck', deck.id);
+        markDirty('word_stats', deck.id);
+        flushPendingSync().catch(() => {});
+      }
     }
-  }
-  window.renderVocabList();
+    window.renderVocabList();
+  });
 }
 
 // Migration beim Login: wandelt alte statKeys (de+suffix) in das neue
@@ -626,10 +630,10 @@ export function migrateStatKeys(sd) {
 export function vmAddManual() {
   const de = (document.getElementById('vm-add-de')?.value || '').trim();
   const en = (document.getElementById('vm-add-en')?.value || '').trim();
-  if (!de || !en) { alert('Bitte Deutsch UND Englisch eingeben.'); return; }
+  if (!de || !en) { window.esAlert({ icon: '⚠️', title: 'Eingabe fehlt', body: 'Bitte Deutsch UND Englisch eingeben.' }); return; }
   const deck = window._draftDeck || activeDeck();
   if (deck.vocab.some(v => v.en.toLowerCase() === en.toLowerCase())) {
-    alert('"' + en + '" ist bereits in der Sammlung.');
+    window.esAlert({ icon: 'ℹ️', title: 'Schon vorhanden', body: '"' + en + '" ist bereits in der Sammlung.' });
     return;
   }
   deck.vocab.push({de, en});

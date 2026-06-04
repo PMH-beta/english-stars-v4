@@ -137,12 +137,22 @@ export function startGame(m) {
   window.wrongQueue=[];window.isRetryPhase=false;window.isFreePlay=false;window._progressSaved=false;
   window.schnellDone=new Set();
   if(window.questionPool.length===0){
-    if(!confirm('🏆 Modus gemeistert!\n\nNoch eine Runde ohne Wertung?'))return;
-    window._skipMasteryFilter=true;
-    window.questionPool=shuffle(buildPool(m)).slice(0,10);
-    window._skipMasteryFilter=false;
-    window.isFreePlay=true;
+    // Modus gemeistert → optionale Runde ohne Wertung. Bestätigung asynchron,
+    // der eigentliche Start läuft erst im Callback (_launchGame).
+    window.esConfirm({ icon:'🏆', title:'Modus gemeistert!', body:'Noch eine Runde ohne Wertung?', ok:'Ja', cancel:'Nein' }).then(ok => {
+      if(!ok) return;
+      window._skipMasteryFilter=true;
+      window.questionPool=shuffle(buildPool(m)).slice(0,10);
+      window._skipMasteryFilter=false;
+      window.isFreePlay=true;
+      _launchGame(m);
+    });
+    return;
   }
+  _launchGame(m);
+}
+
+function _launchGame(m) {
   const hasPronounce=(m==='pronounce'||m==='mixed_vocab');
   if(hasPronounce&&navigator.mediaDevices){
     ensureMicStream();
@@ -159,13 +169,14 @@ export function startGame(m) {
 }
 
 export function confirmHome() {
-  if(confirm('Zurück zum Menü?\nDer Lernfortschritt dieser Runde wird gespeichert.')){
+  window.esConfirm({ icon:'🏠', title:'Zurück zum Menü?', body:'Der Lernfortschritt dieser Runde wird gespeichert.', ok:'Zum Menü', cancel:'Bleiben' }).then(ok => {
+    if(!ok) return;
     saveProgress();
     hideFeedback();
     try{ releaseMicStream(); }catch(e){}
     try{ if(window.speechSynthesis) window.speechSynthesis.cancel(); }catch(e){}
     showMenu();
-  }
+  });
 }
 
 function showQuestion() {
@@ -757,8 +768,7 @@ function showEnd() {
     window.spawnConfetti();
     try{ playSfx('end'); }catch(e){}
     setTimeout(()=>{
-      alert('🏆 100% erreicht! Du hast den Modus "'+(mp.title||window.mode)+'" gemeistert!');
-      showMenu();
+      window.esAlert({ icon:'🏆', title:'100% erreicht!', body:'Du hast den Modus "'+(mp.title||window.mode)+'" gemeistert!', ok:'Weiter' }).then(()=>showMenu());
     }, 400);
     return;
   }

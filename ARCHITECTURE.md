@@ -19,6 +19,7 @@
 | `vocab.js` | VokabelManager UI: Hinzufügen, Scannen, Einfügen, Preset-Kategorien, Draft-Flow für neue Sammlungen, Vorlagen-Deck-Statistik | `openVocabManager`, `openPresetDeckStats`, `getPresetCategories`, `vmTab`, `renderVocabList`, `confirmAddVocab`, `renderPresetsTab`, `togglePresetCategory`, `vmRenameActiveDeck`, `newDeckFlow`, `vmBack` |
 | `ui.js` | Screen-Routing, Auth-Lifecycle, Modus-Toggle, alle UI-Event-Handler | `showScreen`, `showMenu`, `handleLogin`, `handleLogout`, `showNewPasswordScreen`, `saveName`, `authGoogleSignIn`, `setActiveMode`, `renderModeContent` |
 | `startup.js` | Boot-Sequenz: TTS, Audio, Vosk, Auth-Session | `startupSequence`, `finishStartup` |
+| `dialog.js` | App-eigene Overlay-Dialoge statt nativer `alert`/`confirm`/`prompt` (Optik wie Sammlung-Overlays, z-index 9999 → vom Android-Back schließbar). Promise-basiert; Abbrechen löst keine Speicheraktion aus | `esAlert`, `esConfirm`, `esPrompt` (auch als `window.es*`) |
 
 ---
 

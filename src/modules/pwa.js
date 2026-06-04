@@ -21,11 +21,11 @@ export function pwaInstall() {
     return;
   }
   if (isIOS()) {
-    alert('📲 App auf iPhone/iPad installieren:\n\n1. Tippe unten in Safari auf das Teilen-Symbol ⬆️\n2. Wähle "Zum Home-Bildschirm"\n3. Tippe oben rechts auf "Hinzufügen"\n\nDie App erscheint dann wie eine normale App auf dem Home-Bildschirm.');
+    window.esAlert({ icon: '📲', title: 'Auf iPhone/iPad installieren', body: '1. Tippe unten in Safari auf das Teilen-Symbol ⬆️\n2. Wähle "Zum Home-Bildschirm"\n3. Tippe oben rechts auf "Hinzufügen"\n\nDie App erscheint dann wie eine normale App auf dem Home-Bildschirm.' });
   } else if (isMacSafari()) {
-    alert('📲 App auf Mac installieren (Safari):\n\n1. Menüleiste: "Datei"\n2. "Zum Dock hinzufügen..."\n3. "Hinzufügen" klicken\n\nDie App erscheint dann im Dock.');
+    window.esAlert({ icon: '📲', title: 'Auf Mac installieren (Safari)', body: '1. Menüleiste: "Datei"\n2. "Zum Dock hinzufügen..."\n3. "Hinzufügen" klicken\n\nDie App erscheint dann im Dock.' });
   } else {
-    alert('Auf Chrome/Edge: ein "Installieren"-Symbol erscheint in der Adressleiste.');
+    window.esAlert({ icon: '📲', title: 'Installieren', body: 'Auf Chrome/Edge: ein "Installieren"-Symbol erscheint in der Adressleiste.' });
   }
 }
 

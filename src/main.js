@@ -10,6 +10,7 @@ import { syncMirrorFromActiveDeck, activeDeck, switchDeck, createDeck, deleteDec
 import { showScreen, saveName, showMenu, saveApiKey, skipApiKey, showProfile, editPlayerName, showStats, confirmReset, showFeedback, hideFeedback, exportData, importData, showAuth, authToggleMode, authSubmit, authResend, authLogout, authGoogleSignIn, handleLogin, handleLogout, showPasswordReset, submitPasswordReset, showNewPasswordScreen, submitNewPassword, cancelNewPassword, setActiveMode, renderModeContent } from './modules/ui.js';
 import { pwaInstall } from './modules/pwa.js';
 import { openVocabManager, openPresetDeckStats, vmTab, renderVocabList, parsePastedText, onScanFile, showReview, renderReviewList, removeReviewItem, addReviewItem, confirmAddVocab, renderPresetsTab, togglePresetCategory, vmBack, vmRenameActiveDeck, newDeckFlow } from './modules/vocab.js';
+import './modules/dialog.js'; // registriert window.esAlert/esConfirm/esPrompt (App-Overlays statt nativer Dialoge)
 import { startupSequence, finishStartup } from './modules/startup.js';
 import { supabase, testConnection } from './modules/supabase.js';
 import { flushPendingSync } from './modules/sync.js';
