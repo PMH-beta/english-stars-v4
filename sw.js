@@ -1,4 +1,7 @@
-const VERSION = 'v4.0.119';
+// VERSION kommt aus dem ?v der Registrierungs-URL (pwa.js: register('sw.js?v='+APP_VERSION)).
+// self.location enthält diesen Query → eine Quelle der Wahrheit (config.js APP_VERSION).
+// Fallback nur, falls sw.js je ohne Query geladen wird.
+const VERSION = new URL(self.location.href).searchParams.get('v') || 'v4';
 const CACHE = 'english-stars-' + VERSION;
 const PRECACHE = ['./','./index.html','./manifest.json','./icon-192.png','./icon-512.png','./favicon.png'];
 

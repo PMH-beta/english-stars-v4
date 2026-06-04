@@ -33,6 +33,13 @@
   Musik-Auto-Resume entfernt (stoppt im Hintergrund, kein Selbststart);
   Relaunch-Restore (es_last_screen → Menü/Profil/Fortschritt);
   controllerchange-Reload aufgeschoben bei Nutzung
+- SW-Cache-Härtung: sw.js VERSION an APP_VERSION gekoppelt (pwa.js
+  registriert sw.js?v=APP_VERSION, sw.js liest ?v aus self.location).
+  Pro Deploy neue Script-URL → neuer SW → activate purged alten Cache.
+  Behebt den „gemischten Stand" (frische Version aus config.js, aber
+  altes Modul via network-first-Cache-Fallback) → war die Ursache des
+  zeitweisen Handy-TTS-Ausfalls v4.0.140–144 ohne Code-Änderung an
+  speech.js. Eine Quelle der Wahrheit, kein Doppelpflegen zweier Nummern
 - Android Zurück-Button (In-App-Back): Back-Layer SOFORT beim Laden aktiv
   (ui.js, initBackNav via DOMContentLoaded — nicht an Menü/Login gekoppelt).
   History-Wächter (pushState, gleiche URL → Recovery-Hash unberührt) +

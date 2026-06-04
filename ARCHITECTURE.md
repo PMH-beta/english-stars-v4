@@ -191,7 +191,7 @@ App lädt neu → startupSequence()              startup.js
 
 ## PWA-Lifecycle & Caching
 
-**Service Worker (`sw.js`)** — Cache-Name `english-stars-<VERSION>`, `activate` löscht alle Caches außer der aktuellen Version. Fetch-Strategie:
+**Service Worker (`sw.js`)** — Cache-Name `english-stars-<VERSION>`, `activate` löscht alle Caches außer der aktuellen Version. `VERSION` ist **an `APP_VERSION` gekoppelt**: `pwa.js` registriert `sw.js?v=<APP_VERSION>`, `sw.js` liest die Version aus seiner eigenen Script-URL (`self.location` `?v`). Dadurch ändert sich pro Deploy die SW-Script-URL → der Browser installiert einen neuen SW → `activate` purged den alten Cache. Verhindert, dass das Handy bei wackligem Mobilladen einen **gemischten Stand** fährt (frische Versionsanzeige aus `config.js`, aber altes Modul aus dem Cache via network-first-Fallback) — eine Quelle der Wahrheit, kein manuelles Synchronhalten zweier Nummern. Fetch-Strategie:
 - **network-first** für same-origin App-Code/Shell (HTML, JS, CSS, manifest, JSON) → Deploy-Updates kommen online sofort an, offline Cache-Fallback.
 - **cache-first** für große/statische Assets (Vosk-Modell `.tar.gz`, Bilder, Fonts, Audio) + alle Cross-Origin-Libs (CDN) → persistent über Kaltstarts.
 

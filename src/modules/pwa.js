@@ -1,5 +1,5 @@
 // src/modules/pwa.js
-import { isIOS, isStandalone } from './config.js';
+import { isIOS, isStandalone, APP_VERSION } from './config.js';
 
 let _pwaPrompt = null;
 
@@ -32,7 +32,11 @@ export function pwaInstall() {
 // Service Worker registrieren
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js').then(reg => {
+    // Versions-Query koppelt den SW an APP_VERSION: pro Deploy ändert sich die
+    // Script-URL → der Browser installiert einen neuen SW → activate/purge läuft
+    // (sw.js leitet seinen CACHE-Namen aus genau diesem ?v ab). Eine Quelle der
+    // Wahrheit (config.js), kein manuelles Synchronhalten zweier Nummern.
+    navigator.serviceWorker.register('sw.js?v=' + APP_VERSION).then(reg => {
       try {
         const last = parseInt(localStorage.getItem('es_sw_lastcheck') || '0', 10);
         if (Date.now() - last > 24 * 3600 * 1000) {
