@@ -289,7 +289,10 @@ function _attachCardListeners(cardEl, deckId) {
   }
   function onEnd() {
     clearTimeout(longPressTimer); longPressTimer = null;
-    if (!tapBlocked) _handleTap(deckId);
+    // Sound am echten Auslöser: das Auf-/Zuklappen läuft über touch/mouse-Gesten,
+    // nicht über ein click-Event (touchend preventDefault unterdrückt das click),
+    // daher feuert der zentrale Click-Sound-Handler hier nie selbst.
+    if (!tapBlocked) { try { window.playSfx && window.playSfx('click'); } catch(e) {} _handleTap(deckId); }
   }
 
   header.addEventListener('touchstart', onStart, { passive: true });

@@ -609,12 +609,13 @@ loadData();
 function escHtml(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');}
 
 // Click-Sound auf alles Interaktive automatisch: echte Buttons + klickbare
-// Nicht-Buttons (onclick-Divs wie Profil-Banner/Scan-Zone, role=button,
-// Deck-Kopf zum Auf-/Zuklappen). Ein Handler, ein Sound pro Klick.
+// Nicht-Buttons (onclick-Divs wie Profil-Banner/Scan-Zone, role=button).
+// Der Deck-Kopf toggelt per touch/mouse-Geste OHNE click-Event und bekommt
+// den Sound direkt in decks.js (onEnd) — hier würde er nie feuern.
 document.addEventListener('click',e=>{
   const t=e.target;
   if(!t||!t.closest) return;
-  if(t.closest('button, [onclick], [role="button"], .deck-header')){
+  if(t.closest('button, [onclick], [role="button"]')){
     playSfx('click');
   }
 },true);
