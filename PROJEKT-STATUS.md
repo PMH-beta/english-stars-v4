@@ -54,12 +54,17 @@
   über alle Decks; Mastery zentral in stats.js (isStatMastered)
 
 ## Offen
+- Zurück-Button: In-App-Back vollständig funktionsfähig (Overlays,
+  Screens, Fortschritt, Spiel; Toast + Doppel-Klick-Exit im Menü).
+  EINZIGER offener Fall: erster Zurück nach langer Inaktivität ohne
+  vorherige Geste verlässt ohne Toast (Chrome Anti-Trap-Intervention
+  ignoriert gestenlos gesetzte History-Wächter). Nur via TWA
+  (onBackPressed) lösbar. Alles andere am Back-Button ist erledigt.
 - TWA-Wrapper (Trusted Web Activity, Bubblewrap/Play Store): einziger
   Weg, den Android-Hardware-Back zuverlässig abzufangen (onBackPressed)
-  → echtes Double-Back-to-Exit. Auf reiner PWA nicht möglich (Chrome
-  ignoriert gestenlos gesetzte History-Wächter). Aktuell: In-App-Back
-  funktioniert, finaler Exit verlässt direkt. Erst beim Store-Schritt
-  relevant (zusammen mit DSGVO/COPPA-Punkten unten)
+  → echtes Double-Back-to-Exit und Lösung des obigen Rest-Falls. Auf
+  reiner PWA nicht möglich. Erst beim Store-Schritt relevant (zusammen
+  mit DSGVO/COPPA-Punkten unten)
 - Live-Gang v4: wird DIE Hauptversion, v3.44/altes Repo verfällt,
   Repo-Umbenennung später
 - Größerer Ausbau / Lehrer-Funktionen (Schul-Pitch verworfen,
