@@ -9,6 +9,13 @@
 - Workflow: Pawel ↔ Claude Code (Code) + Claude (Strategie/Review)
 
 ## Erledigt
+- Cache-Fix (normaler Reload holt frischen Code, kein Strg+Shift+R nötig):
+  SW-Netz-Fetch für same-origin App-Code mit cache:'reload' → umgeht den
+  HTTP-Cache des Browsers (Ursache: Modul-URLs ohne ?v + GitHub-Pages-max-age;
+  der VERSION-Bump purgte nur Cache Storage, nicht den HTTP-Cache).
+  Modell/Vosk/Statik bleiben cache-first. Zusätzlich reg.waiting beim Laden
+  behandelt (skipWaiting nachgeholt) → Auto-Reload hängt nicht am wartenden SW.
+  Aufgeschobener controllerchange-Reload (Spiel/Scan/Review) unverändert.
 - Sync-Härtung (wasserdicht/zukunftssicher gegen "leerer-Nutzer"-Bug):
   (1) Schreib-Gate `cloudWritesAllowed` — `saveProfile`/`flushPendingSync`
   schreiben NIE, bevor der Cloud-Stand per Login bestätigt ist → kein

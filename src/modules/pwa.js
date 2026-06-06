@@ -44,6 +44,13 @@ if ('serviceWorker' in navigator) {
           localStorage.setItem('es_sw_lastcheck', String(Date.now()));
         }
       } catch(e) {}
+      // Bereits wartender SW (installiert, bevor dieser Tab den updatefound-Pfad sah):
+      // updatefound feuert dann NICHT erneut → skipWaiting hier nachholen, sonst bleibt
+      // der alte SW aktiv und der Auto-Reload greift nie. Nur bei echtem Update
+      // (Controller vorhanden), nicht beim Erstinstall.
+      if (reg.waiting && navigator.serviceWorker.controller) {
+        reg.waiting.postMessage({ action: 'skipWaiting' });
+      }
       reg.addEventListener('updatefound', () => {
         const newSW = reg.installing;
         if (!newSW) return;

@@ -40,8 +40,12 @@ self.addEventListener('fetch', e => {
   const networkFirst = sameOrigin && !CACHE_FIRST_RE.test(url.pathname);
 
   if (networkFirst) {
+    // cache:'reload' umgeht den HTTP-Cache des Browsers für App-Code (HTML/JS/CSS) —
+    // sonst liefert fetch() trotz "network-first" die HTTP-gecachte alte Datei und ein
+    // normaler Reload bekommt erst nach Strg+Shift+R frischen Code. Die Antwort landet
+    // weiterhin im SW-Cache (Offline-Fallback). Modell/Statik bleiben cache-first.
     e.respondWith(
-      fetch(e.request).then(r => {
+      fetch(e.request, { cache: 'reload' }).then(r => {
         const clone = r.clone();
         caches.open(CACHE).then(c => c.put(e.request, clone)).catch(()=>{});
         return r;
