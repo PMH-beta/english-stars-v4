@@ -4,7 +4,7 @@ import { effectivePct, isStatMastered, statKeyFor } from './stats.js';
 import { syncMirrorFromActiveDeck, deckProgress, presetProgressPct, renderDecks, migrateStatKeys } from './decks.js';
 import { getPresetCategories } from './vocab.js';
 import { releaseMicStream, stopVisualizer, voskStop, speakWord } from './speech.js';
-import { signIn, signUp, signOut, resendConfirmation, requestPasswordReset, updatePassword, signInWithGoogle } from './auth.js';
+import { signIn, signUp, signOut, signOutOtherDevices, resendConfirmation, requestPasswordReset, updatePassword, signInWithGoogle } from './auth.js';
 import { cloudLoad, cloudProbe, cloudReset, saveDeck, saveWordStats, saveExam, markDirty, flushPendingSync, readSyncMeta, writeSyncMeta, clearSyncMeta, metaDiffers, setCloudConfirmed, cloudConfirmed, getPendingCount } from './sync.js';
 import { esToast, commitDirty } from './dialog.js';
 
@@ -774,8 +774,8 @@ export async function authSubmit() {
     return;
   }
 
-  // login erfolgreich
-  handleLogin(result.user);
+  // login erfolgreich — aktiver Login → fresh (sauberer Cloud-Load + andere Geräte ausloggen)
+  handleLogin(result.user, { fresh: true });
 }
 
 function _setAuthError(msg) {
@@ -818,9 +818,13 @@ export async function authGoogleSignIn() {
   } catch(e) {}
   const btn = document.getElementById('auth-google-btn');
   if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  // Marke für „aktiver Login": übersteht den OAuth-Redirect (sessionStorage) →
+  // startup behandelt die Rückkehr als fresh (sauberer Cloud-Load + andere Geräte aus).
+  try { sessionStorage.setItem('es_fresh_login', '1'); } catch(e) {}
   const { error } = await signInWithGoogle(forceAccountPicker);
   // On success: browser redirects to Google — no further action needed here.
   if (error) {
+    try { sessionStorage.removeItem('es_fresh_login'); } catch(e) {}   // kein Redirect → Marke zurück
     _setAuthError(error);
     if (btn) { btn.disabled = false; btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 48 48" style="flex-shrink:0"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.04 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-3.54-13.46-8.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg> Mit Google anmelden'; }
   }
@@ -891,8 +895,8 @@ export async function submitNewPassword() {
     return;
   }
   window.location.hash = '';
-  // Supabase hat den User automatisch eingeloggt nach updateUser
-  if (window.currentUser) await handleLogin(window.currentUser);
+  // Supabase hat den User automatisch eingeloggt nach updateUser → aktiver Login → fresh
+  if (window.currentUser) await handleLogin(window.currentUser, { fresh: true });
   else showScreen('auth-screen');
 }
 
@@ -909,12 +913,22 @@ export async function cancelNewPassword() {
 
 // REGEL 1 — App öffnen: Änderungs-Check via updated_at, dann ggf. frisch laden.
 // EINE Funktion, ein klarer Ablauf. Kein mid-session Reconcile bei Navigation.
-export async function handleLogin(user) {
+export async function handleLogin(user, { fresh = false } = {}) {
   if (_loginInFlight) return;
   _loginInFlight = true;
   window.currentUser = user;
   setCloudConfirmed(false);
-  console.log('[handleLogin] CALLED with user:', user?.email);
+  console.log('[handleLogin] CALLED with user:', user?.email, fresh ? '(fresh login)' : '');
+
+  if (fresh) {
+    // Aktiver Login (E-Mail/Google/neues Passwort) = DIESES Gerät übernimmt.
+    // Single-Session: andere Geräte ausloggen (keine zwei gleichzeitig → keine
+    // Konflikte). Lokal sauber starten → die Cloud wird unten autoritativ geladen
+    // (localValid=false erzwingt den Load).
+    await signOutOtherDevices();
+    clearStorage();
+    window.SD = freshData();
+  }
 
   const localValid = !!(window.SD && window.SD.playerName);
 

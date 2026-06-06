@@ -176,6 +176,16 @@ auf Bestätigung. `confirmHome` wartet, DANN Menü.
 **Regel 3 — jede Änderung** (Name/Deck/Vokabeln in `ui.js`/`decks.js`/`vocab.js`):
 window.SD ändern + persist + `markDirty(...)` + `await commitDirty()`.
 
+**Aktiver Login = „fresh" (Single-Session):** `handleLogin(user, {fresh:true})` bei
+echtem Login (E-Mail-Submit, Google-Rückkehr via `sessionStorage['es_fresh_login']`,
+neues Passwort) → (1) `signOutOtherDevices()` (`supabase.auth.signOut({scope:'others'})`)
+loggt alle ANDEREN Geräte aus (deren Refresh-Token wird widerrufen) → nie zwei Geräte
+gleichzeitig aktiv → keine Konflikte; (2) `clearStorage()` + `freshData()` → der lokale
+Stand wird verworfen und die Cloud autoritativ geladen. Ein **persistierter** Session-Start
+(gleiches Gerät wieder öffnen) ist `fresh:false` → lokaler Stand bleibt, offline-fest,
+Pending wird hochgeschoben. Das ausgeloggte andere Gerät merkt es beim nächsten
+Token-Refresh (SIGNED_OUT → `handleLogout`) und verlangt dann neuen Login → sauberer Load.
+
 **Regel 4 — Multi-Device:** jeder bestätigte Write hebt den Server-`updated_at`.
 `es_sync_meta` bleibt auf der zuletzt **geladenen** Cloud-Version stehen (nur
 `adoptCloudState` schreibt sie) → JEDES Gerät (auch das schreibende selbst) erkennt

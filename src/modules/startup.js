@@ -151,7 +151,14 @@ export async function finishStartup() {
     showScreen('auth-screen');
     return;
   }
-  await handleLogin(window.currentUser);
+  // Kam dieser Start von einem aktiven Google-Login zurück (Marke aus authGoogleSignIn,
+  // übersteht den OAuth-Redirect)? Dann fresh: sauberer Cloud-Load + andere Geräte aus.
+  let fresh = false;
+  try {
+    fresh = sessionStorage.getItem('es_fresh_login') === '1';
+    if (fresh) sessionStorage.removeItem('es_fresh_login');
+  } catch(e) {}
+  await handleLogin(window.currentUser, { fresh });
 }
 
 window.addEventListener('load', () => startupSequence());

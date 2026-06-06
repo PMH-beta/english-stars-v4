@@ -9,6 +9,13 @@
 - Workflow: Pawel ↔ Claude Code (Code) + Claude (Strategie/Review)
 
 ## Erledigt
+- Single-Session-Modell (passt zu „nie zwei Geräte gleichzeitig"):
+  Aktiver Login (E-Mail/Google/neues Passwort) = fresh → signOutOtherDevices
+  (supabase signOut scope:'others' loggt andere Geräte aus) + clearStorage +
+  freshData → Cloud wird sauber geladen. Persistierter Reopen = fresh:false →
+  lokaler Stand bleibt, offline-fest, Pending wird hochgeschoben. Anderes
+  Gerät merkt Logout beim nächsten Token-Refresh → verlangt neuen Login.
+  Google: Marke es_fresh_login (sessionStorage) übersteht OAuth-Redirect.
 - Sync-Meta-Drift behoben (Ursache für "nur Storage-Löschen half"):
   es_sync_meta lief den Daten voraus, weil refreshSyncMeta nach JEDEM Write
   die live-Cloud-Signatur speicherte — inkl. fremder, nicht geladener
