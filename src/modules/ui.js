@@ -5,7 +5,7 @@ import { syncMirrorFromActiveDeck, deckProgress, presetProgressPct, renderDecks,
 import { getPresetCategories } from './vocab.js';
 import { releaseMicStream, stopVisualizer, voskStop, speakWord } from './speech.js';
 import { signIn, signUp, signOut, resendConfirmation, requestPasswordReset, updatePassword, signInWithGoogle } from './auth.js';
-import { cloudLoad, cloudProbe, cloudReset, saveDeck, saveWordStats, saveExam, markDirty, flushPendingSync, refreshSyncMeta, readSyncMeta, writeSyncMeta, metaDiffers, setCloudConfirmed, cloudConfirmed, getPendingCount } from './sync.js';
+import { cloudLoad, cloudProbe, cloudReset, saveDeck, saveWordStats, saveExam, markDirty, flushPendingSync, readSyncMeta, writeSyncMeta, clearSyncMeta, metaDiffers, setCloudConfirmed, cloudConfirmed, getPendingCount } from './sync.js';
 import { esToast, commitDirty } from './dialog.js';
 
 const API_KEY_SK = 'es_apikey';
@@ -552,7 +552,7 @@ export async function confirmReset() {
 
   syncMirrorFromActiveDeck();
   persist(window.SD);
-  if (window.currentUser) refreshSyncMeta(window.currentUser.id).catch(() => {});  // Signatur = geleerte Cloud
+  clearSyncMeta();   // Reset änderte die Cloud → Signatur verwerfen, nächstes Öffnen lädt frisch
   showMenu();
   window.esAlert({ icon: '✅', title: 'Erledigt', body: 'Fortschritt zurückgesetzt!' });
 }
@@ -943,9 +943,10 @@ export async function handleLogin(user) {
 
     // 3) Cloud unverändert seit unserem letzten Sync → unsere lokalen Pending sind
     //    die neuesten → sicher hochschieben (kein Revert möglich). Kein Reload nötig.
+    //    es_sync_meta NICHT anfassen (nur adoptCloudState schreibt sie) — der Push
+    //    hebt den Cloud-updated_at, das nächste Öffnen lädt einmal sauber nach.
     if (getPendingCount() > 0) {
       await flushPendingSync().catch(() => {});
-      refreshSyncMeta(user.id).catch(() => {});
     }
     _finishLoginUI();
   } catch (e) {
@@ -1025,8 +1026,8 @@ export async function maybeRefreshOnResume() {
       if (_currentScreen === 'menu-screen') showMenu();   // neu rendern
     } else if (getPendingCount() > 0) {
       // Cloud unverändert seit unserem letzten Sync → eigene Nachzügler sicher hoch.
+      // es_sync_meta NICHT anfassen (nur adoptCloudState schreibt sie).
       await flushPendingSync().catch(() => {});
-      refreshSyncMeta(window.currentUser.id).catch(() => {});
     }
   } finally {
     _resumeInFlight = false;

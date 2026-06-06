@@ -1,5 +1,5 @@
 // src/modules/dialog.js
-import { flushPendingSync, refreshSyncMeta } from './sync.js';
+import { flushPendingSync } from './sync.js';
 // App-eigene Overlay-Dialoge als Ersatz für native alert/confirm/prompt.
 // Optik wie die bestehenden Overlays (Sammlung löschen/zurücksetzen). Alle drei
 // liegen auf z-index 9999 + position:fixed, damit der Android-Zurück-Button sie
@@ -190,7 +190,7 @@ export function esToast(msg, ms = 2200) {
  * Backend-Bestätigung, blendet aus. Bei Timeout/Fehler → Balken weg + Toast
  * "Im Hintergrund gespeichert"; saveFn läuft im Hintergrund weiter, der Aufrufer
  * wird NICHT blockiert (App hängt nie). Resolved nach min(saveFn, timeout).
- * saveFn ist verantwortlich für die Cloud-Writes (+ refreshSyncMeta bei Erfolg).
+ * saveFn ist verantwortlich für die Cloud-Writes.
  */
 export function withSaving(saveFn, { label = 'Speichern…', timeoutMs = 5000 } = {}) {
   esSavingShow(label);
@@ -220,10 +220,10 @@ export function withSaving(saveFn, { label = 'Speichern…', timeoutMs = 5000 } 
 export function commitDirty() {
   const uid = window.currentUser?.id;
   if (!uid) return Promise.resolve();
-  return withSaving(async () => {
-    await flushPendingSync();
-    await refreshSyncMeta(uid);
-  });
+  // KEIN refreshSyncMeta hier: es_sync_meta wird ausschließlich beim Laden
+  // (adoptCloudState) gesetzt, damit die Signatur nie den Daten vorausläuft.
+  // Folge: nach dem Schreiben lädt das nächste Öffnen einmal kurz nach (Cloud = Wahrheit).
+  return withSaving(async () => { await flushPendingSync(); });
 }
 
 // Auch global, damit Inline-/Legacy-Aufrufer sie ohne Import nutzen können.

@@ -9,7 +9,7 @@
 | `storage.js` | LocalStorage-Operationen für window.SD | `persist`, `loadData`, `freshData`, `clearStorage`, `cleanupStorage`, `clearSWCache` |
 | `default-decks.js` | Starter-Vokabelsammlungen für neue Nutzer | `DEFAULT_DECKS` |
 | `auth.js` | Supabase Auth: Login, Registrierung, Passwort-Reset, Google-OAuth | `signIn`, `signUp`, `signOut`, `onAuthChange`, `requestPasswordReset`, `updatePassword`, `resendConfirmation`, `signInWithGoogle` |
-| `sync.js` | Cloud Read/Write + Offline-Queue + Schreib-Gate + updated_at-Signatur | `cloudLoad`, `cloudProbe`, `saveProfile`, `saveDeck`, `saveWordStats`, `saveGlobalPresetStats`, `saveExam`, `deleteCloud*`, `loadProfile`, `cloudReset`, `markDirty`, `flushPendingSync`, `getPendingCount`, `setCloudConfirmed`, `cloudConfirmed`, `readSyncMeta`, `writeSyncMeta`, `clearSyncMeta`, `metaDiffers`, `refreshSyncMeta` |
+| `sync.js` | Cloud Read/Write + Offline-Queue + Schreib-Gate + updated_at-Signatur | `cloudLoad`, `cloudProbe`, `saveProfile`, `saveDeck`, `saveWordStats`, `saveGlobalPresetStats`, `saveExam`, `deleteCloud*`, `loadProfile`, `cloudReset`, `markDirty`, `flushPendingSync`, `getPendingCount`, `setCloudConfirmed`, `cloudConfirmed`, `readSyncMeta`, `writeSyncMeta`, `clearSyncMeta`, `metaDiffers` |
 | `decks.js` | Deck CRUD + UI-State + Spiegel-Sync | `activeDeck`, `syncMirrorFromActiveDeck`, `switchDeck`, `createDeck`, `deckProgress`, `presetProgressPct`, `renderDecks`, `migrateStatKeys` |
 | `stats.js` | EMA-basierte Statistik-Berechnungen + statKey-Normalisierung | `effectivePct`, `isStatMastered`, `isMastered`, `statKeyFor`, `normStatDE`, `normStatEN`, `getVocabStat`, `presetWordsPct`, `modePct` |
 | `speech.js` | TTS (Web Speech API) + Spracherkennung (Vosk offline) | `_initTTS`, `primeTTS`, `speakWord`, `speakWordOnce`, `ensureMicStream`, `releaseMicStream`, `startVoskRecognition`, `startRecording`, `voskStop`, `stopVisualizer` |
@@ -141,7 +141,12 @@ Bewusst EIN zusammenhängender Aufbau. Zwei getrennte Jobs: **PULL** (Frische ü
 **Wahrheits-Token:** `updated_at` serverseitig per DB-Trigger (`set_updated_at` auf
 profiles/decks/word_stats/preset_stats/preset_category_progress); Client schickt es
 nicht mehr mit. Signatur `meta = {ts:max(updated_at), count}` je Bereich (count fängt
-Löschungen ab), gemerkt in `localStorage['es_sync_meta']`.
+Löschungen ab), gemerkt in `localStorage['es_sync_meta2']`. **`es_sync_meta` wird
+NUR in `adoptCloudState` geschrieben** (= „welche Cloud-Version liegt gerade in
+`window.SD`"). Nie per Probe nach einem Write — sonst liefe die Signatur den Daten
+voraus (fremde Cloud-Änderung geprobt, aber nicht geladen) → `metaDiffers` fälschlich
+`false` → Gerät bliebe alt (nur Storage-Löschen half). Key ist versioniert (`…2`)
+zur einmaligen Selbstheilung alter, verlaufener Signaturen.
 
 **Regel 1 — App öffnen / Foreground-Resume** (`handleLogin` bzw. `maybeRefreshOnResume`):
 ```
@@ -171,9 +176,12 @@ auf Bestätigung. `confirmHome` wartet, DANN Menü.
 **Regel 3 — jede Änderung** (Name/Deck/Vokabeln in `ui.js`/`decks.js`/`vocab.js`):
 window.SD ändern + persist + `markDirty(...)` + `await commitDirty()`.
 
-**Regel 4 — Multi-Device:** jeder bestätigte Write hebt den Server-`updated_at`;
-`refreshSyncMeta` merkt den eigenen Stand → anderes Gerät erkennt beim nächsten Öffnen
-(Regel 1) die Änderung und lädt nach.
+**Regel 4 — Multi-Device:** jeder bestätigte Write hebt den Server-`updated_at`.
+`es_sync_meta` bleibt auf der zuletzt **geladenen** Cloud-Version stehen (nur
+`adoptCloudState` schreibt sie) → JEDES Gerät (auch das schreibende selbst) erkennt
+beim nächsten Öffnen via `metaDiffers`, dass die Cloud neuer ist, und lädt sie 1:1
+nach. Das schreibende Gerät lädt seinen eigenen Stand einmal kurz nach (Cloud =
+Wahrheit) — winzig, dafür garantiert konsistent.
 
 `withSaving` blockiert nie: Timeout/Fehler → Balken weg + Toast „Im Hintergrund
 gespeichert", `saveFn` läuft im Hintergrund weiter, Marker bleibt in der Queue.

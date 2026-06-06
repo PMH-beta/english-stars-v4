@@ -9,6 +9,15 @@
 - Workflow: Pawel ↔ Claude Code (Code) + Claude (Strategie/Review)
 
 ## Erledigt
+- Sync-Meta-Drift behoben (Ursache für "nur Storage-Löschen half"):
+  es_sync_meta lief den Daten voraus, weil refreshSyncMeta nach JEDEM Write
+  die live-Cloud-Signatur speicherte — inkl. fremder, nicht geladener
+  Änderungen → metaDiffers fälschlich false → Gerät blieb alt. Fix:
+  es_sync_meta wird NUR noch in adoptCloudState (beim Laden) gesetzt; alle
+  refreshSyncMeta-Aufrufe (commitDirty/handleLogin/resume/reset) entfernt,
+  Funktion gelöscht. Key-Bump es_sync_meta→es_sync_meta2 = einmalige
+  Selbstheilung verlaufener Signaturen OHNE Storage-Löschen. Folge: nach
+  Änderung lädt das nächste Öffnen einmal kurz nach (Cloud=Wahrheit, winzig).
 - Open-Logik: Probe-zuerst (Revert-Schutz) + Token-Timeout. handleLogin/
   maybeRefreshOnResume proben ERST; Cloud seit letztem Sync geändert →
   Cloud gewinnt (lokale Pending NICHT pushen → kein Zurücksetzen der Cloud

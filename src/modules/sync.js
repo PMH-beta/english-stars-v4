@@ -501,8 +501,15 @@ export function getPendingCount() {
 // ────────────────────────────────────────────────
 // Signatur je Bereich = {ts: max(updated_at), count}. count fängt Löschungen ab.
 // Vergleich Cloud-ts gegen gemerktes ts (beide aus der DB) → clock-skew-frei.
-
-const SYNC_META_SK = 'es_sync_meta';
+//
+// WICHTIG: es_sync_meta bedeutet "Cloud-Version, die GERADE in window.SD liegt".
+// Daher wird sie NUR in adoptCloudState (= beim Laden) geschrieben — niemals nach
+// einem Write per Probe. Sonst könnte die Signatur den Daten "vorauslaufen"
+// (fremde Cloud-Änderung geprobt, aber nicht geladen) → metaDiffers wäre fälschlich
+// false → Gerät bliebe alt (nur Storage-Löschen half). Der Key ist versioniert
+// ('…2'), damit alte, bereits verlaufene Signaturen einmalig ignoriert werden
+// (Selbstheilung ohne Storage-Löschen).
+const SYNC_META_SK = 'es_sync_meta2';
 const PROBE_TIMEOUT_MS = 4000;
 
 export function readSyncMeta() {
@@ -563,10 +570,4 @@ export async function cloudProbe(userId) {
     console.warn('[sync] cloudProbe fehlgeschlagen:', e?.message);
     return { status: 'failed' };
   }
-}
-
-/** Nach einem bestätigten Write die gemerkte Signatur aktualisieren (Probe → Store). */
-export async function refreshSyncMeta(userId) {
-  const p = await cloudProbe(userId);
-  if (p.status === 'ok') writeSyncMeta(p.meta);
 }
