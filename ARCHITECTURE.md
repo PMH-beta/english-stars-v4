@@ -130,7 +130,8 @@ Bewusst EIN zusammenhängender Aufbau. Zwei getrennte Jobs: **PULL** (Frische ü
 | Garantie | Wohnt in (EINE Stelle) |
 |---|---|
 | Empty-Write-Schutz | `_cloudConfirmed`-Gate in `sync.js` — gesetzt NUR von `adoptCloudState`/`handleLogin` (true) + `handleLogout` (false); geprüft in `saveProfile` + `flushPendingSync` |
-| Merge (max Punkte/HS, sonst last-write-wins) | `adoptCloudState()` in `ui.js` — einzige Stelle, die `window.SD` aus der Cloud überschreibt |
+| Cloud = einzige Wahrheit (KEIN Wert-Merge) | `adoptCloudState()` in `ui.js` — übernimmt `window.SD` **1:1** aus der Cloud; einzige Stelle, die das tut |
+| Schutz ungesyncter lokaler Änderungen | **Pending-Guard** in `handleLogin`/`maybeRefreshOnResume`: Pre-Flush zuerst; bleibt danach Pending übrig → Cloud NICHT übernehmen, lokal+Marker behalten |
 | „neuer Nutzer" vs. „Load fehlgeschlagen" | Status von `cloudLoad()` (`ok`/`new`/`failed`) |
 | Load-Timeout/Retry | `cloudLoad` (5s×2) / `cloudProbe` (4s×1) |
 | Speichern sichtbar + bestätigt + Timeout-Fallback | `withSaving()` / `commitDirty()` in `dialog.js` |
@@ -142,14 +143,20 @@ Löschungen ab), gemerkt in `localStorage['es_sync_meta']`.
 
 **Regel 1 — App öffnen / Foreground-Resume** (`handleLogin` bzw. `maybeRefreshOnResume`):
 ```
-Gate ZU. probe = cloudProbe()
- ├─ probe ok:   Gate AUF; pending hoch; metaDiffers(probe, stored)? → cloudLoad+adoptCloudState : nichts (lokal)
- └─ probe fail: NICHT offline annehmen → autoritativer cloudLoad (Retry/JWT)
-       ├─ ok    → adoptCloudState (Merge)        ├─ new → name-screen (echt neu)
-       └─ failed→ lokal vorhanden? lokal + "Offline"-Toast : "erneut versuchen"-Dialog
+Gate ZU.
+1) Pre-Flush: localValid && pending? → Gate AUF, flushPendingSync()
+2) GUARD: danach noch Pending übrig? → Cloud NICHT übernehmen, lokal+Marker behalten (kein Verlust, keine Wiederbelebung)
+3) probe = cloudProbe()
+    ├─ probe ok:   metaDiffers(probe, stored)? → cloudLoad → adoptCloudState (1:1) : nichts (lokal)
+    └─ probe fail: NICHT offline annehmen → autoritativer cloudLoad (Retry/JWT)
+          ├─ ok    → adoptCloudState (Cloud 1:1)   ├─ new → name-screen (echt neu)
+          └─ failed→ lokal vorhanden? lokal + "Offline"-Toast : "erneut versuchen"-Dialog
 ```
-Foreground-Resume läuft NUR auf Menü-Ebene (nie im Spiel/Scan/Edit), debounced via
-`_resumeInFlight`.
+Es gibt **keinen Wert-Merge** mehr (kein `max`): die Cloud gewinnt beim Start immer,
+alle Geräte gleichwertig. Eine echte ungesyncte Runde geht nicht verloren, weil sie
+über Pre-Flush (Punkte UND word_stats zusammen) hochgeschoben wird, bevor übernommen
+wird — und falls der Push nicht bestätigt, greift der Guard. Foreground-Resume läuft NUR
+auf Menü-Ebene (nie im Spiel/Scan/Edit), debounced via `_resumeInFlight`.
 
 **Regel 2 — Runde zu Ende / aus Spiel zurück** (`game.js`): `saveProgress()` verbucht
 lokal + `markDirty`; `commitProgress()` = `commitDirty()` zeigt „Speichern…", wartet

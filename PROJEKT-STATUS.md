@@ -9,6 +9,13 @@
 - Workflow: Pawel ↔ Claude Code (Code) + Claude (Strategie/Review)
 
 ## Erledigt
+- Sync hierarchiefrei: max-Merge entfernt → Cloud ist beim Start die EINZIGE
+  Wahrheit (adoptCloudState übernimmt window.SD 1:1, kein Wertvergleich).
+  Schutz ungesyncter lokaler Änderungen nur noch marker-basiert: Pre-Flush
+  zuerst + Pending-Guard (bleibt nach Flush Pending übrig → Cloud NICHT
+  übernehmen, lokal+Marker behalten). Behebt die Reset-Wiederbelebung (ein
+  Gerät mit stale-high localStorage konnte den Reset eines anderen Geräts
+  rückgängig machen). pendingName-Reapply entfällt (Guard deckt Name mit ab).
 - Sync-Modell EINMAL sauber neu (vier Regeln, Garantien an je EINER Stelle,
   kein mid-session Reconcile bei Navigation):
   (1) App öffnen + Foreground-Resume (nur Menü-Ebene): cloudProbe →
