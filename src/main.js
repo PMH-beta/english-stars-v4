@@ -7,7 +7,7 @@ import { _trackUrl, _discoverTracks, _playNext, _initAudio, startMusic, startMus
 import { effectivePct, isMastered } from './modules/stats.js';
 import { buildPool, toggleSchnell, startGame, confirmHome, nextQuestion, restartSame, checkMC, submitType, showSelfRateButtons, retryPronounce, evaluateWithClaude, setMicFinalStatus, _sfx, playSfx } from './modules/game.js';
 import { syncMirrorFromActiveDeck, activeDeck, switchDeck, createDeck, deleteDeck, renameDeck, deckProgress, renderDecks, toggleDeck, activateDeck, startGameWithDeck, newDeckPrompt, renameDeckPrompt, confirmDeleteDeck, resetDeckProgress, vmDeleteWord, vmAddManual, openDeckStats } from './modules/decks.js';
-import { showScreen, saveName, showMenu, saveApiKey, skipApiKey, showProfile, editPlayerName, showStats, confirmReset, showFeedback, hideFeedback, exportData, importData, showAuth, authToggleMode, authSubmit, authResend, authLogout, authGoogleSignIn, handleLogin, handleLogout, showPasswordReset, submitPasswordReset, showNewPasswordScreen, submitNewPassword, cancelNewPassword, setActiveMode, renderModeContent } from './modules/ui.js';
+import { showScreen, saveName, showMenu, saveApiKey, skipApiKey, showProfile, editPlayerName, showStats, confirmReset, showFeedback, hideFeedback, exportData, importData, showAuth, authToggleMode, authSubmit, authResend, authLogout, authGoogleSignIn, handleLogin, handleLogout, showPasswordReset, submitPasswordReset, showNewPasswordScreen, submitNewPassword, cancelNewPassword, setActiveMode, renderModeContent, maybeReconcile } from './modules/ui.js';
 import { pwaInstall } from './modules/pwa.js';
 import { openVocabManager, openPresetDeckStats, vmTab, renderVocabList, parsePastedText, onScanFile, showReview, renderReviewList, removeReviewItem, addReviewItem, confirmAddVocab, renderPresetsTab, togglePresetCategory, vmBack, vmRenameActiveDeck, newDeckFlow } from './modules/vocab.js';
 import './modules/dialog.js'; // registriert window.esAlert/esConfirm/esPrompt (App-Overlays statt nativer Dialoge)
@@ -178,8 +178,11 @@ window.addEventListener('online', () => { if (window.currentUser) flushPendingSy
 // (supabase.js esFetch), sodass ein noch laufender Save den Teardown überlebt —
 // so erreicht der Rundenfortschritt die Cloud, bevor die App zugeht.
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'hidden' && window.currentUser) {
-    flushPendingSync().catch(() => {});
+  if (!window.currentUser) return;
+  if (document.visibilityState === 'hidden') {
+    flushPendingSync().catch(() => {});          // PUSH: pending vor dem Schließen sichern
+  } else if (document.visibilityState === 'visible') {
+    maybeReconcile('foreground').catch(() => {}); // PULL: updated_at-Abgleich beim Zurückkehren
   }
 });
 

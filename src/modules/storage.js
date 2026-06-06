@@ -111,6 +111,7 @@ export function clearStorage() {
   try { localStorage.removeItem(SK); } catch(e) {}
   try { localStorage.removeItem(SK_OLD); } catch(e) {}
   try { localStorage.removeItem('pending_sync'); } catch(e) {}
+  try { localStorage.removeItem('es_sync_meta'); } catch(e) {}
 }
 
 /**

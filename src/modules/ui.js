@@ -5,7 +5,7 @@ import { syncMirrorFromActiveDeck, deckProgress, presetProgressPct, renderDecks,
 import { getPresetCategories } from './vocab.js';
 import { releaseMicStream, stopVisualizer, voskStop, speakWord } from './speech.js';
 import { signIn, signUp, signOut, resendConfirmation, requestPasswordReset, updatePassword, signInWithGoogle } from './auth.js';
-import { cloudLoad, saveProfile, cloudReset, saveDeck, saveWordStats, saveExam, markDirty, flushPendingSync, setCloudWritesAllowed, hasPendingProfile } from './sync.js';
+import { cloudLoad, saveProfile, cloudReset, saveDeck, saveWordStats, saveExam, markDirty, flushPendingSync, setCloudWritesAllowed, cloudWritesAllowed, hasPendingProfile, cloudProbe, readSyncMeta, writeSyncMeta, metaDiffers } from './sync.js';
 
 const API_KEY_SK = 'es_apikey';
 
@@ -310,6 +310,7 @@ export function showMenu() {
   const ft = document.getElementById('menu-footer'); if (ft) ft.style.display = 'flex';
   renderDecks();
   renderModeContent(window.SD.activeMode || 'free');
+  maybeReconcile('menu');   // updated_at-Abgleich (debounced, best-effort)
 }
 
 // ────────────────────────────────────────────────
@@ -317,6 +318,7 @@ export function showMenu() {
 // ────────────────────────────────────────────────
 export function showProfile() {
   showScreen('profile-screen');
+  maybeReconcile('profile');   // updated_at-Abgleich (debounced, best-effort)
   const SD = window.SD;
   const pn = document.getElementById('prof-name');
   if (pn) pn.textContent = SD.playerName || 'Spieler';
@@ -424,6 +426,7 @@ export function wrongDots(stat) {
 
 export async function showStats() {
   showScreen('stats-screen');
+  maybeReconcile('stats');   // updated_at-Abgleich (debounced, best-effort)
   const SD = window.SD;
   const pn = document.getElementById('profile-name');
   const pm = document.getElementById('profile-meta');
@@ -984,34 +987,86 @@ export async function handleLogin(user) {
     return;
   }
 
-  // ── status === 'ok': Cloud ist die Wahrheit.
-  // max-Merge NUR für monoton steigende Felder (Punkte/Highscore) VOR dem
-  // Überschreiben — so geht eine noch nicht hochgeschobene Runde nie verloren,
-  // selbst wenn der Pre-Flush sie nicht erreichte. Alle anderen Felder (playerName,
-  // active_deck_id, active_mode …) bleiben last-write-wins (Cloud bzw. pendingName).
+  // ── status === 'ok': Cloud ist die Wahrheit. Übernahme inkl. max-Merge,
+  // Empty-Write-Schutz und Sync-Signatur im gemeinsamen adoptCloudState().
+  await adoptCloudState(res, { localPoints, localHighscore, pendingName });
+  _loginInFlight = false;
+
+  console.log('[handleLogin] SD nach Load:', window.SD.playerName, window.SD.highscore);
+  if (!window.SD?.playerName) showScreen('name-screen');
+  else restoreLastScreen();
+}
+
+// Übernimmt einen erfolgreichen Cloud-Load (res.status==='ok') in window.SD —
+// gemeinsamer Kern für handleLogin (Erstladen) und reloadFromCloud (Mid-Session-
+// Abgleich). Hier leben Gate, max-Merge (NUR monotone Felder) und das Merken der
+// Sync-Signatur (es_sync_meta). Entscheidet KEINE Screens — das macht der Aufrufer.
+async function adoptCloudState(res, { localPoints = 0, localHighscore = 0, pendingName = null } = {}) {
   const cloudPoints    = res.state.totalPoints || 0;
   const cloudHighscore = res.state.highscore   || 0;
   const mergedPoints    = Math.max(localPoints,    cloudPoints);
   const mergedHighscore = Math.max(localHighscore, cloudHighscore);
   window.SD = res.state;
   setCloudWritesAllowed(true);
+  // max-Merge NUR monoton steigende Felder → keine noch nicht hochgeschobene Runde
+  // geht verloren. Übrige Felder last-write-wins (Cloud bzw. lokal-unsynced Name).
   window.SD.totalPoints = mergedPoints;
   window.SD.highscore   = mergedHighscore;
-  // Anstehende lokale Namensänderung auf den frischen Cloud-Stand legen:
-  // Name bleibt, restliches Profil = Cloud-Werte. Erst danach hochschieben.
   if (pendingName) window.SD.playerName = pendingName;
-  // Lag der lokale Stand höher als die Cloud, den gemergten Wert sicher hochschieben.
   if (mergedPoints > cloudPoints || mergedHighscore > cloudHighscore) markDirty('profile');
   persist(window.SD);
   syncMirrorFromActiveDeck();
   if (migrateStatKeys()) persist(window.SD);
-  // Jetzt ist SD cloud-vollständig (+ ggf. neuer Name) → pending sicher flushen.
-  await flushPendingSync().catch(e => console.error('[handleLogin] flush:', e?.message));
-  _loginInFlight = false;
+  if (res.meta) writeSyncMeta(res.meta);   // Signatur des frisch geladenen Stands merken
+  _lastReconcile = Date.now();             // direkt nach Load nicht sofort erneut proben
+  await flushPendingSync().catch(e => console.error('[adoptCloudState] flush:', e?.message));
+}
 
-  console.log('[handleLogin] SD nach Load:', window.SD.playerName, window.SD.highscore);
-  if (!window.SD?.playerName) showScreen('name-screen');
-  else restoreLastScreen();
+// ── Mid-Session updated_at-Abgleich (Pull-Freshness / Multi-Device) ──
+let _lastReconcile = 0;
+
+// Prüft per cloudProbe, ob die Cloud-Signatur neuer ist als die zuletzt geladene,
+// und lädt NUR dann voll nach. Best-effort, debounced (~3 s). Fehlschlag → nichts
+// tun (kein Blockieren, kein Leer-Zustand). Read-only, schreibt nie.
+export async function maybeReconcile(reason) {
+  if (!window.currentUser || !cloudWritesAllowed() || _loginInFlight) return;
+  const now = Date.now();
+  if (now - _lastReconcile < 3000) return;
+  _lastReconcile = now;
+  const probe = await cloudProbe(window.currentUser.id);
+  if (probe.status !== 'ok') return;
+  if (metaDiffers(probe.meta, readSyncMeta())) {
+    await reloadFromCloud(reason);
+  }
+}
+
+// Voll-cloudLoad eines bereits eingeloggten Users (Cloud hat sich geändert).
+// Gleiche Schutzmechanik wie handleLogin: Pre-Flush nur bei gültigem SD, Gate,
+// max-Merge. Bei failed/new wird der aktuelle Stand NICHT überschrieben.
+async function reloadFromCloud(reason) {
+  if (!window.currentUser) return;
+  const localValid     = !!(window.SD && window.SD.playerName);
+  const localPoints    = window.SD?.totalPoints || 0;
+  const localHighscore = window.SD?.highscore   || 0;
+  const pendingName    = (hasPendingProfile() && localValid) ? window.SD.playerName : null;
+  // Mid-Session ist das Gate bereits offen (Login bestätigt) → NICHT togglen, sonst
+  // bliebe es bei failed/new geschlossen und würde alle weiteren Saves blockieren.
+  // Pre-Flush schiebt noch nicht synchronisierte lokale Deltas vor dem Load hoch.
+  await flushPendingSync().catch(() => {});
+  let res;
+  try { res = await cloudLoad(window.currentUser.id); }
+  catch (e) { res = { status: 'failed' }; }
+  if (res.status !== 'ok') return;   // failed/new mid-session → aktuellen Stand behalten
+  await adoptCloudState(res, { localPoints, localHighscore, pendingName });
+  _rerenderCurrent();
+}
+
+// Aktuell sichtbaren Daten-Screen nach einem Abgleich-Reload neu rendern.
+// Spiel/Scan/Review/End werden bewusst NICHT gestört.
+function _rerenderCurrent() {
+  if (_currentScreen === 'menu-screen') showMenu();
+  else if (_currentScreen === 'stats-screen') showStats();
+  else if (_currentScreen === 'profile-screen') showProfile();
 }
 
 // Garantie 1/2: Zeigt einen klaren Retry-Dialog statt eines stillen Leer-Zustands,

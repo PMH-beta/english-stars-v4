@@ -9,6 +9,16 @@
 - Workflow: Pawel ↔ Claude Code (Code) + Claude (Strategie/Review)
 
 ## Erledigt
+- updated_at-Abgleich (Pull-Freshness / Multi-Device): DB-Trigger
+  set_updated_at() setzt updated_at serverseitig (now()) auf profiles/
+  decks/word_stats/preset_stats/preset_category_progress → clock-skew-
+  freier Wahrheits-Token; Client schickt updated_at nicht mehr mit.
+  cloudLoad liefert Signatur meta={ts,count} je Bereich → es_sync_meta.
+  cloudProbe (5 Mini-Requests) + metaDiffers; maybeReconcile (debounced,
+  Trigger: Menü-Rückkehr, Stats/Profil öffnen, App-Vordergrund) lädt nur
+  bei Abweichung voll nach (reloadFromCloud → gemeinsamer adoptCloudState-
+  Pfad mit Gate/Pre-Flush/max-Merge). Best-effort: Fehlschlag → kein
+  Leer-Zustand. count fängt Löschungen ab. Kein periodischer Tick.
 - Rundenfortschritt zuverlässig in die Cloud (Bug: nach Runde + App
   schließen kam beim Neuöffnen der ALTE Stand, Punkte fehlten):
   (1) Final-Flush bei visibilitychange→hidden + keepalive-fetch

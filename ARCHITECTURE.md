@@ -9,7 +9,7 @@
 | `storage.js` | LocalStorage-Operationen für window.SD | `persist`, `loadData`, `freshData`, `clearStorage`, `cleanupStorage`, `clearSWCache` |
 | `default-decks.js` | Starter-Vokabelsammlungen für neue Nutzer | `DEFAULT_DECKS` |
 | `auth.js` | Supabase Auth: Login, Registrierung, Passwort-Reset, Google-OAuth | `signIn`, `signUp`, `signOut`, `onAuthChange`, `requestPasswordReset`, `updatePassword`, `resendConfirmation`, `signInWithGoogle` |
-| `sync.js` | Cloud Read/Write zwischen Supabase und window.SD + Offline-Queue + Schreib-Gate | `cloudLoad`, `saveProfile`, `saveDeck`, `saveWordStats`, `saveGlobalPresetStats`, `saveExam`, `deleteCloudDeck`, `deleteCloudWordStats`, `deleteCloudPresetStats`, `loadProfile`, `cloudReset`, `markDirty`, `flushPendingSync`, `hasPendingProfile`, `getPendingCount`, `setCloudWritesAllowed`, `cloudWritesAllowed` |
+| `sync.js` | Cloud Read/Write zwischen Supabase und window.SD + Offline-Queue + Schreib-Gate + updated_at-Abgleich | `cloudLoad`, `cloudProbe`, `saveProfile`, `saveDeck`, `saveWordStats`, `saveGlobalPresetStats`, `saveExam`, `deleteCloudDeck`, `deleteCloudWordStats`, `deleteCloudPresetStats`, `loadProfile`, `cloudReset`, `markDirty`, `flushPendingSync`, `hasPendingProfile`, `getPendingCount`, `setCloudWritesAllowed`, `cloudWritesAllowed`, `readSyncMeta`, `writeSyncMeta`, `clearSyncMeta`, `metaDiffers` |
 | `decks.js` | Deck CRUD + UI-State + Spiegel-Sync | `activeDeck`, `syncMirrorFromActiveDeck`, `switchDeck`, `createDeck`, `deckProgress`, `presetProgressPct`, `renderDecks`, `migrateStatKeys` |
 | `stats.js` | EMA-basierte Statistik-Berechnungen + statKey-Normalisierung | `effectivePct`, `isStatMastered`, `isMastered`, `statKeyFor`, `normStatDE`, `normStatEN`, `getVocabStat`, `presetWordsPct`, `modePct` |
 | `speech.js` | TTS (Web Speech API) + Spracherkennung (Vosk offline) | `_initTTS`, `primeTTS`, `speakWord`, `speakWordOnce`, `ensureMicStream`, `releaseMicStream`, `startVoskRecognition`, `startRecording`, `voskStop`, `stopVisualizer` |
@@ -17,7 +17,7 @@
 | `pwa.js` | PWA Install-Prompt + iOS-Hinweis-Banner | `pwaInstall`, `pwaSetup` |
 | `game.js` | Spielmechanik: Fragen, Punkte, Streak, Exam | `_sfx` + zahlreiche `window.*` Game-State-Variablen |
 | `vocab.js` | VokabelManager UI: Hinzufügen, Scannen, Einfügen, Preset-Kategorien, Draft-Flow für neue Sammlungen, Vorlagen-Deck-Statistik | `openVocabManager`, `openPresetDeckStats`, `getPresetCategories`, `vmTab`, `renderVocabList`, `confirmAddVocab`, `renderPresetsTab`, `togglePresetCategory`, `vmRenameActiveDeck`, `newDeckFlow`, `vmBack` |
-| `ui.js` | Screen-Routing, Auth-Lifecycle, Modus-Toggle, alle UI-Event-Handler | `showScreen`, `showMenu`, `handleLogin`, `handleLogout`, `showNewPasswordScreen`, `saveName`, `authGoogleSignIn`, `setActiveMode`, `renderModeContent` |
+| `ui.js` | Screen-Routing, Auth-Lifecycle, Modus-Toggle, alle UI-Event-Handler | `showScreen`, `showMenu`, `handleLogin`, `handleLogout`, `maybeReconcile`, `showNewPasswordScreen`, `saveName`, `authGoogleSignIn`, `setActiveMode`, `renderModeContent` |
 | `startup.js` | Boot-Sequenz: TTS, Audio, Vosk, Auth-Session | `startupSequence`, `finishStartup` |
 | `dialog.js` | App-eigene Overlay-Dialoge statt nativer `alert`/`confirm`/`prompt` (Optik wie Sammlung-Overlays, z-index 9999 → vom Android-Back schließbar). Promise-basiert; Abbrechen löst keine Speicheraktion aus | `esAlert`, `esConfirm`, `esPrompt` (auch als `window.es*`) |
 
@@ -140,9 +140,23 @@ Ergebnis — mit Gesamt-Timeout (8s/Versuch) und 3 Versuchen mit Backoff:
 
 | Rückgabe | Bedeutung |
 |---|---|
-| `{ status:'ok', state }` | Cloud erfolgreich gelesen → `window.SD = state` |
-| `{ status:'new' }` | Cloud antwortete, kein Profil + keine Decks → echter neuer Nutzer |
+| `{ status:'ok', meta, state }` | Cloud erfolgreich gelesen → `window.SD = state`, `meta` = Sync-Signatur |
+| `{ status:'new', meta }` | Cloud antwortete, kein Profil + keine Decks → echter neuer Nutzer |
 | `{ status:'failed', error }` | alle Versuche scheiterten → **nicht** als "neu/leer" werten |
+
+#### updated_at-Abgleich (Pull-Freshness / Multi-Device)
+
+Zwei getrennte Jobs: **PUSH** (pending-Marker + flush + keepalive) = „kam meine Änderung an"; **PULL** (`cloudProbe` + `es_sync_meta`) = „muss ich nachladen".
+
+**Wahrheits-Token = `updated_at` (serverseitig per DB-Trigger `trg_set_updated_at`/`set_updated_at()` auf profiles/decks/word_stats/preset_stats/preset_category_progress).** Der Client schickt `updated_at` **nicht** mehr mit — der Trigger setzt `now()` (eine Uhr → clock-skew-frei). `created_at` bleibt client-seitig.
+
+**Signatur (`meta`)** je Bereich = `{ ts: max(updated_at), count }`. `count` fängt Löschungen ab, die `max(updated_at)` allein nicht sieht. Bereiche: `profile`, `decks`, `word_stats`, `preset` (= preset_stats + preset_category_progress kombiniert).
+
+- `cloudLoad` berechnet `meta` aus den geladenen Zeilen → `adoptCloudState` merkt sie in `localStorage['es_sync_meta']`.
+- `cloudProbe(userId)` = 5 winzige Requests (`select updated_at, count` je Tabelle, `limit 1`), kurzer Timeout (4s), keine Nutzdaten.
+- `metaDiffers(cloud, stored)` → true wenn irgendwo `count` abweicht **oder** Cloud-`ts` neuer.
+
+**`maybeReconcile(reason)`** (ui.js, debounced ≥3s, nur bei `cloudWritesAllowed`): `cloudProbe` → bei Abweichung `reloadFromCloud()` (Voll-`cloudLoad` über denselben `adoptCloudState`-Pfad: Pre-Flush nur bei gültigem SD, Gate, max-Merge) → `_rerenderCurrent()`. Fehlschlag/Timeout → **nichts tun** (kein Leer-Zustand, nie blockieren). **Trigger:** Menü-Rückkehr (`showMenu`), Unterseite öffnen (`showStats`/`showProfile`), App-Vordergrund (`visibilitychange→visible`). Kein periodischer Tick. Reset/leere Cloud mid-session (`new`/`failed`) überschreibt den lokalen Stand **nicht**.
 
 ---
 
