@@ -12,6 +12,26 @@ function isUUID(str) {
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
 }
 
+// ────────────────────────────────────────────────
+//  SCHREIB-GATE (Garantie 3)
+// ────────────────────────────────────────────────
+// Cloud-Writes sind GESPERRT, bis ein Login den Cloud-Stand bestätigt hat
+// (erfolgreicher cloudLoad ODER bestätigt neuer Nutzer). Verhindert, dass ein
+// noch unbestätigtes/leeres window.SD echte Cloud-Daten mit Leerwerten (0 Punkte,
+// kein Name) überschreibt — der Kern des "leerer-Nutzer"-Bugs.
+let _cloudWritesAllowed = false;
+export function setCloudWritesAllowed(v) { _cloudWritesAllowed = !!v; }
+export function cloudWritesAllowed() { return _cloudWritesAllowed; }
+
+// Promise mit hartem Timeout — rejected, wenn fn nicht rechtzeitig auflöst.
+function withTimeout(promise, ms, label) {
+  let t;
+  const timeout = new Promise((_, reject) => {
+    t = setTimeout(() => reject(new Error('[sync] timeout: ' + label)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(t));
+}
+
 const EMPTY_CAT = {
   vocab:       { played: 0, correct: 0, bestStreak: 0 },
   spelling:    { played: 0, correct: 0, bestStreak: 0 },
@@ -34,11 +54,34 @@ async function fetchWithRetry(fn) {
   return await fn();
 }
 
+const LOAD_TIMEOUT_MS = 8000;   // pro Versuch
+const LOAD_RETRIES    = 3;      // Versuche mit Backoff bevor 'failed'
+
 /**
- * Lädt kompletten User-State aus Cloud.
- * Gibt null zurück wenn User noch keine Decks hat (= neuer User).
+ * Lädt kompletten User-State aus der Cloud — mit Timeout + Retry/Backoff.
+ * Gibt ein diskriminiertes Ergebnis zurück, statt zu werfen oder null zu liefern:
+ *   { status: 'ok',     state }  → Cloud erfolgreich gelesen
+ *   { status: 'new'  }           → Cloud antwortete, aber kein Profil/keine Decks (echter neuer Nutzer)
+ *   { status: 'failed', error }  → alle Versuche fehlgeschlagen (Timeout/Netz) — NICHT als "neu" werten
+ * So kann der Aufrufer "neuer Nutzer" (Garantie 4) sauber von "Load fehlgeschlagen"
+ * (Garantie 1/2) unterscheiden.
  */
 export async function cloudLoad(userId) {
+  let lastErr = null;
+  for (let attempt = 1; attempt <= LOAD_RETRIES; attempt++) {
+    try {
+      return await withTimeout(_cloudLoadOnce(userId), LOAD_TIMEOUT_MS, 'cloudLoad');
+    } catch (e) {
+      lastErr = e;
+      console.warn(`[sync] cloudLoad Versuch ${attempt}/${LOAD_RETRIES} fehlgeschlagen:`, e?.message);
+      if (attempt < LOAD_RETRIES) await new Promise(r => setTimeout(r, 600 * attempt));
+    }
+  }
+  console.error('[sync] cloudLoad endgültig fehlgeschlagen:', lastErr?.message);
+  return { status: 'failed', error: lastErr?.message || 'unknown' };
+}
+
+async function _cloudLoadOnce(userId) {
   const [profileRes, decksRes, wordStatsRes, presetStatsRes, presetCatProgRes] = await Promise.all([
     fetchWithRetry(() => supabase.from('profiles').select('player_name, highscore, total_points, active_deck_id, active_mode').eq('id', userId).maybeSingle()),
     fetchWithRetry(() => supabase.from('decks').select('*').eq('user_id', userId).order('sort_order').order('created_at')),
@@ -47,10 +90,12 @@ export async function cloudLoad(userId) {
     fetchWithRetry(() => supabase.from('preset_category_progress').select('*').eq('user_id', userId)),
   ]);
 
-  if (decksRes.error) throw new Error('[sync] cloudLoad decks: ' + decksRes.error.message);
+  // profile + decks sind Kern-Daten → Fehler hier ist FATAL (löst Retry/failed aus),
+  // damit ein Netz-/Auth-Fehler NICHT als leeres Profil durchrutscht (Garantie 2/4).
+  if (decksRes.error)   throw new Error('[sync] cloudLoad decks: '   + decksRes.error.message);
+  if (profileRes.error) throw new Error('[sync] cloudLoad profile: ' + profileRes.error.message);
 
   const profile = profileRes.data || {};
-  if (profileRes.error) console.error('[cloudLoad] profile error:', profileRes.error.message);
 
   // Globale Vorlage-Stats aufbauen
   const globalPresetStats = { wordStats: {}, categoryProgress: {} };
@@ -74,8 +119,8 @@ export async function cloudLoad(userId) {
 
   if (!decksRes.data?.length) {
     // No decks yet. If profile has a name this is a returning user (e.g. after cloud reset).
-    if (!profile.player_name) return null; // truly new user
-    return {
+    if (!profile.player_name) return { status: 'new' }; // truly new user (Cloud bestätigt leer)
+    return { status: 'ok', state: {
       _version:     4,
       playerName:   profile.player_name,
       highscore:    profile.highscore    || 0,
@@ -86,7 +131,7 @@ export async function cloudLoad(userId) {
       categoryProgress: { ...EMPTY_CAT },
       wordStats:    {},
       globalPresetStats,
-    };
+    } };
   }
 
   // Decks aufbauen
@@ -121,7 +166,7 @@ export async function cloudLoad(userId) {
 
   const activeDeckId = profile.active_deck_id || decksRes.data[0]?.id || null;
 
-  return {
+  return { status: 'ok', state: {
     _version:         4,
     playerName:       profile.player_name || '',
     highscore:        profile.highscore || 0,
@@ -132,7 +177,7 @@ export async function cloudLoad(userId) {
     categoryProgress: { ...EMPTY_CAT },
     wordStats:        {},
     globalPresetStats,
-  };
+  } };
 }
 
 
@@ -141,6 +186,9 @@ export async function cloudLoad(userId) {
 // ────────────────────────────────────────────────
 
 export async function saveProfile(sd, userId) {
+  // Garantie 3: kein Profil-Write bevor der Cloud-Stand bestätigt ist — sonst könnte
+  // ein unbestätigtes/leeres SD den echten Cloud-Namen/-Punktestand mit '' / 0 überschreiben.
+  if (!_cloudWritesAllowed) { console.warn('[sync] saveProfile übersprungen — Cloud-Stand noch nicht bestätigt'); return; }
   const payload = {
     player_name:    sd.playerName || '',
     highscore:      sd.highscore || 0,
@@ -366,9 +414,17 @@ export function markDirty(type, deckId = null) {
 }
 
 
+/** True, wenn eine Profil-Änderung (z.B. Namensänderung) auf Sync wartet. */
+export function hasPendingProfile() {
+  return readPending().some(p => p.type === 'profile');
+}
+
 /** Schreibt alle pending Änderungen in die Cloud. Fehlgeschlagene bleiben in der Queue. */
 export async function flushPendingSync() {
   if (!window.currentUser) return;
+  // Garantie 3: Replay erst, wenn der Cloud-Stand bestätigt ist. Sonst würde der
+  // Pre-Login-Flush ein unbestätigtes SD (evtl. leer) in die Cloud schreiben.
+  if (!_cloudWritesAllowed) { console.warn('[sync] flushPendingSync übersprungen — Cloud-Stand noch nicht bestätigt'); return; }
   const pending = readPending();
   if (!pending.length) return;
 

@@ -9,6 +9,18 @@
 - Workflow: Pawel ↔ Claude Code (Code) + Claude (Strategie/Review)
 
 ## Erledigt
+- Sync-Härtung (wasserdicht/zukunftssicher gegen "leerer-Nutzer"-Bug):
+  (1) Schreib-Gate `cloudWritesAllowed` — `saveProfile`/`flushPendingSync`
+  schreiben NIE, bevor der Cloud-Stand per Login bestätigt ist → kein
+  Überschreiben echter Daten mit ''/0 (Garantie 3). (2) `cloudLoad` mit
+  Timeout (8s) + 3× Retry/Backoff, liefert Status {ok|new|failed} statt
+  throw/null. (3) `handleLogin` gated: failed → offline weiter mit lokalen
+  Daten ODER "Erneut versuchen"-Dialog (kein Leer-Default, Garantie 1/2);
+  new nur bei bestätigt leerer Cloud (Garantie 4). (4) Pre-Login-Flush
+  entfernt — pending Namensänderung wird NACH erfolgreichem Load auf den
+  frischen Cloud-Stand gelegt (Name bleibt, Punkte = Cloud). Ursache war
+  der durable 'profile'-Marker aus dem Dialog-Umbau, der beim Pre-Flush
+  ein unbestätigtes SD hochschob.
 - RLS-Fixes, Cloud-Sync (Profile/Decks/Stats)
 - GitHub Pages live, Email-Confirm, Passwort-vergessen
 - Import→Cloud, JWT-Race-Retry, handle_new_user-Trigger robust

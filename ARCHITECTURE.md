@@ -9,7 +9,7 @@
 | `storage.js` | LocalStorage-Operationen für window.SD | `persist`, `loadData`, `freshData`, `clearStorage`, `cleanupStorage`, `clearSWCache` |
 | `default-decks.js` | Starter-Vokabelsammlungen für neue Nutzer | `DEFAULT_DECKS` |
 | `auth.js` | Supabase Auth: Login, Registrierung, Passwort-Reset, Google-OAuth | `signIn`, `signUp`, `signOut`, `onAuthChange`, `requestPasswordReset`, `updatePassword`, `resendConfirmation`, `signInWithGoogle` |
-| `sync.js` | Cloud Read/Write zwischen Supabase und window.SD + Offline-Queue | `cloudLoad`, `saveProfile`, `saveDeck`, `saveWordStats`, `saveGlobalPresetStats`, `saveExam`, `deleteCloudDeck`, `deleteCloudWordStats`, `deleteCloudPresetStats`, `loadProfile`, `cloudReset`, `markDirty`, `flushPendingSync`, `getPendingCount` |
+| `sync.js` | Cloud Read/Write zwischen Supabase und window.SD + Offline-Queue + Schreib-Gate | `cloudLoad`, `saveProfile`, `saveDeck`, `saveWordStats`, `saveGlobalPresetStats`, `saveExam`, `deleteCloudDeck`, `deleteCloudWordStats`, `deleteCloudPresetStats`, `loadProfile`, `cloudReset`, `markDirty`, `flushPendingSync`, `hasPendingProfile`, `getPendingCount`, `setCloudWritesAllowed`, `cloudWritesAllowed` |
 | `decks.js` | Deck CRUD + UI-State + Spiegel-Sync | `activeDeck`, `syncMirrorFromActiveDeck`, `switchDeck`, `createDeck`, `deckProgress`, `presetProgressPct`, `renderDecks`, `migrateStatKeys` |
 | `stats.js` | EMA-basierte Statistik-Berechnungen + statKey-Normalisierung | `effectivePct`, `isStatMastered`, `isMastered`, `statKeyFor`, `normStatDE`, `normStatEN`, `getVocabStat`, `presetWordsPct`, `modePct` |
 | `speech.js` | TTS (Web Speech API) + Spracherkennung (Vosk offline) | `_initTTS`, `primeTTS`, `speakWord`, `speakWordOnce`, `ensureMicStream`, `releaseMicStream`, `startVoskRecognition`, `startRecording`, `voskStop`, `stopVisualizer` |
@@ -119,6 +119,31 @@ flushPendingSync()
 
 `cloudLoad` nutzt `fetchWithRetry()` intern um JWT-Race-Conditions nach Login abzufangen (bis zu 3 Versuche mit 1,5s Delay).
 
+#### Schreib-Gate (`setCloudWritesAllowed` / `cloudWritesAllowed`) — Garantie gegen Empty-Writes
+
+Cloud-Writes sind **gesperrt**, bis ein Login den Cloud-Stand bestätigt hat. `saveProfile`
+und `flushPendingSync` brechen ab, solange das Gate zu ist. So kann ein noch unbestätigtes
+oder leeres `window.SD` (z.B. Boot-Default, fehlgeschlagener Load) **nie** echte Cloud-Daten
+mit Leerwerten (0 Punkte, kein Name) überschreiben.
+
+```
+Login-Start         → setCloudWritesAllowed(false)   (Gate ZU)
+cloudLoad ok / new  → setCloudWritesAllowed(true)    (Gate AUF)
+cloudLoad failed    → Gate bleibt ZU                 (kein Write, Offline/Retry)
+handleLogout        → setCloudWritesAllowed(false)
+```
+
+#### `cloudLoad` Status-Rückgabe + Timeout/Retry
+
+`cloudLoad` wirft nicht mehr und liefert nicht mehr `null`, sondern ein diskriminiertes
+Ergebnis — mit Gesamt-Timeout (8s/Versuch) und 3 Versuchen mit Backoff:
+
+| Rückgabe | Bedeutung |
+|---|---|
+| `{ status:'ok', state }` | Cloud erfolgreich gelesen → `window.SD = state` |
+| `{ status:'new' }` | Cloud antwortete, kein Profil + keine Decks → echter neuer Nutzer |
+| `{ status:'failed', error }` | alle Versuche scheiterten → **nicht** als "neu/leer" werten |
+
 ---
 
 ### Auth-Flow: `startup.js` → `handleLogin` → `cloudLoad`
@@ -135,22 +160,23 @@ window.load
                  └─ currentUser?      → handleLogin(user)          ui.js
 
 handleLogin(user)                       ui.js
-  ├─ flushPendingSync()                 → lokale, noch nicht synchronisierte
-  │                                       Änderungen ZUERST hochschieben, BEVOR
-  │                                       cloudLoad sie lokal überschreibt
-  ├─ cloudLoad(user.id)                 sync.js
-  │    ├─ SELECT profiles WHERE id=userId
-  │    ├─ SELECT decks WHERE user_id=userId
-  │    ├─ SELECT word_stats WHERE user_id=userId
-  │    ├─ SELECT preset_stats WHERE user_id=userId
-  │    └─ SELECT preset_category_progress WHERE user_id=userId
-  │         → baut window.SD auf, fügt word_stats in Decks ein,
-  │           baut SD.globalPresetStats aus preset_stats + preset_category_progress
-  ├─ window.SD = cloudState
-  ├─ persist(window.SD)
-  ├─ syncMirrorFromActiveDeck()         → aktualisiert SD.wordStats + SD.categoryProgress
-  ├─ loadProfile(user.id)               → expliziter Fallback falls cloudLoad null lieferte
-  └─ !playerName? → name-screen | sonst → showMenu()
+  ├─ setCloudWritesAllowed(false)       → Gate ZU bis Cloud-Stand bestätigt (Garantie 3)
+  ├─ pendingName merken                 → lokal unsynced Name (hasPendingProfile + SD.playerName)
+  ├─ cloudLoad(user.id)                 sync.js  (Timeout 8s + 3× Retry/Backoff)
+  │    └─ SELECT profiles/decks/word_stats/preset_stats/preset_category_progress
+  │
+  ├─ status 'failed'  → KEIN Leer-Default, KEINE Neu-Entscheidung (Garantie 1/2)
+  │     ├─ lokale Daten da → offline weiterspielen (Gate bleibt ZU)
+  │     └─ kein lokaler Stand → showConnectionRetry() ("Erneut versuchen" / Abmelden)
+  │
+  ├─ status 'new'     → setCloudWritesAllowed(true); lokalen Stand behalten;
+  │                     flushPendingSync(); !playerName? name-screen : restore  (Garantie 4)
+  │
+  └─ status 'ok'      → window.SD = state; setCloudWritesAllowed(true)
+        ├─ pendingName ? window.SD.playerName = pendingName  (Name bleibt, Punkte = Cloud)
+        ├─ persist + syncMirrorFromActiveDeck()
+        ├─ flushPendingSync()           → jetzt sicher (SD cloud-vollständig)
+        └─ !playerName? name-screen | sonst → restoreLastScreen()
 ```
 
 Passwort-Reset-Sonderfall: Supabase feuert `PASSWORD_RECOVERY` Event → `onAuthChange` setzt `_pendingRecovery = true` → `finishStartup` leitet auf `new-password-screen`.
