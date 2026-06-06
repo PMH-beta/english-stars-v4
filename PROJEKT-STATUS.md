@@ -9,6 +9,17 @@
 - Workflow: Pawel ↔ Claude Code (Code) + Claude (Strategie/Review)
 
 ## Erledigt
+- Sync-Modell EINMAL sauber neu (vier Regeln, Garantien an je EINER Stelle,
+  kein mid-session Reconcile bei Navigation):
+  (1) App öffnen + Foreground-Resume (nur Menü-Ebene): cloudProbe →
+  load-if-differs über updated_at-Signatur (es_sync_meta); Probe-Fehler ≠
+  offline (fällt in autoritativen cloudLoad mit Retry/JWT).
+  (2) Rundenende/zurück: commitProgress → sichtbares commitDirty, wartet auf
+  Bestätigung, DANN Menü. (3) Jede Änderung (Name/Deck/Vokabeln):
+  markDirty + await commitDirty (Speichern-Balken). (4) Multi-Device über
+  server-seitigen updated_at-Trigger. Empty-Write-Gate (_cloudConfirmed) +
+  max-Merge (adoptCloudState) + Timeout-Fallback (withSaving, "im Hintergrund
+  gespeichert", blockiert nie). Speicher-Indikator = dezenter Balken oben.
 - Cache-Fix (normaler Reload holt frischen Code, kein Strg+Shift+R nötig):
   SW-Netz-Fetch für same-origin App-Code mit cache:'reload' → umgeht den
   HTTP-Cache des Browsers (Ursache: Modul-URLs ohne ?v + GitHub-Pages-max-age;

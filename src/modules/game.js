@@ -5,7 +5,8 @@ import { activeDeck, syncMirrorFromActiveDeck } from './decks.js';
 import { showScreen, showMenu, hideFeedback, showFeedback } from './ui.js';
 import { ensureMicStream, releaseMicStream, voskStop, stopVisualizer, speakWord, speakWordOnce, startVoskRecognition, startRecording, _shouldUseVosk } from './speech.js';
 import { persist } from './storage.js';
-import { markDirty, flushPendingSync, saveExam, saveWordStats, saveGlobalPresetStats } from './sync.js';
+import { markDirty, saveExam } from './sync.js';
+import { commitDirty } from './dialog.js';
 
 // Game state – all on window.* so Commit B functions (still in index.html) can read them as globals
 window.isSchnellModus = false;
@@ -169,12 +170,13 @@ function _launchGame(m) {
 }
 
 export function confirmHome() {
-  window.esConfirm({ icon:'🏠', title:'Zurück zum Menü?', body:'Der Lernfortschritt dieser Runde wird gespeichert.', ok:'Zum Menü', cancel:'Bleiben' }).then(ok => {
+  window.esConfirm({ icon:'🏠', title:'Zurück zum Menü?', body:'Der Lernfortschritt dieser Runde wird gespeichert.', ok:'Zum Menü', cancel:'Bleiben' }).then(async ok => {
     if(!ok) return;
     saveProgress();
     hideFeedback();
     try{ releaseMicStream(); }catch(e){}
     try{ if(window.speechSynthesis) window.speechSynthesis.cancel(); }catch(e){}
+    if(window.currentUser) await commitProgress();   // Regel 2: warten bis bestätigt, DANN Menü
     showMenu();
   });
 }
@@ -692,6 +694,9 @@ function _updateGlobalPresetCategoryProgress(deck) {
   }
 }
 
+// Lokalen Rundenfortschritt in window.SD verbuchen + als "muss synchronisiert"
+// markieren. Der eigentliche bestätigte Cloud-Write läuft danach gebündelt über
+// commitProgress() (sichtbar via withSaving). Kein fire-and-forget hier.
 function saveProgress() {
   if(window._progressSaved||window.isFreePlay||window.isSchnellModus)return;
   window._progressSaved=true;
@@ -702,10 +707,8 @@ function saveProgress() {
     if(window.points>window.SD.highscore) window.SD.highscore=window.points;
     persist();
     if(window.currentUser && deck) {
-      const uid=window.currentUser.id;
-      saveWordStats(deck.id, deck.wordStats, uid).catch(()=>markDirty('word_stats', deck.id));
-      if(deck.presetCategories?.length > 0)
-        saveGlobalPresetStats(window.SD.globalPresetStats, uid).catch(()=>markDirty('global_preset'));
+      markDirty('word_stats', deck.id);
+      if(deck.presetCategories?.length > 0) markDirty('global_preset');
       markDirty('profile');
     }
     return;
@@ -720,13 +723,18 @@ function saveProgress() {
     if(window.points>window.SD.highscore) window.SD.highscore=window.points;
     persist();
     if(window.currentUser && deck) {
-      const uid=window.currentUser.id;
-      saveWordStats(deck.id, deck.wordStats, uid).catch(()=>markDirty('word_stats', deck.id));
-      if(deck.presetCategories?.length > 0)
-        saveGlobalPresetStats(window.SD.globalPresetStats, uid).catch(()=>markDirty('global_preset'));
+      markDirty('word_stats', deck.id);
+      if(deck.presetCategories?.length > 0) markDirty('global_preset');
       markDirty('profile');
     }
   }
+}
+
+// Bestätigter, SICHTBARER Commit der Runde (Regel 2): "Speichern…"-Balken,
+// wartet auf Backend, aktualisiert die Sync-Signatur. Timeout/Fehler → Hinweis,
+// Marker bleibt in der Queue (Retry), App blockiert nie.
+function commitProgress() {
+  return commitDirty();
 }
 
 function showEnd() {
@@ -743,7 +751,7 @@ function showEnd() {
       if(window.currentUser) {
         saveExam({ deckId: deck.id, grade, percent }, window.currentUser.id).catch(()=>{});
         markDirty('deck', deck.id);
-        flushPendingSync().catch(()=>{});
+        commitProgress();   // sichtbarer Commit (läuft während die End-Karte angezeigt wird)
       }
     }
     const newHS=window.points>=window.SD.highscore&&window.points>0;
@@ -762,7 +770,7 @@ function showEnd() {
   }
   const newHS=window.points>=window.SD.highscore&&window.points>0;
   persist();
-  if(window.currentUser) flushPendingSync().catch(()=>{});
+  if(window.currentUser) commitProgress();   // sichtbarer Commit (während End-Karte)
   const mp=progressForCurrentMode();
   if(mp && mp.total>0 && mp.mastered>=mp.total){
     window.spawnConfetti();

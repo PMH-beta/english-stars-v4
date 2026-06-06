@@ -2,7 +2,8 @@
 import { switchDeck, activeDeck, syncMirrorFromActiveDeck, createDeck, presetProgressPct } from './decks.js';
 import { showScreen, wordStatus, wrongDots } from './ui.js';
 import { persist } from './storage.js';
-import { markDirty, flushPendingSync } from './sync.js';
+import { markDirty } from './sync.js';
+import { commitDirty } from './dialog.js';
 import { supabase } from './supabase.js';
 import { effectivePct, statKeyFor } from './stats.js';
 import { MAX_PRESET_CATEGORIES } from './config.js';
@@ -151,7 +152,7 @@ function _showPathChoiceDialog() {
     if (!deck) return;
     deck.deckPath = path;
     persist();
-    if (window.currentUser) { markDirty('deck', deck.id); flushPendingSync().catch(() => {}); }
+    if (window.currentUser) { markDirty('deck', deck.id); commitDirty(); }
     _renderVmTabsForMode();
   }
   overlay.querySelector('#_path-preset').addEventListener('click', () => _setPath('preset'));
@@ -569,7 +570,7 @@ export function confirmAddVocab() {
   });
   if (!window._draftDeck) {
     persist();
-    if (window.currentUser) { markDirty('deck', deck.id); flushPendingSync().catch(() => {}); }
+    if (window.currentUser) { markDirty('deck', deck.id); commitDirty(); }
   }
   window.esAlert({ icon: '✅', title: 'Hinzugefügt', body: `${toAdd.length} neue Vokabel${toAdd.length === 1 ? '' : 'n'} zur Lernliste hinzugefügt!` }).then(() => {
     window._reviewItems = [];
@@ -805,7 +806,7 @@ export function vmBack() {
     deck.presetsLocked = true;
     syncMirrorFromActiveDeck();
     persist();
-    if (window.currentUser) { markDirty('deck', deck.id); flushPendingSync().catch(() => {}); }
+    if (window.currentUser) { markDirty('deck', deck.id); commitDirty(); }
     showMenu();
   });
 }
@@ -905,7 +906,7 @@ function _confirmDraftDeck(draft, name) {
   deck.presetsLocked = draft.presetsLocked;
   delete window._draftDeck;
   switchDeck(id); // calls syncMirrorFromActiveDeck + persist
-  if (window.currentUser) { markDirty('deck', id); flushPendingSync().catch(() => {}); }
+  if (window.currentUser) { markDirty('deck', id); commitDirty(); }
   showMenu();
 }
 
@@ -995,7 +996,7 @@ function _doTogglePresetCategory(categoryId) {
   syncMirrorFromActiveDeck(); // no-op in draft mode (guarded)
   if (!window._draftDeck) {
     persist();
-    if (window.currentUser) { markDirty('deck', deck.id); flushPendingSync().catch(() => {}); }
+    if (window.currentUser) { markDirty('deck', deck.id); commitDirty(); }
   }
   renderPresetsTab();
   _updateVmCount();

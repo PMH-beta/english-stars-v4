@@ -1,4 +1,5 @@
 // src/modules/dialog.js
+import { flushPendingSync, refreshSyncMeta } from './sync.js';
 // App-eigene Overlay-Dialoge als Ersatz für native alert/confirm/prompt.
 // Optik wie die bestehenden Overlays (Sammlung löschen/zurücksetzen). Alle drei
 // liegen auf z-index 9999 + position:fixed, damit der Android-Zurück-Button sie
@@ -130,9 +131,107 @@ export function esPrompt(opts) {
   });
 }
 
+// ────────────────────────────────────────────────
+//  SPEICHER-INDIKATOR (dezenter Balken oben) + withSaving
+// ────────────────────────────────────────────────
+// Leichtgewichtig: kein Vollbild-Overlay, nur ein kleiner Pill-Balken oben mit
+// Spinner. Im Timeout-/Fehlerfall wird daraus ein deutlicherer Toast
+// ("Im Hintergrund gespeichert"). Speichervorgänge sind klein → kurz sichtbar.
+
+let _savingEl = null;
+function _ensureSavingStyle() {
+  if (document.getElementById('es-saving-style')) return;
+  const st = document.createElement('style');
+  st.id = 'es-saving-style';
+  st.textContent = '@keyframes es-spin{to{transform:rotate(360deg)}}';
+  (document.head || document.documentElement).appendChild(st);
+}
+
+function esSavingShow(label) {
+  _ensureSavingStyle();
+  if (!_savingEl) {
+    _savingEl = document.createElement('div');
+    _savingEl.id = 'es-saving-bar';
+    _savingEl.style.cssText = "position:fixed;top:max(10px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:10001;display:flex;align-items:center;gap:9px;background:rgba(40,30,60,.92);color:#fff;font-family:'Fredoka One',cursive;font-size:.82rem;padding:8px 16px;border-radius:50px;box-shadow:0 4px 16px rgba(0,0,0,.28);pointer-events:none;opacity:0;transition:opacity .15s;max-width:90vw;";
+    (document.body || document.documentElement).appendChild(_savingEl);
+  }
+  _savingEl.innerHTML = '<span style="width:13px;height:13px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;display:inline-block;animation:es-spin .7s linear infinite;"></span>'
+    + '<span></span>';
+  _savingEl.lastChild.textContent = label || 'Speichern…';
+  void _savingEl.offsetWidth;
+  _savingEl.style.opacity = '1';
+}
+
+function esSavingHide() {
+  if (!_savingEl) return;
+  _savingEl.style.opacity = '0';
+}
+
+/** Kurzer, deutlicherer Hinweis-Toast (z.B. Timeout-Fall). Auto-Hide. */
+let _toastTimer = null;
+export function esToast(msg, ms = 2200) {
+  _ensureSavingStyle();
+  let t = document.getElementById('es-toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'es-toast';
+    t.style.cssText = "position:fixed;top:max(10px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:10002;background:rgba(40,30,60,.95);color:#fff;font-family:'Nunito',sans-serif;font-weight:700;font-size:.85rem;padding:9px 18px;border-radius:50px;box-shadow:0 4px 16px rgba(0,0,0,.3);pointer-events:none;opacity:0;transition:opacity .18s;max-width:90vw;text-align:center;";
+    (document.body || document.documentElement).appendChild(t);
+  }
+  t.textContent = msg;
+  void t.offsetWidth;
+  t.style.opacity = '1';
+  if (_toastTimer) clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => { t.style.opacity = '0'; }, ms);
+}
+
+/**
+ * DER eine Speicher-Wrapper: zeigt den "Speichern…"-Balken, wartet auf
+ * Backend-Bestätigung, blendet aus. Bei Timeout/Fehler → Balken weg + Toast
+ * "Im Hintergrund gespeichert"; saveFn läuft im Hintergrund weiter, der Aufrufer
+ * wird NICHT blockiert (App hängt nie). Resolved nach min(saveFn, timeout).
+ * saveFn ist verantwortlich für die Cloud-Writes (+ refreshSyncMeta bei Erfolg).
+ */
+export function withSaving(saveFn, { label = 'Speichern…', timeoutMs = 5000 } = {}) {
+  esSavingShow(label);
+  const work = (async () => {
+    try { await saveFn(); return 'ok'; }
+    catch (e) { console.warn('[withSaving] fehlgeschlagen:', e?.message); return 'fail'; }
+  })();
+  return new Promise(resolve => {
+    let done = false;
+    const finish = (mode) => {
+      if (done) return; done = true;
+      esSavingHide();
+      if (mode !== 'ok') esToast('Im Hintergrund gespeichert');
+      resolve();
+    };
+    const timer = setTimeout(() => finish('timeout'), timeoutMs);
+    work.then(r => { clearTimeout(timer); finish(r); });
+  });
+}
+
+/**
+ * DER eine sichtbare Commit für „Änderung speichern" (Regel 2 & 3): schiebt die
+ * pending-Marker bestätigt in die Cloud (über withSaving → Balken/Timeout) und
+ * aktualisiert danach die Sync-Signatur. Aufrufer macht vorher window.SD ändern
+ * + persist + markDirty(...). EINE Stelle für „sichtbar + bestätigt + Meta".
+ */
+export function commitDirty() {
+  const uid = window.currentUser?.id;
+  if (!uid) return Promise.resolve();
+  return withSaving(async () => {
+    await flushPendingSync();
+    await refreshSyncMeta(uid);
+  });
+}
+
 // Auch global, damit Inline-/Legacy-Aufrufer sie ohne Import nutzen können.
 if (typeof window !== 'undefined') {
   window.esAlert = esAlert;
   window.esConfirm = esConfirm;
   window.esPrompt = esPrompt;
+  window.esToast = esToast;
+  window.withSaving = withSaving;
+  window.commitDirty = commitDirty;
 }

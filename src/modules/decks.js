@@ -1,6 +1,7 @@
 // src/modules/decks.js
 import { effectivePct, statKeyFor } from './stats.js';
-import { markDirty, flushPendingSync, deleteCloudDeck, deleteCloudWordStats, deleteCloudPresetStats, saveDeck } from './sync.js';
+import { markDirty, deleteCloudDeck, deleteCloudWordStats, deleteCloudPresetStats, saveDeck } from './sync.js';
+import { commitDirty } from './dialog.js';
 
 // ────────────────────────────────────────────────
 //  UI STATE
@@ -88,7 +89,7 @@ export function renameDeck(deckId, newName) {
   if (window.currentUser) {
     console.log('[decks] renameDeck', deckId, '→', newName, '| cloud-sync queued');
     markDirty('deck', deckId);
-    flushPendingSync().catch(() => {});
+    commitDirty();
   }
 }
 
@@ -359,7 +360,7 @@ function _endDrag() {
   document.body.style.webkitUserSelect = '';
   _dragState = null;
   window.persist();
-  if (window.currentUser) { newOrder.forEach(id => markDirty('deck', id)); flushPendingSync().catch(() => {}); }
+  if (window.currentUser) { newOrder.forEach(id => markDirty('deck', id)); commitDirty(); }
   renderDecks();
 }
 
@@ -384,7 +385,7 @@ export function newDeckPrompt() {
   window.esPrompt({ icon: '📚', title: 'Neue Vokabelsammlung', placeholder: 'Name der Sammlung', ok: 'Erstellen' }).then(name => {
     if (!name || !name.trim()) return;
     const id = createDeck(name.trim());
-    if (window.currentUser) { markDirty('deck', id); flushPendingSync().catch(() => {}); }
+    if (window.currentUser) { markDirty('deck', id); commitDirty(); }
     _expandedDeckId = id;
     switchDeck(id);
     renderDecks();
@@ -480,7 +481,7 @@ export function resetDeckProgress(id) {
       console.log('[decks] resetDeckProgress', id, '| cloud-sync');
       deleteCloudWordStats(id, userId).catch(e => console.error('[resetDeckProgress] deleteWordStats:', e));
       saveDeck(deck, userId).catch(e => console.error('[resetDeckProgress] saveDeck:', e));
-      await flushPendingSync().catch(e => console.error('[resetDeckProgress] flush:', e));
+      await commitDirty();
     }
     renderDecks();
   });
@@ -534,7 +535,7 @@ export function confirmDeleteDeck(id) {
     }
     deleteDeck(id);
     if (isPreset && window.currentUser) {
-      await flushPendingSync().catch(e => console.error('[confirmDeleteDeck] flush:', e));
+      await commitDirty();
     }
     if (_expandedDeckId === id) _expandedDeckId = null;
     renderDecks();
@@ -557,7 +558,7 @@ export function vmDeleteWord(idx) {
       if (window.currentUser) {
         markDirty('deck', deck.id);
         markDirty('word_stats', deck.id);
-        flushPendingSync().catch(() => {});
+        commitDirty();
       }
     }
     window.renderVocabList();
@@ -643,7 +644,7 @@ export function vmAddManual() {
   if (!window._draftDeck) {
     syncMirrorFromActiveDeck();
     window.persist();
-    if (window.currentUser) { markDirty('deck', deck.id); flushPendingSync().catch(() => {}); }
+    if (window.currentUser) { markDirty('deck', deck.id); commitDirty(); }
   }
   window.renderVocabList();
   document.getElementById('vm-add-de').value = '';

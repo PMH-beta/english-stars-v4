@@ -5,7 +5,8 @@ import { syncMirrorFromActiveDeck, deckProgress, presetProgressPct, renderDecks,
 import { getPresetCategories } from './vocab.js';
 import { releaseMicStream, stopVisualizer, voskStop, speakWord } from './speech.js';
 import { signIn, signUp, signOut, resendConfirmation, requestPasswordReset, updatePassword, signInWithGoogle } from './auth.js';
-import { cloudLoad, saveProfile, cloudReset, loadProfile, saveDeck, saveWordStats, saveExam, markDirty, flushPendingSync } from './sync.js';
+import { cloudLoad, cloudProbe, cloudReset, saveDeck, saveWordStats, saveExam, markDirty, flushPendingSync, refreshSyncMeta, readSyncMeta, writeSyncMeta, metaDiffers, setCloudConfirmed, cloudConfirmed, getPendingCount, hasPendingProfile } from './sync.js';
+import { esToast, commitDirty } from './dialog.js';
 
 const API_KEY_SK = 'es_apikey';
 
@@ -228,14 +229,12 @@ function _hideExitToast() {
 // ────────────────────────────────────────────────
 //  NAME SCREEN
 // ────────────────────────────────────────────────
-export function saveName() {
+export async function saveName() {
   const v = document.getElementById('name-input').value.trim();
   if (!v) { document.getElementById('name-input').style.borderColor = 'var(--red)'; return; }
   window.SD.playerName = v;
   persist(window.SD);
-  if (window.currentUser) {
-    saveProfile(window.SD, window.currentUser.id).catch(e => console.error('[saveName] sync:', e));
-  }
+  if (window.currentUser) { markDirty('profile'); await commitDirty(); }
   showMenu();
 }
 
@@ -282,15 +281,13 @@ export function renderModeContent(mode) {
   _renderModeToggle(mode);
 }
 
-export function setActiveMode(mode) {
+export async function setActiveMode(mode) {
   const valid = ['free', 'student', 'campaign'];
   if (!valid.includes(mode)) mode = 'free';
   window.SD.activeMode = mode;
   persist(window.SD);
-  if (window.currentUser) {
-    saveProfile(window.SD, window.currentUser.id).catch(() => {});
-  }
-  renderModeContent(mode);
+  renderModeContent(mode);   // sofort rendern (responsiv)
+  if (window.currentUser) { markDirty('profile'); await commitDirty(); }
 }
 
 // ────────────────────────────────────────────────
@@ -368,15 +365,13 @@ export function showProfile() {
 
 export function editPlayerName() {
   const cur = window.SD.playerName || '';
-  window.esPrompt({ icon: '✏️', title: 'Dein Name', value: cur, ok: 'Speichern' }).then(nn => {
+  window.esPrompt({ icon: '✏️', title: 'Dein Name', value: cur, ok: 'Speichern' }).then(async nn => {
     if (nn === null) return;
     const trimmed = nn.trim();
     if (!trimmed) return;
     window.SD.playerName = trimmed;
     persist(window.SD);
-    if (window.currentUser) {
-      saveProfile(window.SD, window.currentUser.id).catch(e => console.error('[editPlayerName] sync:', e));
-    }
+    if (window.currentUser) { markDirty('profile'); await commitDirty(); }
     const profEl = document.getElementById('profile-screen');
     if (profEl && profEl.style.display !== 'none') showProfile();
     else showStats();
@@ -557,6 +552,7 @@ export async function confirmReset() {
 
   syncMirrorFromActiveDeck();
   persist(window.SD);
+  if (window.currentUser) refreshSyncMeta(window.currentUser.id).catch(() => {});  // Signatur = geleerte Cloud
   showMenu();
   window.esAlert({ icon: '✅', title: 'Erledigt', body: 'Fortschritt zurückgesetzt!' });
 }
@@ -911,42 +907,133 @@ export async function cancelNewPassword() {
 //  AUTH LIFECYCLE (aufgerufen von startup.js + authSubmit)
 // ────────────────────────────────────────────────
 
+// REGEL 1 — App öffnen: Änderungs-Check via updated_at, dann ggf. frisch laden.
+// EINE Funktion, ein klarer Ablauf. Kein mid-session Reconcile bei Navigation.
 export async function handleLogin(user) {
   if (_loginInFlight) return;
   _loginInFlight = true;
   window.currentUser = user;
+  setCloudConfirmed(false);
   console.log('[handleLogin] CALLED with user:', user?.email);
+
+  const localValid     = !!(window.SD && window.SD.playerName);
+  const localPoints    = window.SD?.totalPoints || 0;
+  const localHighscore = window.SD?.highscore   || 0;
+  // Lokal-unsynced Namensänderung sichern, BEVOR ein Cloud-Load sie überschreibt
+  // (der ursprüngliche Edge-Case). hasPendingProfile = "Name wartet auf Sync".
+  const pendingName    = (localValid && hasPendingProfile()) ? window.SD.playerName : null;
+
   try {
-    const cloudState = await cloudLoad(user.id);
-    // Cloud ist die Wahrheit — lokalen Stand vollständig überschreiben.
-    // Falls cloudLoad null zurückgibt (neuer User), lokalen Cache behalten.
-    if (cloudState) {
-      window.SD = cloudState;
-      persist(window.SD);
-      syncMirrorFromActiveDeck();
+    // Offline-Nachzügler (unsynced Deck/Stat/Name-Marker) ZUERST hoch — nur bei
+    // gültigem lokalem Stand. localValid (playerName vorhanden) = nicht leer →
+    // Empty-Write-Schutz bleibt gewahrt. So überschreibt der spätere Load keine
+    // noch nicht hochgeschobenen lokalen Änderungen.
+    const hadPending = getPendingCount() > 0;
+    if (localValid && hadPending) { setCloudConfirmed(true); await flushPendingSync().catch(() => {}); }
+
+    const probe = await cloudProbe(user.id);   // billig, kurzer Timeout
+    let needLoad;
+    if (probe.status === 'ok') {
+      setCloudConfirmed(true);   // Cloud erreichbar = bestätigt
+      const stored = readSyncMeta();
+      needLoad = (!stored || hadPending || metaDiffers(probe.meta, stored));
+      if (!needLoad) { _finishLoginUI(); return; }   // nichts geändert → kein unnötiges Laden
+    } else {
+      // Probe unklar (Netz/JWT-Propagation-Race nach Login) → NICHT als offline
+      // werten. Autoritativen cloudLoad versuchen (hat Retry + JWT-Handling).
+      needLoad = true;
     }
-    // Explicit profile load — final guarantee that player_name is in SD,
-    // even when cloudLoad returned null (no decks yet) but profile row exists.
-    const data = await loadProfile(user.id);
-    console.log('[handleLogin] Cloud profile loaded:', data);
-    if (data && data.player_name) {
-      window.SD.playerName   = data.player_name;
-      window.SD.highscore    = data.highscore      || window.SD.highscore    || 0;
-      window.SD.totalPoints  = data.total_points   || window.SD.totalPoints  || 0;
-      window.SD.activeDeckId = data.active_deck_id || window.SD.activeDeckId || null;
-      window.SD.activeMode   = data.active_mode    || window.SD.activeMode   || 'free';
-      persist(window.SD);
+
+    const res = await cloudLoad(user.id);
+    if (res.status === 'ok') {
+      adoptCloudState(res.state, res.meta, { localPoints, localHighscore, pendingName });
+      _finishLoginUI();
+    } else if (res.status === 'new') {
+      // Cloud bestätigt leer → echter neuer Nutzer. window.SD bleibt unangetastet.
+      setCloudConfirmed(true);
+      writeSyncMeta(res.meta);
+      _finishLoginUI();
+    } else {
+      // Endgültig fehlgeschlagen → NIE leerer/neuer Nutzer.
+      if (localValid) { syncMirrorFromActiveDeck(); esToast('Offline – lokaler Stand'); _finishLoginUI(); }
+      else            { setCloudConfirmed(false); _showConnectionRetry(user); }
     }
-  } catch(e) {
-    console.error('[handleLogin] Cloud-Sync Fehler — lokale Daten bleiben erhalten:', e.message);
+  } catch (e) {
+    console.error('[handleLogin] unerwartet:', e?.message);
+    _finishLoginUI();
   } finally {
     _loginInFlight = false;
   }
-  console.log('[handleLogin] SD nach Load:', window.SD.playerName, window.SD.highscore);
+}
+
+// Übernimmt einen frischen Cloud-Load (NUR mit res.status==='ok' → state ist ein
+// vollständiges, gültiges Objekt) in window.SD — DIE einzige Stelle, die das tut.
+// Merge: totalPoints/highscore = max(lokal, cloud); lokal-unsynced Name bleibt
+// erhalten; alles andere = Cloud (last-write-wins). Setzt Signatur + Gate.
+function adoptCloudState(state, meta, { localPoints = 0, localHighscore = 0, pendingName = null } = {}) {
+  const cloudPoints    = state.totalPoints || 0;
+  const cloudHighscore = state.highscore   || 0;
+  const cloudName      = state.playerName  || '';
+  // Lokaler Name wartet noch auf Sync und unterscheidet sich vom Cloud-Stand?
+  const nameUnsynced   = !!pendingName && pendingName !== cloudName;
+
+  window.SD = state;
+  setCloudConfirmed(true);
+  window.SD.totalPoints = Math.max(localPoints, cloudPoints);     // höchster Stand gewinnt
+  window.SD.highscore   = Math.max(localHighscore, cloudHighscore);
+  if (nameUnsynced) window.SD.playerName = pendingName;           // lokalen Namen NICHT überschreiben
+
+  persist(window.SD);
+  syncMirrorFromActiveDeck();
+  if (meta) writeSyncMeta(meta);
+
+  // Lag lokal höher (nicht hochgekommene Runde) ODER Name noch nicht in der Cloud
+  // → sicher nachschieben (bestätigt, danach Signatur auffrischen).
+  if (nameUnsynced || window.SD.totalPoints > cloudPoints || window.SD.highscore > cloudHighscore) {
+    markDirty('profile');
+    flushPendingSync().then(() => refreshSyncMeta(window.currentUser?.id)).catch(() => {});
+  }
+}
+
+function _finishLoginUI() {
   if (migrateStatKeys()) persist(window.SD);
-  if (window.currentUser) flushPendingSync().catch(() => {});
+  console.log('[handleLogin] SD bereit:', window.SD?.playerName, window.SD?.highscore);
   if (!window.SD?.playerName) showScreen('name-screen');
   else restoreLastScreen();
+}
+
+// Klarer Retry-Dialog statt stillem Leer-Zustand, wenn kein lokaler Stand vorliegt
+// und die Cloud nicht erreichbar ist.
+function _showConnectionRetry(user) {
+  window.esConfirm({
+    icon: '📡', title: 'Keine Verbindung',
+    body: 'Dein Fortschritt konnte nicht geladen werden. Bitte prüfe deine Internetverbindung.',
+    ok: 'Erneut versuchen', cancel: 'Abmelden',
+  }).then(retry => { if (retry) handleLogin(user); else authLogout(); });
+}
+
+// REGEL 1 (Foreground-Resume): App aus dem Hintergrund zurück → derselbe billige
+// Abgleich, aber NUR auf Menü-Ebene (nie im Spiel/Scan/Edit) und nur bei
+// bestätigtem Gate. Bei Änderung frisch laden + neu rendern; sonst nichts tun.
+let _resumeInFlight = false;
+export async function maybeRefreshOnResume() {
+  if (!window.currentUser || !cloudConfirmed() || _loginInFlight || _resumeInFlight) return;
+  if (_currentScreen !== 'menu-screen') return;   // nur Menü-Ebene
+  _resumeInFlight = true;
+  try {
+    const probe = await cloudProbe(window.currentUser.id);
+    if (probe.status !== 'ok') return;            // best-effort, nie blockieren
+    if (!metaDiffers(probe.meta, readSyncMeta())) return;
+    const localPoints    = window.SD?.totalPoints || 0;
+    const localHighscore = window.SD?.highscore   || 0;
+    const pendingName    = (window.SD?.playerName && hasPendingProfile()) ? window.SD.playerName : null;
+    const res = await cloudLoad(window.currentUser.id);
+    if (res.status !== 'ok') return;              // failed/new → aktuellen Stand behalten
+    adoptCloudState(res.state, res.meta, { localPoints, localHighscore, pendingName });
+    if (_currentScreen === 'menu-screen') showMenu();   // neu rendern
+  } finally {
+    _resumeInFlight = false;
+  }
 }
 
 // Baustein 4: Nach Relaunch näher am letzten Ort landen. Menü immer als Basis
@@ -961,7 +1048,8 @@ function restoreLastScreen() {
 
 export function handleLogout() {
   window.currentUser = null;
-  clearStorage();
+  setCloudConfirmed(false);   // nächster Login muss den Cloud-Stand neu bestätigen
+  clearStorage();             // entfernt auch es_sync_meta
   window.SD = freshData();
   syncMirrorFromActiveDeck();
   showScreen('auth-screen');

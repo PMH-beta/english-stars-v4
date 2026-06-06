@@ -9,7 +9,7 @@
 | `storage.js` | LocalStorage-Operationen für window.SD | `persist`, `loadData`, `freshData`, `clearStorage`, `cleanupStorage`, `clearSWCache` |
 | `default-decks.js` | Starter-Vokabelsammlungen für neue Nutzer | `DEFAULT_DECKS` |
 | `auth.js` | Supabase Auth: Login, Registrierung, Passwort-Reset, Google-OAuth | `signIn`, `signUp`, `signOut`, `onAuthChange`, `requestPasswordReset`, `updatePassword`, `resendConfirmation`, `signInWithGoogle` |
-| `sync.js` | Cloud Read/Write zwischen Supabase und window.SD + Offline-Queue | `cloudLoad`, `saveProfile`, `saveDeck`, `saveWordStats`, `saveGlobalPresetStats`, `saveExam`, `deleteCloudDeck`, `deleteCloudWordStats`, `deleteCloudPresetStats`, `loadProfile`, `cloudReset`, `markDirty`, `flushPendingSync`, `getPendingCount` |
+| `sync.js` | Cloud Read/Write + Offline-Queue + Schreib-Gate + updated_at-Signatur | `cloudLoad`, `cloudProbe`, `saveProfile`, `saveDeck`, `saveWordStats`, `saveGlobalPresetStats`, `saveExam`, `deleteCloud*`, `loadProfile`, `cloudReset`, `markDirty`, `flushPendingSync`, `getPendingCount`, `setCloudConfirmed`, `cloudConfirmed`, `readSyncMeta`, `writeSyncMeta`, `clearSyncMeta`, `metaDiffers`, `refreshSyncMeta` |
 | `decks.js` | Deck CRUD + UI-State + Spiegel-Sync | `activeDeck`, `syncMirrorFromActiveDeck`, `switchDeck`, `createDeck`, `deckProgress`, `presetProgressPct`, `renderDecks`, `migrateStatKeys` |
 | `stats.js` | EMA-basierte Statistik-Berechnungen + statKey-Normalisierung | `effectivePct`, `isStatMastered`, `isMastered`, `statKeyFor`, `normStatDE`, `normStatEN`, `getVocabStat`, `presetWordsPct`, `modePct` |
 | `speech.js` | TTS (Web Speech API) + Spracherkennung (Vosk offline) | `_initTTS`, `primeTTS`, `speakWord`, `speakWordOnce`, `ensureMicStream`, `releaseMicStream`, `startVoskRecognition`, `startRecording`, `voskStop`, `stopVisualizer` |
@@ -17,9 +17,9 @@
 | `pwa.js` | PWA Install-Prompt + iOS-Hinweis-Banner | `pwaInstall`, `pwaSetup` |
 | `game.js` | Spielmechanik: Fragen, Punkte, Streak, Exam | `_sfx` + zahlreiche `window.*` Game-State-Variablen |
 | `vocab.js` | VokabelManager UI: Hinzufügen, Scannen, Einfügen, Preset-Kategorien, Draft-Flow für neue Sammlungen, Vorlagen-Deck-Statistik | `openVocabManager`, `openPresetDeckStats`, `getPresetCategories`, `vmTab`, `renderVocabList`, `confirmAddVocab`, `renderPresetsTab`, `togglePresetCategory`, `vmRenameActiveDeck`, `newDeckFlow`, `vmBack` |
-| `ui.js` | Screen-Routing, Auth-Lifecycle, Modus-Toggle, alle UI-Event-Handler | `showScreen`, `showMenu`, `handleLogin`, `handleLogout`, `showNewPasswordScreen`, `saveName`, `authGoogleSignIn`, `setActiveMode`, `renderModeContent` |
+| `ui.js` | Screen-Routing, Auth-Lifecycle, Modus-Toggle, alle UI-Event-Handler | `showScreen`, `showMenu`, `handleLogin`, `handleLogout`, `maybeRefreshOnResume`, `showNewPasswordScreen`, `saveName`, `authGoogleSignIn`, `setActiveMode`, `renderModeContent` |
 | `startup.js` | Boot-Sequenz: TTS, Audio, Vosk, Auth-Session | `startupSequence`, `finishStartup` |
-| `dialog.js` | App-eigene Overlay-Dialoge statt nativer `alert`/`confirm`/`prompt` (Optik wie Sammlung-Overlays, z-index 9999 → vom Android-Back schließbar). Promise-basiert; Abbrechen löst keine Speicheraktion aus | `esAlert`, `esConfirm`, `esPrompt` (auch als `window.es*`) |
+| `dialog.js` | App-eigene Overlay-Dialoge + Speicher-Indikator. Promise-basiert; Abbrechen löst keine Speicheraktion aus | `esAlert`, `esConfirm`, `esPrompt`, `esToast`, `withSaving`, `commitDirty` (auch als `window.*`) |
 
 ---
 
@@ -118,6 +118,52 @@ flushPendingSync()
 ```
 
 `cloudLoad` nutzt `fetchWithRetry()` intern um JWT-Race-Conditions nach Login abzufangen (bis zu 3 Versuche mit 1,5s Delay).
+
+---
+
+## Sync-Modell (vier Regeln) — Garantien an je EINER Stelle
+
+Bewusst EIN zusammenhängender Aufbau. Zwei getrennte Jobs: **PULL** (Frische über
+`updated_at`) nur beim App-Öffnen; **PUSH** (jede Änderung) bestätigt + sichtbar.
+**Kein mid-session Reconcile bei normaler Navigation** (das war die alte Regression).
+
+| Garantie | Wohnt in (EINE Stelle) |
+|---|---|
+| Empty-Write-Schutz | `_cloudConfirmed`-Gate in `sync.js` — gesetzt NUR von `adoptCloudState`/`handleLogin` (true) + `handleLogout` (false); geprüft in `saveProfile` + `flushPendingSync` |
+| Merge (max Punkte/HS, sonst last-write-wins) | `adoptCloudState()` in `ui.js` — einzige Stelle, die `window.SD` aus der Cloud überschreibt |
+| „neuer Nutzer" vs. „Load fehlgeschlagen" | Status von `cloudLoad()` (`ok`/`new`/`failed`) |
+| Load-Timeout/Retry | `cloudLoad` (5s×2) / `cloudProbe` (4s×1) |
+| Speichern sichtbar + bestätigt + Timeout-Fallback | `withSaving()` / `commitDirty()` in `dialog.js` |
+
+**Wahrheits-Token:** `updated_at` serverseitig per DB-Trigger (`set_updated_at` auf
+profiles/decks/word_stats/preset_stats/preset_category_progress); Client schickt es
+nicht mehr mit. Signatur `meta = {ts:max(updated_at), count}` je Bereich (count fängt
+Löschungen ab), gemerkt in `localStorage['es_sync_meta']`.
+
+**Regel 1 — App öffnen / Foreground-Resume** (`handleLogin` bzw. `maybeRefreshOnResume`):
+```
+Gate ZU. probe = cloudProbe()
+ ├─ probe ok:   Gate AUF; pending hoch; metaDiffers(probe, stored)? → cloudLoad+adoptCloudState : nichts (lokal)
+ └─ probe fail: NICHT offline annehmen → autoritativer cloudLoad (Retry/JWT)
+       ├─ ok    → adoptCloudState (Merge)        ├─ new → name-screen (echt neu)
+       └─ failed→ lokal vorhanden? lokal + "Offline"-Toast : "erneut versuchen"-Dialog
+```
+Foreground-Resume läuft NUR auf Menü-Ebene (nie im Spiel/Scan/Edit), debounced via
+`_resumeInFlight`.
+
+**Regel 2 — Runde zu Ende / aus Spiel zurück** (`game.js`): `saveProgress()` verbucht
+lokal + `markDirty`; `commitProgress()` = `commitDirty()` zeigt „Speichern…", wartet
+auf Bestätigung. `confirmHome` wartet, DANN Menü.
+
+**Regel 3 — jede Änderung** (Name/Deck/Vokabeln in `ui.js`/`decks.js`/`vocab.js`):
+window.SD ändern + persist + `markDirty(...)` + `await commitDirty()`.
+
+**Regel 4 — Multi-Device:** jeder bestätigte Write hebt den Server-`updated_at`;
+`refreshSyncMeta` merkt den eigenen Stand → anderes Gerät erkennt beim nächsten Öffnen
+(Regel 1) die Änderung und lädt nach.
+
+`withSaving` blockiert nie: Timeout/Fehler → Balken weg + Toast „Im Hintergrund
+gespeichert", `saveFn` läuft im Hintergrund weiter, Marker bleibt in der Queue.
 
 ---
 
