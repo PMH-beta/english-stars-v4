@@ -919,62 +919,58 @@ export async function handleLogin(user) {
   const localValid = !!(window.SD && window.SD.playerName);
 
   try {
-    // 1) Eigene Nachzügler ZUERST hoch — nur bei gültigem lokalem Stand
-    //    (localValid = nicht leer → Empty-Write-Schutz bleibt gewahrt).
-    const hadPending = getPendingCount() > 0;
-    let pendingBlocked = false;
-    if (localValid && hadPending) {
-      setCloudConfirmed(true);
-      await flushPendingSync().catch(() => {});
-      pendingBlocked = getPendingCount() > 0;   // GUARD: nicht alles bestätigt hochgekommen?
-    }
+    // 1) ERST proben — hat sich die Cloud seit unserem letzten Sync geändert?
+    //    (cloudProbe ruft intern ensureFreshToken, hart timeout-begrenzt.)
+    const probe = await cloudProbe(user.id);
 
-    // 2) GUARD: ungesyncte lokale Änderungen konnten NICHT hoch → Cloud NICHT
-    //    übernehmen (sonst Überschreiben). Lokal + Marker behalten, nächster Start
-    //    schiebt nach. Kein Datenverlust, keine Wiederbelebung.
-    if (pendingBlocked) {
-      syncMirrorFromActiveDeck();
-      esToast('Offline – nicht alles gespeichert');
-      _finishLoginUI();
+    if (probe.status !== 'ok') {
+      // Probe unklar (Netz/JWT-Race) → autoritativer cloudLoad (Retry/JWT-sicher).
+      await _loadAndAdoptOrFallback(user, localValid);
       return;
     }
 
-    // 3) Änderungs-Check, ggf. frisch laden.
-    const probe = await cloudProbe(user.id);   // billig, kurzer Timeout
-    let needLoad;
-    if (probe.status === 'ok') {
-      setCloudConfirmed(true);   // Cloud erreichbar = bestätigt
-      const stored = readSyncMeta();
-      // !localValid → IMMER laden: ein leeres lokales SD darf nie "behalten" werden
-      // (sonst bliebe das Gerät fälschlich in der Namensabfrage, obwohl die Cloud
-      // ein Profil hat). Der Kurzschluss "nichts laden" gilt nur bei gültigem SD.
-      needLoad = (!localValid || !stored || hadPending || metaDiffers(probe.meta, stored));
-      if (!needLoad) { _finishLoginUI(); return; }   // nur bei gültigem SD: nichts geändert → lokal behalten
-    } else {
-      // Probe unklar (Netz/JWT-Propagation-Race nach Login) → NICHT als offline
-      // werten. Autoritativen cloudLoad versuchen (hat Retry + JWT-Handling).
-      needLoad = true;
+    setCloudConfirmed(true);   // Cloud erreichbar = bestätigt
+    const stored = readSyncMeta();
+    const cloudChanged = (!stored || metaDiffers(probe.meta, stored));
+
+    // 2) Cloud (woanders) neuer ODER kein gültiger lokaler Stand → Cloud ist die
+    //    Wahrheit. Lokale Pending werden NICHT hochgeschoben (würde die Cloud mit
+    //    altem Lokalstand reverten — genau der Multi-Device-Bug).
+    if (cloudChanged || !localValid) {
+      await _loadAndAdoptOrFallback(user, localValid);
+      return;
     }
 
-    const res = await cloudLoad(user.id);
-    if (res.status === 'ok') {
-      adoptCloudState(res.state, res.meta);   // Cloud 1:1
-      _finishLoginUI();
-    } else if (res.status === 'new') {
-      // Cloud bestätigt leer → echter neuer Nutzer. window.SD bleibt unangetastet.
-      setCloudConfirmed(true);
-      writeSyncMeta(res.meta);
-      _finishLoginUI();
-    } else {
-      // Endgültig fehlgeschlagen → NIE leerer/neuer Nutzer.
-      if (localValid) { syncMirrorFromActiveDeck(); esToast('Offline – lokaler Stand'); _finishLoginUI(); }
-      else            { setCloudConfirmed(false); _showConnectionRetry(user); }
+    // 3) Cloud unverändert seit unserem letzten Sync → unsere lokalen Pending sind
+    //    die neuesten → sicher hochschieben (kein Revert möglich). Kein Reload nötig.
+    if (getPendingCount() > 0) {
+      await flushPendingSync().catch(() => {});
+      refreshSyncMeta(user.id).catch(() => {});
     }
+    _finishLoginUI();
   } catch (e) {
     console.error('[handleLogin] unerwartet:', e?.message);
     _finishLoginUI();
   } finally {
     _loginInFlight = false;
+  }
+}
+
+// Lädt die Cloud autoritativ und übernimmt sie 1:1 (Cloud = einzige Wahrheit).
+// 'new' = echter neuer Nutzer (window.SD bleibt); 'failed' = nie leer/neu →
+// lokaler Stand bzw. Retry-Dialog.
+async function _loadAndAdoptOrFallback(user, localValid) {
+  const res = await cloudLoad(user.id);
+  if (res.status === 'ok') {
+    adoptCloudState(res.state, res.meta);   // Cloud 1:1, setzt Gate true
+    _finishLoginUI();
+  } else if (res.status === 'new') {
+    setCloudConfirmed(true);
+    writeSyncMeta(res.meta);
+    _finishLoginUI();
+  } else {
+    if (localValid) { syncMirrorFromActiveDeck(); esToast('Offline – lokaler Stand'); _finishLoginUI(); }
+    else            { setCloudConfirmed(false); _showConnectionRetry(user); }
   }
 }
 
@@ -1017,15 +1013,21 @@ export async function maybeRefreshOnResume() {
   if (_currentScreen !== 'menu-screen') return;   // nur Menü-Ebene
   _resumeInFlight = true;
   try {
-    // Eigene Nachzügler erst hoch; bleibt Rest-Pending → NICHT überschreiben.
-    if (getPendingCount() > 0) { await flushPendingSync().catch(() => {}); if (getPendingCount() > 0) return; }
+    // ERST proben (dieselbe Regel wie handleLogin).
     const probe = await cloudProbe(window.currentUser.id);
     if (probe.status !== 'ok') return;            // best-effort, nie blockieren
-    if (!metaDiffers(probe.meta, readSyncMeta())) return;
-    const res = await cloudLoad(window.currentUser.id);
-    if (res.status !== 'ok') return;              // failed/new → aktuellen Stand behalten
-    adoptCloudState(res.state, res.meta);         // Cloud 1:1
-    if (_currentScreen === 'menu-screen') showMenu();   // neu rendern
+    if (metaDiffers(probe.meta, readSyncMeta())) {
+      // Cloud (woanders) neuer → Cloud ist die Wahrheit. Lokale Pending NICHT
+      // hochschieben (Revert-Schutz) — einfach übernehmen.
+      const res = await cloudLoad(window.currentUser.id);
+      if (res.status !== 'ok') return;            // failed/new → aktuellen Stand behalten
+      adoptCloudState(res.state, res.meta);       // Cloud 1:1
+      if (_currentScreen === 'menu-screen') showMenu();   // neu rendern
+    } else if (getPendingCount() > 0) {
+      // Cloud unverändert seit unserem letzten Sync → eigene Nachzügler sicher hoch.
+      await flushPendingSync().catch(() => {});
+      refreshSyncMeta(window.currentUser.id).catch(() => {});
+    }
   } finally {
     _resumeInFlight = false;
   }

@@ -133,9 +133,9 @@ Bewusst EIN zusammenhängender Aufbau. Zwei getrennte Jobs: **PULL** (Frische ü
 |---|---|
 | Empty-Write-Schutz | `_cloudConfirmed`-Gate in `sync.js` — gesetzt NUR von `adoptCloudState`/`handleLogin` (true) + `handleLogout` (false); geprüft in `saveProfile` + `flushPendingSync` |
 | Cloud = einzige Wahrheit (KEIN Wert-Merge) | `adoptCloudState()` in `ui.js` — übernimmt `window.SD` **1:1** aus der Cloud; einzige Stelle, die das tut |
-| Schutz ungesyncter lokaler Änderungen | **Pending-Guard** in `handleLogin`/`maybeRefreshOnResume`: Pre-Flush zuerst; bleibt danach Pending übrig → Cloud NICHT übernehmen, lokal+Marker behalten |
+| Konfliktregel (Revert-Schutz) | **Probe zuerst** in `handleLogin`/`maybeRefreshOnResume`: Cloud seit letztem Sync geändert? → Cloud gewinnt (lokale Pending NICHT pushen). Cloud unverändert → eigene Pending sicher hochschieben. So kann ein öffnendes Gerät die Cloud nie mit altem Lokalstand reverten. |
 | „neuer Nutzer" vs. „Load fehlgeschlagen" | Status von `cloudLoad()` (`ok`/`new`/`failed`) |
-| Load-Timeout/Retry | `cloudLoad` (5s×2) / `cloudProbe` (4s×1) |
+| Load-Timeout/Retry | `cloudLoad` (5s×2) / `cloudProbe` (4s×1); `ensureFreshToken` (getSession 3s, refreshSession 5s) |
 | Speichern sichtbar + bestätigt + Timeout-Fallback | `withSaving()` / `commitDirty()` in `dialog.js` |
 
 **Wahrheits-Token:** `updated_at` serverseitig per DB-Trigger (`set_updated_at` auf
@@ -145,15 +145,19 @@ Löschungen ab), gemerkt in `localStorage['es_sync_meta']`.
 
 **Regel 1 — App öffnen / Foreground-Resume** (`handleLogin` bzw. `maybeRefreshOnResume`):
 ```
-Gate ZU.
-1) Pre-Flush: localValid && pending? → Gate AUF, flushPendingSync()
-2) GUARD: danach noch Pending übrig? → Cloud NICHT übernehmen, lokal+Marker behalten (kein Verlust, keine Wiederbelebung)
-3) probe = cloudProbe()
-    ├─ probe ok:   metaDiffers(probe, stored)? → cloudLoad → adoptCloudState (1:1) : nichts (lokal)
-    └─ probe fail: NICHT offline annehmen → autoritativer cloudLoad (Retry/JWT)
-          ├─ ok    → adoptCloudState (Cloud 1:1)   ├─ new → name-screen (echt neu)
-          └─ failed→ lokal vorhanden? lokal + "Offline"-Toast : "erneut versuchen"-Dialog
+Gate ZU.  probe = cloudProbe()   (ensureFreshToken intern, hart timeout-begrenzt)
+ ├─ probe fail → autoritativer cloudLoad (Retry/JWT) → ok: adopt 1:1 | new: name-screen | failed: lokal/Retry
+ └─ probe ok:  cloudChanged = !stored || metaDiffers(probe, stored)
+       ├─ cloudChanged ODER !localValid → cloudLoad → adoptCloudState (Cloud 1:1).
+       │     Lokale Pending NICHT pushen → KEIN Revert der Cloud durch altes Lokal.
+       └─ sonst (Cloud unverändert) → eigene Pending sicher flushen (kein Reload).
 ```
+**Probe zuerst** ist der Revert-Schutz: hat ein anderes Gerät die Cloud geändert,
+gewinnt die Cloud — das öffnende Gerät schiebt seinen (evtl. alten) Lokalstand NICHT
+hoch. Trade-off: eine rein offline gespielte Runde kann bei parallelem Cloud-Write
+verloren gehen (selten, da Rundenende-Saves bestätigt sind) — besser als das stille
+Zurücksetzen, das die Änderungen des anderen Geräts verlöre.
+
 Es gibt **keinen Wert-Merge** mehr (kein `max`): die Cloud gewinnt beim Start immer,
 alle Geräte gleichwertig. Eine echte ungesyncte Runde geht nicht verloren, weil sie
 über Pre-Flush (Punkte UND word_stats zusammen) hochgeschoben wird, bevor übernommen

@@ -37,11 +37,14 @@ export function cloudConfirmed() { return _cloudConfirmed; }
 // proaktiv erneuern, wenn abgelaufen oder <60s Restlaufzeit.
 async function ensureFreshToken() {
   try {
-    const { data } = await supabase.auth.getSession();
+    const { data } = await withTimeout(supabase.auth.getSession(), 3000, 'getSession');
     const exp = data?.session?.expires_at;          // Sekunden seit Epoch
     if (exp && exp * 1000 < Date.now() + 60000) {
       console.log('[sync] Token läuft ab/abgelaufen → refreshSession()');
-      await supabase.auth.refreshSession();
+      // HART begrenzt: refreshSession ist ein Netz-Call und darf den Start NICHT
+      // minutenlang blockieren. Timeout → wir machen weiter; bei 401 greift der
+      // saubere failed-Pfad statt eines Hängers.
+      await withTimeout(supabase.auth.refreshSession(), 5000, 'refreshSession');
     }
   } catch (e) {
     console.warn('[sync] ensureFreshToken:', e?.message);

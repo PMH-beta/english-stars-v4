@@ -9,6 +9,15 @@
 - Workflow: Pawel ↔ Claude Code (Code) + Claude (Strategie/Review)
 
 ## Erledigt
+- Open-Logik: Probe-zuerst (Revert-Schutz) + Token-Timeout. handleLogin/
+  maybeRefreshOnResume proben ERST; Cloud seit letztem Sync geändert →
+  Cloud gewinnt (lokale Pending NICHT pushen → kein Zurücksetzen der Cloud
+  durch ein öffnendes Gerät mit altem Lokalstand); Cloud unverändert →
+  eigene Pending sicher hoch. ensureFreshToken (getSession/refreshSession)
+  hart timeout-begrenzt → behebt 2–3-Min-Hänger beim Öffnen (refreshSession
+  hing ohne Timeout). Pre-Flush-vor-Probe + Pending-Guard ersetzt.
+- Token-Resilienz: ensureFreshToken vor cloudLoad/cloudProbe (Refresh bei
+  Ablauf) → kein 401 nach langem Hintergrund.
 - Sync hierarchiefrei: max-Merge entfernt → Cloud ist beim Start die EINZIGE
   Wahrheit (adoptCloudState übernimmt window.SD 1:1, kein Wertvergleich).
   Schutz ungesyncter lokaler Änderungen nur noch marker-basiert: Pre-Flush
