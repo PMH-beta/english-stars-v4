@@ -924,10 +924,25 @@ export async function handleLogin(user) {
   setCloudWritesAllowed(false);
   console.log('[handleLogin] CALLED with user:', user?.email);
 
+  // Snapshot des lokalen Boot-Stands VOR cloudLoad — für Pre-Flush + max-Merge.
+  // "gültig" = playerName vorhanden (nicht leer/fresh) → Basis der Empty-Write-Garantie.
+  const localValid     = !!(window.SD && window.SD.playerName);
+  const localPoints    = window.SD?.totalPoints || 0;
+  const localHighscore = window.SD?.highscore   || 0;
   // Lokale, noch nicht synchronisierte Namensänderung sichern, BEVOR der Cloud-Stand
   // sie überschreibt. Wert lebt im lokalen SD; der pending-Marker sagt "unsynced".
-  const pendingName = (hasPendingProfile() && window.SD && window.SD.playerName)
-    ? window.SD.playerName : null;
+  const pendingName = (hasPendingProfile() && localValid) ? window.SD.playerName : null;
+
+  // Teil 2: Abgesicherter Pre-Flush VOR cloudLoad — schiebt noch nicht
+  // synchronisierte lokale Deltas (z.B. Rundenpunkte) hoch, BEVOR cloudLoad das
+  // lokale SD überschreibt. NUR bei gültigem Boot-SD; ein leeres/frisches SD
+  // flusht nie → Empty-Write-Garantie bleibt. Danach Gate wieder ZU, bis cloudLoad
+  // den Stand bestätigt.
+  if (localValid) {
+    setCloudWritesAllowed(true);
+    await flushPendingSync().catch(e => console.error('[handleLogin] pre-flush:', e?.message));
+    setCloudWritesAllowed(false);
+  }
 
   let res;
   try {
@@ -970,11 +985,23 @@ export async function handleLogin(user) {
   }
 
   // ── status === 'ok': Cloud ist die Wahrheit.
+  // max-Merge NUR für monoton steigende Felder (Punkte/Highscore) VOR dem
+  // Überschreiben — so geht eine noch nicht hochgeschobene Runde nie verloren,
+  // selbst wenn der Pre-Flush sie nicht erreichte. Alle anderen Felder (playerName,
+  // active_deck_id, active_mode …) bleiben last-write-wins (Cloud bzw. pendingName).
+  const cloudPoints    = res.state.totalPoints || 0;
+  const cloudHighscore = res.state.highscore   || 0;
+  const mergedPoints    = Math.max(localPoints,    cloudPoints);
+  const mergedHighscore = Math.max(localHighscore, cloudHighscore);
   window.SD = res.state;
   setCloudWritesAllowed(true);
+  window.SD.totalPoints = mergedPoints;
+  window.SD.highscore   = mergedHighscore;
   // Anstehende lokale Namensänderung auf den frischen Cloud-Stand legen:
-  // Name bleibt, Punkte/Fortschritt = Cloud-Werte. Erst danach hochschieben.
+  // Name bleibt, restliches Profil = Cloud-Werte. Erst danach hochschieben.
   if (pendingName) window.SD.playerName = pendingName;
+  // Lag der lokale Stand höher als die Cloud, den gemergten Wert sicher hochschieben.
+  if (mergedPoints > cloudPoints || mergedHighscore > cloudHighscore) markDirty('profile');
   persist(window.SD);
   syncMirrorFromActiveDeck();
   if (migrateStatKeys()) persist(window.SD);

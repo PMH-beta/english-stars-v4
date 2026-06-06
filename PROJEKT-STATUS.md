@@ -9,6 +9,19 @@
 - Workflow: Pawel ↔ Claude Code (Code) + Claude (Strategie/Review)
 
 ## Erledigt
+- Rundenfortschritt zuverlässig in die Cloud (Bug: nach Runde + App
+  schließen kam beim Neuöffnen der ALTE Stand, Punkte fehlten):
+  (1) Final-Flush bei visibilitychange→hidden + keepalive-fetch
+  (supabase.js esFetch, kleine Bodies) → laufender Save überlebt das
+  Schließen. (2) Abgesicherter Pre-Flush VOR cloudLoad wieder eingeführt
+  (nur bei gültigem Boot-SD/playerName → Empty-Write-Garantie + Gate
+  bleiben intakt) → lokale Deltas zuerst hoch, dann Cloud lesen.
+  (3) saveProgress schreibt saveProfile sofort (statt nur markDirty).
+  (4) max-Merge beim Reopen: totalPoints/highscore = max(lokal, cloud)
+  VOR dem Überschreiben → keine noch nicht hochgeschobene Runde geht
+  verloren; übrige Felder last-write-wins. Ursache war u.a. die
+  Flush-nach-cloudLoad-Reihenfolge der Sync-Härtung (Marker konnte den
+  bereits überschriebenen Stand nicht mehr retten).
 - Cache-Fix (normaler Reload holt frischen Code, kein Strg+Shift+R nötig):
   SW-Netz-Fetch für same-origin App-Code mit cache:'reload' → umgeht den
   HTTP-Cache des Browsers (Ursache: Modul-URLs ohne ?v + GitHub-Pages-max-age;

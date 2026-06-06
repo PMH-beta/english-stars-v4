@@ -5,7 +5,7 @@ import { activeDeck, syncMirrorFromActiveDeck } from './decks.js';
 import { showScreen, showMenu, hideFeedback, showFeedback } from './ui.js';
 import { ensureMicStream, releaseMicStream, voskStop, stopVisualizer, speakWord, speakWordOnce, startVoskRecognition, startRecording, _shouldUseVosk } from './speech.js';
 import { persist } from './storage.js';
-import { markDirty, flushPendingSync, saveExam, saveWordStats, saveGlobalPresetStats } from './sync.js';
+import { markDirty, flushPendingSync, saveExam, saveWordStats, saveGlobalPresetStats, saveProfile } from './sync.js';
 
 // Game state – all on window.* so Commit B functions (still in index.html) can read them as globals
 window.isSchnellModus = false;
@@ -706,7 +706,10 @@ function saveProgress() {
       saveWordStats(deck.id, deck.wordStats, uid).catch(()=>markDirty('word_stats', deck.id));
       if(deck.presetCategories?.length > 0)
         saveGlobalPresetStats(window.SD.globalPresetStats, uid).catch(()=>markDirty('global_preset'));
+      // Punkte/Highscore sofort schreiben (nicht nur über die Queue); markDirty
+      // bleibt als Sicherung, falls der Sofort-Write fehlschlägt/gegated ist.
       markDirty('profile');
+      saveProfile(window.SD, uid).catch(()=>{});
     }
     return;
   }
@@ -724,7 +727,10 @@ function saveProgress() {
       saveWordStats(deck.id, deck.wordStats, uid).catch(()=>markDirty('word_stats', deck.id));
       if(deck.presetCategories?.length > 0)
         saveGlobalPresetStats(window.SD.globalPresetStats, uid).catch(()=>markDirty('global_preset'));
+      // Punkte/Highscore sofort schreiben (nicht nur über die Queue); markDirty
+      // bleibt als Sicherung, falls der Sofort-Write fehlschlägt/gegated ist.
       markDirty('profile');
+      saveProfile(window.SD, uid).catch(()=>{});
     }
   }
 }

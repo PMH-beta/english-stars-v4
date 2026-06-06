@@ -172,6 +172,17 @@ window.toggleVolPopup = toggleVolPopup;
 // Offline-Queue bei Wiederverbindung leeren
 window.addEventListener('online', () => { if (window.currentUser) flushPendingSync().catch(() => {}); });
 
+// Finaler Flush beim Verstecken/Schließen: visibilitychange→hidden ist auf Mobil
+// der zuverlässigste "App geht in den Hintergrund/wird geschlossen"-Trigger
+// (pagehide/beforeunload feuern auf iOS oft nicht). Die Writes nutzen keepalive
+// (supabase.js esFetch), sodass ein noch laufender Save den Teardown überlebt —
+// so erreicht der Rundenfortschritt die Cloud, bevor die App zugeht.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden' && window.currentUser) {
+    flushPendingSync().catch(() => {});
+  }
+});
+
 // Supabase-Verbindung testen (kann später raus)
 testConnection();
 window.supabase = supabase; // temporär für Debugging in DevTools

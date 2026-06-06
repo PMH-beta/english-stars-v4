@@ -96,7 +96,7 @@ window.SD = {
 
 | Funktion | Supabase-Tabelle | Trigger |
 |---|---|---|
-| `saveProfile(sd, userId)` | `profiles` | nach Name-Änderung, Highscore, activeDeckId-Wechsel |
+| `saveProfile(sd, userId)` | `profiles` | nach Name-Änderung, activeDeckId-Wechsel **und sofort bei Rundenende** (Punkte/Highscore, zusätzlich zu `markDirty('profile')`) |
 | `saveDeck(deck, userId)` | `decks` | nach Vokabel-Änderung, Fortschritts-Reset; INSERT → Cloud gibt UUID zurück, ersetzt lokale ID in window.SD; schreibt deck_path |
 | `saveWordStats(deckId, stats, userId)` | `word_stats` | nach jeder Spielrunde (Upsert per `user_id,deck_id,stat_key`) |
 | `saveGlobalPresetStats(stats, userId)` | `preset_stats` + `preset_category_progress` | nach jeder Runde mit aktiven Vorlagen (Upsert; Queue-Type `'global_preset'`) |
@@ -161,7 +161,10 @@ window.load
 
 handleLogin(user)                       ui.js
   ├─ setCloudWritesAllowed(false)       → Gate ZU bis Cloud-Stand bestätigt (Garantie 3)
-  ├─ pendingName merken                 → lokal unsynced Name (hasPendingProfile + SD.playerName)
+  ├─ Snapshot lokal merken              → localValid(=SD.playerName), localPoints, localHighscore, pendingName
+  ├─ Pre-Flush (NUR wenn localValid)    → Gate kurz AUF, flushPendingSync(), Gate wieder ZU
+  │     └─ schiebt unsynced lokale Deltas (z.B. Rundenpunkte) hoch, BEVOR cloudLoad
+  │        sie überschreibt. Leeres/frisches SD flusht nie (Empty-Write-Garantie).
   ├─ cloudLoad(user.id)                 sync.js  (Timeout 8s + 3× Retry/Backoff)
   │    └─ SELECT profiles/decks/word_stats/preset_stats/preset_category_progress
   │
@@ -172,12 +175,16 @@ handleLogin(user)                       ui.js
   ├─ status 'new'     → setCloudWritesAllowed(true); lokalen Stand behalten;
   │                     flushPendingSync(); !playerName? name-screen : restore  (Garantie 4)
   │
-  └─ status 'ok'      → window.SD = state; setCloudWritesAllowed(true)
-        ├─ pendingName ? window.SD.playerName = pendingName  (Name bleibt, Punkte = Cloud)
-        ├─ persist + syncMirrorFromActiveDeck()
-        ├─ flushPendingSync()           → jetzt sicher (SD cloud-vollständig)
+  └─ status 'ok'      → max-Merge VOR Überschreiben (nur monotone Felder):
+        │                totalPoints/highscore = max(lokal, cloud) → keine verlorene Runde
+        ├─ window.SD = state; setCloudWritesAllowed(true); merged Punkte/Highscore setzen
+        ├─ pendingName ? window.SD.playerName = pendingName  (übrige Felder = Cloud, last-write-wins)
+        ├─ lokal > cloud? markDirty('profile')   → gemergten höheren Stand sicher hochschieben
+        ├─ persist + syncMirrorFromActiveDeck() + flushPendingSync()
         └─ !playerName? name-screen | sonst → restoreLastScreen()
 ```
+
+**Final-Flush beim App-Schließen** (`main.js`): `visibilitychange→hidden` löst `flushPendingSync()` aus (mobil zuverlässiger als `pagehide`/`beforeunload`). Die Writes laufen über `supabase.js`-`esFetch` mit **`keepalive`** (kleine Bodies < 60 KB), sodass ein noch unterwegs befindlicher Save den Seiten-Teardown überlebt → Rundenfortschritt erreicht die Cloud, bevor die App zugeht.
 
 Passwort-Reset-Sonderfall: Supabase feuert `PASSWORD_RECOVERY` Event → `onAuthChange` setzt `_pendingRecovery = true` → `finishStartup` leitet auf `new-password-screen`.
 
