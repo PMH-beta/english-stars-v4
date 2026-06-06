@@ -436,6 +436,8 @@ export function hasPendingProfile() {
 /** Schreibt alle pending Änderungen in die Cloud. Fehlgeschlagene bleiben in der Queue. */
 export async function flushPendingSync() {
   if (!window.currentUser) return;
+  // TEMP-DIAG (wieder entfernen): zeigt Gate-Zustand + Queue-Inhalt bei jedem Flush.
+  try { console.log('[FLUSH] confirmed=' + _cloudConfirmed + ' pending=' + (localStorage.getItem('pending_sync') || '[]')); } catch (e) {}
   // Empty-Write-Schutz: kein Replay, bevor der Cloud-Stand bestätigt ist.
   if (!_cloudConfirmed) { console.warn('[sync] flushPendingSync übersprungen — Cloud-Stand noch nicht bestätigt'); return; }
   const pending = readPending();
