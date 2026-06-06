@@ -225,6 +225,10 @@ App lädt neu → startupSequence()              startup.js
 - **network-first** für same-origin App-Code/Shell (HTML, JS, CSS, manifest, JSON) → Deploy-Updates kommen online sofort an, offline Cache-Fallback. Der Netz-Fetch nutzt **`cache:'reload'`** und umgeht damit den **HTTP-Cache des Browsers** — sonst liefert `fetch()` trotz „network-first" die HTTP-gecachte alte Datei (Modul-URLs sind ohne `?v`, GitHub Pages setzt `max-age`), und ein normaler Reload bräuchte Strg+Shift+R. Der VERSION-Bump purged nur den Cache Storage, nicht den HTTP-Cache — `cache:'reload'` schließt diese Lücke.
 - **cache-first** für große/statische Assets (Vosk-Modell `.tar.gz`, Bilder, Fonts, Audio) + alle Cross-Origin-Libs (CDN) → persistent über Kaltstarts.
 
+Auch der **Precache** im `install` holt Shell/`index.html` mit `cache:'reload'` (`new Request(u,{cache:'reload'})`), damit der neue SW garantiert eine frische Shell cached und nicht versehentlich eine HTTP-gecachte stale `index.html` (Offline-Fallback).
+
+> **Hinweis Übergangs-Deploy:** Der `?v=APP_VERSION`-Update greift nur, wenn *frischer* Code `register()` mit neuem `?v` aufruft. Solange ein SW *vor* dem `cache:'reload'`-Fix aktiv ist, liefert er Code stale aus dem HTTP-Cache → der neue SW kann sich nicht selbst ausliefern (Henne-Ei). Dieser eine Übergang braucht einmalig Strg+Shift+R / Unregister; **danach** holt jeder normale Reload frischen Code.
+
 Es gibt **keinen** Boot-Cache-/localStorage-Wipe mehr (früher in `startup.js`). Der Wipe untergrub den SW und kostete bei jedem Start einen Vosk-Re-Download + Verlust von `pending_sync`.
 
 **Vosk-Modell** liegt same-origin unter `models/vosk-model-small-en-us-0.15.tar.gz` (~40 MB), URL via `new URL('models/…', document.baseURI)`. `Vosk.createModel` lädt es per Voll-GET (200) und untart es im Worker → vom SW cache-first persistent gecacht.

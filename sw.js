@@ -6,7 +6,12 @@ const CACHE = 'english-stars-' + VERSION;
 const PRECACHE = ['./','./index.html','./manifest.json','./icon-192.png','./icon-512.png','./favicon.png'];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(PRECACHE).catch(()=>{})));
+  // cache:'reload' beim Precache → der neue SW holt Shell/index.html frisch vom Netz,
+  // nicht aus dem HTTP-Cache des Browsers. Sonst koennte er beim Install eine stale
+  // index.html in seinen eigenen Cache schreiben (relevant fuer den Offline-Fallback).
+  e.waitUntil(caches.open(CACHE).then(c =>
+    c.addAll(PRECACHE.map(u => new Request(u, { cache: 'reload' }))).catch(()=>{})
+  ));
 });
 
 self.addEventListener('activate', e => {
