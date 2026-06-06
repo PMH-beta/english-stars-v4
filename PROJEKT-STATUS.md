@@ -9,29 +9,6 @@
 - Workflow: Pawel ↔ Claude Code (Code) + Claude (Strategie/Review)
 
 ## Erledigt
-- updated_at-Abgleich (Pull-Freshness / Multi-Device): DB-Trigger
-  set_updated_at() setzt updated_at serverseitig (now()) auf profiles/
-  decks/word_stats/preset_stats/preset_category_progress → clock-skew-
-  freier Wahrheits-Token; Client schickt updated_at nicht mehr mit.
-  cloudLoad liefert Signatur meta={ts,count} je Bereich → es_sync_meta.
-  cloudProbe (5 Mini-Requests) + metaDiffers; maybeReconcile (debounced,
-  Trigger: Menü-Rückkehr, Stats/Profil öffnen, App-Vordergrund) lädt nur
-  bei Abweichung voll nach (reloadFromCloud → gemeinsamer adoptCloudState-
-  Pfad mit Gate/Pre-Flush/max-Merge). Best-effort: Fehlschlag → kein
-  Leer-Zustand. count fängt Löschungen ab. Kein periodischer Tick.
-- Rundenfortschritt zuverlässig in die Cloud (Bug: nach Runde + App
-  schließen kam beim Neuöffnen der ALTE Stand, Punkte fehlten):
-  (1) Final-Flush bei visibilitychange→hidden + keepalive-fetch
-  (supabase.js esFetch, kleine Bodies) → laufender Save überlebt das
-  Schließen. (2) Abgesicherter Pre-Flush VOR cloudLoad wieder eingeführt
-  (nur bei gültigem Boot-SD/playerName → Empty-Write-Garantie + Gate
-  bleiben intakt) → lokale Deltas zuerst hoch, dann Cloud lesen.
-  (3) saveProgress schreibt saveProfile sofort (statt nur markDirty).
-  (4) max-Merge beim Reopen: totalPoints/highscore = max(lokal, cloud)
-  VOR dem Überschreiben → keine noch nicht hochgeschobene Runde geht
-  verloren; übrige Felder last-write-wins. Ursache war u.a. die
-  Flush-nach-cloudLoad-Reihenfolge der Sync-Härtung (Marker konnte den
-  bereits überschriebenen Stand nicht mehr retten).
 - Cache-Fix (normaler Reload holt frischen Code, kein Strg+Shift+R nötig):
   SW-Netz-Fetch für same-origin App-Code mit cache:'reload' → umgeht den
   HTTP-Cache des Browsers (Ursache: Modul-URLs ohne ?v + GitHub-Pages-max-age;
@@ -39,18 +16,6 @@
   Modell/Vosk/Statik bleiben cache-first. Zusätzlich reg.waiting beim Laden
   behandelt (skipWaiting nachgeholt) → Auto-Reload hängt nicht am wartenden SW.
   Aufgeschobener controllerchange-Reload (Spiel/Scan/Review) unverändert.
-- Sync-Härtung (wasserdicht/zukunftssicher gegen "leerer-Nutzer"-Bug):
-  (1) Schreib-Gate `cloudWritesAllowed` — `saveProfile`/`flushPendingSync`
-  schreiben NIE, bevor der Cloud-Stand per Login bestätigt ist → kein
-  Überschreiben echter Daten mit ''/0 (Garantie 3). (2) `cloudLoad` mit
-  Timeout (8s) + 3× Retry/Backoff, liefert Status {ok|new|failed} statt
-  throw/null. (3) `handleLogin` gated: failed → offline weiter mit lokalen
-  Daten ODER "Erneut versuchen"-Dialog (kein Leer-Default, Garantie 1/2);
-  new nur bei bestätigt leerer Cloud (Garantie 4). (4) Pre-Login-Flush
-  entfernt — pending Namensänderung wird NACH erfolgreichem Load auf den
-  frischen Cloud-Stand gelegt (Name bleibt, Punkte = Cloud). Ursache war
-  der durable 'profile'-Marker aus dem Dialog-Umbau, der beim Pre-Flush
-  ein unbestätigtes SD hochschob.
 - RLS-Fixes, Cloud-Sync (Profile/Decks/Stats)
 - GitHub Pages live, Email-Confirm, Passwort-vergessen
 - Import→Cloud, JWT-Race-Retry, handle_new_user-Trigger robust

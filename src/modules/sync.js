@@ -12,36 +12,6 @@ function isUUID(str) {
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
 }
 
-// ────────────────────────────────────────────────
-//  SCHREIB-GATE (Garantie 3)
-// ────────────────────────────────────────────────
-// Cloud-Writes sind GESPERRT, bis ein Login den Cloud-Stand bestätigt hat
-// (erfolgreicher cloudLoad ODER bestätigt neuer Nutzer). Verhindert, dass ein
-// noch unbestätigtes/leeres window.SD echte Cloud-Daten mit Leerwerten (0 Punkte,
-// kein Name) überschreibt — der Kern des "leerer-Nutzer"-Bugs.
-let _cloudWritesAllowed = false;
-export function setCloudWritesAllowed(v) { _cloudWritesAllowed = !!v; }
-export function cloudWritesAllowed() { return _cloudWritesAllowed; }
-
-// Promise mit hartem Timeout — rejected, wenn fn nicht rechtzeitig auflöst.
-function withTimeout(promise, ms, label) {
-  let t;
-  const timeout = new Promise((_, reject) => {
-    t = setTimeout(() => reject(new Error('[sync] timeout: ' + label)), ms);
-  });
-  return Promise.race([promise, timeout]).finally(() => clearTimeout(t));
-}
-
-// Spätesten updated_at-Wert (ISO-String aus der DB) einer Zeilenmenge zurückgeben.
-function _maxTs(rows) {
-  let m = null;
-  for (const r of rows || []) {
-    const t = r && r.updated_at;
-    if (t && (!m || t > m)) m = t;   // gleiches DB-Format (UTC) → lexikografisch ok
-  }
-  return m;
-}
-
 const EMPTY_CAT = {
   vocab:       { played: 0, correct: 0, bestStreak: 0 },
   spelling:    { played: 0, correct: 0, bestStreak: 0 },
@@ -64,48 +34,23 @@ async function fetchWithRetry(fn) {
   return await fn();
 }
 
-const LOAD_TIMEOUT_MS = 8000;   // pro Versuch
-const LOAD_RETRIES    = 3;      // Versuche mit Backoff bevor 'failed'
-
 /**
- * Lädt kompletten User-State aus der Cloud — mit Timeout + Retry/Backoff.
- * Gibt ein diskriminiertes Ergebnis zurück, statt zu werfen oder null zu liefern:
- *   { status: 'ok',     state }  → Cloud erfolgreich gelesen
- *   { status: 'new'  }           → Cloud antwortete, aber kein Profil/keine Decks (echter neuer Nutzer)
- *   { status: 'failed', error }  → alle Versuche fehlgeschlagen (Timeout/Netz) — NICHT als "neu" werten
- * So kann der Aufrufer "neuer Nutzer" (Garantie 4) sauber von "Load fehlgeschlagen"
- * (Garantie 1/2) unterscheiden.
+ * Lädt kompletten User-State aus Cloud.
+ * Gibt null zurück wenn User noch keine Decks hat (= neuer User).
  */
 export async function cloudLoad(userId) {
-  let lastErr = null;
-  for (let attempt = 1; attempt <= LOAD_RETRIES; attempt++) {
-    try {
-      return await withTimeout(_cloudLoadOnce(userId), LOAD_TIMEOUT_MS, 'cloudLoad');
-    } catch (e) {
-      lastErr = e;
-      console.warn(`[sync] cloudLoad Versuch ${attempt}/${LOAD_RETRIES} fehlgeschlagen:`, e?.message);
-      if (attempt < LOAD_RETRIES) await new Promise(r => setTimeout(r, 600 * attempt));
-    }
-  }
-  console.error('[sync] cloudLoad endgültig fehlgeschlagen:', lastErr?.message);
-  return { status: 'failed', error: lastErr?.message || 'unknown' };
-}
-
-async function _cloudLoadOnce(userId) {
   const [profileRes, decksRes, wordStatsRes, presetStatsRes, presetCatProgRes] = await Promise.all([
-    fetchWithRetry(() => supabase.from('profiles').select('player_name, highscore, total_points, active_deck_id, active_mode, updated_at').eq('id', userId).maybeSingle()),
+    fetchWithRetry(() => supabase.from('profiles').select('player_name, highscore, total_points, active_deck_id, active_mode').eq('id', userId).maybeSingle()),
     fetchWithRetry(() => supabase.from('decks').select('*').eq('user_id', userId).order('sort_order').order('created_at')),
     fetchWithRetry(() => supabase.from('word_stats').select('*').eq('user_id', userId)),
     fetchWithRetry(() => supabase.from('preset_stats').select('*').eq('user_id', userId)),
     fetchWithRetry(() => supabase.from('preset_category_progress').select('*').eq('user_id', userId)),
   ]);
 
-  // profile + decks sind Kern-Daten → Fehler hier ist FATAL (löst Retry/failed aus),
-  // damit ein Netz-/Auth-Fehler NICHT als leeres Profil durchrutscht (Garantie 2/4).
-  if (decksRes.error)   throw new Error('[sync] cloudLoad decks: '   + decksRes.error.message);
-  if (profileRes.error) throw new Error('[sync] cloudLoad profile: ' + profileRes.error.message);
+  if (decksRes.error) throw new Error('[sync] cloudLoad decks: ' + decksRes.error.message);
 
   const profile = profileRes.data || {};
+  if (profileRes.error) console.error('[cloudLoad] profile error:', profileRes.error.message);
 
   // Globale Vorlage-Stats aufbauen
   const globalPresetStats = { wordStats: {}, categoryProgress: {} };
@@ -127,21 +72,10 @@ async function _cloudLoadOnce(userId) {
     };
   }
 
-  // Sync-Signatur (Wahrheits-Token) aus den geladenen Zeilen — für den updated_at-Abgleich.
-  const meta = {
-    profile:    { ts: profile.updated_at || null, count: profileRes.data ? 1 : 0 },
-    decks:      { ts: _maxTs(decksRes.data),      count: decksRes.data?.length || 0 },
-    word_stats: { ts: _maxTs(wordStatsRes.data),  count: wordStatsRes.data?.length || 0 },
-    preset:     {
-      ts:    _maxTs([...(presetStatsRes.data || []), ...(presetCatProgRes.data || [])]),
-      count: (presetStatsRes.data?.length || 0) + (presetCatProgRes.data?.length || 0),
-    },
-  };
-
   if (!decksRes.data?.length) {
     // No decks yet. If profile has a name this is a returning user (e.g. after cloud reset).
-    if (!profile.player_name) return { status: 'new', meta }; // truly new user (Cloud bestätigt leer)
-    return { status: 'ok', meta, state: {
+    if (!profile.player_name) return null; // truly new user
+    return {
       _version:     4,
       playerName:   profile.player_name,
       highscore:    profile.highscore    || 0,
@@ -152,7 +86,7 @@ async function _cloudLoadOnce(userId) {
       categoryProgress: { ...EMPTY_CAT },
       wordStats:    {},
       globalPresetStats,
-    } };
+    };
   }
 
   // Decks aufbauen
@@ -187,7 +121,7 @@ async function _cloudLoadOnce(userId) {
 
   const activeDeckId = profile.active_deck_id || decksRes.data[0]?.id || null;
 
-  return { status: 'ok', meta, state: {
+  return {
     _version:         4,
     playerName:       profile.player_name || '',
     highscore:        profile.highscore || 0,
@@ -198,7 +132,7 @@ async function _cloudLoadOnce(userId) {
     categoryProgress: { ...EMPTY_CAT },
     wordStats:        {},
     globalPresetStats,
-  } };
+  };
 }
 
 
@@ -207,17 +141,13 @@ async function _cloudLoadOnce(userId) {
 // ────────────────────────────────────────────────
 
 export async function saveProfile(sd, userId) {
-  // Garantie 3: kein Profil-Write bevor der Cloud-Stand bestätigt ist — sonst könnte
-  // ein unbestätigtes/leeres SD den echten Cloud-Namen/-Punktestand mit '' / 0 überschreiben.
-  if (!_cloudWritesAllowed) { console.warn('[sync] saveProfile übersprungen — Cloud-Stand noch nicht bestätigt'); return; }
-  // updated_at NICHT mitschicken — der DB-Trigger setzt es serverseitig (now()),
-  // damit der Wahrheits-Token clock-skew-frei bleibt (s. ARCHITECTURE.md).
   const payload = {
     player_name:    sd.playerName || '',
     highscore:      sd.highscore || 0,
     total_points:   sd.totalPoints || 0,
     active_deck_id: isUUID(sd.activeDeckId) ? sd.activeDeckId : null,
     active_mode:    sd.activeMode || 'free',
+    updated_at:     new Date().toISOString(),
   };
   const { data, error } = await fetchWithRetry(() => supabase
     .from('profiles')
@@ -235,8 +165,6 @@ export async function saveProfile(sd, userId) {
  */
 export async function saveDeck(deck, userId) {
   const now = new Date().toISOString();
-  // updated_at setzt der DB-Trigger serverseitig; created_at bleibt client-seitig
-  // (kein Trigger, einmaliger Wert beim Insert).
   const row = {
     user_id:            userId,
     name:               deck.name,
@@ -247,6 +175,7 @@ export async function saveDeck(deck, userId) {
     deck_path:          deck.deckPath || 'none',
     sort_order:         deck.sortOrder || 0,
     last_exam:          deck.lastExam || null,
+    updated_at:         now,
   };
   console.log('[sync] saveDeck →', deck.id, '| vocab:', deck.vocab?.length ?? '?', 'words | row:', row);
 
@@ -312,7 +241,7 @@ export async function deleteCloudPresetStats(statKeys, presetIds, userId) {
  */
 export async function saveWordStats(deckCloudId, stats, userId) {
   if (!isUUID(deckCloudId)) return;
-  // updated_at setzt der DB-Trigger serverseitig.
+  const now = new Date().toISOString();
   const rows = Object.entries(stats).map(([statKey, s]) => ({
     user_id:  userId,
     deck_id:  deckCloudId,
@@ -321,6 +250,7 @@ export async function saveWordStats(deckCloudId, stats, userId) {
     correct:  s.correct || 0,
     wrong:    s.wrong   || 0,
     recent:   s.recent  || '',
+    updated_at: now,
   }));
   if (!rows.length) return;
   const { error } = await fetchWithRetry(() => supabase
@@ -335,7 +265,7 @@ export async function saveWordStats(deckCloudId, stats, userId) {
  */
 export async function saveGlobalPresetStats(stats, userId) {
   if (!stats) return;
-  // updated_at setzt der DB-Trigger serverseitig.
+  const now = new Date().toISOString();
   const wordRows = Object.entries(stats.wordStats || {}).map(([statKey, s]) => ({
     user_id:    userId,
     stat_key:   statKey,
@@ -343,6 +273,7 @@ export async function saveGlobalPresetStats(stats, userId) {
     correct:    s.correct || 0,
     wrong:      s.wrong   || 0,
     recent:     s.recent  || '',
+    updated_at: now,
   }));
   if (wordRows.length) {
     const { error } = await fetchWithRetry(() => supabase
@@ -356,6 +287,7 @@ export async function saveGlobalPresetStats(stats, userId) {
     played:      cp.played     || 0,
     correct:     cp.correct    || 0,
     best_streak: cp.bestStreak || 0,
+    updated_at:  now,
   }));
   if (catRows.length) {
     const { error } = await fetchWithRetry(() => supabase
@@ -404,7 +336,7 @@ export async function cloudReset(userId) {
 
   const { error: profErr } = await supabase
     .from('profiles')
-    .update({ highscore: 0, total_points: 0, active_deck_id: null, active_mode: 'free' })
+    .update({ highscore: 0, total_points: 0, active_deck_id: null, active_mode: 'free', updated_at: new Date().toISOString() })
     .eq('id', userId);
   if (profErr) throw new Error('[sync] cloudReset profile: ' + profErr.message);
 }
@@ -434,17 +366,9 @@ export function markDirty(type, deckId = null) {
 }
 
 
-/** True, wenn eine Profil-Änderung (z.B. Namensänderung) auf Sync wartet. */
-export function hasPendingProfile() {
-  return readPending().some(p => p.type === 'profile');
-}
-
 /** Schreibt alle pending Änderungen in die Cloud. Fehlgeschlagene bleiben in der Queue. */
 export async function flushPendingSync() {
   if (!window.currentUser) return;
-  // Garantie 3: Replay erst, wenn der Cloud-Stand bestätigt ist. Sonst würde der
-  // Pre-Login-Flush ein unbestätigtes SD (evtl. leer) in die Cloud schreiben.
-  if (!_cloudWritesAllowed) { console.warn('[sync] flushPendingSync übersprungen — Cloud-Stand noch nicht bestätigt'); return; }
   const pending = readPending();
   if (!pending.length) return;
 
@@ -479,74 +403,4 @@ export async function flushPendingSync() {
 /** Anzahl ausstehender Sync-Operationen (für UI-Anzeige). */
 export function getPendingCount() {
   return readPending().length;
-}
-
-// ────────────────────────────────────────────────
-//  updated_at-ABGLEICH (Pull-Freshness / Multi-Device)
-// ────────────────────────────────────────────────
-// Billiger Probe-Request fragt pro Bereich {maxTs, count} ab und vergleicht ihn
-// mit der zuletzt geladenen Signatur (es_sync_meta). Weicht etwas ab → der
-// Aufrufer macht einen Voll-cloudLoad. count fängt Löschungen ab (max(updated_at)
-// allein erkennt sie nicht). Read-only → kann nie etwas überschreiben.
-
-const SYNC_META_SK = 'es_sync_meta';
-const PROBE_TIMEOUT_MS = 4000;
-
-export function readSyncMeta() {
-  try { return JSON.parse(localStorage.getItem(SYNC_META_SK) || 'null'); } catch { return null; }
-}
-export function writeSyncMeta(meta) {
-  if (!meta) return;
-  try { localStorage.setItem(SYNC_META_SK, JSON.stringify(meta)); } catch (e) {}
-}
-export function clearSyncMeta() {
-  try { localStorage.removeItem(SYNC_META_SK); } catch (e) {}
-}
-
-/** True, wenn die Cloud-Signatur neuer/anders ist als die gemerkte (→ nachladen). */
-export function metaDiffers(cloud, stored) {
-  if (!cloud) return false;     // Probe lieferte nichts Verwertbares → nicht nachladen
-  if (!stored) return true;     // nie geladen → laden
-  for (const k of ['profile', 'decks', 'word_stats', 'preset']) {
-    const c = cloud[k] || {}, s = stored[k] || {};
-    if ((c.count || 0) !== (s.count || 0)) return true;        // Insert/Delete
-    const ct = c.ts ? Date.parse(c.ts) : 0;
-    const st = s.ts ? Date.parse(s.ts) : 0;
-    if (ct > st) return true;                                  // Update neuer
-  }
-  return false;
-}
-
-/**
- * Winziger Abgleich-Request: liefert die aktuelle Cloud-Signatur {maxTs, count}
- * je Bereich. Kurzer Timeout, ein Versuch — best effort. Bei Fehler {status:'failed'}.
- */
-export async function cloudProbe(userId) {
-  const sig = (tbl) => supabase.from(tbl)
-    .select('updated_at', { count: 'exact' })
-    .eq('user_id', userId)
-    .order('updated_at', { ascending: false })
-    .limit(1);
-  try {
-    const [prof, decks, ws, ps, pcp] = await withTimeout(Promise.all([
-      supabase.from('profiles').select('updated_at').eq('id', userId).maybeSingle(),
-      sig('decks'), sig('word_stats'), sig('preset_stats'), sig('preset_category_progress'),
-    ]), PROBE_TIMEOUT_MS, 'cloudProbe');
-
-    if (prof.error || decks.error || ws.error || ps.error || pcp.error) return { status: 'failed' };
-
-    const meta = {
-      profile:    { ts: prof.data?.updated_at || null, count: prof.data ? 1 : 0 },
-      decks:      { ts: decks.data?.[0]?.updated_at || null, count: decks.count ?? 0 },
-      word_stats: { ts: ws.data?.[0]?.updated_at || null,    count: ws.count ?? 0 },
-      preset:     {
-        ts:    _maxTs([...(ps.data || []), ...(pcp.data || [])]),
-        count: (ps.count ?? 0) + (pcp.count ?? 0),
-      },
-    };
-    return { status: 'ok', meta };
-  } catch (e) {
-    console.warn('[sync] cloudProbe fehlgeschlagen:', e?.message);
-    return { status: 'failed' };
-  }
 }

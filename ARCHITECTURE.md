@@ -9,7 +9,7 @@
 | `storage.js` | LocalStorage-Operationen für window.SD | `persist`, `loadData`, `freshData`, `clearStorage`, `cleanupStorage`, `clearSWCache` |
 | `default-decks.js` | Starter-Vokabelsammlungen für neue Nutzer | `DEFAULT_DECKS` |
 | `auth.js` | Supabase Auth: Login, Registrierung, Passwort-Reset, Google-OAuth | `signIn`, `signUp`, `signOut`, `onAuthChange`, `requestPasswordReset`, `updatePassword`, `resendConfirmation`, `signInWithGoogle` |
-| `sync.js` | Cloud Read/Write zwischen Supabase und window.SD + Offline-Queue + Schreib-Gate + updated_at-Abgleich | `cloudLoad`, `cloudProbe`, `saveProfile`, `saveDeck`, `saveWordStats`, `saveGlobalPresetStats`, `saveExam`, `deleteCloudDeck`, `deleteCloudWordStats`, `deleteCloudPresetStats`, `loadProfile`, `cloudReset`, `markDirty`, `flushPendingSync`, `hasPendingProfile`, `getPendingCount`, `setCloudWritesAllowed`, `cloudWritesAllowed`, `readSyncMeta`, `writeSyncMeta`, `clearSyncMeta`, `metaDiffers` |
+| `sync.js` | Cloud Read/Write zwischen Supabase und window.SD + Offline-Queue | `cloudLoad`, `saveProfile`, `saveDeck`, `saveWordStats`, `saveGlobalPresetStats`, `saveExam`, `deleteCloudDeck`, `deleteCloudWordStats`, `deleteCloudPresetStats`, `loadProfile`, `cloudReset`, `markDirty`, `flushPendingSync`, `getPendingCount` |
 | `decks.js` | Deck CRUD + UI-State + Spiegel-Sync | `activeDeck`, `syncMirrorFromActiveDeck`, `switchDeck`, `createDeck`, `deckProgress`, `presetProgressPct`, `renderDecks`, `migrateStatKeys` |
 | `stats.js` | EMA-basierte Statistik-Berechnungen + statKey-Normalisierung | `effectivePct`, `isStatMastered`, `isMastered`, `statKeyFor`, `normStatDE`, `normStatEN`, `getVocabStat`, `presetWordsPct`, `modePct` |
 | `speech.js` | TTS (Web Speech API) + Spracherkennung (Vosk offline) | `_initTTS`, `primeTTS`, `speakWord`, `speakWordOnce`, `ensureMicStream`, `releaseMicStream`, `startVoskRecognition`, `startRecording`, `voskStop`, `stopVisualizer` |
@@ -17,7 +17,7 @@
 | `pwa.js` | PWA Install-Prompt + iOS-Hinweis-Banner | `pwaInstall`, `pwaSetup` |
 | `game.js` | Spielmechanik: Fragen, Punkte, Streak, Exam | `_sfx` + zahlreiche `window.*` Game-State-Variablen |
 | `vocab.js` | VokabelManager UI: Hinzufügen, Scannen, Einfügen, Preset-Kategorien, Draft-Flow für neue Sammlungen, Vorlagen-Deck-Statistik | `openVocabManager`, `openPresetDeckStats`, `getPresetCategories`, `vmTab`, `renderVocabList`, `confirmAddVocab`, `renderPresetsTab`, `togglePresetCategory`, `vmRenameActiveDeck`, `newDeckFlow`, `vmBack` |
-| `ui.js` | Screen-Routing, Auth-Lifecycle, Modus-Toggle, alle UI-Event-Handler | `showScreen`, `showMenu`, `handleLogin`, `handleLogout`, `maybeReconcile`, `showNewPasswordScreen`, `saveName`, `authGoogleSignIn`, `setActiveMode`, `renderModeContent` |
+| `ui.js` | Screen-Routing, Auth-Lifecycle, Modus-Toggle, alle UI-Event-Handler | `showScreen`, `showMenu`, `handleLogin`, `handleLogout`, `showNewPasswordScreen`, `saveName`, `authGoogleSignIn`, `setActiveMode`, `renderModeContent` |
 | `startup.js` | Boot-Sequenz: TTS, Audio, Vosk, Auth-Session | `startupSequence`, `finishStartup` |
 | `dialog.js` | App-eigene Overlay-Dialoge statt nativer `alert`/`confirm`/`prompt` (Optik wie Sammlung-Overlays, z-index 9999 → vom Android-Back schließbar). Promise-basiert; Abbrechen löst keine Speicheraktion aus | `esAlert`, `esConfirm`, `esPrompt` (auch als `window.es*`) |
 
@@ -96,7 +96,7 @@ window.SD = {
 
 | Funktion | Supabase-Tabelle | Trigger |
 |---|---|---|
-| `saveProfile(sd, userId)` | `profiles` | nach Name-Änderung, activeDeckId-Wechsel **und sofort bei Rundenende** (Punkte/Highscore, zusätzlich zu `markDirty('profile')`) |
+| `saveProfile(sd, userId)` | `profiles` | nach Name-Änderung, Highscore, activeDeckId-Wechsel |
 | `saveDeck(deck, userId)` | `decks` | nach Vokabel-Änderung, Fortschritts-Reset; INSERT → Cloud gibt UUID zurück, ersetzt lokale ID in window.SD; schreibt deck_path |
 | `saveWordStats(deckId, stats, userId)` | `word_stats` | nach jeder Spielrunde (Upsert per `user_id,deck_id,stat_key`) |
 | `saveGlobalPresetStats(stats, userId)` | `preset_stats` + `preset_category_progress` | nach jeder Runde mit aktiven Vorlagen (Upsert; Queue-Type `'global_preset'`) |
@@ -119,45 +119,6 @@ flushPendingSync()
 
 `cloudLoad` nutzt `fetchWithRetry()` intern um JWT-Race-Conditions nach Login abzufangen (bis zu 3 Versuche mit 1,5s Delay).
 
-#### Schreib-Gate (`setCloudWritesAllowed` / `cloudWritesAllowed`) — Garantie gegen Empty-Writes
-
-Cloud-Writes sind **gesperrt**, bis ein Login den Cloud-Stand bestätigt hat. `saveProfile`
-und `flushPendingSync` brechen ab, solange das Gate zu ist. So kann ein noch unbestätigtes
-oder leeres `window.SD` (z.B. Boot-Default, fehlgeschlagener Load) **nie** echte Cloud-Daten
-mit Leerwerten (0 Punkte, kein Name) überschreiben.
-
-```
-Login-Start         → setCloudWritesAllowed(false)   (Gate ZU)
-cloudLoad ok / new  → setCloudWritesAllowed(true)    (Gate AUF)
-cloudLoad failed    → Gate bleibt ZU                 (kein Write, Offline/Retry)
-handleLogout        → setCloudWritesAllowed(false)
-```
-
-#### `cloudLoad` Status-Rückgabe + Timeout/Retry
-
-`cloudLoad` wirft nicht mehr und liefert nicht mehr `null`, sondern ein diskriminiertes
-Ergebnis — mit Gesamt-Timeout (8s/Versuch) und 3 Versuchen mit Backoff:
-
-| Rückgabe | Bedeutung |
-|---|---|
-| `{ status:'ok', meta, state }` | Cloud erfolgreich gelesen → `window.SD = state`, `meta` = Sync-Signatur |
-| `{ status:'new', meta }` | Cloud antwortete, kein Profil + keine Decks → echter neuer Nutzer |
-| `{ status:'failed', error }` | alle Versuche scheiterten → **nicht** als "neu/leer" werten |
-
-#### updated_at-Abgleich (Pull-Freshness / Multi-Device)
-
-Zwei getrennte Jobs: **PUSH** (pending-Marker + flush + keepalive) = „kam meine Änderung an"; **PULL** (`cloudProbe` + `es_sync_meta`) = „muss ich nachladen".
-
-**Wahrheits-Token = `updated_at` (serverseitig per DB-Trigger `trg_set_updated_at`/`set_updated_at()` auf profiles/decks/word_stats/preset_stats/preset_category_progress).** Der Client schickt `updated_at` **nicht** mehr mit — der Trigger setzt `now()` (eine Uhr → clock-skew-frei). `created_at` bleibt client-seitig.
-
-**Signatur (`meta`)** je Bereich = `{ ts: max(updated_at), count }`. `count` fängt Löschungen ab, die `max(updated_at)` allein nicht sieht. Bereiche: `profile`, `decks`, `word_stats`, `preset` (= preset_stats + preset_category_progress kombiniert).
-
-- `cloudLoad` berechnet `meta` aus den geladenen Zeilen → `adoptCloudState` merkt sie in `localStorage['es_sync_meta']`.
-- `cloudProbe(userId)` = 5 winzige Requests (`select updated_at, count` je Tabelle, `limit 1`), kurzer Timeout (4s), keine Nutzdaten.
-- `metaDiffers(cloud, stored)` → true wenn irgendwo `count` abweicht **oder** Cloud-`ts` neuer.
-
-**`maybeReconcile(reason)`** (ui.js, debounced ≥3s, nur bei `cloudWritesAllowed`): `cloudProbe` → bei Abweichung `reloadFromCloud()` (Voll-`cloudLoad` über denselben `adoptCloudState`-Pfad: Pre-Flush nur bei gültigem SD, Gate, max-Merge) → `_rerenderCurrent()`. Fehlschlag/Timeout → **nichts tun** (kein Leer-Zustand, nie blockieren). **Trigger:** Menü-Rückkehr (`showMenu`), Unterseite öffnen (`showStats`/`showProfile`), App-Vordergrund (`visibilitychange→visible`). Kein periodischer Tick. Reset/leere Cloud mid-session (`new`/`failed`) überschreibt den lokalen Stand **nicht**.
-
 ---
 
 ### Auth-Flow: `startup.js` → `handleLogin` → `cloudLoad`
@@ -174,31 +135,20 @@ window.load
                  └─ currentUser?      → handleLogin(user)          ui.js
 
 handleLogin(user)                       ui.js
-  ├─ setCloudWritesAllowed(false)       → Gate ZU bis Cloud-Stand bestätigt (Garantie 3)
-  ├─ Snapshot lokal merken              → localValid(=SD.playerName), localPoints, localHighscore, pendingName
-  ├─ Pre-Flush (NUR wenn localValid)    → Gate kurz AUF, flushPendingSync(), Gate wieder ZU
-  │     └─ schiebt unsynced lokale Deltas (z.B. Rundenpunkte) hoch, BEVOR cloudLoad
-  │        sie überschreibt. Leeres/frisches SD flusht nie (Empty-Write-Garantie).
-  ├─ cloudLoad(user.id)                 sync.js  (Timeout 8s + 3× Retry/Backoff)
-  │    └─ SELECT profiles/decks/word_stats/preset_stats/preset_category_progress
-  │
-  ├─ status 'failed'  → KEIN Leer-Default, KEINE Neu-Entscheidung (Garantie 1/2)
-  │     ├─ lokale Daten da → offline weiterspielen (Gate bleibt ZU)
-  │     └─ kein lokaler Stand → showConnectionRetry() ("Erneut versuchen" / Abmelden)
-  │
-  ├─ status 'new'     → setCloudWritesAllowed(true); lokalen Stand behalten;
-  │                     flushPendingSync(); !playerName? name-screen : restore  (Garantie 4)
-  │
-  └─ status 'ok'      → max-Merge VOR Überschreiben (nur monotone Felder):
-        │                totalPoints/highscore = max(lokal, cloud) → keine verlorene Runde
-        ├─ window.SD = state; setCloudWritesAllowed(true); merged Punkte/Highscore setzen
-        ├─ pendingName ? window.SD.playerName = pendingName  (übrige Felder = Cloud, last-write-wins)
-        ├─ lokal > cloud? markDirty('profile')   → gemergten höheren Stand sicher hochschieben
-        ├─ persist + syncMirrorFromActiveDeck() + flushPendingSync()
-        └─ !playerName? name-screen | sonst → restoreLastScreen()
+  ├─ cloudLoad(user.id)                 sync.js
+  │    ├─ SELECT profiles WHERE id=userId
+  │    ├─ SELECT decks WHERE user_id=userId
+  │    ├─ SELECT word_stats WHERE user_id=userId
+  │    ├─ SELECT preset_stats WHERE user_id=userId
+  │    └─ SELECT preset_category_progress WHERE user_id=userId
+  │         → baut window.SD auf, fügt word_stats in Decks ein,
+  │           baut SD.globalPresetStats aus preset_stats + preset_category_progress
+  ├─ window.SD = cloudState
+  ├─ persist(window.SD)
+  ├─ syncMirrorFromActiveDeck()         → aktualisiert SD.wordStats + SD.categoryProgress
+  ├─ loadProfile(user.id)               → expliziter Fallback falls cloudLoad null lieferte
+  └─ !playerName? → name-screen | sonst → showMenu()
 ```
-
-**Final-Flush beim App-Schließen** (`main.js`): `visibilitychange→hidden` löst `flushPendingSync()` aus (mobil zuverlässiger als `pagehide`/`beforeunload`). Die Writes laufen über `supabase.js`-`esFetch` mit **`keepalive`** (kleine Bodies < 60 KB), sodass ein noch unterwegs befindlicher Save den Seiten-Teardown überlebt → Rundenfortschritt erreicht die Cloud, bevor die App zugeht.
 
 Passwort-Reset-Sonderfall: Supabase feuert `PASSWORD_RECOVERY` Event → `onAuthChange` setzt `_pendingRecovery = true` → `finishStartup` leitet auf `new-password-screen`.
 
