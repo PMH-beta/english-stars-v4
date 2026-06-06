@@ -30,6 +30,24 @@ let _cloudConfirmed = false;
 export function setCloudConfirmed(v) { _cloudConfirmed = !!v; }
 export function cloudConfirmed() { return _cloudConfirmed; }
 
+// Token-Resilienz: Vor REST-Calls sicherstellen, dass der Access-Token gültig ist.
+// getSession() liest nur den Cache (validiert NICHT serverseitig) → war das Gerät
+// länger im Hintergrund, ist der Token evtl. abgelaufen und autoRefresh (Timer)
+// hat beim Aufwachen noch nicht erneuert → REST würde 401 liefern. Daher hier
+// proaktiv erneuern, wenn abgelaufen oder <60s Restlaufzeit.
+async function ensureFreshToken() {
+  try {
+    const { data } = await supabase.auth.getSession();
+    const exp = data?.session?.expires_at;          // Sekunden seit Epoch
+    if (exp && exp * 1000 < Date.now() + 60000) {
+      console.log('[sync] Token läuft ab/abgelaufen → refreshSession()');
+      await supabase.auth.refreshSession();
+    }
+  } catch (e) {
+    console.warn('[sync] ensureFreshToken:', e?.message);
+  }
+}
+
 // Promise mit hartem Timeout — rejected, wenn fn nicht rechtzeitig auflöst.
 function withTimeout(promise, ms, label) {
   let t;
@@ -74,6 +92,7 @@ const LOAD_RETRIES    = 2;      // Versuche bevor 'failed'
  *   { status:'ok', state, meta } | { status:'new', meta } | { status:'failed', error }
  */
 export async function cloudLoad(userId) {
+  await ensureFreshToken();   // gültigen JWT sicherstellen → kein 401 durch abgelaufenen Token
   let lastErr = null;
   for (let attempt = 1; attempt <= LOAD_RETRIES; attempt++) {
     try {
@@ -436,8 +455,6 @@ export function hasPendingProfile() {
 /** Schreibt alle pending Änderungen in die Cloud. Fehlgeschlagene bleiben in der Queue. */
 export async function flushPendingSync() {
   if (!window.currentUser) return;
-  // TEMP-DIAG (wieder entfernen): zeigt Gate-Zustand + Queue-Inhalt bei jedem Flush.
-  try { console.log('[FLUSH] confirmed=' + _cloudConfirmed + ' pending=' + (localStorage.getItem('pending_sync') || '[]')); } catch (e) {}
   // Empty-Write-Schutz: kein Replay, bevor der Cloud-Stand bestätigt ist.
   if (!_cloudConfirmed) { console.warn('[sync] flushPendingSync übersprungen — Cloud-Stand noch nicht bestätigt'); return; }
   const pending = readPending();
@@ -515,6 +532,7 @@ export function metaDiffers(cloud, stored) {
  * Kurzer Timeout, ein Versuch — best effort. Bei Fehler {status:'failed'}.
  */
 export async function cloudProbe(userId) {
+  await ensureFreshToken();   // gültigen JWT sicherstellen → Probe bekommt kein 401
   const sig = (tbl) => supabase.from(tbl)
     .select('updated_at', { count: 'exact' })
     .eq('user_id', userId)

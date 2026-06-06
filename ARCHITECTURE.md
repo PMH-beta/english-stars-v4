@@ -119,6 +119,8 @@ flushPendingSync()
 
 `cloudLoad` nutzt `fetchWithRetry()` intern um JWT-Race-Conditions nach Login abzufangen (bis zu 3 Versuche mit 1,5s Delay).
 
+**Token-Resilienz (`ensureFreshToken`):** `cloudLoad` und `cloudProbe` rufen am Anfang `ensureFreshToken()` — prüft via `getSession()` die Restlaufzeit des Access-Tokens und ruft bei Ablauf/<60s `supabase.auth.refreshSession()`. Verhindert 401 nach längerem Hintergrund (Gerät aufgewacht, `autoRefreshToken`-Timer noch nicht gefeuert) → der Pull bekommt einen gültigen JWT statt „failed → alter lokaler Stand". Schlägt der Refresh fehl (Refresh-Token ungültig) → bestehender `failed`-Pfad (Retry/Offline).
+
 ---
 
 ## Sync-Modell (vier Regeln) — Garantien an je EINER Stelle
