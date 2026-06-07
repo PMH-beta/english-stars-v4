@@ -1002,6 +1002,7 @@ function _ensureSkeletonStyle() {
   const st = document.createElement('style');
   st.id = 'es-skel-style';
   st.textContent = '@keyframes es-pulse{0%,100%{opacity:.5}50%{opacity:.9}}'
+    + '@keyframes es-spin{to{transform:rotate(360deg)}}'
     + '.es-skel{background:#e6ddf2;border-radius:16px;animation:es-pulse 1.1s ease-in-out infinite;}';
   (document.head || document.documentElement).appendChild(st);
 }
@@ -1013,7 +1014,14 @@ function showMenuSkeleton() {
   const tp = document.getElementById('menu-total');       if (tp) tp.textContent = '·';
   const ft = document.getElementById('menu-footer');      if (ft) ft.style.display = 'flex';
   const c = document.getElementById('decks-container');
-  if (c) c.innerHTML = '<div class="es-skel" style="height:54px;margin-bottom:12px;"></div>'.repeat(4);
+  if (c) c.innerHTML =
+    // kleiner, halbtransparenter Ladekreis über den Kacheln → „es passiert was".
+    // Liegt IM decks-container → verschwindet automatisch, sobald renderDecks rendert.
+    '<div style="display:flex;justify-content:center;padding:6px 0 14px;">'
+    + '<span style="width:26px;height:26px;border:3px solid rgba(168,108,219,.25);'
+    + 'border-top-color:var(--purple,#a86cdb);border-radius:50%;display:inline-block;'
+    + 'animation:es-spin .7s linear infinite;"></span></div>'
+    + '<div class="es-skel" style="height:54px;margin-bottom:12px;"></div>'.repeat(4);
 }
 
 // Baustein 4: Nach Relaunch näher am letzten Ort landen. Menü immer als Basis
