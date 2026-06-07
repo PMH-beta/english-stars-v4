@@ -32,6 +32,17 @@ self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   const url = new URL(e.request.url);
 
+  // Supabase-API (Auth/REST/Realtime) NIEMALS cachen — immer frisch vom Netz.
+  // Sonst landet jeder GET (profiles/decks/word_stats …) im cache-first-Zweig
+  // (cross-origin) und der SW liefert beim normalen Reload veraltete Daten zurück
+  // (nur Hard-Reload umging das). Writes (POST/PATCH) sind ohnehin GET-gefiltert.
+  // cache:'no-store' → auch der HTTP-Cache wird umgangen. Offline → fetch schlägt
+  // fehl → cloudLoad 'failed' → lokaler Cache (window.SD) greift als Fallback.
+  if (url.hostname.endsWith('.supabase.co')) {
+    e.respondWith(fetch(e.request, { cache: 'no-store' }));
+    return;
+  }
+
   // Alte URL → neue URL umleiten
   if (url.pathname.endsWith('/english_stars_v2.html')) {
     e.respondWith(Response.redirect(url.pathname.replace('english_stars_v2.html','index.html'), 302));

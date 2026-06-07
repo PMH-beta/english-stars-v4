@@ -9,6 +9,12 @@
 - Workflow: Pawel ↔ Claude Code (Code) + Claude (Strategie/Review)
 
 ## Erledigt
+- ROOT CAUSE vieler „zeigt alten Stand, nur Hard-Reload hilft"-Symptome:
+  Der Service Worker cachte die Supabase-GET-Reads (cross-origin = cache-first)
+  → normaler Reload lieferte veraltete profiles/decks/word_stats aus dem
+  SW-Cache; Writes (POST/PATCH) gingen durch (deshalb Supabase aktuell, Anzeige
+  alt). Fix: sw.js behandelt *.supabase.co als network-only (no-store) → Reads
+  immer frisch. Offline → fetch fail → lokaler window.SD-Fallback.
 - Sync radikal vereinfacht („Cloud beim Öffnen immer hart laden"): die ganze
   Mechanik (es_sync_meta/cloudProbe/metaDiffers, Single-Session/
   signOutOtherDevices, fresh-Login, Probe-zuerst-Konfliktregel) ENTFERNT.
