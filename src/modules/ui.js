@@ -6,7 +6,7 @@ import { getPresetCategories } from './vocab.js';
 import { releaseMicStream, stopVisualizer, voskStop, speakWord } from './speech.js';
 import { signIn, signUp, signOut, resendConfirmation, requestPasswordReset, updatePassword, signInWithGoogle } from './auth.js';
 import { cloudLoad, cloudReset, saveDeck, saveWordStats, saveExam, markDirty, flushPendingSync, setCloudConfirmed, getPendingCount } from './sync.js';
-import { esToast, commitDirty } from './dialog.js';
+import { commitDirty } from './dialog.js';
 
 const API_KEY_SK = 'es_apikey';
 

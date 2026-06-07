@@ -28,7 +28,6 @@ const EMPTY_CAT = {
 // handleLogout (false) — sonst nirgends getoggelt.
 let _cloudConfirmed = false;
 export function setCloudConfirmed(v) { _cloudConfirmed = !!v; }
-export function cloudConfirmed() { return _cloudConfirmed; }
 
 // Token-Resilienz: Vor REST-Calls sicherstellen, dass der Access-Token gültig ist.
 // getSession() liest nur den Cache (validiert NICHT serverseitig) → war das Gerät
@@ -102,7 +101,7 @@ export async function cloudLoad(userId) {
 
 async function _cloudLoadOnce(userId) {
   const [profileRes, decksRes, wordStatsRes, presetStatsRes, presetCatProgRes] = await Promise.all([
-    fetchWithRetry(() => supabase.from('profiles').select('player_name, highscore, total_points, active_deck_id, active_mode, updated_at').eq('id', userId).maybeSingle()),
+    fetchWithRetry(() => supabase.from('profiles').select('player_name, highscore, total_points, active_deck_id, active_mode').eq('id', userId).maybeSingle()),
     fetchWithRetry(() => supabase.from('decks').select('*').eq('user_id', userId).order('sort_order').order('created_at')),
     fetchWithRetry(() => supabase.from('word_stats').select('*').eq('user_id', userId)),
     fetchWithRetry(() => supabase.from('preset_stats').select('*').eq('user_id', userId)),
@@ -370,18 +369,6 @@ export async function saveExam({ deckId, grade, percent }, userId) {
     percent: Math.round(percent),
   }));
   if (error) throw new Error('[sync] saveExam: ' + error.message);
-}
-
-/** Lädt nur das Profil eines Users aus der Cloud (playerName, Scores, activeDeckId). */
-export async function loadProfile(userId) {
-  const { data, error } = await fetchWithRetry(() => supabase
-    .from('profiles')
-    .select('player_name, highscore, total_points, active_deck_id, active_mode')
-    .eq('id', userId)
-    .maybeSingle()
-  );
-  if (error) console.error('[sync] loadProfile:', error.message);
-  return data || null;
 }
 
 /** Löscht alle Cloud-Daten eines Users (Decks, word_stats und exams via CASCADE). */
