@@ -60,16 +60,6 @@ function withTimeout(promise, ms, label) {
   return Promise.race([promise, timeout]).finally(() => clearTimeout(t));
 }
 
-// Spätesten updated_at-Wert (ISO-String aus der DB) einer Zeilenmenge zurückgeben.
-function _maxTs(rows) {
-  let m = null;
-  for (const r of rows || []) {
-    const t = r && r.updated_at;
-    if (t && (!m || t > m)) m = t;   // gleiches DB-Format (UTC) → lexikografisch ok
-  }
-  return m;
-}
-
 // ────────────────────────────────────────────────
 //  READ — Cloud → window.SD format
 // ────────────────────────────────────────────────
@@ -146,21 +136,10 @@ async function _cloudLoadOnce(userId) {
     };
   }
 
-  // Sync-Signatur (Wahrheits-Token) aus den geladenen Zeilen.
-  const meta = {
-    profile:    { ts: profile.updated_at || null, count: profileRes.data ? 1 : 0 },
-    decks:      { ts: _maxTs(decksRes.data),      count: decksRes.data?.length || 0 },
-    word_stats: { ts: _maxTs(wordStatsRes.data),  count: wordStatsRes.data?.length || 0 },
-    preset:     {
-      ts:    _maxTs([...(presetStatsRes.data || []), ...(presetCatProgRes.data || [])]),
-      count: (presetStatsRes.data?.length || 0) + (presetCatProgRes.data?.length || 0),
-    },
-  };
-
   if (!decksRes.data?.length) {
     // No decks yet. If profile has a name this is a returning user (e.g. after cloud reset).
-    if (!profile.player_name) return { status: 'new', meta }; // truly new user (Cloud bestätigt leer)
-    return { status: 'ok', meta, state: {
+    if (!profile.player_name) return { status: 'new' }; // truly new user (Cloud bestätigt leer)
+    return { status: 'ok', state: {
       _version:     4,
       playerName:   profile.player_name,
       highscore:    profile.highscore    || 0,
@@ -206,7 +185,7 @@ async function _cloudLoadOnce(userId) {
 
   const activeDeckId = profile.active_deck_id || decksRes.data[0]?.id || null;
 
-  return { status: 'ok', meta, state: {
+  return { status: 'ok', state: {
     _version:         4,
     playerName:       profile.player_name || '',
     highscore:        profile.highscore || 0,
@@ -494,80 +473,4 @@ export async function flushPendingSync() {
 /** Anzahl ausstehender Sync-Operationen (für UI-Anzeige). */
 export function getPendingCount() {
   return readPending().length;
-}
-
-// ────────────────────────────────────────────────
-//  WAHRHEITS-TOKEN: updated_at-Signatur (nur beim App-Öffnen genutzt)
-// ────────────────────────────────────────────────
-// Signatur je Bereich = {ts: max(updated_at), count}. count fängt Löschungen ab.
-// Vergleich Cloud-ts gegen gemerktes ts (beide aus der DB) → clock-skew-frei.
-//
-// WICHTIG: es_sync_meta bedeutet "Cloud-Version, die GERADE in window.SD liegt".
-// Daher wird sie NUR in adoptCloudState (= beim Laden) geschrieben — niemals nach
-// einem Write per Probe. Sonst könnte die Signatur den Daten "vorauslaufen"
-// (fremde Cloud-Änderung geprobt, aber nicht geladen) → metaDiffers wäre fälschlich
-// false → Gerät bliebe alt (nur Storage-Löschen half). Der Key ist versioniert
-// ('…2'), damit alte, bereits verlaufene Signaturen einmalig ignoriert werden
-// (Selbstheilung ohne Storage-Löschen).
-const SYNC_META_SK = 'es_sync_meta2';
-const PROBE_TIMEOUT_MS = 4000;
-
-export function readSyncMeta() {
-  try { return JSON.parse(localStorage.getItem(SYNC_META_SK) || 'null'); } catch { return null; }
-}
-export function writeSyncMeta(meta) {
-  if (!meta) return;
-  try { localStorage.setItem(SYNC_META_SK, JSON.stringify(meta)); } catch (e) {}
-}
-export function clearSyncMeta() {
-  try { localStorage.removeItem(SYNC_META_SK); } catch (e) {}
-}
-
-/** True, wenn die Cloud-Signatur neuer/anders ist als die gemerkte (→ nachladen). */
-export function metaDiffers(cloud, stored) {
-  if (!cloud) return false;     // Probe lieferte nichts → nicht nachladen
-  if (!stored) return true;     // nie geladen → laden
-  for (const k of ['profile', 'decks', 'word_stats', 'preset']) {
-    const c = cloud[k] || {}, s = stored[k] || {};
-    if ((c.count || 0) !== (s.count || 0)) return true;
-    const ct = c.ts ? Date.parse(c.ts) : 0;
-    const st = s.ts ? Date.parse(s.ts) : 0;
-    if (ct > st) return true;
-  }
-  return false;
-}
-
-/**
- * Billiger Abgleich-Request: aktuelle Cloud-Signatur {ts,count} je Bereich.
- * Kurzer Timeout, ein Versuch — best effort. Bei Fehler {status:'failed'}.
- */
-export async function cloudProbe(userId) {
-  await ensureFreshToken();   // gültigen JWT sicherstellen → Probe bekommt kein 401
-  const sig = (tbl) => supabase.from(tbl)
-    .select('updated_at', { count: 'exact' })
-    .eq('user_id', userId)
-    .order('updated_at', { ascending: false })
-    .limit(1);
-  try {
-    const [prof, decks, ws, ps, pcp] = await withTimeout(Promise.all([
-      supabase.from('profiles').select('updated_at').eq('id', userId).maybeSingle(),
-      sig('decks'), sig('word_stats'), sig('preset_stats'), sig('preset_category_progress'),
-    ]), PROBE_TIMEOUT_MS, 'cloudProbe');
-
-    if (prof.error || decks.error || ws.error || ps.error || pcp.error) return { status: 'failed' };
-
-    const meta = {
-      profile:    { ts: prof.data?.updated_at || null, count: prof.data ? 1 : 0 },
-      decks:      { ts: decks.data?.[0]?.updated_at || null, count: decks.count ?? 0 },
-      word_stats: { ts: ws.data?.[0]?.updated_at || null,    count: ws.count ?? 0 },
-      preset:     {
-        ts:    _maxTs([...(ps.data || []), ...(pcp.data || [])]),
-        count: (ps.count ?? 0) + (pcp.count ?? 0),
-      },
-    };
-    return { status: 'ok', meta };
-  } catch (e) {
-    console.warn('[sync] cloudProbe fehlgeschlagen:', e?.message);
-    return { status: 'failed' };
-  }
 }

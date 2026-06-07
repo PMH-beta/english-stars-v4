@@ -9,7 +9,7 @@
 | `storage.js` | LocalStorage-Operationen für window.SD | `persist`, `loadData`, `freshData`, `clearStorage`, `cleanupStorage`, `clearSWCache` |
 | `default-decks.js` | Starter-Vokabelsammlungen für neue Nutzer | `DEFAULT_DECKS` |
 | `auth.js` | Supabase Auth: Login, Registrierung, Passwort-Reset, Google-OAuth | `signIn`, `signUp`, `signOut`, `onAuthChange`, `requestPasswordReset`, `updatePassword`, `resendConfirmation`, `signInWithGoogle` |
-| `sync.js` | Cloud Read/Write + Offline-Queue + Schreib-Gate + updated_at-Signatur | `cloudLoad`, `cloudProbe`, `saveProfile`, `saveDeck`, `saveWordStats`, `saveGlobalPresetStats`, `saveExam`, `deleteCloud*`, `loadProfile`, `cloudReset`, `markDirty`, `flushPendingSync`, `getPendingCount`, `setCloudConfirmed`, `cloudConfirmed`, `readSyncMeta`, `writeSyncMeta`, `clearSyncMeta`, `metaDiffers` |
+| `sync.js` | Cloud Read/Write + Offline-Queue + Schreib-Gate + Token-Refresh | `cloudLoad`, `saveProfile`, `saveDeck`, `saveWordStats`, `saveGlobalPresetStats`, `saveExam`, `deleteCloud*`, `loadProfile`, `cloudReset`, `markDirty`, `flushPendingSync`, `getPendingCount`, `setCloudConfirmed`, `cloudConfirmed` |
 | `decks.js` | Deck CRUD + UI-State + Spiegel-Sync | `activeDeck`, `syncMirrorFromActiveDeck`, `switchDeck`, `createDeck`, `deckProgress`, `presetProgressPct`, `renderDecks`, `migrateStatKeys` |
 | `stats.js` | EMA-basierte Statistik-Berechnungen + statKey-Normalisierung | `effectivePct`, `isStatMastered`, `isMastered`, `statKeyFor`, `normStatDE`, `normStatEN`, `getVocabStat`, `presetWordsPct`, `modePct` |
 | `speech.js` | TTS (Web Speech API) + Spracherkennung (Vosk offline) | `_initTTS`, `primeTTS`, `speakWord`, `speakWordOnce`, `ensureMicStream`, `releaseMicStream`, `startVoskRecognition`, `startRecording`, `voskStop`, `stopVisualizer` |
@@ -17,7 +17,7 @@
 | `pwa.js` | PWA Install-Prompt + iOS-Hinweis-Banner | `pwaInstall`, `pwaSetup` |
 | `game.js` | Spielmechanik: Fragen, Punkte, Streak, Exam | `_sfx` + zahlreiche `window.*` Game-State-Variablen |
 | `vocab.js` | VokabelManager UI: Hinzufügen, Scannen, Einfügen, Preset-Kategorien, Draft-Flow für neue Sammlungen, Vorlagen-Deck-Statistik | `openVocabManager`, `openPresetDeckStats`, `getPresetCategories`, `vmTab`, `renderVocabList`, `confirmAddVocab`, `renderPresetsTab`, `togglePresetCategory`, `vmRenameActiveDeck`, `newDeckFlow`, `vmBack` |
-| `ui.js` | Screen-Routing, Auth-Lifecycle, Modus-Toggle, alle UI-Event-Handler | `showScreen`, `showMenu`, `handleLogin`, `handleLogout`, `maybeRefreshOnResume`, `showNewPasswordScreen`, `saveName`, `authGoogleSignIn`, `setActiveMode`, `renderModeContent` |
+| `ui.js` | Screen-Routing, Auth-Lifecycle, Modus-Toggle, alle UI-Event-Handler | `showScreen`, `showMenu`, `handleLogin`, `handleLogout`, `onAppResume`, `showNewPasswordScreen`, `saveName`, `authGoogleSignIn`, `setActiveMode`, `renderModeContent` |
 | `startup.js` | Boot-Sequenz: TTS, Audio, Vosk, Auth-Session | `startupSequence`, `finishStartup` |
 | `dialog.js` | App-eigene Overlay-Dialoge + Speicher-Indikator. Promise-basiert; Abbrechen löst keine Speicheraktion aus | `esAlert`, `esConfirm`, `esPrompt`, `esToast`, `withSaving`, `commitDirty` (auch als `window.*`) |
 
@@ -119,82 +119,56 @@ flushPendingSync()
 
 `cloudLoad` nutzt `fetchWithRetry()` intern um JWT-Race-Conditions nach Login abzufangen (bis zu 3 Versuche mit 1,5s Delay).
 
-**Token-Resilienz (`ensureFreshToken`):** `cloudLoad` und `cloudProbe` rufen am Anfang `ensureFreshToken()` — prüft via `getSession()` die Restlaufzeit des Access-Tokens und ruft bei Ablauf/<60s `supabase.auth.refreshSession()`. Verhindert 401 nach längerem Hintergrund (Gerät aufgewacht, `autoRefreshToken`-Timer noch nicht gefeuert) → der Pull bekommt einen gültigen JWT statt „failed → alter lokaler Stand". Schlägt der Refresh fehl (Refresh-Token ungültig) → bestehender `failed`-Pfad (Retry/Offline).
+**Token-Resilienz (`ensureFreshToken`):** `cloudLoad` ruft am Anfang `ensureFreshToken()` — prüft via `getSession()` die Restlaufzeit des Access-Tokens und ruft bei Ablauf/<60s `supabase.auth.refreshSession()`. Verhindert 401 nach längerem Hintergrund (Gerät aufgewacht, `autoRefreshToken`-Timer noch nicht gefeuert) → der Pull bekommt einen gültigen JWT statt „failed → alter lokaler Stand". Schlägt der Refresh fehl (Refresh-Token ungültig) → bestehender `failed`-Pfad (Retry/Offline).
 
 ---
 
-## Sync-Modell (vier Regeln) — Garantien an je EINER Stelle
+## Sync-Modell — „Cloud beim Öffnen immer hart laden"
 
-Bewusst EIN zusammenhängender Aufbau. Zwei getrennte Jobs: **PULL** (Frische über
-`updated_at`) nur beim App-Öffnen; **PUSH** (jede Änderung) bestätigt + sichtbar.
-**Kein mid-session Reconcile bei normaler Navigation** (das war die alte Regression).
+Bewusst einfach. Zwei getrennte Jobs: **PULL** = beim Start (und Resume > 2 Min)
+**immer** hart aus Supabase laden; **PUSH** = jede Änderung bestätigt + sichtbar
+speichern. Kein Wert-Merge, keine `updated_at`-Signatur, keine Single-Session, kein
+mid-session Reconcile bei Navigation. Der lokale Stand ist **nur Offline-Fallback**
+und gewinnt nie.
 
 | Garantie | Wohnt in (EINE Stelle) |
 |---|---|
-| Empty-Write-Schutz | `_cloudConfirmed`-Gate in `sync.js` — gesetzt NUR von `adoptCloudState`/`handleLogin` (true) + `handleLogout` (false); geprüft in `saveProfile` + `flushPendingSync` |
-| Cloud = einzige Wahrheit (KEIN Wert-Merge) | `adoptCloudState()` in `ui.js` — übernimmt `window.SD` **1:1** aus der Cloud; einzige Stelle, die das tut |
-| Konfliktregel (Revert-Schutz) | **Probe zuerst** in `handleLogin`/`maybeRefreshOnResume`: Cloud seit letztem Sync geändert? → Cloud gewinnt (lokale Pending NICHT pushen). Cloud unverändert → eigene Pending sicher hochschieben. So kann ein öffnendes Gerät die Cloud nie mit altem Lokalstand reverten. |
+| Empty-Write-Schutz | `_cloudConfirmed`-Gate in `sync.js` — true nach Load; geprüft in `saveProfile` + `flushPendingSync` |
+| Cloud = einzige Wahrheit | `adoptCloudState(state)` in `ui.js` — übernimmt `window.SD` **1:1**; einzige Stelle, die das tut |
 | „neuer Nutzer" vs. „Load fehlgeschlagen" | Status von `cloudLoad()` (`ok`/`new`/`failed`) |
-| Load-Timeout/Retry | `cloudLoad` (5s×2) / `cloudProbe` (4s×1); `ensureFreshToken` (getSession 3s, refreshSession 5s) |
+| Load-Timeout/Retry + Token | `cloudLoad` (5s×2) + `ensureFreshToken` (getSession 3s, refreshSession 5s) |
 | Speichern sichtbar + bestätigt + Timeout-Fallback | `withSaving()` / `commitDirty()` in `dialog.js` |
 
-**Wahrheits-Token:** `updated_at` serverseitig per DB-Trigger (`set_updated_at` auf
-profiles/decks/word_stats/preset_stats/preset_category_progress); Client schickt es
-nicht mehr mit. Signatur `meta = {ts:max(updated_at), count}` je Bereich (count fängt
-Löschungen ab), gemerkt in `localStorage['es_sync_meta2']`. **`es_sync_meta` wird
-NUR in `adoptCloudState` geschrieben** (= „welche Cloud-Version liegt gerade in
-`window.SD`"). Nie per Probe nach einem Write — sonst liefe die Signatur den Daten
-voraus (fremde Cloud-Änderung geprobt, aber nicht geladen) → `metaDiffers` fälschlich
-`false` → Gerät bliebe alt (nur Storage-Löschen half). Key ist versioniert (`…2`)
-zur einmaligen Selbstheilung alter, verlaufener Signaturen.
-
-**Regel 1 — App öffnen / Foreground-Resume** (`handleLogin` bzw. `maybeRefreshOnResume`):
+**PULL — Start & Resume>2Min** (`handleLogin` bzw. `onAppResume`):
 ```
-Gate ZU.  probe = cloudProbe()   (ensureFreshToken intern, hart timeout-begrenzt)
- ├─ probe fail → autoritativer cloudLoad (Retry/JWT) → ok: adopt 1:1 | new: name-screen | failed: lokal/Retry
- └─ probe ok:  cloudChanged = !stored || metaDiffers(probe, stored)
-       ├─ cloudChanged ODER !localValid → cloudLoad → adoptCloudState (Cloud 1:1).
-       │     Lokale Pending NICHT pushen → KEIN Revert der Cloud durch altes Lokal.
-       └─ sonst (Cloud unverändert) → eigene Pending sicher flushen (kein Reload).
+loadFromCloud():
+  (offline-Pending vorhanden & localValid) → flushPendingSync()   // Nachzügler zuerst hoch
+  cloudLoad()  (ensureFreshToken + Timeout/Retry intern)
+   ├─ ok    → adoptCloudState(state) (Cloud 1:1)  → 'ok'
+   ├─ new   → 'new'  (echter neuer Nutzer → name-screen)
+   └─ fail  → 'failed'
+handleLogin: 'ok'/'new' → restoreLastScreen/name-screen;
+             'failed' → lokaler Stand da? lokal weiter (Offline) : Retry-Dialog
 ```
-**Probe zuerst** ist der Revert-Schutz: hat ein anderes Gerät die Cloud geändert,
-gewinnt die Cloud — das öffnende Gerät schiebt seinen (evtl. alten) Lokalstand NICHT
-hoch. Trade-off: eine rein offline gespielte Runde kann bei parallelem Cloud-Write
-verloren gehen (selten, da Rundenende-Saves bestätigt sind) — besser als das stille
-Zurücksetzen, das die Änderungen des anderen Geräts verlöre.
+**Instagram-Skeleton:** ist schon ein lokaler Name da, zeigt `showMenuSkeleton()`
+sofort die Menü-Shell mit grauen Platzhalter-Kacheln (statt Blockier-Ladescreen),
+während hart geladen wird; nach dem Load rendert `showMenu()` die echten Daten.
+**Resume:** `main.js` merkt sich `_hiddenAt` bei `visibilitychange→hidden`; bei
+`→visible` und Differenz > 2 Min → `onAppResume()` (nur Menü-Ebene).
 
-Es gibt **keinen Wert-Merge** mehr (kein `max`): die Cloud gewinnt beim Start immer,
-alle Geräte gleichwertig. Eine echte ungesyncte Runde geht nicht verloren, weil sie
-über Pre-Flush (Punkte UND word_stats zusammen) hochgeschoben wird, bevor übernommen
-wird — und falls der Push nicht bestätigt, greift der Guard. Foreground-Resume läuft NUR
-auf Menü-Ebene (nie im Spiel/Scan/Edit), debounced via `_resumeInFlight`.
+**Offline-fest:** schlägt der harte Load fehl (kein Netz), bleibt der lokale Cache
+sichtbar (Kind spielt weiter); Writes gehen in die Queue und werden beim nächsten
+Online-Start in `loadFromCloud` **zuerst** hochgeschoben, dann wird hart geladen.
+Trade-off (selten, da Saves bestätigt): rein offline gespielt UND ein anderes Gerät
+schreibt parallel → beim nächsten harten Load gewinnt die Cloud.
 
-**Regel 2 — Runde zu Ende / aus Spiel zurück** (`game.js`): `saveProgress()` verbucht
-lokal + `markDirty`; `commitProgress()` = `commitDirty()` zeigt „Speichern…", wartet
-auf Bestätigung. `confirmHome` wartet, DANN Menü.
-
-**Regel 3 — jede Änderung** (Name/Deck/Vokabeln in `ui.js`/`decks.js`/`vocab.js`):
-window.SD ändern + persist + `markDirty(...)` + `await commitDirty()`.
-
-**Aktiver Login = „fresh" (Single-Session):** `handleLogin(user, {fresh:true})` bei
-echtem Login (E-Mail-Submit, Google-Rückkehr via `sessionStorage['es_fresh_login']`,
-neues Passwort) → (1) `signOutOtherDevices()` (`supabase.auth.signOut({scope:'others'})`)
-loggt alle ANDEREN Geräte aus (deren Refresh-Token wird widerrufen) → nie zwei Geräte
-gleichzeitig aktiv → keine Konflikte; (2) `clearStorage()` + `freshData()` → der lokale
-Stand wird verworfen und die Cloud autoritativ geladen. Ein **persistierter** Session-Start
-(gleiches Gerät wieder öffnen) ist `fresh:false` → lokaler Stand bleibt, offline-fest,
-Pending wird hochgeschoben. Das ausgeloggte andere Gerät merkt es beim nächsten
-Token-Refresh (SIGNED_OUT → `handleLogout`) und verlangt dann neuen Login → sauberer Load.
-
-**Regel 4 — Multi-Device:** jeder bestätigte Write hebt den Server-`updated_at`.
-`es_sync_meta` bleibt auf der zuletzt **geladenen** Cloud-Version stehen (nur
-`adoptCloudState` schreibt sie) → JEDES Gerät (auch das schreibende selbst) erkennt
-beim nächsten Öffnen via `metaDiffers`, dass die Cloud neuer ist, und lädt sie 1:1
-nach. Das schreibende Gerät lädt seinen eigenen Stand einmal kurz nach (Cloud =
-Wahrheit) — winzig, dafür garantiert konsistent.
-
-`withSaving` blockiert nie: Timeout/Fehler → Balken weg + Toast „Im Hintergrund
-gespeichert", `saveFn` läuft im Hintergrund weiter, Marker bleibt in der Queue.
+**PUSH — Regel Speichern:**
+- Rundenende/zurück (`game.js`): `saveProgress()` verbucht lokal + `markDirty`;
+  `commitProgress()` = `commitDirty()` zeigt „Speichern…", wartet auf Bestätigung.
+- Jede Änderung (Name/Deck/Vokabeln, `ui.js`/`decks.js`/`vocab.js`): window.SD ändern
+  + persist + `markDirty(...)` + `await commitDirty()`.
+- `withSaving` blockiert nie: Timeout/Fehler → Balken weg + Toast „Im Hintergrund
+  gespeichert", `saveFn` läuft im Hintergrund weiter, Marker bleibt in der Queue.
 
 ---
 
@@ -212,19 +186,15 @@ window.load
                  └─ currentUser?      → handleLogin(user)          ui.js
 
 handleLogin(user)                       ui.js
-  ├─ cloudLoad(user.id)                 sync.js
-  │    ├─ SELECT profiles WHERE id=userId
-  │    ├─ SELECT decks WHERE user_id=userId
-  │    ├─ SELECT word_stats WHERE user_id=userId
-  │    ├─ SELECT preset_stats WHERE user_id=userId
-  │    └─ SELECT preset_category_progress WHERE user_id=userId
-  │         → baut window.SD auf, fügt word_stats in Decks ein,
-  │           baut SD.globalPresetStats aus preset_stats + preset_category_progress
-  ├─ window.SD = cloudState
-  ├─ persist(window.SD)
-  ├─ syncMirrorFromActiveDeck()         → aktualisiert SD.wordStats + SD.categoryProgress
-  ├─ loadProfile(user.id)               → expliziter Fallback falls cloudLoad null lieferte
-  └─ !playerName? → name-screen | sonst → showMenu()
+  ├─ lokaler Name da? → showMenuSkeleton()   (Instagram-Shell, sofort sichtbar)
+  ├─ loadFromCloud():
+  │    ├─ offline-Pending & localValid → flushPendingSync()   (Nachzügler zuerst hoch)
+  │    └─ cloudLoad(user.id)            sync.js  (ensureFreshToken + Timeout/Retry)
+  │         SELECT profiles/decks/word_stats/preset_stats/preset_category_progress
+  │         → status 'ok' → adoptCloudState(state): window.SD = state (1:1) +
+  │           persist + syncMirrorFromActiveDeck   |  'new'  |  'failed'
+  └─ 'ok'/'new' → !playerName? name-screen : restoreLastScreen()
+     'failed'   → lokaler Stand da? lokal weiter (Offline) : Retry-Dialog
 ```
 
 Passwort-Reset-Sonderfall: Supabase feuert `PASSWORD_RECOVERY` Event → `onAuthChange` setzt `_pendingRecovery = true` → `finishStartup` leitet auf `new-password-screen`.

@@ -213,16 +213,13 @@ export function withSaving(saveFn, { label = 'Speichern…', timeoutMs = 5000 } 
 
 /**
  * DER eine sichtbare Commit für „Änderung speichern" (Regel 2 & 3): schiebt die
- * pending-Marker bestätigt in die Cloud (über withSaving → Balken/Timeout) und
- * aktualisiert danach die Sync-Signatur. Aufrufer macht vorher window.SD ändern
- * + persist + markDirty(...). EINE Stelle für „sichtbar + bestätigt + Meta".
+ * pending-Marker bestätigt in die Cloud (über withSaving → Balken/Timeout).
+ * Aufrufer macht vorher window.SD ändern + persist + markDirty(...).
+ * EINE Stelle für „sichtbar + bestätigt speichern".
  */
 export function commitDirty() {
   const uid = window.currentUser?.id;
   if (!uid) return Promise.resolve();
-  // KEIN refreshSyncMeta hier: es_sync_meta wird ausschließlich beim Laden
-  // (adoptCloudState) gesetzt, damit die Signatur nie den Daten vorausläuft.
-  // Folge: nach dem Schreiben lädt das nächste Öffnen einmal kurz nach (Cloud = Wahrheit).
   return withSaving(async () => { await flushPendingSync(); });
 }
 

@@ -4,8 +4,8 @@ import { effectivePct, isStatMastered, statKeyFor } from './stats.js';
 import { syncMirrorFromActiveDeck, deckProgress, presetProgressPct, renderDecks, migrateStatKeys } from './decks.js';
 import { getPresetCategories } from './vocab.js';
 import { releaseMicStream, stopVisualizer, voskStop, speakWord } from './speech.js';
-import { signIn, signUp, signOut, signOutOtherDevices, resendConfirmation, requestPasswordReset, updatePassword, signInWithGoogle } from './auth.js';
-import { cloudLoad, cloudProbe, cloudReset, saveDeck, saveWordStats, saveExam, markDirty, flushPendingSync, readSyncMeta, writeSyncMeta, clearSyncMeta, metaDiffers, setCloudConfirmed, cloudConfirmed, getPendingCount } from './sync.js';
+import { signIn, signUp, signOut, resendConfirmation, requestPasswordReset, updatePassword, signInWithGoogle } from './auth.js';
+import { cloudLoad, cloudReset, saveDeck, saveWordStats, saveExam, markDirty, flushPendingSync, setCloudConfirmed, getPendingCount } from './sync.js';
 import { esToast, commitDirty } from './dialog.js';
 
 const API_KEY_SK = 'es_apikey';
@@ -552,7 +552,6 @@ export async function confirmReset() {
 
   syncMirrorFromActiveDeck();
   persist(window.SD);
-  clearSyncMeta();   // Reset änderte die Cloud → Signatur verwerfen, nächstes Öffnen lädt frisch
   showMenu();
   window.esAlert({ icon: '✅', title: 'Erledigt', body: 'Fortschritt zurückgesetzt!' });
 }
@@ -774,8 +773,8 @@ export async function authSubmit() {
     return;
   }
 
-  // login erfolgreich — aktiver Login → fresh (sauberer Cloud-Load + andere Geräte ausloggen)
-  handleLogin(result.user, { fresh: true });
+  // login erfolgreich
+  handleLogin(result.user);
 }
 
 function _setAuthError(msg) {
@@ -818,13 +817,9 @@ export async function authGoogleSignIn() {
   } catch(e) {}
   const btn = document.getElementById('auth-google-btn');
   if (btn) { btn.disabled = true; btn.textContent = '…'; }
-  // Marke für „aktiver Login": übersteht den OAuth-Redirect (sessionStorage) →
-  // startup behandelt die Rückkehr als fresh (sauberer Cloud-Load + andere Geräte aus).
-  try { sessionStorage.setItem('es_fresh_login', '1'); } catch(e) {}
   const { error } = await signInWithGoogle(forceAccountPicker);
   // On success: browser redirects to Google — no further action needed here.
   if (error) {
-    try { sessionStorage.removeItem('es_fresh_login'); } catch(e) {}   // kein Redirect → Marke zurück
     _setAuthError(error);
     if (btn) { btn.disabled = false; btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 48 48" style="flex-shrink:0"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.04 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-3.54-13.46-8.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg> Mit Google anmelden'; }
   }
@@ -895,8 +890,8 @@ export async function submitNewPassword() {
     return;
   }
   window.location.hash = '';
-  // Supabase hat den User automatisch eingeloggt nach updateUser → aktiver Login → fresh
-  if (window.currentUser) await handleLogin(window.currentUser, { fresh: true });
+  // Supabase hat den User automatisch eingeloggt nach updateUser
+  if (window.currentUser) await handleLogin(window.currentUser);
   else showScreen('auth-screen');
 }
 
@@ -911,56 +906,27 @@ export async function cancelNewPassword() {
 //  AUTH LIFECYCLE (aufgerufen von startup.js + authSubmit)
 // ────────────────────────────────────────────────
 
-// REGEL 1 — App öffnen: Änderungs-Check via updated_at, dann ggf. frisch laden.
-// EINE Funktion, ein klarer Ablauf. Kein mid-session Reconcile bei Navigation.
-export async function handleLogin(user, { fresh = false } = {}) {
+// REGEL: Beim Start (und bei Resume > 2 Min) IMMER hart aus Supabase laden.
+// Cloud ist die einzige Wahrheit; lokaler Stand ist nur Offline-Fallback und
+// gewinnt nie. Kein Wert-Merge, keine Signatur, keine Single-Session.
+export async function handleLogin(user) {
   if (_loginInFlight) return;
   _loginInFlight = true;
   window.currentUser = user;
   setCloudConfirmed(false);
-  console.log('[handleLogin] CALLED with user:', user?.email, fresh ? '(fresh login)' : '');
-
-  if (fresh) {
-    // Aktiver Login (E-Mail/Google/neues Passwort) = DIESES Gerät übernimmt.
-    // Single-Session: andere Geräte ausloggen (keine zwei gleichzeitig → keine
-    // Konflikte). Lokal sauber starten → die Cloud wird unten autoritativ geladen
-    // (localValid=false erzwingt den Load).
-    await signOutOtherDevices();
-    clearStorage();
-    window.SD = freshData();
-  }
-
-  const localValid = !!(window.SD && window.SD.playerName);
-
+  console.log('[handleLogin] CALLED with user:', user?.email);
   try {
-    // 1) ERST proben — hat sich die Cloud seit unserem letzten Sync geändert?
-    //    (cloudProbe ruft intern ensureFreshToken, hart timeout-begrenzt.)
-    const probe = await cloudProbe(user.id);
-
-    if (probe.status !== 'ok') {
-      // Probe unklar (Netz/JWT-Race) → autoritativer cloudLoad (Retry/JWT-sicher).
-      await _loadAndAdoptOrFallback(user, localValid);
+    // Instagram-Gefühl: ist schon ein lokaler Name da, sofort die Menü-Shell mit
+    // Skeleton-Kacheln zeigen (statt Blockier-Ladescreen), während hart geladen wird.
+    if (window.SD?.playerName) showMenuSkeleton();
+    const r = await loadFromCloud();
+    if (r === 'new') { showScreen('name-screen'); return; }
+    if (r === 'failed') {
+      // Offline/unerreichbar: lokalen Cache als Fallback (Kind kann offline spielen);
+      // kein lokaler Stand → klare Retry-Situation statt Leer.
+      if (window.SD?.playerName) _finishLoginUI();
+      else _showConnectionRetry(user);
       return;
-    }
-
-    setCloudConfirmed(true);   // Cloud erreichbar = bestätigt
-    const stored = readSyncMeta();
-    const cloudChanged = (!stored || metaDiffers(probe.meta, stored));
-
-    // 2) Cloud (woanders) neuer ODER kein gültiger lokaler Stand → Cloud ist die
-    //    Wahrheit. Lokale Pending werden NICHT hochgeschoben (würde die Cloud mit
-    //    altem Lokalstand reverten — genau der Multi-Device-Bug).
-    if (cloudChanged || !localValid) {
-      await _loadAndAdoptOrFallback(user, localValid);
-      return;
-    }
-
-    // 3) Cloud unverändert seit unserem letzten Sync → unsere lokalen Pending sind
-    //    die neuesten → sicher hochschieben (kein Revert möglich). Kein Reload nötig.
-    //    es_sync_meta NICHT anfassen (nur adoptCloudState schreibt sie) — der Push
-    //    hebt den Cloud-updated_at, das nächste Öffnen lädt einmal sauber nach.
-    if (getPendingCount() > 0) {
-      await flushPendingSync().catch(() => {});
     }
     _finishLoginUI();
   } catch (e) {
@@ -971,35 +937,28 @@ export async function handleLogin(user, { fresh = false } = {}) {
   }
 }
 
-// Lädt die Cloud autoritativ und übernimmt sie 1:1 (Cloud = einzige Wahrheit).
-// 'new' = echter neuer Nutzer (window.SD bleibt); 'failed' = nie leer/neu →
-// lokaler Stand bzw. Retry-Dialog.
-async function _loadAndAdoptOrFallback(user, localValid) {
-  const res = await cloudLoad(user.id);
-  if (res.status === 'ok') {
-    adoptCloudState(res.state, res.meta);   // Cloud 1:1, setzt Gate true
-    _finishLoginUI();
-  } else if (res.status === 'new') {
+// Hart aus der Cloud laden und übernehmen. Vorher offline-Nachzügler hochschieben
+// (nur bei gültigem lokalem Stand → Empty-Write-Schutz), damit der harte Load sie
+// nicht verwirft. Rückgabe: 'ok' | 'new' | 'failed'.
+async function loadFromCloud() {
+  const uid = window.currentUser?.id;
+  if (!uid) return 'failed';
+  if (window.SD?.playerName && getPendingCount() > 0) {
     setCloudConfirmed(true);
-    writeSyncMeta(res.meta);
-    _finishLoginUI();
-  } else {
-    if (localValid) { syncMirrorFromActiveDeck(); esToast('Offline – lokaler Stand'); _finishLoginUI(); }
-    else            { setCloudConfirmed(false); _showConnectionRetry(user); }
+    await flushPendingSync().catch(() => {});
   }
+  const res = await cloudLoad(uid);   // ensureFreshToken + Timeout/Retry intern
+  if (res.status === 'ok')  { adoptCloudState(res.state); return 'ok'; }
+  if (res.status === 'new') { setCloudConfirmed(true); return 'new'; }
+  return 'failed';
 }
 
-// Übernimmt einen frischen Cloud-Load (NUR mit res.status==='ok' → state ist ein
-// vollständiges, gültiges Objekt) in window.SD — DIE einzige Stelle, die das tut.
-// Cloud ist die EINZIGE Wahrheit: 1:1 übernehmen, KEIN Wert-Merge, keine Hierarchie.
-// Ungesyncte lokale Änderungen sind VOR diesem Punkt durch Pre-Flush hochgeschoben —
-// sonst hat der Pending-Guard den Adopt übersprungen. Setzt Signatur + Gate.
-function adoptCloudState(state, meta) {
+// DIE einzige Stelle, die window.SD aus der Cloud setzt — 1:1, kein Merge.
+function adoptCloudState(state) {
   window.SD = state;
   setCloudConfirmed(true);
   persist(window.SD);
   syncMirrorFromActiveDeck();
-  if (meta) writeSyncMeta(meta);
 }
 
 function _finishLoginUI() {
@@ -1019,33 +978,42 @@ function _showConnectionRetry(user) {
   }).then(retry => { if (retry) handleLogin(user); else authLogout(); });
 }
 
-// REGEL 1 (Foreground-Resume): App aus dem Hintergrund zurück → derselbe billige
-// Abgleich, aber NUR auf Menü-Ebene (nie im Spiel/Scan/Edit) und nur bei
-// bestätigtem Gate. Bei Änderung frisch laden + neu rendern; sonst nichts tun.
+// Resume: war die App > 2 Min im Hintergrund (Timing in main.js), beim Zurückkommen
+// hart neu laden — nur auf Menü-Ebene (nie im Spiel/Scan/Edit). Skeleton während Load.
 let _resumeInFlight = false;
-export async function maybeRefreshOnResume() {
-  if (!window.currentUser || !cloudConfirmed() || _loginInFlight || _resumeInFlight) return;
-  if (_currentScreen !== 'menu-screen') return;   // nur Menü-Ebene
+export async function onAppResume() {
+  if (!window.currentUser || _loginInFlight || _resumeInFlight) return;
+  if (_currentScreen !== 'menu-screen') return;
   _resumeInFlight = true;
   try {
-    // ERST proben (dieselbe Regel wie handleLogin).
-    const probe = await cloudProbe(window.currentUser.id);
-    if (probe.status !== 'ok') return;            // best-effort, nie blockieren
-    if (metaDiffers(probe.meta, readSyncMeta())) {
-      // Cloud (woanders) neuer → Cloud ist die Wahrheit. Lokale Pending NICHT
-      // hochschieben (Revert-Schutz) — einfach übernehmen.
-      const res = await cloudLoad(window.currentUser.id);
-      if (res.status !== 'ok') return;            // failed/new → aktuellen Stand behalten
-      adoptCloudState(res.state, res.meta);       // Cloud 1:1
-      if (_currentScreen === 'menu-screen') showMenu();   // neu rendern
-    } else if (getPendingCount() > 0) {
-      // Cloud unverändert seit unserem letzten Sync → eigene Nachzügler sicher hoch.
-      // es_sync_meta NICHT anfassen (nur adoptCloudState schreibt sie).
-      await flushPendingSync().catch(() => {});
-    }
+    showMenuSkeleton();
+    const r = await loadFromCloud();
+    if (r === 'new') { showScreen('name-screen'); return; }
+    if (_currentScreen === 'menu-screen') showMenu();   // mit echten Daten neu rendern
   } finally {
     _resumeInFlight = false;
   }
+}
+
+// Skeleton-Menü (Instagram-Stil): Menü-Shell mit grauen Platzhalter-Kacheln während
+// des harten Loads. Nach dem Load ersetzt showMenu() das durch echte Daten.
+function _ensureSkeletonStyle() {
+  if (document.getElementById('es-skel-style')) return;
+  const st = document.createElement('style');
+  st.id = 'es-skel-style';
+  st.textContent = '@keyframes es-pulse{0%,100%{opacity:.5}50%{opacity:.9}}'
+    + '.es-skel{background:#e6ddf2;border-radius:16px;animation:es-pulse 1.1s ease-in-out infinite;}';
+  (document.head || document.documentElement).appendChild(st);
+}
+function showMenuSkeleton() {
+  _ensureSkeletonStyle();
+  showScreen('menu-screen');
+  const nm = document.getElementById('menu-player-name'); if (nm) nm.textContent = 'Lädt…';
+  const hs = document.getElementById('menu-highscore');   if (hs) hs.textContent = '·';
+  const tp = document.getElementById('menu-total');       if (tp) tp.textContent = '·';
+  const ft = document.getElementById('menu-footer');      if (ft) ft.style.display = 'flex';
+  const c = document.getElementById('decks-container');
+  if (c) c.innerHTML = '<div class="es-skel" style="height:54px;margin-bottom:12px;"></div>'.repeat(4);
 }
 
 // Baustein 4: Nach Relaunch näher am letzten Ort landen. Menü immer als Basis

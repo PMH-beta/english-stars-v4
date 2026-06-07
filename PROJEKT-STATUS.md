@@ -9,6 +9,16 @@
 - Workflow: Pawel ↔ Claude Code (Code) + Claude (Strategie/Review)
 
 ## Erledigt
+- Sync radikal vereinfacht („Cloud beim Öffnen immer hart laden"): die ganze
+  Mechanik (es_sync_meta/cloudProbe/metaDiffers, Single-Session/
+  signOutOtherDevices, fresh-Login, Probe-zuerst-Konfliktregel) ENTFERNT.
+  Neu: handleLogin → loadFromCloud (offline-Pending zuerst hoch, dann cloudLoad
+  → adoptCloudState 1:1). Resume > 2 Min im Hintergrund → onAppResume lädt hart
+  nach (main.js misst _hiddenAt). Instagram-Skeleton: Menü-Shell mit grauen
+  Platzhalter-Kacheln (showMenuSkeleton) während des Loads, dann echte Daten.
+  Offline-fest: Load-Fehler → lokaler Cache bleibt, Writes in Queue, beim
+  nächsten Online-Start zuerst hoch. ensureFreshToken (Token) + commitDirty/
+  withSaving (sichtbares Speichern) + Empty-Write-Gate bleiben.
 - Single-Session-Modell (passt zu „nie zwei Geräte gleichzeitig"):
   Aktiver Login (E-Mail/Google/neues Passwort) = fresh → signOutOtherDevices
   (supabase signOut scope:'others' loggt andere Geräte aus) + clearStorage +

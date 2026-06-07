@@ -63,22 +63,6 @@ export async function signOut() {
   if (error) console.error('[auth] signOut:', error.message);
 }
 
-// Single-Session: loggt ALLE anderen Geräte aus (deren Refresh-Token wird
-// serverseitig widerrufen) — das aktuelle Gerät bleibt eingeloggt. Aufgerufen
-// nach einem aktiven Login → „nie zwei Geräte gleichzeitig" → keine Sync-Konflikte.
-// Timeout-begrenzt, damit ein langsamer Call den Login nicht blockiert.
-export async function signOutOtherDevices() {
-  try {
-    await Promise.race([
-      supabase.auth.signOut({ scope: 'others' }),
-      new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 5000)),
-    ]);
-    console.log('[auth] andere Geräte ausgeloggt (single session)');
-  } catch (e) {
-    console.warn('[auth] signOutOtherDevices:', e?.message);
-  }
-}
-
 export async function resendConfirmation(email) {
   const { error } = await supabase.auth.resend({
     type: 'signup', email,
