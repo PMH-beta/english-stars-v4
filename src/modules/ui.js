@@ -151,6 +151,13 @@ function _topOverlay() {
 }
 
 function _onBackNavPop() {
+  // TEMP-DIAG (wieder entfernen): zeigt den History-/Back-Zustand bei jedem Zurück.
+  try {
+    console.log('[BACK] screen=' + _currentScreen + ' len=' + history.length
+      + ' state=' + JSON.stringify(history.state)
+      + ' dt=' + (_lastBackTs ? (Date.now() - _lastBackTs) : '-')
+      + ' overlay=' + (!!_topOverlay()));
+  } catch (e) {}
   // _inPopstate unterdrückt den Screen-Push in showScreen, wenn showMenu/confirmHome
   // aus diesem Handler heraus (= Zurück-Navigation) gerufen werden. finally stellt
   // sicher, dass das Flag auch bei frühem return / Fehler zurückgesetzt wird.
