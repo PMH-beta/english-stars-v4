@@ -29,6 +29,13 @@ const EMPTY_CAT = {
 let _cloudConfirmed = false;
 export function setCloudConfirmed(v) { _cloudConfirmed = !!v; }
 
+// Sync-Signatur des zuletzt GELADENEN (oder selbst geschriebenen) Cloud-Stands.
+// Nur für den Minuten-Check „hat ein anderes Gerät geschrieben?" — reine Warnung,
+// kein Auto-Load. Wird beim Laden (adoptCloudState) und nach erfolgreichem eigenem
+// Flush gesetzt, damit eigene Writes den Reload-Hinweis NICHT auslösen.
+let _knownSig = null;
+export function setKnownSig(sig) { if (sig) _knownSig = sig; }
+
 // Token-Resilienz: Vor REST-Calls sicherstellen, dass der Access-Token gültig ist.
 // getSession() liest nur den Cache (validiert NICHT serverseitig) → war das Gerät
 // länger im Hintergrund, ist der Token evtl. abgelaufen und autoRefresh (Timer)
@@ -57,6 +64,16 @@ function withTimeout(promise, ms, label) {
     t = setTimeout(() => reject(new Error('[sync] timeout: ' + label)), ms);
   });
   return Promise.race([promise, timeout]).finally(() => clearTimeout(t));
+}
+
+// Spätesten updated_at-Wert (ISO-String, serverseitig per Trigger) einer Zeilenmenge.
+function _maxTs(rows) {
+  let m = null;
+  for (const r of rows || []) {
+    const t = r && r.updated_at;
+    if (t && (!m || t > m)) m = t;   // gleiches DB-Format (UTC) → lexikografisch ok
+  }
+  return m;
 }
 
 // ────────────────────────────────────────────────
@@ -101,7 +118,7 @@ export async function cloudLoad(userId) {
 
 async function _cloudLoadOnce(userId) {
   const [profileRes, decksRes, wordStatsRes, presetStatsRes, presetCatProgRes] = await Promise.all([
-    fetchWithRetry(() => supabase.from('profiles').select('player_name, highscore, total_points, active_deck_id, active_mode').eq('id', userId).maybeSingle()),
+    fetchWithRetry(() => supabase.from('profiles').select('player_name, highscore, total_points, active_deck_id, active_mode, updated_at').eq('id', userId).maybeSingle()),
     fetchWithRetry(() => supabase.from('decks').select('*').eq('user_id', userId).order('sort_order').order('created_at')),
     fetchWithRetry(() => supabase.from('word_stats').select('*').eq('user_id', userId)),
     fetchWithRetry(() => supabase.from('preset_stats').select('*').eq('user_id', userId)),
@@ -135,10 +152,20 @@ async function _cloudLoadOnce(userId) {
     };
   }
 
+  // Signatur = größter updated_at über alle Bereiche (server-seitig per Trigger).
+  // Dient NUR dem Minuten-Check „hat ein anderes Gerät geschrieben?" (Warnung, kein Auto-Load).
+  const signature = _maxTs([
+    profile.updated_at ? { updated_at: profile.updated_at } : null,
+    ...(decksRes.data || []),
+    ...(wordStatsRes.data || []),
+    ...(presetStatsRes.data || []),
+    ...(presetCatProgRes.data || []),
+  ].filter(Boolean));
+
   if (!decksRes.data?.length) {
     // No decks yet. If profile has a name this is a returning user (e.g. after cloud reset).
     if (!profile.player_name) return { status: 'new' }; // truly new user (Cloud bestätigt leer)
-    return { status: 'ok', state: {
+    return { status: 'ok', signature, state: {
       _version:     4,
       playerName:   profile.player_name,
       highscore:    profile.highscore    || 0,
@@ -184,7 +211,7 @@ async function _cloudLoadOnce(userId) {
 
   const activeDeckId = profile.active_deck_id || decksRes.data[0]?.id || null;
 
-  return { status: 'ok', state: {
+  return { status: 'ok', signature, state: {
     _version:         4,
     playerName:       profile.player_name || '',
     highscore:        profile.highscore || 0,
@@ -455,9 +482,51 @@ export async function flushPendingSync() {
   }
 
   writePending(failed);
+
+  // Eigene Writes erfolgreich raus → bekannte Signatur nachziehen, damit der
+  // Minuten-Check NICHT den eigenen Stand als „anderes Gerät" meldet.
+  if (failed.length === 0) {
+    const s = await cloudSignature(userId);
+    if (s) _knownSig = s;
+  }
 }
 
 /** Anzahl ausstehender Sync-Operationen (für UI-Anzeige). */
 export function getPendingCount() {
   return readPending().length;
+}
+
+// ────────────────────────────────────────────────
+//  MINUTEN-CHECK: hat ein ANDERES Gerät die Cloud geändert?
+// ────────────────────────────────────────────────
+const SIG_TIMEOUT_MS = 4000;
+
+/** Größter updated_at über alle Bereiche des Users (billig, kurzer Timeout). */
+export async function cloudSignature(userId) {
+  const top = (tbl) => supabase.from(tbl)
+    .select('updated_at').eq('user_id', userId)
+    .order('updated_at', { ascending: false }).limit(1);
+  try {
+    await ensureFreshToken();
+    const [prof, decks, ws, ps, pcp] = await withTimeout(Promise.all([
+      supabase.from('profiles').select('updated_at').eq('id', userId).maybeSingle(),
+      top('decks'), top('word_stats'), top('preset_stats'), top('preset_category_progress'),
+    ]), SIG_TIMEOUT_MS, 'cloudSignature');
+    if (prof.error || decks.error || ws.error || ps.error || pcp.error) return null;
+    return _maxTs([
+      prof.data || null,
+      decks.data?.[0] || null, ws.data?.[0] || null, ps.data?.[0] || null, pcp.data?.[0] || null,
+    ].filter(Boolean));
+  } catch (e) {
+    console.warn('[sync] cloudSignature:', e?.message);
+    return null;
+  }
+}
+
+/** True, wenn die Cloud NEUER ist als unser zuletzt bekannter Stand (= anderes Gerät schrieb). */
+export async function cloudChangedRemotely(userId) {
+  if (!_knownSig) return false;          // nie geladen → nicht warnen
+  const cur = await cloudSignature(userId);
+  if (!cur) return false;                // Check fehlgeschlagen → nicht warnen
+  return Date.parse(cur) > Date.parse(_knownSig);
 }

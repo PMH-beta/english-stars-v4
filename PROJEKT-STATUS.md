@@ -9,6 +9,12 @@
 - Workflow: Pawel ↔ Claude Code (Code) + Claude (Strategie/Review)
 
 ## Erledigt
+- Minuten-Check gegen Multi-Device-Clobber: alle 60 s (nur Menü/sichtbar/
+  eingeloggt) prüft cloudChangedRemotely die Cloud-Signatur (größtes updated_at
+  per DB-Trigger) gegen _knownSig (gesetzt beim Laden + nach eigenem Flush →
+  keine Eigen-Fehlalarme). Hat ein anderes Gerät geschrieben → deutlicher
+  Reload-Hinweis (esAlert „Neu laden") → loadFromCloud 1:1. Read-only Warnung,
+  kein Auto-Overwrite/Merge → begrenzt last-write-wins-Worst-Case auf ~1 Min.
 - ROOT CAUSE vieler „zeigt alten Stand, nur Hard-Reload hilft"-Symptome:
   Der Service Worker cachte die Supabase-GET-Reads (cross-origin = cache-first)
   → normaler Reload lieferte veraltete profiles/decks/word_stats aus dem

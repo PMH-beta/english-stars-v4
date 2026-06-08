@@ -9,7 +9,7 @@
 | `storage.js` | LocalStorage-Operationen für window.SD | `persist`, `loadData`, `freshData`, `clearStorage`, `cleanupStorage`, `clearSWCache` |
 | `default-decks.js` | Starter-Vokabelsammlungen für neue Nutzer | `DEFAULT_DECKS` |
 | `auth.js` | Supabase Auth: Login, Registrierung, Passwort-Reset, Google-OAuth | `signIn`, `signUp`, `signOut`, `onAuthChange`, `requestPasswordReset`, `updatePassword`, `resendConfirmation`, `signInWithGoogle` |
-| `sync.js` | Cloud Read/Write + Offline-Queue + Schreib-Gate + Token-Refresh | `cloudLoad`, `saveProfile`, `saveDeck`, `saveWordStats`, `saveGlobalPresetStats`, `saveExam`, `deleteCloud*`, `cloudReset`, `markDirty`, `flushPendingSync`, `getPendingCount`, `setCloudConfirmed` |
+| `sync.js` | Cloud Read/Write + Offline-Queue + Schreib-Gate + Token-Refresh + Minuten-Check | `cloudLoad`, `saveProfile`, `saveDeck`, `saveWordStats`, `saveGlobalPresetStats`, `saveExam`, `deleteCloud*`, `cloudReset`, `markDirty`, `flushPendingSync`, `getPendingCount`, `setCloudConfirmed`, `cloudSignature`, `cloudChangedRemotely`, `setKnownSig` |
 | `decks.js` | Deck CRUD + UI-State + Spiegel-Sync | `activeDeck`, `syncMirrorFromActiveDeck`, `switchDeck`, `createDeck`, `deckProgress`, `presetProgressPct`, `renderDecks`, `migrateStatKeys` |
 | `stats.js` | EMA-basierte Statistik-Berechnungen + statKey-Normalisierung | `effectivePct`, `isStatMastered`, `isMastered`, `statKeyFor`, `normStatDE`, `normStatEN`, `getVocabStat`, `presetWordsPct`, `modePct` |
 | `speech.js` | TTS (Web Speech API) + Spracherkennung (Vosk offline) | `_initTTS`, `primeTTS`, `speakWord`, `speakWordOnce`, `ensureMicStream`, `releaseMicStream`, `startVoskRecognition`, `startRecording`, `voskStop`, `stopVisualizer` |
@@ -17,7 +17,7 @@
 | `pwa.js` | PWA Install-Prompt + iOS-Hinweis-Banner | `pwaInstall`, `pwaSetup` |
 | `game.js` | Spielmechanik: Fragen, Punkte, Streak, Exam | `_sfx` + zahlreiche `window.*` Game-State-Variablen |
 | `vocab.js` | VokabelManager UI: Hinzufügen, Scannen, Einfügen, Preset-Kategorien, Draft-Flow für neue Sammlungen, Vorlagen-Deck-Statistik | `openVocabManager`, `openPresetDeckStats`, `getPresetCategories`, `vmTab`, `renderVocabList`, `confirmAddVocab`, `renderPresetsTab`, `togglePresetCategory`, `vmRenameActiveDeck`, `newDeckFlow`, `vmBack` |
-| `ui.js` | Screen-Routing, Auth-Lifecycle, Modus-Toggle, alle UI-Event-Handler | `showScreen`, `showMenu`, `handleLogin`, `handleLogout`, `onAppResume`, `showNewPasswordScreen`, `saveName`, `authGoogleSignIn`, `setActiveMode`, `renderModeContent` |
+| `ui.js` | Screen-Routing, Auth-Lifecycle, Modus-Toggle, alle UI-Event-Handler | `showScreen`, `showMenu`, `handleLogin`, `handleLogout`, `onAppResume`, `checkForRemoteChange`, `showNewPasswordScreen`, `saveName`, `authGoogleSignIn`, `setActiveMode`, `renderModeContent` |
 | `startup.js` | Boot-Sequenz: TTS, Audio, Vosk, Auth-Session | `startupSequence`, `finishStartup` |
 | `dialog.js` | App-eigene Overlay-Dialoge + Speicher-Indikator. Promise-basiert; Abbrechen löst keine Speicheraktion aus | `esAlert`, `esConfirm`, `esPrompt`, `esToast`, `withSaving`, `commitDirty` (auch als `window.*`) |
 
@@ -169,6 +169,16 @@ schreibt parallel → beim nächsten harten Load gewinnt die Cloud.
   + persist + `markDirty(...)` + `await commitDirty()`.
 - `withSaving` blockiert nie: Timeout/Fehler → Balken weg + Toast „Im Hintergrund
   gespeichert", `saveFn` läuft im Hintergrund weiter, Marker bleibt in der Queue.
+
+**Minuten-Check (Konflikt-Warnung, begrenzt last-write-wins auf ~1 Min):** `main.js`
+ruft alle 60 s `checkForRemoteChange()` (ui.js) — nur eingeloggt + sichtbar + im Menü.
+„Signatur" = größtes `updated_at` über alle Bereiche (server-seitig per Trigger).
+`setKnownSig` merkt sie beim Laden (`adoptCloudState`) **und** nach erfolgreichem
+eigenem Flush (→ eigene Writes lösen NICHT aus). `cloudChangedRemotely` vergleicht die
+aktuelle Cloud-Signatur (`cloudSignature`) mit `_knownSig`; ist die Cloud neuer (=
+anderes Gerät schrieb) → deutlicher Reload-Hinweis (`esAlert`, Button „Neu laden") →
+`loadFromCloud` übernimmt 1:1. **Read-only Warnung, kein Auto-Overwrite, kein Merge** —
+darum keine Drift wie beim alten `es_sync_meta`.
 
 ---
 

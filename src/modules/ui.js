@@ -5,7 +5,7 @@ import { syncMirrorFromActiveDeck, deckProgress, presetProgressPct, renderDecks,
 import { getPresetCategories } from './vocab.js';
 import { releaseMicStream, stopVisualizer, voskStop, speakWord } from './speech.js';
 import { signIn, signUp, signOut, resendConfirmation, requestPasswordReset, updatePassword, signInWithGoogle } from './auth.js';
-import { cloudLoad, cloudReset, saveDeck, saveWordStats, saveExam, markDirty, flushPendingSync, setCloudConfirmed, getPendingCount } from './sync.js';
+import { cloudLoad, cloudReset, saveDeck, saveWordStats, saveExam, markDirty, flushPendingSync, setCloudConfirmed, getPendingCount, setKnownSig, cloudChangedRemotely } from './sync.js';
 import { commitDirty } from './dialog.js';
 
 const API_KEY_SK = 'es_apikey';
@@ -948,15 +948,16 @@ async function loadFromCloud() {
     await flushPendingSync().catch(() => {});
   }
   const res = await cloudLoad(uid);   // ensureFreshToken + Timeout/Retry intern
-  if (res.status === 'ok')  { adoptCloudState(res.state); return 'ok'; }
+  if (res.status === 'ok')  { adoptCloudState(res.state, res.signature); return 'ok'; }
   if (res.status === 'new') { setCloudConfirmed(true); return 'new'; }
   return 'failed';
 }
 
 // DIE einzige Stelle, die window.SD aus der Cloud setzt — 1:1, kein Merge.
-function adoptCloudState(state) {
+function adoptCloudState(state, signature) {
   window.SD = state;
   setCloudConfirmed(true);
+  setKnownSig(signature);   // bekannte Cloud-Signatur merken (für Minuten-Check)
   persist(window.SD);
   syncMirrorFromActiveDeck();
 }
@@ -1022,6 +1023,30 @@ function showMenuSkeleton() {
     + 'border-top-color:var(--purple,#a86cdb);border-radius:50%;display:inline-block;'
     + 'animation:es-spin .7s linear infinite;"></span></div>'
     + '<div class="es-skel" style="height:54px;margin-bottom:12px;"></div>'.repeat(4);
+}
+
+// Minuten-Check: hat ein ANDERES Gerät die Cloud geändert? Wenn ja → deutlicher
+// Reload-Hinweis (Variante b), den man bestätigen muss, um den aktuellen Stand zu
+// laden — begrenzt den „last-write-wins"-Worst-Case auf ~1 Min. Nur im Menü, nur
+// bei sichtbarer App, nicht während Laden/Resume. Read-only, kein Auto-Overwrite.
+let _reloadPromptOpen = false;
+export async function checkForRemoteChange() {
+  if (!window.currentUser || _loginInFlight || _resumeInFlight || _reloadPromptOpen) return;
+  if (document.hidden || _currentScreen !== 'menu-screen') return;
+  let changed = false;
+  try { changed = await cloudChangedRemotely(window.currentUser.id); } catch (e) {}
+  if (!changed || _currentScreen !== 'menu-screen' || _reloadPromptOpen) return;
+  _reloadPromptOpen = true;
+  window.esAlert({
+    icon: '🔄', title: 'Neuer Stand',
+    body: 'Auf einem anderen Gerät wurde gespielt. Bitte neu laden, um den aktuellen Stand zu sehen.',
+    ok: 'Neu laden',
+  }).then(async () => {
+    showMenuSkeleton();
+    await loadFromCloud();
+    if (_currentScreen === 'menu-screen') showMenu();
+    _reloadPromptOpen = false;
+  });
 }
 
 // Baustein 4: Nach Relaunch näher am letzten Ort landen. Menü immer als Basis
