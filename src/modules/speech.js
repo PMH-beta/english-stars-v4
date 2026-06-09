@@ -104,8 +104,10 @@ function _ttsVoiceChain() {
 // wenn nichts offen ist — normales Sprechen wird nicht belastet.
 function _freeAudioRouteForTTS() {
   if (_activePreviewCleanup) { try { _activePreviewCleanup(); } catch(e) {} _activePreviewCleanup = null; }
-  const ctxOpen = _audioCtx && _audioCtx.state !== 'closed';
-  if (_micActive || _activeSR || ctxOpen || _vizSrc || _micStream) {
+  // Nur abbauen wenn wirklich Mic/Erkennung/Visualizer läuft. Der AudioContext
+  // bleibt jetzt persistent (suspend statt close) — seine bloße Existenz ist KEIN
+  // Grund mehr zum Teardown, sonst churnt jeder TTS-Aufruf unnötig.
+  if (_micActive || _activeSR || _vizSrc || _micStream) {
     try { stopVisualizer(); } catch(e) {}
     try { releaseMicStream(); } catch(e) {}
   }
@@ -225,7 +227,8 @@ let _micStream = null;
 let _micActive = false; // true solange Mic-Stream oder Vosk-Stream aktiv
 let _micTimeout = null;
 let _vizAF = null;
-let _vizSrc = null;      // MediaStreamAudioSourceNode — vor AudioContext.close() disconnect()
+let _vizSrc = null;      // MediaStreamAudioSourceNode — beim Stop disconnect() (Context bleibt persistent)
+let _vizGain = null;     // Gain-Node des Visualizers — ebenfalls disconnecten, sonst leakt er pro Runde
 let _vizStream = null;   // iOS-only: separater getUserMedia-Stream nur für Visualizer
 let _analyser = null;
 let _audioCtx = null;
@@ -300,6 +303,7 @@ function _ensureAudioCtx() {
 function _clearVisualizerState() {
   if (_vizAF) { cancelAnimationFrame(_vizAF); _vizAF = null; }
   if (_analyser) { try { _analyser.disconnect(); } catch(e) {} _analyser = null; }
+  if (_vizGain) { try { _vizGain.disconnect(); } catch(e) {} _vizGain = null; }
   if (_vizSrc) { try { _vizSrc.disconnect(); } catch(e) {} _vizSrc = null; }
   if (_vizStream) {
     try { _vizStream.getTracks().forEach(t => t.stop()); } catch(e) {}
@@ -326,10 +330,10 @@ export function startVisualizer(stream) {
     _analyser.fftSize = 256;
     _analyser.smoothingTimeConstant = 0.6;
     _vizSrc = _audioCtx.createMediaStreamSource(stream);
-    const gain = _audioCtx.createGain();
-    gain.gain.value = 6.0;
-    _vizSrc.connect(gain);
-    gain.connect(_analyser);
+    _vizGain = _audioCtx.createGain();
+    _vizGain.gain.value = 6.0;
+    _vizSrc.connect(_vizGain);
+    _vizGain.connect(_analyser);
     const buf = new Uint8Array(_analyser.frequencyBinCount);
     const ctx = canvas.getContext('2d');
     const W = canvas.width, H = canvas.height;
@@ -355,10 +359,18 @@ export function startVisualizer(stream) {
 }
 
 export function stopVisualizer() {
-  console.log('[stopVisualizer] called — _vizSrc:', !!_vizSrc, 'ctx:', !!_audioCtx, 'SR:', !!_activeSR);
   _clearVisualizerState();
-  if (_audioCtx) { try { _audioCtx.close(); } catch(e) {} _audioCtx = null; }
+  // Context NICHT schließen, nur schlafen legen — close()+new pro Runde war die
+  // Ursache des Kaltstarts (Visualizer/Audio erst nach paar Runden warm). resume()
+  // eines lebenden Context ist um Größenordnungen schneller als ein neuer.
+  if (_audioCtx && _audioCtx.state === 'running') { try { _audioCtx.suspend(); } catch(e) {} }
   releaseMicStream();
+}
+
+// Öffentlich: AudioContext + Mic schon beim Pronounce-Spielstart aufwecken (in der
+// User-Geste vom Mode-Button), damit Visualizer und Erkennung ab Runde 1 warm sind.
+export function warmAudio() {
+  _ensureAudioCtx();
 }
 
 // ════════════════════════════════════════════════
@@ -382,7 +394,12 @@ export async function voskStart(onResult, onError) {
       audio: {echoCancellation:false, noiseSuppression:false, autoGainControl:false, channelCount:1, sampleRate:16000}
     });
     _micActive = true;
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    // Geteilter persistenter Context (resume() falls suspendiert) statt pro Aufnahme
+    // ein neuer — der hängende/suspendierte Neu-Context war auf Android der Grund,
+    // warum der Visualizer zappelte aber acceptWaveform keine Audio bekam.
+    _ensureAudioCtx();
+    const ctx = _audioCtx;
+    if (!ctx) throw new Error('AudioContext nicht verfügbar');
     const rec = new window._voskModel.KaldiRecognizer(ctx.sampleRate);
     rec.setWords(true);
     rec.on('result', m => {
@@ -407,6 +424,9 @@ export async function voskStart(onResult, onError) {
         vizGain.gain.value = 6.0;
         src.connect(vizGain);
         vizGain.connect(vizAnalyser);
+        // Refs merken, damit voskStop sie am persistenten Context trennt (sonst Leak).
+        _voskRec.vizAnalyser = vizAnalyser;
+        _voskRec.vizGain = vizGain;
         const buf = new Uint8Array(vizAnalyser.frequencyBinCount);
         const cctx = canvas.getContext('2d');
         const W = canvas.width, H = canvas.height;
@@ -457,9 +477,12 @@ export function voskStop() {
   try { _voskRec.proc.disconnect(); } catch(e) {}
   try { _voskRec.sink.disconnect(); } catch(e) {}
   try { _voskRec.src.disconnect(); } catch(e) {}
-  try { _voskRec.ctx.close(); } catch(e) {}
+  try { if (_voskRec.vizGain) _voskRec.vizGain.disconnect(); } catch(e) {}
+  try { if (_voskRec.vizAnalyser) _voskRec.vizAnalyser.disconnect(); } catch(e) {}
   try { _voskRec.rec.remove(); } catch(e) {}
   try { if (_voskRec.stream) _voskRec.stream.getTracks().forEach(t => t.stop()); } catch(e) {}
+  // Context bleibt persistent (geteilt) — nur schlafen legen, NICHT schließen.
+  if (_audioCtx && _audioCtx.state === 'running') { try { _audioCtx.suspend(); } catch(e) {} }
   _voskRec = null;
   _micActive = false;
   _scheduleIosMusicResume();
