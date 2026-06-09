@@ -43,6 +43,32 @@ export function primeTTS() {
   _ensureTTSWarm(() => {});
 }
 
+// Stärkeres Warmup als primeTTS: spricht ein echtes Wort mit der besten Stimme bei
+// volume=0 und WARTET (Promise) bis fertig — zwingt Android, die Stimme samt
+// Audiodaten vollständig zu laden, statt das beim ersten echten Wort zu zahlen.
+// Aufruf in der Start-Button-Geste (startup.js), dort awaited → die ~2 s liegen
+// hinter dem Ladebildschirm statt bei der ersten Vokabel. Cap bei 2 s, damit der
+// Start nie hängt. Setzt _ttsWarmupDone, sodass speakWord danach direkt spricht.
+export function warmTTS() {
+  return new Promise((resolve) => {
+    if (!window.speechSynthesis) { _ttsWarmupDone = true; resolve(); return; }
+    _withVoices(() => {
+      let done = false;
+      const fin = () => { if (done) return; done = true; _ttsWarmupDone = true; _ttsWarmingUp = false; resolve(); };
+      try {
+        const voice = _ttsVoiceChain().find(v => v) || null; // beste echte Stimme
+        const u = new SpeechSynthesisUtterance('ready');
+        u.volume = 0; u.rate = 1.0; u.lang = 'en-US';
+        if (voice) u.voice = voice;
+        u.onend = fin; u.onerror = fin;
+        try { window.speechSynthesis.cancel(); } catch(e) {}
+        window.speechSynthesis.speak(u);
+        setTimeout(fin, 2000); // harte Obergrenze
+      } catch(e) { fin(); }
+    });
+  });
+}
+
 export function _initTTS() {
   if (!window.speechSynthesis) return;
   window._ttsVoices = window.speechSynthesis.getVoices();

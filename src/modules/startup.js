@@ -1,6 +1,6 @@
 // src/modules/startup.js
-import { _initTTS, primeTTS } from './speech.js';
-import { _sfx } from './game.js';
+import { _initTTS, warmTTS } from './speech.js';
+import { _sfx, primeSfx } from './game.js';
 import { _discoverTracks, _initAudio, _trackUrl, startMusicSync, _setMusicBtns } from './audio.js';
 import { showScreen, showMenu, handleLogin, handleLogout, showNewPasswordScreen } from './ui.js';
 import { supabase } from './supabase.js';
@@ -123,14 +123,19 @@ export async function startupSequence() {
   const startBtn = document.getElementById('loading-start-btn');
   if (startBtn) {
     startBtn.style.display = '';
-    startBtn.onclick = () => {
+    startBtn.onclick = async () => {
       startBtn.disabled = true;
-      try { primeTTS(); } catch(e) {}
+      // SFX sofort in der Geste entsperren (sonst Sounds erst nach 1-2 Runden).
+      try { primeSfx(); } catch(e) {}
       try {
         let musicPref = '1';
         try { const v = localStorage.getItem('es_music'); if (v !== null) musicPref = v; } catch(e) {}
         if (musicPref === '1' && !window._musicOn) { startMusicSync(); _setMusicBtns(true); }
       } catch(e) { console.warn('[startup] Music unlock failed:', e); }
+      // Echtes TTS-Warmup HIER abwarten → die ~2 s Engine-/Stimm-Ladezeit liegen
+      // hinter dem Ladebildschirm, nicht beim ersten gesprochenen Wort im Spiel.
+      if (status) status.textContent = 'Sprachausgabe wird vorbereitet…';
+      try { await warmTTS(); } catch(e) {}
       finishStartup();
     };
   } else {

@@ -557,6 +557,18 @@ export function _sfx() {
   }
   return _sfxCtx;
 }
+// SFX-Engine in der User-Geste (Start-Button) entsperren: resume() + stiller Blip.
+// Ohne das blieb _sfxCtx nach App-Restart suspended (resume() außerhalb Geste greift
+// auf iOS nicht) → Sounds kamen erst nach 1-2 Runden, wenn irgendein Tap ihn weckte.
+export function primeSfx() {
+  const ctx=_sfx(); if(!ctx) return;
+  try{ if(ctx.state==='suspended') ctx.resume(); }catch(e){}
+  try{
+    const o=ctx.createOscillator(); const g=ctx.createGain();
+    g.gain.value=0; o.connect(g); g.connect(ctx.destination);
+    o.start(); o.stop(ctx.currentTime+0.02);
+  }catch(e){}
+}
 export function playSfx(type) {
   const ctx=_sfx(); if(!ctx) return;
   if(ctx.state==='suspended') ctx.resume();
