@@ -51,9 +51,6 @@ export function showScreen(id) {
     try { localStorage.setItem('es_last_screen', id); } catch(e) {}
   }
   _currentScreen = id; // aktuellen Screen merken (Android-Back-Layer)
-  _lastBackTs = 0;     // jede Screen-Navigation (vorwärts per Button ODER rückwärts)
-                       // macht das Double-Back-Exit-Fenster ungültig — nur ein echter
-                       // Menü-Back (Branch 4, ohne showScreen) startet es.
   // Echte VORWÄRTS-Navigation zu einem In-App-Screen (nicht Menü, nicht Pre-Login)
   // bekommt einen eigenen History-Eintrag, damit der Zurück erst zum Menü navigiert
   // (Branch 3) statt sofort den Menü-Exit (Branch 4) auszulösen. NICHT aus dem
@@ -70,22 +67,21 @@ export function showScreen(id) {
 // Ein History-Wächter (pushState) + popstate-Listener fangen den Hardware-/Gesten-
 // Zurück ab, solange ein Wächter liegt. showScreen merkt nur _currentScreen.
 //
-// Zurück-Logik (popstate): (1) offenes Overlay schließen; (2) Spiel → confirmHome
-// (Speichern-Nachfrage); (3) nicht im Menü → Menü; (4) im Menü → Toast-Hinweis und
-// KEIN Re-Arm, sodass der nächste Zurück die PWA verlässt.
+// Grundregel (wegen Chromes Anti-Trap): ein pushState zählt nur, wenn er WÄHREND
+// einer echten Nutzer-Geste passiert — gestenlos erzeugte Einträge markiert Chrome
+// als „skippable" und überspringt sie beim nächsten Zurück. Darum:
+//   • Re-Push nur dort, wo wir BLEIBEN wollen (Overlay offen / Spiel) — best effort.
+//   • Beim VERLASSEN (Screen→Menü, Menü→Exit) KEIN Re-Push: der nächste Zurück soll
+//     ja durchgehen. Der Menü-Wächter liegt schon darunter bzw. _refreshGuardOnGesture
+//     armt ihn beim nächsten Tap gesten-gedeckt neu. (Das gestenlose Nachlegen beim
+//     Verlassen war die Ursache der „mal 2, mal 3 Klicks"-Inkonsistenz.)
 //
-// Wächter wird NUR gestengedeckt gesetzt (Chrome ignoriert gestenlos erzeugte
-// Einträge beim Back): einmal beim Init, im popstate selbst (gestennah) nach einem
-// abgefangenen In-App-Back, und bei echter Nutzer-Geste, wenn gerade keiner liegt
-// (hält den In-App-Back nach App-Wechsel am Leben). Im Menü: erster Zurück zeigt
-// einen Hinweis-Toast, ein zweiter Zurück innerhalb EXIT_WINDOW verlässt die PWA
-// (zeitbasiert, unabhängig vom Wächter-Stand — sonst hebelt der Wisch-touchstart,
-// der den Wächter sofort nacharmt, das Verlassen aus). Den finalen Exit erzwingen
-// wir nicht (Plattformgrenze, s. TWA-To-do).
-const EXIT_WINDOW = 2000;   // ms: zweiter Menü-Zurück innerhalb = Exit
+// Zurück-Logik (popstate): (1) offenes Overlay schließen; (2) Spiel → confirmHome
+// (Speichern-Nachfrage); (3) nicht im Menü → Menü; (4) im Menü → Toast-Hinweis,
+// nächster Zurück verlässt die PWA durch reine Propagation. Den finalen Exit
+// erzwingen wir nicht (Plattformgrenze, s. TWA-To-do).
 let _currentScreen = 'loading-screen';
 let _navActive = false;
-let _lastBackTs = 0;        // Zeitstempel des ersten Menü-Zurück (Double-Back-Fenster)
 let _inPopstate = false;    // true während _onBackNavPop läuft → unterdrückt Screen-Push in showScreen
 
 // Pre-Login/Transient-Screens: hier führt „zurück" NICHT ins Menü (kein Login),
@@ -156,37 +152,29 @@ function _onBackNavPop() {
   // sicher, dass das Flag auch bei frühem return / Fehler zurückgesetzt wird.
   _inPopstate = true;
   try {
-    // In-App-Navigation (Branch 1–3) ist KEIN Menü-Back → Exit-Fenster voiden.
-    // 1) Modal zuerst: oberstes Overlay schließen, Back-Eintrag sicherstellen.
+    // 1) Modal zuerst: oberstes Overlay schließen. BLEIBEN → Wächter sicherstellen.
     const ov = _topOverlay();
-    if (ov) { try { ov.remove(); } catch(e) {} _lastBackTs = 0; _ensureGuard(); return; }
+    if (ov) { try { ov.remove(); } catch(e) {} _ensureGuard(); return; }
 
-    // 2) Spiel → Menü mit Speichern-Nachfrage.
+    // 2) Spiel → Menü mit Speichern-Nachfrage. BLEIBEN (Dialog) → Wächter sicherstellen.
     if (_currentScreen === 'game-screen') {
       try { (window.confirmHome || function(){})(); } catch(e) {}
-      _lastBackTs = 0;
       _ensureGuard();   // Back-Eintrag IMMER sicherstellen, egal wie confirmHome ausgeht
       return;
     }
-    // 3) Sonst nicht im Menü (und kein Pre-Login-Screen) → Menü.
+    // 3) Sonst nicht im Menü (und kein Pre-Login-Screen) → Menü. VERLASSEN → KEIN
+    //    Re-Push (Menü-Wächter liegt schon darunter; gestenloses Nachlegen wäre
+    //    skippable → die „3 Klicks"-Lotterie).
     if (_currentScreen !== 'menu-screen' && !NAV_IGNORE.includes(_currentScreen)) {
       try { showMenu(); } catch(e) {}
-      _lastBackTs = 0;
-      _ensureGuard();
       return;
     }
 
-    // 4) Im Menü (oder Pre-Login): zeitbasierter Double-Back-to-Exit.
-    const now = Date.now();
-    if (_lastBackTs && now - _lastBackTs < EXIT_WINDOW) {
-      _lastBackTs = 0;                 // zweiter Zurück im Fenster → Exit
-      _hideExitToast();
-      try { history.back(); } catch (e) {}
-      return;
-    }
-    _lastBackTs = now;                 // erster Zurück → Hinweis + Zeitstempel
+    // 4) Im Menü (oder Pre-Login): erster Zurück = Hinweis-Toast (verbraucht den
+    //    Wächter), nächster Zurück verlässt die PWA durch reine Propagation. Tippt
+    //    der Nutzer nach dem Hinweis irgendwo, armt _refreshGuardOnGesture den
+    //    Wächter gesten-gedeckt neu → nächster Zurück zeigt wieder den Hinweis.
     _showExitToast();                  // (hat eigenen Auto-Hide)
-    _ensureGuard();                    // re-armen, damit der 2. Zurück wieder popstate auslöst
   } finally {
     _inPopstate = false;
   }
