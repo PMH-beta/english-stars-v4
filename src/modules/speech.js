@@ -294,6 +294,7 @@ export function releaseMicStream() {
     _micStream = null;
   }
   _scheduleIosMusicResume();
+  primeAudioSession('playback'); // iOS: nach der Aufnahme zurück auf Ausgabe-über-Stummschalter
 }
 
 // iOS: Nach Track-Stop ~300ms warten bis Audio-Session zurück auf Playback schaltet,
@@ -409,6 +410,7 @@ export function warmAudio() {
 // Der Permission-Prompt selbst ist auf iOS pro Session unvermeidbar.
 export async function warmIosMic() {
   if (!_isIOS() || !navigator.mediaDevices) return;
+  primeAudioSession('play-and-record'); // Aufnahme erlauben, falls Session auf 'playback' steht
   try {
     const s = await navigator.mediaDevices.getUserMedia({
       audio: {echoCancellation:false, noiseSuppression:false, autoGainControl:false},
@@ -416,6 +418,19 @@ export async function warmIosMic() {
     });
     try { s.getTracks().forEach(t => t.stop()); } catch(e) {}
   } catch(e) {}
+}
+
+// Web Audio Session API (Safari 16.4+): steuert die iOS-Audio-Kategorie direkt, OHNE
+// Mikrofon. type='playback' spielt Ton ÜBER den Stumm-Schalter hinweg (Ziel: „Ton
+// auch im Lautlos-Modus") — kein Mic, kein Prompt. type='play-and-record' vor jeder
+// echten Aufnahme, damit getUserMedia aufnehmen darf; danach zurück auf 'playback'
+// (in releaseMicStream). Gibt true zurück wenn die API existiert (dann ersetzt sie das
+// Mic-Flippen am Start). No-op/false auf Browsern ohne die API (Fallback: warmIosMic).
+export function primeAudioSession(type) {
+  try {
+    if (navigator.audioSession) { navigator.audioSession.type = type || 'playback'; return true; }
+  } catch(e) {}
+  return false;
 }
 
 // ════════════════════════════════════════════════
@@ -633,6 +648,7 @@ export function startRecording() {
     // iOS: SpeechRec verwaltet eigenen Mic-Track; wir brauchen einen zweiten nur für den Visualizer.
     // Awaiten VOR sr.start() damit iOS Permission bereits erteilt ist → kein Doppel-Prompt.
     if (_isIOS() && navigator.mediaDevices) {
+      primeAudioSession('play-and-record'); // Session aufnahmebereit, falls auf 'playback'
       try {
         const s = await navigator.mediaDevices.getUserMedia({
           audio: {echoCancellation:false, noiseSuppression:false, autoGainControl:false},

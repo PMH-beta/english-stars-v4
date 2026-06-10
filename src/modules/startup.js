@@ -1,5 +1,5 @@
 // src/modules/startup.js
-import { _initTTS, warmTTS, warmIosMic } from './speech.js';
+import { _initTTS, warmTTS, warmIosMic, primeAudioSession } from './speech.js';
 import { _sfx, primeSfx } from './game.js';
 import { _discoverTracks, _initAudio, _trackUrl, startMusicSync, _setMusicBtns } from './audio.js';
 import { showScreen, showMenu, handleLogin, handleLogout, showNewPasswordScreen } from './ui.js';
@@ -127,10 +127,10 @@ export async function startupSequence() {
       startBtn.disabled = true;
       // SFX sofort in der Geste entsperren (sonst Sounds erst nach 1-2 Runden).
       try { primeSfx(); } catch(e) {}
-      // iOS: Mic-Session jetzt auf PlayAndRecord heben (fire-and-forget, nicht awaiten —
-      // sonst hängt der Start hinterm Mic-Dialog) → Ton ab Start in JEDEM Modus, auch
-      // bei aktivem Stumm-Schalter. iOS-only (no-op sonst).
-      try { warmIosMic(); } catch(e) {}
+      // Ton ab Start in JEDEM Modus, auch bei aktivem iOS-Stumm-Schalter:
+      // bevorzugt über die Web Audio Session API (kein Mikrofon, KEIN Prompt) — und
+      // nur falls die API fehlt (älteres iOS), Fallback aufs einmalige Mic-Flippen.
+      try { if (!primeAudioSession('playback')) warmIosMic(); } catch(e) {}
       try {
         let musicPref = '1';
         try { const v = localStorage.getItem('es_music'); if (v !== null) musicPref = v; } catch(e) {}
