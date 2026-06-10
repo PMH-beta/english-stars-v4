@@ -3,7 +3,7 @@ import { QPERROUND, EXAM_QUESTIONS, calcGrade, gradeText } from './config.js';
 import { effectivePct, isMastered, statKeyFor, getVocabStat } from './stats.js';
 import { activeDeck, syncMirrorFromActiveDeck } from './decks.js';
 import { showScreen, showMenu, hideFeedback, showFeedback } from './ui.js';
-import { ensureMicStream, releaseMicStream, voskStop, stopVisualizer, speakWord, speakWordOnce, startVoskRecognition, startRecording, _shouldUseVosk, warmAudio } from './speech.js';
+import { ensureMicStream, releaseMicStream, voskStop, stopVisualizer, speakWord, speakWordOnce, startVoskRecognition, startRecording, _shouldUseVosk, warmAudio, warmIosMic } from './speech.js';
 import { persist } from './storage.js';
 import { markDirty, saveExam } from './sync.js';
 import { commitDirty } from './dialog.js';
@@ -157,6 +157,7 @@ function _launchGame(m) {
   const hasPronounce=(m==='pronounce'||m==='mixed_vocab');
   if(hasPronounce&&navigator.mediaDevices){
     try{ warmAudio(); }catch(e){}   // AudioContext in der User-Geste aufwecken → Visualizer/Erkennung ab Runde 1 warm
+    try{ warmIosMic(); }catch(e){}  // iOS: Mic-Prompt/Session jetzt etablieren statt mitten in Runde 1
     ensureMicStream();
     if(window._voskLoad && !window._voskModel && window._voskStatus!=='loading'){
       window._voskLoad().catch(()=>{});

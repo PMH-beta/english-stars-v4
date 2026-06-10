@@ -399,6 +399,23 @@ export function warmAudio() {
   _ensureAudioCtx();
 }
 
+// iOS-only: Mic-Permission + Audio-Session schon beim Pronounce-Spielstart etablieren,
+// statt erst beim ersten Mic-Tap. Sonst blockiert der iOS-Permission-Dialog Runde 1
+// → Visualizer kommt erst ab Runde 2. Stream sofort wieder freigeben; die eigentliche
+// Aufnahme holt sich ihren eigenen — dann schnell, weil Permission/Session schon warm.
+// Den Restart-Prompt selbst kann man auf iOS nicht vermeiden (pro Session neu), nur
+// auf einen sauberen Moment vorziehen.
+export async function warmIosMic() {
+  if (!_isIOS() || !navigator.mediaDevices) return;
+  try {
+    const s = await navigator.mediaDevices.getUserMedia({
+      audio: {echoCancellation:false, noiseSuppression:false, autoGainControl:false},
+      video: false
+    });
+    try { s.getTracks().forEach(t => t.stop()); } catch(e) {}
+  } catch(e) {}
+}
+
 // ════════════════════════════════════════════════
 //  VOSK — Offline-Spracherkennung
 // ════════════════════════════════════════════════
