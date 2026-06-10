@@ -399,12 +399,14 @@ export function warmAudio() {
   _ensureAudioCtx();
 }
 
-// iOS-only: Mic-Permission + Audio-Session schon beim Pronounce-Spielstart etablieren,
-// statt erst beim ersten Mic-Tap. Sonst blockiert der iOS-Permission-Dialog Runde 1
-// → Visualizer kommt erst ab Runde 2. Stream sofort wieder freigeben; die eigentliche
-// Aufnahme holt sich ihren eigenen — dann schnell, weil Permission/Session schon warm.
-// Den Restart-Prompt selbst kann man auf iOS nicht vermeiden (pro Session neu), nur
-// auf einen sauberen Moment vorziehen.
+// iOS-only: Eine Mic-getUserMedia hebt die Audio-Session auf „PlayAndRecord" — die
+// EINZIGE Web-Möglichkeit, dass Ton (TTS/SFX/Musik) auch bei aktivem Stumm-Schalter
+// über den Lautsprecher kommt. Die Umschaltung gilt für die ganze Seiten-Session,
+// daher Stream sofort wieder freigeben (kein Dauer-Mic-Symbol). Aufruf:
+//  - Start-Button (startup.js): Ton ab Start in JEDEM Modus, auch lautlos.
+//  - _launchGame Pronounce: zusätzlich, damit Permission/Session vor Runde 1 warm ist
+//    (sonst blockiert der Permission-Dialog Runde 1 → Visualizer erst ab Runde 2).
+// Der Permission-Prompt selbst ist auf iOS pro Session unvermeidbar.
 export async function warmIosMic() {
   if (!_isIOS() || !navigator.mediaDevices) return;
   try {
