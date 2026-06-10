@@ -1,5 +1,5 @@
 // src/modules/startup.js
-import { _initTTS, warmTTS, warmIosMic } from './speech.js';
+import { _initTTS, warmTTS } from './speech.js';
 import { _sfx, primeSfx } from './game.js';
 import { _discoverTracks, _initAudio, _trackUrl, startMusicSync, _setMusicBtns } from './audio.js';
 import { showScreen, showMenu, handleLogin, handleLogout, showNewPasswordScreen } from './ui.js';
@@ -125,12 +125,14 @@ export async function startupSequence() {
     startBtn.style.display = '';
     startBtn.onclick = async () => {
       startBtn.disabled = true;
+      // iOS: Audio-Session EINMAL auf 'play-and-record' (Web Audio Session API, Safari
+      // 16.4+). Erlaubt Aufnahme dauerhaft (Vosk bleibt funktionsfähig) UND spielt Ton
+      // über den Stumm-Schalter → Sounds/TTS auch lautlos in JEDEM Modus, OHNE Mic-Prompt
+      // am Start (der kommt erst im Aussprache-Modus via warmIosMic in _launchGame).
+      // NIE auf 'playback' umschalten — das verbot vorher das Mic → Erkennung tot. iOS-only.
+      try { if (navigator.audioSession) navigator.audioSession.type = 'play-and-record'; } catch(e) {}
       // SFX sofort in der Geste entsperren (sonst Sounds erst nach 1-2 Runden).
       try { primeSfx(); } catch(e) {}
-      // iOS: Mic-Session jetzt auf PlayAndRecord heben (fire-and-forget, nicht awaiten —
-      // sonst hängt der Start hinterm Mic-Dialog) → Ton ab Start in JEDEM Modus, auch
-      // bei aktivem Stumm-Schalter. iOS-only (no-op sonst).
-      try { warmIosMic(); } catch(e) {}
       try {
         let musicPref = '1';
         try { const v = localStorage.getItem('es_music'); if (v !== null) musicPref = v; } catch(e) {}
