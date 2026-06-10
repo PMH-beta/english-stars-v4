@@ -1,7 +1,7 @@
 // src/modules/config.js
 // Zentrale Konstanten und Konfiguration
 
-export const APP_VERSION = 'v4.0.177';
+export const APP_VERSION = 'v4.0.178';
 
 export const QPERROUND = 20;
 export const EXAM_QUESTIONS = 30;
@@ -41,16 +41,15 @@ export function isStandalone() {
     window.navigator.standalone === true;
 }
 
-// Entscheidet welche Spracherkennung verwendet wird
-// iOS/Desktop → Web Speech API
-// Android/Rest → Vosk (offline, Huawei-tauglich)
+// Entscheidet welche Spracherkennung verwendet wird (Spiegel von speech.js _shouldUseVosk)
+// Alle Mobilgeräte inkl. iOS → Vosk (offline, Huawei-tauglich)
+// Desktop → Web Speech API
 export function shouldUseVosk() {
   const ua = navigator.userAgent || '';
   const isIosDevice = /iPad|iPhone|iPod/.test(ua) ||
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  const isAndroid = /Android/i.test(ua);
   const isMobileDevice = /Mobi|Android|iPhone|iPad/i.test(ua);
-  if (isIosDevice) return false;
+  if (isIosDevice) return true;
   if (!isMobileDevice) return false;
-  return isAndroid || true;
+  return true;
 }

@@ -9,6 +9,14 @@
 - Workflow: Pawel ↔ Claude Code (Code) + Claude (Strategie/Review)
 
 ## Erledigt
+- TTS/Spracherkennung Performance-Runde: persistenter (geteilter) AudioContext
+  statt close/recreate pro Runde (Kaltstart-Fix, half Android stark); echtes
+  TTS-Warmup hinter dem Ladebildschirm; SFX-Unlock in der Start-Geste; warmIosMic
+  (iOS Mic-Prompt/Session zum Spielstart). Verworfen+revertet: Web-Audio-Session-
+  API-Trick (brach auf iOS das Mikrofon). NEU: iOS-Spracherkennung von Apple-Online
+  auf **Vosk offline** umgestellt (_shouldUseVosk: alle Mobile inkl. iOS → Vosk;
+  nur Desktop Web-Speech), AudioContext-Resume in der Klick-Geste (iOS-Pflicht).
+  → iOS funktioniert jetzt auch ohne Internet. [TESTEN]
 - Minuten-Check gegen Multi-Device-Clobber: alle 60 s (nur Menü/sichtbar/
   eingeloggt) prüft cloudChangedRemotely die Cloud-Signatur (größtes updated_at
   per DB-Trigger) gegen _knownSig (gesetzt beim Laden + nach eigenem Flush →

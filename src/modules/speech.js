@@ -538,14 +538,15 @@ export function voskStop() {
 // ════════════════════════════════════════════════
 //  PLATTFORM-DETECTION + AUFNAHME
 // ════════════════════════════════════════════════
+// Welche Spracherkennung: Vosk (offline) für ALLE Mobilgeräte inkl. iOS, Web-Speech
+// nur noch für Desktop. iOS bewusst auf Vosk → funktioniert ohne Internet (vorher
+// Apple-Online, offline tot). Web-Speech bleibt der Notnagel via window._webSpeechFailed.
 export function _shouldUseVosk() {
   const ua = navigator.userAgent || '';
   const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  const isAndroid = /Android/i.test(ua);
   const isMobile = /Mobi|Android|iPhone|iPad/i.test(ua);
-  if (isIOS) return false;
+  if (isIOS) return true;
   if (!isMobile) return false;
-  if (isAndroid) return true;
   return true;
 }
 
@@ -563,8 +564,12 @@ export function startRecording() {
 
   // Vosk-Pfad: Readiness NICHT hier prüfen — startVoskRecognition zeigt bei noch
   // ladendem Modell den Warte-Status und startet automatisch, sobald bereit.
-  // _shouldUseVosk() trennt sauber: iOS/Desktop → false → Web-Speech-Pfad unten.
+  // _shouldUseVosk() = true für alle Mobile inkl. iOS; nur Desktop → Web-Speech unten.
   if (_shouldUseVosk() || window._webSpeechFailed) {
+    // AudioContext JETZT (in der Klick-Geste) anlegen+resumen. Auf iOS ist das Pflicht:
+    // voskStart resumed erst NACH dem await getUserMedia → außerhalb der Geste, was iOS
+    // ablehnt → suspendierter Context → keine Audio in acceptWaveform. Hier in-Geste fix.
+    _ensureAudioCtx();
     console.log('[Recording] Vosk-Pfad (Status/Warten regelt startVoskRecognition)');
     startVoskRecognition(window.currentQ.answer, result, btn);
     return;

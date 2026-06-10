@@ -260,6 +260,8 @@ Auch der **Precache** im `install` holt Shell/`index.html` mit `cache:'reload'` 
 
 Es gibt **keinen** Boot-Cache-/localStorage-Wipe mehr (früher in `startup.js`). Der Wipe untergrub den SW und kostete bei jedem Start einen Vosk-Re-Download + Verlust von `pending_sync`.
 
+**Spracherkennungs-Routing** (`_shouldUseVosk`, speech.js): **alle Mobilgeräte inkl. iOS → Vosk (offline)**; nur Desktop nutzt die Online-Web-Speech-API. iOS wurde bewusst von Apple-Online auf Vosk umgestellt, damit Aussprache **ohne Internet** funktioniert. `window._webSpeechFailed` bleibt der Notnagel. Wichtig für iOS: der Vosk-Pfad ruft `_ensureAudioCtx()` **synchron in der Klick-Geste** (sowohl `startRecording` als auch `retryPronounce` via `warmAudio()`), weil `voskStart` den Context erst nach `await getUserMedia` resumed — was iOS außerhalb der Geste ablehnt → sonst suspendierter Context, keine Audio in `acceptWaveform`.
+
 **Vosk-Modell** liegt same-origin unter `models/vosk-model-small-en-us-0.15.tar.gz` (~40 MB), URL via `new URL('models/…', document.baseURI)`. `Vosk.createModel` lädt es per Voll-GET (200) und untart es im Worker → vom SW cache-first persistent gecacht.
 
 **Vosk-Laden entkoppelt** vom Startup: `startup.js` blockiert **nicht** mehr mit `await _voskLoad()`, sondern stößt es fire-and-forget an → App ist in 1–2 s „bereit". Flag `window._voskReady` zeigt Fertigstellung. Öffnet jemand eine Aussprache-Übung bevor Vosk fertig ist, wartet `startVoskRecognition` (speech.js) freundlich mit sichtbarem Status („⏳ Spracherkennung wird vorbereitet…") und startet automatisch, sobald bereit — kein Blockieren, kein stilles Fehlschlagen.

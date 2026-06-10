@@ -331,9 +331,10 @@ export function retryPronounce() {
   try{ releaseMicStream(); }catch(e){}
   try{ stopVisualizer(); }catch(e){}
   try{ voskStop(); }catch(e){}
-  // Wie startRecording: bei Vosk-Geräten immer startVoskRecognition (regelt Warten/
-  // Status selbst); iOS/Desktop (_shouldUseVosk()=false) bleiben im Web-Speech-Pfad.
+  // Wie startRecording: alle Mobile inkl. iOS → startVoskRecognition (regelt Warten/
+  // Status selbst); nur Desktop bleibt im Web-Speech-Pfad.
   if(_shouldUseVosk() || window._webSpeechFailed){
+    try{ warmAudio(); }catch(e){}  // AudioContext in der Klick-Geste resumen (iOS-Pflicht für Vosk)
     if(btn){ btn.disabled=false; }
     startVoskRecognition(window.currentQ.answer, result, btn);
   } else {
