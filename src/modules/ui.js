@@ -152,9 +152,20 @@ function _onBackNavPop() {
   // sicher, dass das Flag auch bei frühem return / Fehler zurückgesetzt wird.
   _inPopstate = true;
   try {
-    // 1) Modal zuerst: oberstes Overlay schließen. BLEIBEN → Wächter sicherstellen.
+    // 1) Modal zuerst: oberstes Overlay schließen.
     const ov = _topOverlay();
-    if (ov) { try { ov.remove(); } catch(e) {} _ensureGuard(); return; }
+    if (ov) {
+      try { ov.remove(); } catch(e) {}
+      // Sonderfall Spiel-Dialog: zweiter Zurück am „Zurück zum Menü?"-Popup nimmt
+      // dessen Wert „Zum Menü" (echte Navigation, kein skippable-Wächter-Glücksspiel).
+      if (window._gameConfirmOpen) {
+        window._gameConfirmOpen = false;
+        try { (window.goHomeSaving || function(){})(); } catch(e) {}
+        return;   // VERLASSEN des Spiels → kein Re-Push
+      }
+      _ensureGuard();   // sonst: Overlay geschlossen, im Screen bleiben → Wächter sichern
+      return;
+    }
 
     // 2) Spiel → Menü mit Speichern-Nachfrage. BLEIBEN (Dialog) → Wächter sicherstellen.
     if (_currentScreen === 'game-screen') {

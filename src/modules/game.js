@@ -171,15 +171,25 @@ function _launchGame(m) {
   showQuestion();
 }
 
+// „Zum Menü"-Aktion ausgelagert, damit der Android-Zurück AM offenen Dialog sie
+// direkt auslösen kann (= zweiter Zurück bestätigt „Zum Menü", statt die App zu
+// verlassen). Zuverlässig, weil zum-Menü-gehen eine echte Navigation ist und nicht
+// von einem (auf Chrome skippable) Re-Push-Wächter abhängt.
+export async function goHomeSaving() {
+  saveProgress();
+  hideFeedback();
+  try{ releaseMicStream(); }catch(e){}
+  try{ if(window.speechSynthesis) window.speechSynthesis.cancel(); }catch(e){}
+  if(window.currentUser) await commitProgress();   // Regel 2: warten bis bestätigt, DANN Menü
+  showMenu();
+}
+
 export function confirmHome() {
-  window.esConfirm({ icon:'🏠', title:'Zurück zum Menü?', body:'Der Lernfortschritt dieser Runde wird gespeichert.', ok:'Zum Menü', cancel:'Bleiben' }).then(async ok => {
+  window._gameConfirmOpen = true;   // Marker: Android-Zurück am Dialog = „Zum Menü"
+  window.esConfirm({ icon:'🏠', title:'Zurück zum Menü?', body:'Der Lernfortschritt dieser Runde wird gespeichert.', ok:'Zum Menü', cancel:'Bleiben' }).then(ok => {
+    window._gameConfirmOpen = false;
     if(!ok) return;
-    saveProgress();
-    hideFeedback();
-    try{ releaseMicStream(); }catch(e){}
-    try{ if(window.speechSynthesis) window.speechSynthesis.cancel(); }catch(e){}
-    if(window.currentUser) await commitProgress();   // Regel 2: warten bis bestätigt, DANN Menü
-    showMenu();
+    goHomeSaving();
   });
 }
 
