@@ -26,8 +26,6 @@ Google angewiesen sein — E-Mail-Weg muss immer Alternative bleiben.
   ausdrückliche Anweisung, nie eigenmächtig.
 - Keine Secrets/Keys in Code oder Commits.
 
-## Doku-Pflege
-- Bei Änderungen an Modulen, Exports oder Datenfluss:
-  ARCHITECTURE.md im selben Commit mitaktualisieren.
-- Bei Stand-Änderungen (erledigt/offen): PROJEKT-STATUS.md
-  mitaktualisieren.
+## Doku (ARCHITECTURE.md, KONZEPT-MODI.md, PROJEKT-STATUS.md)
+- Sind NICHT in git (lokal, gitignored). Nur auf ausdrückliche
+  Ansage anfassen — kein automatisches Mitpflegen.

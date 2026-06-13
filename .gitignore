@@ -11,3 +11,8 @@ dist/
 
 # Claude Code local settings
 .claude/
+
+# Doku — nur lokal, nicht im Repo
+ARCHITECTURE.md
+KONZEPT-MODI.md
+PROJEKT-STATUS.md
