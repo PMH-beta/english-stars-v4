@@ -36,6 +36,12 @@ body{
 h1{font-family:'Fredoka One',cursive;font-size:2.3rem;color:var(--orange);text-shadow:3px 3px 0 rgba(255,107,53,.2);margin-bottom:4px;text-align:center;}
 .subtitle{color:#888;font-size:.9rem;margin-bottom:16px;font-weight:600;}
 
+/* ⚡ Schnellmodus (Wiederholung): nur Hintergrund dunkel, Karten bleiben hell.
+   Texte, die direkt auf dem Hintergrund liegen, werden hell aufgefärbt. */
+body.schnell-active{background-color:#2b2540;transition:background-color .25s;}
+body.schnell-active .subtitle,
+body.schnell-active .section-title{color:#c9bfe6;}
+
 /* ── SCREENS ── */
 .screen{background:white;border-radius:22px;padding:28px 22px;max-width:580px;width:100%;text-align:center;box-shadow:0 8px 0 rgba(0,0,0,.1);}
 .screen h2{font-family:'Fredoka One',cursive;font-size:1.85rem;margin-bottom:10px;color:var(--text);}

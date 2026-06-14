@@ -107,24 +107,39 @@ export function buildPool(m) {
 
 // ── Schnell-Modus ──
 export function toggleSchnell() {
-  window.isSchnellModus = !window.isSchnellModus;
   const btn=document.getElementById('schnell-toggle');
-  if(window.isSchnellModus){
-    window._schnellBackup={wordStats:JSON.parse(JSON.stringify(activeDeck().wordStats))};
-    activeDeck().wordStats={};
+  if(!window.isSchnellModus){
+    // → AN: echten Stand sichern, Fortschritt auf 0 (eigene, flüchtige Wertung),
+    // dunkler Hintergrund, danach Erklär-Fenster.
+    const deck=activeDeck();
+    if(!deck) return;
+    window.isSchnellModus=true;
+    window._schnellBackup={wordStats:JSON.parse(JSON.stringify(deck.wordStats))};
+    deck.wordStats={};
     syncMirrorFromActiveDeck();
-    btn.textContent='⚡ Schnell: AN';
-    btn.style.background='var(--orange)';btn.style.color='white';btn.style.boxShadow='0 3px 0 #cc4a1a';
-    showMenu();
+    if(btn){btn.textContent='⚡ Schnell: AN';btn.style.background='var(--orange)';btn.style.color='white';btn.style.boxShadow='0 3px 0 #cc4a1a';}
+    document.body.classList.add('schnell-active');
+    window.esAlert({ icon:'⚡', title:'Wiederholungsmodus an',
+      body:'Nur zum schnellen Üben — zählt NICHT in die Statistik. Eine richtige Antwort genügt für ein Wort, falsche zählen nicht. Beim Beenden wird dieser Fortschritt wieder verworfen.' })
+      .then(()=>showMenu());
   } else {
-    if(window._schnellBackup){
-      activeDeck().wordStats=window._schnellBackup.wordStats;
-      syncMirrorFromActiveDeck();
-      window._schnellBackup=null;
-    }
-    btn.textContent='⚡ Schnell: AUS';
-    btn.style.background='#eee';btn.style.color='#888';btn.style.boxShadow='0 3px 0 #ccc';
-    showMenu();
+    // → AUS: abbrechbare Warnung; bei „Beenden" echten Stand zurückholen.
+    window.esConfirm({ icon:'⚠️', title:'Wiederholungsmodus beenden?',
+      body:'Der Schnell-Fortschritt geht verloren und dein echter Stand kommt zurück.',
+      ok:'Beenden', cancel:'Abbrechen', danger:true })
+      .then(ok=>{
+        if(!ok) return;
+        window.isSchnellModus=false;
+        if(window._schnellBackup){
+          const deck=activeDeck();
+          if(deck) deck.wordStats=window._schnellBackup.wordStats;
+          syncMirrorFromActiveDeck();
+          window._schnellBackup=null;
+        }
+        if(btn){btn.textContent='⚡ Schnell: AUS';btn.style.background='#eee';btn.style.color='#888';btn.style.boxShadow='0 3px 0 #ccc';}
+        document.body.classList.remove('schnell-active');
+        showMenu();
+      });
   }
 }
 
@@ -513,7 +528,9 @@ function handleWrong() {
   try{
     window.streak=0;
     if(!window.isRetryPhase&&!window.isFreePlay&&!window.isExamMode) window.wrongQueue.push({...window.currentQ});
-    if(!window.isFreePlay&&!window.isExamMode) recordStat(window.currentQ,false);
+    // Schnellmodus: falsche Antworten zählen NICHT — sonst reicht später eine
+    // richtige Antwort nicht mehr für 100%.
+    if(!window.isFreePlay&&!window.isExamMode&&!window.isSchnellModus) recordStat(window.currentQ,false);
     updateScoreBar();
     updateModeProgress(true);
     const c=document.getElementById('game-card');
