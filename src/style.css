@@ -36,11 +36,83 @@ body{
 h1{font-family:'Fredoka One',cursive;font-size:2.3rem;color:var(--orange);text-shadow:3px 3px 0 rgba(255,107,53,.2);margin-bottom:4px;text-align:center;}
 .subtitle{color:#888;font-size:.9rem;margin-bottom:16px;font-weight:600;}
 
-/* ⚡ Schnellmodus (Wiederholung): nur Hintergrund dunkel, Karten bleiben hell.
-   Texte, die direkt auf dem Hintergrund liegen, werden hell aufgefärbt. */
-body.schnell-active{background-color:#2b2540;transition:background-color .25s;}
+/* ⚡ Schnellmodus (Wiederholung): kompletter Dark-Mode. Theme-Variablen +
+   alle fest verdrahteten hellen Flächen werden umgefärbt. Akzentfarben
+   (lila/pink/grün/blau/orange) bleiben — die wirken auf dunkel ohnehin.
+   JS-Overlay-Dialoge bleiben bewusst hell (normaler Modal-Look). */
+body.schnell-active{
+  --bg:#1e1b2e;--card:#2c2740;--text:#ECE8F5;--shadow:0 6px 0 rgba(0,0,0,.35);
+  background-color:#1e1b2e;transition:background-color .25s;
+}
+/* Flächen (waren weiß/hell) → dunkle Karten */
+body.schnell-active .screen,
+body.schnell-active .player-banner,
+body.schnell-active .cat-card,
+body.schnell-active .deck-card,
+body.schnell-active .deck-card.deck-type-preset,
+body.schnell-active .vm-list,
+body.schnell-active .preset-row,
+body.schnell-active .word-table,
+body.schnell-active .stats-panel,
+body.schnell-active .score-pill,
+body.schnell-active .review-item{background:#2c2740;color:#ECE8F5;}
+body.schnell-active .deck-card.deck-type-custom{background:#243a2c;}
+/* Sekundär-Flächen: Tab-Leiste, Footer, runde Buttons */
+body.schnell-active .vm-tabs,
+body.schnell-active .menu-footer{background:#252134;}
+body.schnell-active .vm-tab.active{background:#3a3352;color:#d9b8ff;}
+body.schnell-active .menu-footer button,
+body.schnell-active .deck-action-btn,
+body.schnell-active .back-btn,
+body.schnell-active .home-btn,
+body.schnell-active .music-btn,
+body.schnell-active .music-btn-global,
+body.schnell-active .music-vol-btn{background:#34304a;color:#cfc6e6;box-shadow:0 3px 0 #15121f;}
+body.schnell-active .back-btn.sticky{background:#34304a;box-shadow:0 3px 12px rgba(0,0,0,.5);}
+/* gedämpfte Sekundärtexte (waren #666/#888/#999/#aaa/#bbb) */
 body.schnell-active .subtitle,
-body.schnell-active .section-title{color:#c9bfe6;}
+body.schnell-active .section-title,
+body.schnell-active .pstat,
+body.schnell-active .deck-meta,
+body.schnell-active .deck-chevron,
+body.schnell-active .preset-count,
+body.schnell-active .vm-row-en,
+body.schnell-active .vm-row-arrow,
+body.schnell-active .vm-empty,
+body.schnell-active .hint-text,
+body.schnell-active .pronounce-tip,
+body.schnell-active .stat-label,
+body.schnell-active .cat-stat-small,
+body.schnell-active .mode-progress-sub,
+body.schnell-active .screen p{color:#b4abce;}
+/* Tabellen / Trennlinien */
+body.schnell-active .word-table th{background:#3a3352;color:#d9b8ff;}
+body.schnell-active .word-table td{color:#ECE8F5;border-bottom-color:#3a3450;}
+body.schnell-active .word-table tbody tr:nth-child(even){background:#322c48;}
+body.schnell-active .vm-row{border-bottom-color:#3a3450;}
+body.schnell-active .deck-actions{border-top-color:#3a3450;}
+/* Eingabefelder + MC-Buttons */
+body.schnell-active .type-input,
+body.schnell-active .name-input,
+body.schnell-active .key-input,
+body.schnell-active .add-row input,
+body.schnell-active #vm-search,
+body.schnell-active .choice-btn{background:#34304a;color:#ECE8F5;border-color:#4a4368;}
+body.schnell-active .choice-btn{box-shadow:0 4px 0 #15121f;}
+/* Fortschrittsbalken-Hintergründe */
+body.schnell-active .progress-wrap,
+body.schnell-active .deck-progress-mini,
+body.schnell-active .mode-progress-track,
+body.schnell-active .mini-bar-wrap,
+body.schnell-active .acc-bar-wrap{background:#3a3450;}
+/* Boxen / Pillen / Scan */
+body.schnell-active .feedback{background:#2c2740;border-color:#4a4368;}
+body.schnell-active .stat-box{background:#34304a;}
+body.schnell-active .mode-progress{background:rgba(44,39,64,.95);border-color:rgba(168,108,219,.3);}
+body.schnell-active .scan-zone{background:#2c2740;border-color:#4a4368;}
+body.schnell-active .scan-zone p{color:#b4abce;}
+body.schnell-active .analyzing-pill,
+body.schnell-active .pronounce-result{background:#34304a;color:#cfc6e6;}
 
 /* ── SCREENS ── */
 .screen{background:white;border-radius:22px;padding:28px 22px;max-width:580px;width:100%;text-align:center;box-shadow:0 8px 0 rgba(0,0,0,.1);}
