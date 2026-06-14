@@ -131,6 +131,55 @@ export function esPrompt(opts) {
   });
 }
 
+// prompt mit ZWEI Feldern (z.B. Vokabel bearbeiten: Deutsch + Englisch). Resolved
+// { de, en } (Roh-Strings, OK) bzw. null (Abbrechen) — wie esPrompt. Aufrufer
+// trimmt/prüft selbst weiter (kein Speichern bei leer), Datenkette bleibt identisch.
+export function esPrompt2(opts) {
+  opts = opts || {};
+  return new Promise(resolve => {
+    const { overlay, card } = _scaffold(opts);
+    function mkField(labelText, val) {
+      const wrap = document.createElement('div');
+      wrap.style.cssText = 'text-align:left;margin-bottom:14px;';
+      const lab = document.createElement('div');
+      lab.style.cssText = "font-family:'Nunito',sans-serif;font-weight:700;font-size:.8rem;color:#999;margin:0 0 5px 4px;";
+      lab.textContent = labelText;
+      const inp = document.createElement('input');
+      inp.type = 'text';
+      inp.style.cssText = INPUT + 'margin:0;';
+      inp.value = val != null ? val : '';
+      wrap.appendChild(lab); wrap.appendChild(inp);
+      return { wrap, inp };
+    }
+    const f1 = mkField(opts.label1 || 'Deutsch', opts.value1);
+    const f2 = mkField(opts.label2 || 'Englisch', opts.value2);
+    card.appendChild(f1.wrap);
+    card.appendChild(f2.wrap);
+    const row = _btnRow();
+    const cancel = document.createElement('button');
+    cancel.style.cssText = BTN_CANCEL;
+    cancel.textContent = opts.cancel || 'Abbrechen';
+    const done = (val) => { overlay.remove(); resolve(val); };
+    cancel.addEventListener('click', () => done(null));
+    const ok = document.createElement('button');
+    ok.style.cssText = BTN_OK;
+    ok.textContent = opts.ok || 'OK';
+    const submit = () => done({ de: f1.inp.value, en: f2.inp.value });
+    ok.addEventListener('click', submit);
+    const onKey = e => {
+      if (e.key === 'Enter') { e.preventDefault(); submit(); }
+      else if (e.key === 'Escape') { e.preventDefault(); done(null); }
+    };
+    f1.inp.addEventListener('keydown', onKey);
+    f2.inp.addEventListener('keydown', onKey);
+    row.appendChild(cancel);
+    row.appendChild(ok);
+    card.appendChild(row);
+    _mount(overlay);
+    f1.inp.focus(); f1.inp.select();
+  });
+}
+
 // ────────────────────────────────────────────────
 //  SPEICHER-INDIKATOR (dezenter Balken oben) + withSaving
 // ────────────────────────────────────────────────
@@ -228,6 +277,7 @@ if (typeof window !== 'undefined') {
   window.esAlert = esAlert;
   window.esConfirm = esConfirm;
   window.esPrompt = esPrompt;
+  window.esPrompt2 = esPrompt2;
   window.esToast = esToast;
   window.withSaving = withSaving;
   window.commitDirty = commitDirty;

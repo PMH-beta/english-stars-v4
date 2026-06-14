@@ -299,6 +299,7 @@ export function renderVocabList() {
       <div class="vm-row-de">${window.escHtml(v.de)}</div>
       <div class="vm-row-arrow">→</div>
       <div class="vm-row-en">${window.escHtml(v.en)}</div>
+      <button class="vm-row-edit" onclick="vmEditWord(${realIdx})" title="Bearbeiten">✏️</button>
       <button class="vm-row-del" onclick="vmDeleteWord(${realIdx})" title="Löschen">🗑️</button>
     </div>`;
   }).join('');

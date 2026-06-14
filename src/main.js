@@ -6,7 +6,7 @@ import { _initTTS, speakWord, speakWordOnce, ensureMicStream, releaseMicStream, 
 import { _trackUrl, _discoverTracks, _playNext, _initAudio, startMusic, startMusicSync, stopMusic, setMusicVolume, _setMusicBtns, toggleMusic, toggleVolPopup } from './modules/audio.js';
 import { effectivePct, isMastered } from './modules/stats.js';
 import { buildPool, toggleSchnell, startGame, confirmHome, goHomeSaving, nextQuestion, restartSame, checkMC, submitType, showSelfRateButtons, retryPronounce, evaluateWithClaude, setMicFinalStatus, _sfx, playSfx } from './modules/game.js';
-import { syncMirrorFromActiveDeck, activeDeck, switchDeck, createDeck, deleteDeck, renameDeck, deckProgress, renderDecks, toggleDeck, activateDeck, startGameWithDeck, newDeckPrompt, renameDeckPrompt, confirmDeleteDeck, resetDeckProgress, vmDeleteWord, vmAddManual, openDeckStats } from './modules/decks.js';
+import { syncMirrorFromActiveDeck, activeDeck, switchDeck, createDeck, deleteDeck, renameDeck, deckProgress, renderDecks, toggleDeck, activateDeck, startGameWithDeck, newDeckPrompt, renameDeckPrompt, confirmDeleteDeck, resetDeckProgress, vmDeleteWord, vmEditWord, vmAddManual, openDeckStats } from './modules/decks.js';
 import { showScreen, saveName, showMenu, saveApiKey, skipApiKey, showProfile, editPlayerName, showStats, confirmReset, showFeedback, hideFeedback, exportData, importData, showAuth, authToggleMode, authSubmit, authResend, authLogout, authGoogleSignIn, handleLogin, handleLogout, showPasswordReset, submitPasswordReset, showNewPasswordScreen, submitNewPassword, cancelNewPassword, setActiveMode, renderModeContent, onAppResume, checkForRemoteChange } from './modules/ui.js';
 import { pwaInstall } from './modules/pwa.js';
 import { openVocabManager, openPresetDeckStats, vmTab, renderVocabList, parsePastedText, onScanFile, showReview, renderReviewList, removeReviewItem, addReviewItem, confirmAddVocab, renderPresetsTab, togglePresetCategory, vmBack, vmRenameActiveDeck, newDeckFlow } from './modules/vocab.js';
@@ -98,6 +98,7 @@ window.openDeckStats = openDeckStats;
 window.confirmDeleteDeck = confirmDeleteDeck;
 window.resetDeckProgress = resetDeckProgress;
 window.vmDeleteWord = vmDeleteWord;
+window.vmEditWord = vmEditWord;
 window.vmAddManual = vmAddManual;
 
 // UI via window für Legacy-Code

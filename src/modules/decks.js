@@ -565,6 +565,53 @@ export function vmDeleteWord(idx) {
   });
 }
 
+// Wort bearbeiten (eigene Vokabel, kein _presetId). Zieht die wordStats aller drei
+// Modi auf die neuen Keys um, damit der Fortschritt — auch der „fertig"-Status —
+// erhalten bleibt (statKeyFor hängt an de+en, ändert sich also beim Umbenennen).
+export function vmEditWord(idx) {
+  const deck = window._draftDeck || activeDeck();
+  const v = deck.vocab[idx];
+  if (!v) return;
+  const oldDe = v.de, oldEn = v.en;
+  window.esPrompt2({
+    icon: '✏️', title: 'Wort bearbeiten', ok: 'Speichern',
+    label1: 'Deutsch', value1: oldDe,
+    label2: 'Englisch', value2: oldEn,
+  }).then(res => {
+    if (!res) return;
+    const de = (res.de || '').trim();
+    const en = (res.en || '').trim();
+    if (!de || !en) { window.esAlert({ icon: '⚠️', title: 'Eingabe fehlt', body: 'Bitte Deutsch UND Englisch eingeben.' }); return; }
+    if (deck.vocab.some((w, i) => i !== idx && w.en.toLowerCase() === en.toLowerCase())) {
+      window.esAlert({ icon: 'ℹ️', title: 'Schon vorhanden', body: '"' + en + '" ist bereits in der Sammlung.' });
+      return;
+    }
+    if (de === oldDe && en === oldEn) return; // nichts geändert
+    // wordStats auf neue Keys umziehen (Fortschritt + „fertig" bleiben erhalten).
+    // Im Draft existiert noch keine wordStats — dann nur de/en setzen.
+    const ws = deck.wordStats;
+    if (ws) {
+      for (const suf of ['_mc', '_sp', '_pr']) {
+        const oldKey = statKeyFor(oldDe, oldEn, suf);
+        const newKey = statKeyFor(de, en, suf);
+        if (oldKey === newKey) continue;
+        if (ws[oldKey]) { ws[newKey] = ws[oldKey]; delete ws[oldKey]; }
+      }
+    }
+    v.de = de; v.en = en;
+    if (!window._draftDeck) {
+      syncMirrorFromActiveDeck();
+      window.persist();
+      if (window.currentUser) {
+        markDirty('deck', deck.id);
+        markDirty('word_stats', deck.id);
+        commitDirty();
+      }
+    }
+    window.renderVocabList();
+  });
+}
+
 // Migration beim Login: wandelt alte statKeys (de+suffix) in das neue
 // Format (normDE|normEN+suffix) um. Gibt true zurück wenn etwas geändert wurde.
 // Pass 1: aktuelle Vokabeln — kennt DE+EN, kann präzise konvertieren.
