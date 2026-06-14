@@ -233,6 +233,11 @@ h1{font-family:'Fredoka One',cursive;font-size:2.3rem;color:var(--orange);text-s
 }
 .vm-row-edit:hover{color:#7a3aac;background:#f0e8ff;}
 .vm-empty{padding:30px 20px;text-align:center;color:#999;font-size:.9rem;}
+/* Draft-Aktionen unten (Abbrechen/Bestätigen) */
+.vm-bottom-bar{display:flex;gap:10px;width:100%;margin:16px 0 4px;}
+.vm-bottom-bar button{flex:1;}
+.vm-confirm{background:linear-gradient(135deg,#3aaa5c,#4ecb71);color:#fff;border:none;box-shadow:0 3px 0 #2a8a4a;}
+.vm-confirm.is-disabled{background:#cfcfcf;color:#fff;box-shadow:0 3px 0 #aeaeae;}
 /* Preset-Kategorien */
 .preset-row{
   display:flex;align-items:center;justify-content:space-between;

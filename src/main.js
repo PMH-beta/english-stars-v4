@@ -9,7 +9,7 @@ import { buildPool, toggleSchnell, startGame, confirmHome, goHomeSaving, nextQue
 import { syncMirrorFromActiveDeck, activeDeck, switchDeck, createDeck, deleteDeck, renameDeck, deckProgress, renderDecks, toggleDeck, activateDeck, startGameWithDeck, newDeckPrompt, renameDeckPrompt, confirmDeleteDeck, resetDeckProgress, vmDeleteWord, vmEditWord, vmAddManual, openDeckStats } from './modules/decks.js';
 import { showScreen, saveName, showMenu, saveApiKey, skipApiKey, showProfile, editPlayerName, showStats, confirmReset, showFeedback, hideFeedback, exportData, importData, showAuth, authToggleMode, authSubmit, authResend, authLogout, authGoogleSignIn, handleLogin, handleLogout, showPasswordReset, submitPasswordReset, showNewPasswordScreen, submitNewPassword, cancelNewPassword, setActiveMode, renderModeContent, onAppResume, checkForRemoteChange } from './modules/ui.js';
 import { pwaInstall } from './modules/pwa.js';
-import { openVocabManager, openPresetDeckStats, vmTab, renderVocabList, parsePastedText, onScanFile, showReview, renderReviewList, removeReviewItem, addReviewItem, confirmAddVocab, renderPresetsTab, togglePresetCategory, vmBack, vmRenameActiveDeck, newDeckFlow } from './modules/vocab.js';
+import { openVocabManager, openPresetDeckStats, vmTab, renderVocabList, parsePastedText, onScanFile, showReview, renderReviewList, removeReviewItem, addReviewItem, confirmAddVocab, renderPresetsTab, togglePresetCategory, vmBack, vmRenameActiveDeck, newDeckFlow, confirmAbortDraft } from './modules/vocab.js';
 import './modules/dialog.js'; // registriert window.esAlert/esConfirm/esPrompt (App-Overlays statt nativer Dialoge)
 import { startupSequence, finishStartup } from './modules/startup.js';
 import { supabase, testConnection } from './modules/supabase.js';
@@ -156,6 +156,7 @@ window.renderPresetsTab = renderPresetsTab;
 window.togglePresetCategory = togglePresetCategory;
 window.vmBack = vmBack;
 window.vmRenameActiveDeck = vmRenameActiveDeck;
+window.confirmAbortDraft = confirmAbortDraft;
 window.newDeckFlow = newDeckFlow;
 
 // Musik via window für Legacy-Code

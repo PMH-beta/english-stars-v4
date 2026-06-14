@@ -90,29 +90,60 @@ function _renderVmTabsForMode() {
     vmTab('list');
   }
   _updateVmCount();
+  // Umbenennen sitzt direkt unter dem Sammlungsnamen (siehe openVocabManager).
   const actionArea = document.getElementById('vm-action-area');
-  if (!actionArea) return;
-  if (window._draftDeck) {
-    actionArea.innerHTML = '';
-    const row = document.createElement('div');
-    row.style.cssText = 'display:flex;gap:10px;margin-bottom:12px;width:100%;';
-    const abortBtn = document.createElement('button');
-    abortBtn.className = 'back-btn';
-    abortBtn.style.cssText = 'flex:1;';
-    abortBtn.textContent = '✕ Abbrechen';
-    abortBtn.addEventListener('click', () => { _abortDraft(); window.esAlert({ icon: '🗑️', title: 'Abgebrochen', body: 'Es wurde keine Sammlung angelegt.' }); });
-    const confirmBtn = document.createElement('button');
-    confirmBtn.className = 'back-btn';
-    confirmBtn.style.cssText = 'flex:1;background:linear-gradient(135deg,#3aaa5c,#4ecb71);color:#fff;border:none;box-shadow:0 3px 0 #2a8a4a;';
-    confirmBtn.textContent = '✓ Bestätigen';
-    confirmBtn.addEventListener('click', vmBack);
-    row.appendChild(abortBtn);
-    row.appendChild(confirmBtn);
-    actionArea.appendChild(row);
-  } else {
-    // Umbenennen sitzt jetzt direkt unter dem Sammlungsnamen (siehe openVocabManager)
-    actionArea.innerHTML = '';
-  }
+  if (actionArea) actionArea.innerHTML = '';
+  // Draft-Buttons (Abbrechen/Bestätigen) liegen UNTEN, damit der Inhalt (Liste,
+  // Hinzufügen, Vorlagen) immer erreichbar bleibt.
+  const bottomArea = document.getElementById('vm-bottom-area');
+  if (!bottomArea) return;
+  if (!window._draftDeck) { bottomArea.innerHTML = ''; return; }
+  bottomArea.innerHTML = '';
+  const row = document.createElement('div');
+  row.className = 'vm-bottom-bar';
+  const abortBtn = document.createElement('button');
+  abortBtn.className = 'back-btn';
+  abortBtn.textContent = '✕ Abbrechen';
+  abortBtn.addEventListener('click', () => confirmAbortDraft());
+  const confirmBtn = document.createElement('button');
+  confirmBtn.className = 'back-btn vm-confirm';
+  confirmBtn.id = 'vm-draft-confirm';
+  confirmBtn.textContent = '✓ Bestätigen';
+  confirmBtn.addEventListener('click', () => {
+    const d = _vmDeck();
+    if (!d || (d.vocab?.length || 0) < 1) {
+      window.esAlert({ icon: 'ℹ️', title: 'Noch nichts drin',
+        body: d?.deckPath === 'preset'
+          ? 'Bitte wähle zuerst mindestens 1 Vorlage aus.'
+          : 'Bitte füge zuerst mindestens 1 Wort hinzu.' });
+      return;
+    }
+    vmBack();
+  });
+  row.appendChild(abortBtn);
+  row.appendChild(confirmBtn);
+  bottomArea.appendChild(row);
+  _syncDraftConfirm();
+}
+
+// Bestätigen-Button im Draft ausgrauen, solange noch kein Wort/Vorlage drin ist.
+// Bleibt klickbar (kein disabled-Attribut) → der Klick zeigt dann den Hinweis.
+function _syncDraftConfirm() {
+  const btn = document.getElementById('vm-draft-confirm');
+  if (!btn) return;
+  const d = _vmDeck();
+  const ready = !!d && (d.vocab?.length || 0) >= 1;
+  btn.classList.toggle('is-disabled', !ready);
+}
+
+// „Abbrechen" / Android-Zurück im Draft: erst nachfragen, dann verwerfen.
+export function confirmAbortDraft() {
+  if (!window._draftDeck) return;
+  window.esConfirm({
+    icon: '🤔', title: 'Wirklich abbrechen?',
+    body: 'Die neue Sammlung wird verworfen und nicht gespeichert.',
+    ok: 'Ja, abbrechen', cancel: 'Weiter bearbeiten', danger: true,
+  }).then(ok => { if (ok) _abortDraft(); });
 }
 
 function _showPathChoiceDialog() {
@@ -219,6 +250,8 @@ export async function openPresetDeckStats(deckId) {
   if (tabsEl) tabsEl.innerHTML = '';
   const aa = document.getElementById('vm-action-area');
   if (aa) aa.innerHTML = '';
+  const ba2 = document.getElementById('vm-bottom-area');
+  if (ba2) ba2.innerHTML = '';
   ['list','add','scan','paste','presets'].forEach(name => {
     const el = document.getElementById('vm-pane-' + name);
     if (el) el.style.display = 'none';
@@ -257,6 +290,7 @@ export async function openPresetDeckStats(deckId) {
 }
 
 function _updateVmCount() {
+  _syncDraftConfirm();
   const cntEl = document.getElementById('vm-count');
   if (!cntEl) return;
   const deck = _vmDeck();

@@ -173,6 +173,13 @@ function _onBackNavPop() {
       _ensureGuard();   // Back-Eintrag IMMER sicherstellen, egal wie confirmHome ausgeht
       return;
     }
+    // 2b) Draft „neue Sammlung" → wie „Abbrechen": Rückfrage statt direkt ins Menü.
+    //     BLEIBEN (Dialog offen) → Wächter sicherstellen.
+    if (_currentScreen === 'scan-screen' && window._draftDeck) {
+      try { (window.confirmAbortDraft || function(){})(); } catch(e) {}
+      _ensureGuard();
+      return;
+    }
     // 3) Sonst nicht im Menü (und kein Pre-Login-Screen) → Menü. VERLASSEN → KEIN
     //    Re-Push (Menü-Wächter liegt schon darunter; gestenloses Nachlegen wäre
     //    skippable → die „3 Klicks"-Lotterie).
