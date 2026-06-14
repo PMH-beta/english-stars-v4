@@ -608,6 +608,22 @@ window.migrateData = migrateData;
 // ════════════════════════════════════════════════
 loadData();
 
+// ⚡ Schnellmodus-Recovery: Liegt noch ein dauerhaftes Backup (Key
+// es_schnell_backup), wurde der Wiederholungsmodus nie sauber beendet
+// (Reload/Absturz). Echten Stand zurückholen → KEIN Datenverlust.
+try{
+  const _rawSB=localStorage.getItem('es_schnell_backup');
+  if(_rawSB){
+    const _b=JSON.parse(_rawSB);
+    if(_b&&_b.decks&&SD&&SD.decks){
+      Object.keys(_b.decks).forEach(id=>{ if(SD.decks[id]) SD.decks[id].wordStats=_b.decks[id]; });
+    }
+    if(_b&&_b.preset&&SD&&SD.globalPresetStats) SD.globalPresetStats.wordStats=_b.preset;
+    localStorage.removeItem('es_schnell_backup');
+    try{localStorage.setItem(SK,JSON.stringify(SD));}catch(e){}
+  }
+}catch(e){}
+
 
 function escHtml(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');}
 

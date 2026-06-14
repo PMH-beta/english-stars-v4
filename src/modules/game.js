@@ -109,13 +109,24 @@ export function buildPool(m) {
 export function toggleSchnell() {
   const btn=document.getElementById('schnell-toggle');
   if(!window.isSchnellModus){
-    // → AN: echten Stand sichern, Fortschritt auf 0 (eigene, flüchtige Wertung),
-    // dunkler Hintergrund, danach Erklär-Fenster.
-    const deck=activeDeck();
-    if(!deck) return;
+    // → AN: echten Stand ALLER Decks + Vorlagen sichern, Fortschritt überall auf 0
+    // (eigene, flüchtige Wertung), dunkler Hintergrund, danach Erklär-Fenster.
+    const sd=window.SD;
+    if(!sd) return;
     window.isSchnellModus=true;
-    window._schnellBackup={wordStats:JSON.parse(JSON.stringify(deck.wordStats))};
-    deck.wordStats={};
+    const backup={decks:{},preset:null};
+    for(const [id,d] of Object.entries(sd.decks||{})){
+      backup.decks[id]=JSON.parse(JSON.stringify(d.wordStats||{}));
+      d.wordStats={};
+    }
+    if(sd.globalPresetStats){
+      backup.preset=JSON.parse(JSON.stringify(sd.globalPresetStats.wordStats||{}));
+      sd.globalPresetStats.wordStats={};
+    }
+    window._schnellBackup=backup;
+    // Dauerhaft sichern: überlebt Reload/Absturz. Boot-Recovery (index.html)
+    // stellt daraus den echten Stand wieder her, falls nie sauber beendet wird.
+    try{localStorage.setItem('es_schnell_backup',JSON.stringify(backup));}catch(e){}
     syncMirrorFromActiveDeck();
     if(btn){btn.textContent='⚡ Schnell: AN';btn.style.background='var(--orange)';btn.style.color='white';btn.style.boxShadow='0 3px 0 #cc4a1a';}
     document.body.classList.add('schnell-active');
@@ -130,12 +141,16 @@ export function toggleSchnell() {
       .then(ok=>{
         if(!ok) return;
         window.isSchnellModus=false;
-        if(window._schnellBackup){
-          const deck=activeDeck();
-          if(deck) deck.wordStats=window._schnellBackup.wordStats;
+        const b=window._schnellBackup;
+        if(b){
+          const sd=window.SD;
+          for(const [id,ws] of Object.entries(b.decks||{})){ if(sd.decks&&sd.decks[id]) sd.decks[id].wordStats=ws; }
+          if(b.preset&&sd.globalPresetStats) sd.globalPresetStats.wordStats=b.preset;
           syncMirrorFromActiveDeck();
           window._schnellBackup=null;
         }
+        try{localStorage.removeItem('es_schnell_backup');}catch(e){}
+        window.persist();
         if(btn){btn.textContent='⚡ Schnell: AUS';btn.style.background='#eee';btn.style.color='#888';btn.style.boxShadow='0 3px 0 #ccc';}
         document.body.classList.remove('schnell-active');
         showMenu();
@@ -464,7 +479,10 @@ function recordStatSchnell(q) {
   const s=store[q.statKey];
   if(Math.floor(s.asked)<3){s.asked=3;s.correct=3;}
   else{s.asked+=1;s.correct+=1;}
-  try{persist();}catch(e){}
+  // window.persist() (Default = window.SD) statt bare persist() → speichert NICHT
+  // versehentlich `undefined`. Der echte Stand liegt im dauerhaften Backup (Key
+  // es_schnell_backup), siehe toggleSchnell + Boot-Recovery in index.html.
+  try{window.persist();}catch(e){}
 }
 
 function recordStat(q, ok) {

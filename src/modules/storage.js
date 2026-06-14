@@ -113,6 +113,7 @@ export function clearStorage() {
   try { localStorage.removeItem('pending_sync'); } catch(e) {}
   try { localStorage.removeItem('es_sync_meta'); } catch(e) {}   // Legacy-Key
   try { localStorage.removeItem('es_sync_meta2'); } catch(e) {}
+  try { localStorage.removeItem('es_schnell_backup'); } catch(e) {}
 }
 
 /**
