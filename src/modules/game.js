@@ -105,15 +105,55 @@ export function buildPool(m) {
   return shuffle(filtered).slice(0, limit);
 }
 
-// ── Schnell-Modus ──
+// ── Schnell-Modus (pro Modus getrennt) ──
+// Es gibt zwei Schnell-Buttons (#schnell-toggle = Freier Modus,
+// #student-schnell-toggle = Schülermodus). Das Backup ist global; nur der Button
+// des Modus, in dem Schnell läuft (_schnellOwnerMode), zeigt „AN". Moduswechsel
+// beendet Schnell sauber (exitSchnellSilent in setActiveMode).
+function _schnellBtns(){
+  return [document.getElementById('schnell-toggle'),
+          document.getElementById('student-schnell-toggle')].filter(Boolean);
+}
+function _setSchnellVisual(on, mode){
+  const ownerId = mode === 'student' ? 'student-schnell-toggle' : 'schnell-toggle';
+  for(const btn of _schnellBtns()){
+    if(on && btn.id === ownerId){
+      btn.textContent='⚡ Schnell: AN';btn.style.background='var(--orange)';btn.style.color='white';btn.style.boxShadow='0 3px 0 #cc4a1a';
+    } else {
+      btn.textContent='⚡ Schnell: AUS';btn.style.background='#eee';btn.style.color='#888';btn.style.boxShadow='0 3px 0 #ccc';
+    }
+  }
+}
+
+// Schnell ohne Rückfrage/Menü beenden — echten Stand zurückholen. Wird beim
+// Moduswechsel aufgerufen (Backup ist global, daher kann Schnell nur in EINEM
+// Modus gleichzeitig laufen).
+export function exitSchnellSilent(){
+  if(!window.isSchnellModus) return;
+  window.isSchnellModus=false;
+  const b=window._schnellBackup;
+  if(b){
+    const sd=window.SD;
+    for(const [id,ws] of Object.entries(b.decks||{})){ if(sd.decks&&sd.decks[id]) sd.decks[id].wordStats=ws; }
+    if(b.preset&&sd.globalPresetStats) sd.globalPresetStats.wordStats=b.preset;
+    syncMirrorFromActiveDeck();
+    window._schnellBackup=null;
+  }
+  try{localStorage.removeItem('es_schnell_backup');}catch(e){}
+  window.persist();
+  _setSchnellVisual(false);
+  document.body.classList.remove('schnell-active');
+  window._schnellOwnerMode=null;
+}
+
 export function toggleSchnell() {
-  const btn=document.getElementById('schnell-toggle');
   if(!window.isSchnellModus){
     // → AN: echten Stand ALLER Decks + Vorlagen sichern, Fortschritt überall auf 0
     // (eigene, flüchtige Wertung), dunkler Hintergrund, danach Erklär-Fenster.
     const sd=window.SD;
     if(!sd) return;
     window.isSchnellModus=true;
+    window._schnellOwnerMode=sd.activeMode||'free';
     const backup={decks:{},preset:null};
     for(const [id,d] of Object.entries(sd.decks||{})){
       backup.decks[id]=JSON.parse(JSON.stringify(d.wordStats||{}));
@@ -128,7 +168,7 @@ export function toggleSchnell() {
     // stellt daraus den echten Stand wieder her, falls nie sauber beendet wird.
     try{localStorage.setItem('es_schnell_backup',JSON.stringify(backup));}catch(e){}
     syncMirrorFromActiveDeck();
-    if(btn){btn.textContent='⚡ Schnell: AN';btn.style.background='var(--orange)';btn.style.color='white';btn.style.boxShadow='0 3px 0 #cc4a1a';}
+    _setSchnellVisual(true, window._schnellOwnerMode);
     document.body.classList.add('schnell-active');
     window.esAlert({ icon:'⚡', title:'Wiederholungsmodus an',
       body:'Nur zum schnellen Üben — zählt NICHT in die Statistik. Eine richtige Antwort genügt für ein Wort, falsche zählen nicht. Beim Beenden wird dieser Fortschritt wieder verworfen.' })
@@ -151,7 +191,8 @@ export function toggleSchnell() {
         }
         try{localStorage.removeItem('es_schnell_backup');}catch(e){}
         window.persist();
-        if(btn){btn.textContent='⚡ Schnell: AUS';btn.style.background='#eee';btn.style.color='#888';btn.style.boxShadow='0 3px 0 #ccc';}
+        _setSchnellVisual(false);
+        window._schnellOwnerMode=null;
         document.body.classList.remove('schnell-active');
         showMenu();
       });

@@ -17,6 +17,22 @@ export function activeDeck() {
   return SD.activeDeckId ? SD.decks[SD.activeDeckId] : null;
 }
 
+// Modus eines Decks (altes Deck ohne Feld = 'free').
+export function deckMode(deck) {
+  return (deck && deck.mode) || 'free';
+}
+
+// Aktives Deck für einen Modus: gemerktes Deck (SD.activeDeckByMode), sonst das
+// erste Deck dieses Modus, sonst null. Lazy — übersteht Cloud-Load 1:1 (das Feld
+// wird dort nicht mitgeladen und hier bei Bedarf neu aufgebaut).
+export function activeDeckIdForMode(mode) {
+  const SD = window.SD;
+  const remembered = SD.activeDeckByMode && SD.activeDeckByMode[mode];
+  if (remembered && SD.decks[remembered] && deckMode(SD.decks[remembered]) === mode) return remembered;
+  const ids = _getSortedDeckIds(mode);
+  return ids.length ? ids[0] : null;
+}
+
 // Synchronisiert die Compatibility-Spiegel (SD.wordStats etc.) mit dem aktiven Deck
 export function syncMirrorFromActiveDeck(sd) {
   if (window._draftDeck) return;
@@ -39,15 +55,18 @@ export function switchDeck(deckId) {
   const SD = window.SD;
   if (!SD.decks[deckId]) return;
   SD.activeDeckId = deckId;
+  if (!SD.activeDeckByMode) SD.activeDeckByMode = {};
+  SD.activeDeckByMode[deckMode(SD.decks[deckId])] = deckId;
   syncMirrorFromActiveDeck();
   window.persist();
 }
 
-export function createDeck(name) {
+export function createDeck(name, mode = 'free') {
   const id = 'deck_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
-  const existingDecks = Object.values(window.SD.decks);
-  const minSort = existingDecks.length
-    ? Math.min(...existingDecks.map(d => d.sortOrder != null ? d.sortOrder : (d.createdAt || 0)))
+  // Sortier-Minimum nur über Decks desselben Modus → neues Deck oben in seiner Liste.
+  const sameMode = Object.values(window.SD.decks).filter(d => deckMode(d) === mode);
+  const minSort = sameMode.length
+    ? Math.min(...sameMode.map(d => d.sortOrder != null ? d.sortOrder : (d.createdAt || 0)))
     : 10;
   window.SD.decks[id] = {
     id, name: name || 'Neue Vokabelsammlung', createdAt: Date.now(),
@@ -61,6 +80,7 @@ export function createDeck(name) {
     presetCategories: [],
     presetsLocked: false,
     deckPath: 'none',
+    mode,
     sortOrder: minSort - 10,
     lastExam: null,
   };
@@ -70,11 +90,15 @@ export function createDeck(name) {
 
 export function deleteDeck(deckId) {
   const SD = window.SD;
+  const mode = deckMode(SD.decks[deckId]);
   if (window.currentUser) deleteCloudDeck(deckId, window.currentUser.id).catch(() => {});
   delete SD.decks[deckId];
+  if (SD.activeDeckByMode && SD.activeDeckByMode[mode] === deckId) SD.activeDeckByMode[mode] = null;
   if (SD.activeDeckId === deckId) {
-    const rest = Object.keys(SD.decks);
-    SD.activeDeckId = rest.length > 0 ? rest[0] : null;
+    // Nachfolger im selben Modus wählen (sonst null → Mirror leert).
+    SD.activeDeckId = activeDeckIdForMode(mode);
+    if (!SD.activeDeckByMode) SD.activeDeckByMode = {};
+    SD.activeDeckByMode[mode] = SD.activeDeckId;
     syncMirrorFromActiveDeck();
   }
   window.persist();
@@ -153,11 +177,12 @@ function renderModeSubBy(p) {
          '<span class="btn-progress"><span class="btn-progress-fill" style="width:' + pct + '%"></span></span>';
 }
 
-export function renderDecks() {
+export function renderDecks(mode) {
   _ensureDocListeners();
-  const c = document.getElementById('decks-container');
-  if (!c) return;
   const SD = window.SD;
+  mode = mode || SD.activeMode || 'free';
+  const c = document.getElementById(mode === 'student' ? 'student-decks-container' : 'decks-container');
+  if (!c) return;
   c.innerHTML = '';
 
   // «+ Neue Sammlung» — immer erstes Element, nicht verschiebbar
@@ -165,10 +190,10 @@ export function renderDecks() {
   newBtn.className = 'big-btn purple center';
   newBtn.style.cssText = 'margin-bottom:14px;font-size:.95rem;';
   newBtn.innerHTML = '<span class="icon-btn">➕</span><span>Neue Vokabelsammlung anlegen</span>';
-  newBtn.addEventListener('click', () => window.newDeckFlow());
+  newBtn.addEventListener('click', () => window.newDeckFlow(mode));
   c.appendChild(newBtn);
 
-  _getSortedDeckIds().forEach(id => {
+  _getSortedDeckIds(mode).forEach(id => {
     const deck = SD.decks[id];
     const p = deckProgress(deck);
     const isActive = id === SD.activeDeckId;
@@ -246,14 +271,20 @@ function _ensureDocListeners() {
   document.addEventListener('mouseup', () => { if (_dragState) _endDrag(); });
 }
 
-function _getSortedDeckIds() {
+function _getSortedDeckIds(mode) {
   const SD = window.SD;
-  return Object.keys(SD.decks).sort((a, b) => {
+  mode = mode || SD.activeMode || 'free';
+  return Object.keys(SD.decks).filter(id => deckMode(SD.decks[id]) === mode).sort((a, b) => {
     const da = SD.decks[a], db = SD.decks[b];
     const sa = da.sortOrder != null ? da.sortOrder : (da.createdAt || 0);
     const sb = db.sortOrder != null ? db.sortOrder : (db.createdAt || 0);
     return sa - sb;
   });
+}
+
+// Container des aktuell sichtbaren Modus (Drag rendert in diesen).
+function _activeDecksContainerId() {
+  return (window.SD?.activeMode === 'student') ? 'student-decks-container' : 'decks-container';
 }
 
 function _handleTap(deckId) {
@@ -335,7 +366,7 @@ function _moveDrag(clientY) {
   if (!_dragState) return;
   const { el, ph, offsetY } = _dragState;
   el.style.top = (clientY - offsetY) + 'px';
-  const container = document.getElementById('decks-container');
+  const container = document.getElementById(_activeDecksContainerId());
   const cards = [...container.querySelectorAll('.deck-card')].filter(c => c !== el);
   let insertBefore = null;
   for (const c of cards) {
@@ -353,7 +384,7 @@ function _endDrag() {
   ph.before(el);
   ph.remove();
   el.removeAttribute('style');
-  const container = document.getElementById('decks-container');
+  const container = document.getElementById(_activeDecksContainerId());
   const newOrder = [...container.querySelectorAll('.deck-card')].map(c => c.dataset.deckId).filter(Boolean);
   newOrder.forEach((id, i) => { if (window.SD.decks[id]) window.SD.decks[id].sortOrder = (i + 1) * 10; });
   document.body.style.userSelect = '';
