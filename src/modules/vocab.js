@@ -82,12 +82,14 @@ function _renderVmTabsForMode() {
       tabsEl.innerHTML = '';
     }
   } else {
+    // Schülermodus: nur Custom-Decks. Scan-Tab zwischen „Text" und „Liste".
     tabsEl.innerHTML = `
-      <button class="vm-tab" data-tab="list" onclick="vmTab('list')">📋 Liste <span id="vm-count" class="vm-count">0</span></button>
       <button class="vm-tab" data-tab="add" onclick="vmTab('add')">➕ Hinzufügen</button>
+      <button class="vm-tab" data-tab="paste" onclick="vmTab('paste')">📝 Text</button>
       <button class="vm-tab" data-tab="scan" onclick="vmTab('scan')">📷 Scan</button>
+      <button class="vm-tab" data-tab="list" onclick="vmTab('list')">📋 Liste <span id="vm-count" class="vm-count">0</span></button>
     `;
-    vmTab('list');
+    vmTab('add');
   }
   _updateVmCount();
   // Umbenennen sitzt direkt unter dem Sammlungsnamen (siehe openVocabManager).
@@ -850,7 +852,14 @@ export function vmBack() {
 //  NEUES DECK — DRAFT-FLOW
 // ════════════════════════════════════════════════
 
-export function newDeckFlow() {
+export function newDeckFlow(mode = 'free') {
+  if (mode === 'student') {
+    // Schülermodus: keine Vorlagen → direkt Custom-Draft, kein Pfad-Dialog.
+    window._draftDeck = { id: '_draft', name: 'Neue Sammlung', vocab: [], presetCategories: [], deckPath: 'custom', presetsLocked: false, mode: 'student' };
+    window.VOCAB = window._draftDeck.vocab;
+    openVocabManager();
+    return;
+  }
   _showNewDeckPathDialog();
 }
 
@@ -886,13 +895,13 @@ function _showNewDeckPathDialog() {
   document.body.appendChild(overlay);
   overlay.querySelector('#_ndp-preset').addEventListener('click', () => {
     overlay.remove();
-    window._draftDeck = { id: '_draft', name: 'Neue Sammlung', vocab: [], presetCategories: [], deckPath: 'preset', presetsLocked: false };
+    window._draftDeck = { id: '_draft', name: 'Neue Sammlung', vocab: [], presetCategories: [], deckPath: 'preset', presetsLocked: false, mode: 'free' };
     window.VOCAB = window._draftDeck.vocab;
     openVocabManager();
   });
   overlay.querySelector('#_ndp-custom').addEventListener('click', () => {
     overlay.remove();
-    window._draftDeck = { id: '_draft', name: 'Neue Sammlung', vocab: [], presetCategories: [], deckPath: 'custom', presetsLocked: false };
+    window._draftDeck = { id: '_draft', name: 'Neue Sammlung', vocab: [], presetCategories: [], deckPath: 'custom', presetsLocked: false, mode: 'free' };
     window.VOCAB = window._draftDeck.vocab;
     openVocabManager();
   });
@@ -931,7 +940,7 @@ function _abortDraft() {
 }
 
 function _confirmDraftDeck(draft, name) {
-  const id = createDeck(name);
+  const id = createDeck(name, draft.mode || 'free');
   const deck = window.SD.decks[id];
   // Spread-copy: window.VOCAB points to draft.vocab's same array; syncMirrorFromActiveDeck
   // would call window.VOCAB.length=0 and wipe deck.vocab if they shared the reference.

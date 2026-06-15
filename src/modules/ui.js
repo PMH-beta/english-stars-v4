@@ -1,7 +1,7 @@
 // src/modules/ui.js
 import { persist, freshData, clearStorage } from './storage.js';
 import { effectivePct, isStatMastered, statKeyFor } from './stats.js';
-import { syncMirrorFromActiveDeck, deckProgress, presetProgressPct, renderDecks, migrateStatKeys } from './decks.js';
+import { syncMirrorFromActiveDeck, deckProgress, presetProgressPct, renderDecks, migrateStatKeys, deckMode, activeDeckIdForMode } from './decks.js';
 import { getPresetCategories } from './vocab.js';
 import { releaseMicStream, stopVisualizer, voskStop, speakWord } from './speech.js';
 import { signIn, signUp, signOut, resendConfirmation, requestPasswordReset, updatePassword, signInWithGoogle } from './auth.js';
@@ -285,15 +285,83 @@ export function renderModeContent(mode) {
   if (studentEl) studentEl.style.display = (mode === 'student')  ? '' : 'none';
   if (campEl)    campEl.style.display    = (mode === 'campaign') ? '' : 'none';
   _renderModeToggle(mode);
+  if (mode === 'free') renderDecks('free');
+  else if (mode === 'student') renderStudentMode();
+}
+
+// Aktives Deck des Modus in den Spiegel übernehmen. SD.activeDeckByMode überlebt
+// den Cloud-Load 1:1 nicht (Feld nicht in der Cloud) → activeDeckIdForMode baut es
+// bei Bedarf neu auf (gemerktes Deck, sonst erstes Deck des Modus).
+function _applyModeActiveDeck(mode) {
+  const SD = window.SD;
+  const id = activeDeckIdForMode(mode);
+  SD.activeDeckId = id;
+  if (!SD.activeDeckByMode) SD.activeDeckByMode = {};
+  SD.activeDeckByMode[mode] = id;
+  syncMirrorFromActiveDeck();
 }
 
 export async function setActiveMode(mode) {
   const valid = ['free', 'student', 'campaign'];
   if (!valid.includes(mode)) mode = 'free';
+  const prev = window.SD.activeMode || 'free';
+  // Schnell ist global (ein Backup) → Moduswechsel beendet ihn sauber.
+  if (mode !== prev && window.isSchnellModus) {
+    try { window.exitSchnellSilent && window.exitSchnellSilent(); } catch (e) {}
+  }
   window.SD.activeMode = mode;
+  _applyModeActiveDeck(mode);   // aktives Deck des Modus in den Spiegel
   persist(window.SD);
   renderModeContent(mode);   // sofort rendern (responsiv)
   if (window.currentUser) { markDirty('profile'); await commitDirty(); }
+}
+
+// ── Schülermodus: UV/VS-Sub-Toggle + Leerzustand-Chooser ──
+// Die Wahl (vs|uv) liegt in localStorage (überlebt Cloud-Load 1:1, der window.SD
+// ersetzt) → die Start-Abfrage kommt nach einmaliger Wahl nicht wieder.
+const STUDENT_SUBTAB_KEY = 'es_student_subtab';
+function _getStudentSubTab() {
+  try { return localStorage.getItem(STUDENT_SUBTAB_KEY); } catch (e) { return null; }
+}
+
+function renderStudentMode() {
+  const sub = _getStudentSubTab();
+  const chooser = document.getElementById('student-chooser');
+  const body = document.getElementById('student-body');
+  if (!sub) {
+    // Noch nichts gewählt → zwei große Kacheln zur Auswahl, Body aus.
+    if (chooser) chooser.style.display = 'flex';
+    if (body) body.style.display = 'none';
+    return;
+  }
+  if (chooser) chooser.style.display = 'none';
+  if (body) body.style.display = 'block';
+  _renderStudentSubToggle(sub);
+  const vs = document.getElementById('student-vs');
+  const uv = document.getElementById('student-uv');
+  if (vs) vs.style.display = (sub === 'vs') ? 'block' : 'none';
+  if (uv) uv.style.display = (sub === 'uv') ? 'block' : 'none';
+  // Schnell-Button nur in VS (UV ist Platzhalter).
+  const schnellBtn = document.getElementById('student-schnell-toggle');
+  if (schnellBtn) schnellBtn.style.display = (sub === 'vs') ? '' : 'none';
+  if (sub === 'vs') renderDecks('student');
+}
+
+function _renderStudentSubToggle(sub) {
+  ['vs', 'uv'].forEach(t => {
+    const btn = document.getElementById('student-tab-' + t);
+    if (!btn) return;
+    const on = (t === sub);
+    btn.style.background = on ? '#fff' : 'transparent';
+    btn.style.color      = on ? 'var(--purple)' : '#999';
+    btn.style.boxShadow  = on ? '0 2px 6px rgba(0,0,0,.12)' : 'none';
+  });
+}
+
+export function chooseStudentTab(tab) {
+  if (tab !== 'vs' && tab !== 'uv') return;
+  try { localStorage.setItem(STUDENT_SUBTAB_KEY, tab); } catch (e) {}
+  renderStudentMode();
 }
 
 // ────────────────────────────────────────────────
@@ -311,8 +379,9 @@ export function showMenu() {
   document.getElementById('menu-highscore').textContent = window.SD.highscore;
   document.getElementById('menu-total').textContent = window.SD.totalPoints;
   const ft = document.getElementById('menu-footer'); if (ft) ft.style.display = 'flex';
-  renderDecks();
-  renderModeContent(window.SD.activeMode || 'free');
+  const mode = window.SD.activeMode || 'free';
+  _applyModeActiveDeck(mode);   // aktives Deck des Modus sicherstellen (nach Cloud-Load 1:1)
+  renderModeContent(mode);      // rendert die Decks des aktiven Modus
 }
 
 // ────────────────────────────────────────────────
@@ -428,54 +497,65 @@ export async function showStats() {
 
   const host = document.getElementById('profile-decks-summary');
   if (!host) return;
-  const decks = Object.values(SD.decks || {});
+  const allDecks = Object.values(SD.decks || {});
+  const freeDecks    = allDecks.filter(d => deckMode(d) === 'free');
+  const studentDecks = allDecks.filter(d => deckMode(d) === 'student');
 
-  // ── a) Custom-Wörter-Übersicht + b) Liste der fertigen Custom-Wörter ──
-  let customTotal = 0;
-  const doneWords = [];
+  host.innerHTML = '<div style="font-size:.82rem;color:#999;text-align:center;padding:10px;">Lade Fortschritt…</div>';
+
+  // Vorlagen-Namen (async) — nur für die „Aktive Vorlagen"-Kacheln des Freien Modus.
+  const categories = await getPresetCategories();
+  const catById = Object.fromEntries((categories || []).map(c => [c.id, c]));
+
+  // Reihenfolge wie im Hauptmenü-Toggle: Kampagne · Freier Modus · Schülermodus.
+  const campSection = _statSection('🗺️ Kampagne',
+    '<div style="font-size:.82rem;color:#999;text-align:center;padding:14px;">Kommt bald!</div>');
+
+  const freeSection = _statSection('🎮 Freier Modus',
+    _activePresetsBlock(freeDecks, catById) + _customWordsBlock(freeDecks));
+
+  const studentSection = _statSection('🎒 Schülermodus',
+    _studentDecksBlock(studentDecks) + _customWordsBlock(studentDecks));
+
+  host.innerHTML = campSection + freeSection + studentSection;
+}
+
+// Abschnitts-Rahmen mit Überschrift (Modus-Gliederung der Fortschritt-Seite).
+function _statSection(title, inner) {
+  return `<div style="margin-bottom:22px;">
+    <div style="font-family:'Fredoka One',cursive;color:var(--text);font-size:1.1rem;margin:0 0 10px;border-bottom:2px solid #eee;padding-bottom:6px;">${title}</div>
+    ${inner}
+  </div>`;
+}
+
+// „Eigene Wörter"-Fortschrittsbalken über die eigenen (nicht-Vorlage) Wörter einer
+// Deck-Menge. Im Schülermodus sind alle Wörter eigene → zählt die ganze Sammlung.
+function _customWordsBlock(decks) {
+  let total = 0, done = 0;
   for (const deck of decks) {
-    if (deck.deckPath !== 'custom') continue;
     for (const v of deck.vocab || []) {
-      if (v._presetId) continue; // Custom-Deck → nur eigene Wörter zählen
-      customTotal++;
+      if (v._presetId) continue;
+      total++;
       const allDone = ['_mc', '_sp', '_pr'].every(suf =>
         isStatMastered((deck.wordStats || {})[statKeyFor(v.de, v.en, suf)]));
-      if (allDone) doneWords.push({ de: v.de, en: v.en, deck: deck.name });
+      if (allDone) done++;
     }
   }
-  const customDone = doneWords.length;
-  const customPct = customTotal > 0 ? Math.round((customDone / customTotal) * 100) : 0;
-
-  const blockA = `
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  return `
     <div style="margin-bottom:16px;">
       <h3 style="font-family:'Fredoka One',cursive;color:var(--purple);font-size:1rem;margin:0 0 8px;">✏️ Eigene Wörter</h3>
       <div style="display:flex;justify-content:space-between;font-size:.85rem;font-weight:700;color:var(--text);margin-bottom:6px;">
-        <span>${customDone} von ${customTotal} Wörtern gelöst</span><span style="color:var(--purple);">${customPct}%</span>
+        <span>${done} von ${total} Wörtern gelöst</span><span style="color:var(--purple);">${pct}%</span>
       </div>
       <div style="height:14px;background:#eee;border-radius:10px;overflow:hidden;">
-        <div style="height:100%;width:${customPct}%;background:linear-gradient(90deg,var(--purple),var(--pink));border-radius:10px;"></div>
+        <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--purple),var(--pink));border-radius:10px;"></div>
       </div>
     </div>`;
+}
 
-  const blockB = `
-    <div style="margin-bottom:16px;">
-      <h3 style="font-family:'Fredoka One',cursive;color:var(--purple);font-size:1rem;margin:0 0 8px;">🏅 Fertige Wörter</h3>
-      ${doneWords.length === 0
-        ? '<div style="font-size:.82rem;color:#999;text-align:center;padding:10px;">Noch keine eigenen Wörter komplett gelöst.</div>'
-        : doneWords.map(w => `<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:#f7f7f7;border-radius:10px;font-size:.82rem;margin-bottom:5px;">
-            <span style="font-weight:700;color:var(--text);">${window.escHtml(w.de)}</span>
-            <span style="color:#bbb;">→</span>
-            <span style="flex:1;color:var(--text);">${window.escHtml(w.en)}</span>
-            <span style="font-size:.68rem;color:#888;background:rgba(168,108,219,.1);padding:2px 8px;border-radius:20px;white-space:nowrap;">${window.escHtml(w.deck)}</span>
-          </div>`).join('')}
-    </div>`;
-
-  host.innerHTML = '<div style="font-size:.82rem;color:#999;text-align:center;padding:10px;">Lade Vorlagen…</div>' +
-    blockA + blockB;
-
-  // ── c) Aktive Vorlagen-Decks mit Fortschritt (async: Namen aus DB) ──
-  const categories = await getPresetCategories();
-  const catById = Object.fromEntries((categories || []).map(c => [c.id, c]));
+// „Aktive Vorlagen"-Kacheln (Freier Modus): je aktive Vorlage Balken + %.
+function _activePresetsBlock(decks, catById) {
   const activePresets = [];
   for (const deck of decks) {
     const ids = deck.presetCategories || [];
@@ -491,9 +571,8 @@ export async function showStats() {
       });
     }
   }
-
-  const blockC = `
-    <div>
+  return `
+    <div style="margin-bottom:16px;">
       <h3 style="font-family:'Fredoka One',cursive;color:var(--purple);font-size:1rem;margin:0 0 8px;">📦 Aktive Vorlagen</h3>
       ${activePresets.length === 0
         ? '<div style="font-size:.82rem;color:#999;text-align:center;padding:10px;">Keine aktiven Vorlagen.</div>'
@@ -513,8 +592,34 @@ export async function showStats() {
             </div>`;
           }).join('')}
     </div>`;
+}
 
-  host.innerHTML = blockC + blockA + blockB;
+// Schülermodus: angelegte Sammlungen als Kacheln mit Gesamt-% (analog Aktive Vorlagen).
+function _studentDecksBlock(decks) {
+  const tiles = decks.map(d => {
+    const pct = deckProgress(d).overallPct;
+    const done = pct === 100;
+    const bg = done
+      ? 'background:linear-gradient(to right,rgba(58,170,92,.18) 100%,#fff 100%);box-shadow:inset 0 0 0 2px #3aaa5c;'
+      : 'background:linear-gradient(to right,rgba(168,108,219,.15) ' + pct + '%,#f7f7f7 ' + pct + '%);';
+    const right = done
+      ? '<span style="font-size:.72rem;font-weight:700;color:#2a8a4a;background:rgba(58,170,92,.15);padding:3px 9px;border-radius:20px;white-space:nowrap;">✓ erledigt</span>'
+      : '<span style="font-family:\'Fredoka One\',cursive;font-size:.95rem;color:#7a3aac;">' + pct + '%</span>';
+    return `<div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:12px;margin-bottom:6px;${bg}">
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:700;color:var(--text);font-size:.86rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${window.escHtml(d.name)}</div>
+        <div style="font-size:.68rem;color:#888;">${(d.vocab || []).length} Wörter</div>
+      </div>
+      ${right}
+    </div>`;
+  }).join('');
+  return `
+    <div style="margin-bottom:16px;">
+      <h3 style="font-family:'Fredoka One',cursive;color:var(--purple);font-size:1rem;margin:0 0 8px;">📚 Vokabelsammlungen</h3>
+      ${decks.length === 0
+        ? '<div style="font-size:.82rem;color:#999;text-align:center;padding:10px;">Noch keine Sammlungen angelegt.</div>'
+        : tiles}
+    </div>`;
 }
 
 // ────────────────────────────────────────────────

@@ -5,9 +5,9 @@ import { persist, loadData, freshData } from './modules/storage.js';
 import { _initTTS, speakWord, speakWordOnce, ensureMicStream, releaseMicStream, startVisualizer, stopVisualizer, voskStart, voskStop, _shouldUseVosk, startRecording, startVoskRecognition } from './modules/speech.js';
 import { _trackUrl, _discoverTracks, _playNext, _initAudio, startMusic, startMusicSync, stopMusic, setMusicVolume, _setMusicBtns, toggleMusic, toggleVolPopup } from './modules/audio.js';
 import { effectivePct, isMastered } from './modules/stats.js';
-import { buildPool, toggleSchnell, startGame, confirmHome, goHomeSaving, nextQuestion, restartSame, checkMC, submitType, showSelfRateButtons, retryPronounce, evaluateWithClaude, setMicFinalStatus, _sfx, playSfx } from './modules/game.js';
+import { buildPool, toggleSchnell, exitSchnellSilent, startGame, confirmHome, goHomeSaving, nextQuestion, restartSame, checkMC, submitType, showSelfRateButtons, retryPronounce, evaluateWithClaude, setMicFinalStatus, _sfx, playSfx } from './modules/game.js';
 import { syncMirrorFromActiveDeck, activeDeck, switchDeck, createDeck, deleteDeck, renameDeck, deckProgress, renderDecks, toggleDeck, activateDeck, startGameWithDeck, newDeckPrompt, renameDeckPrompt, confirmDeleteDeck, resetDeckProgress, vmDeleteWord, vmEditWord, vmAddManual, openDeckStats } from './modules/decks.js';
-import { showScreen, saveName, showMenu, saveApiKey, skipApiKey, showProfile, editPlayerName, showStats, confirmReset, showFeedback, hideFeedback, exportData, importData, showAuth, authToggleMode, authSubmit, authResend, authLogout, authGoogleSignIn, handleLogin, handleLogout, showPasswordReset, submitPasswordReset, showNewPasswordScreen, submitNewPassword, cancelNewPassword, setActiveMode, renderModeContent, onAppResume, checkForRemoteChange } from './modules/ui.js';
+import { showScreen, saveName, showMenu, saveApiKey, skipApiKey, showProfile, editPlayerName, showStats, confirmReset, showFeedback, hideFeedback, exportData, importData, showAuth, authToggleMode, authSubmit, authResend, authLogout, authGoogleSignIn, handleLogin, handleLogout, showPasswordReset, submitPasswordReset, showNewPasswordScreen, submitNewPassword, cancelNewPassword, setActiveMode, renderModeContent, chooseStudentTab, onAppResume, checkForRemoteChange } from './modules/ui.js';
 import { pwaInstall } from './modules/pwa.js';
 import { openVocabManager, openPresetDeckStats, vmTab, renderVocabList, parsePastedText, onScanFile, showReview, renderReviewList, removeReviewItem, addReviewItem, confirmAddVocab, renderPresetsTab, togglePresetCategory, vmBack, vmRenameActiveDeck, newDeckFlow, confirmAbortDraft } from './modules/vocab.js';
 import './modules/dialog.js'; // registriert window.esAlert/esConfirm/esPrompt (App-Overlays statt nativer Dialoge)
@@ -64,6 +64,7 @@ window.buildPool = buildPool;
 
 // Game via window für Legacy-Code
 window.toggleSchnell = toggleSchnell;
+window.exitSchnellSilent = exitSchnellSilent;
 window.startGame = startGame;
 window.confirmHome = confirmHome;
 window.goHomeSaving = goHomeSaving;
@@ -122,6 +123,7 @@ window.hideFeedback = hideFeedback;
 // Auth via window für HTML onclick-Handler
 window.setActiveMode = setActiveMode;
 window.renderModeContent = renderModeContent;
+window.chooseStudentTab = chooseStudentTab;
 window.showAuth = showAuth;
 window.authToggleMode = authToggleMode;
 window.authSubmit = authSubmit;
