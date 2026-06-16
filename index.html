@@ -654,10 +654,13 @@ try{
   const _rawSB=localStorage.getItem('es_schnell_backup');
   if(_rawSB){
     const _b=JSON.parse(_rawSB);
-    if(_b&&_b.decks&&SD&&SD.decks){
-      Object.keys(_b.decks).forEach(id=>{ if(SD.decks[id]) SD.decks[id].wordStats=_b.decks[id]; });
-    }
-    if(_b&&_b.preset&&SD&&SD.globalPresetStats) SD.globalPresetStats.wordStats=_b.preset;
+    // Pro-Modus-Backups {free:{decks,preset}, student:{decks}}; alt: {decks,preset}
+    const _mods=(_b&&_b.decks)?[_b]:Object.values(_b||{});
+    _mods.forEach(_m=>{
+      if(!_m) return;
+      if(_m.decks&&SD&&SD.decks) Object.keys(_m.decks).forEach(id=>{ if(SD.decks[id]) SD.decks[id].wordStats=_m.decks[id]; });
+      if(_m.preset&&SD&&SD.globalPresetStats) SD.globalPresetStats.wordStats=_m.preset;
+    });
     localStorage.removeItem('es_schnell_backup');
     try{localStorage.setItem(SK,JSON.stringify(SD));}catch(e){}
   }

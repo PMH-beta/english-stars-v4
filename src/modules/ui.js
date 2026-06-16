@@ -287,6 +287,8 @@ export function renderModeContent(mode) {
   _renderModeToggle(mode);
   if (mode === 'free') renderDecks('free');
   else if (mode === 'student') renderStudentMode();
+  // Schnell-Zustand DIESES Modus spiegeln (isSchnellModus + Dark-Mode + Buttons).
+  if (window.syncSchnellForMode) window.syncSchnellForMode(mode);
 }
 
 // Aktives Deck des Modus in den Spiegel übernehmen. SD.activeDeckByMode überlebt
@@ -1176,6 +1178,11 @@ function restoreLastScreen() {
 
 export function handleLogout() {
   window.currentUser = null;
+  // Schnell-Zustand zurücksetzen (SPA bleibt geladen) → kein Dark-Mode/AN nach Relogin.
+  window.schnellByMode = { free: false, student: false, campaign: false };
+  window._schnellBackup = {};
+  window.isSchnellModus = false;
+  try { document.body.classList.remove('schnell-active'); } catch (e) {}
   setCloudConfirmed(false);   // nächster Login muss den Cloud-Stand neu bestätigen
   clearStorage();             // entfernt auch es_sync_meta
   window.SD = freshData();

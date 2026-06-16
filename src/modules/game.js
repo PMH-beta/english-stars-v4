@@ -9,9 +9,10 @@ import { markDirty, saveExam } from './sync.js';
 import { commitDirty } from './dialog.js';
 
 // Game state – all on window.* so Commit B functions (still in index.html) can read them as globals
-window.isSchnellModus = false;
+window.isSchnellModus = false;            // gespiegelter Zustand des AKTIVEN Modus
+window.schnellByMode = { free: false, student: false, campaign: false }; // pro Modus
 window.schnellDone = new Set();
-window._schnellBackup = null;
+window._schnellBackup = {};               // pro Modus: { [mode]: {decks, preset} }
 window.currentQ = null;
 window.mode = 'vocab';
 window.questionPool = [];
@@ -105,70 +106,94 @@ export function buildPool(m) {
   return shuffle(filtered).slice(0, limit);
 }
 
-// ── Schnell-Modus (global) ──
-// Zwei Schnell-Buttons (#schnell-toggle = Freier Modus, #student-schnell-toggle
-// = Schülermodus). Schnell ist GLOBAL und bleibt über Moduswechsel an (ein
-// versehentlicher Wechsel darf ihn nicht beenden) — beide Buttons zeigen
-// denselben Zustand; Beenden von einem Button beendet überall.
-function _schnellBtns(){
-  return [document.getElementById('schnell-toggle'),
-          document.getElementById('student-schnell-toggle')].filter(Boolean);
+// ── Schnell-Modus (pro Modus, bleibt erhalten) ──
+// Jeder Modus (Freier Modus / Schülermodus) hat einen EIGENEN Schnell-Zustand
+// (window.schnellByMode) mit eigenem Backup (window._schnellBackup[mode]).
+// Aktivieren nullt nur die Decks DIESES Modus (Freier Modus zusätzlich die
+// Vorlagen-Stats) → andere Modi behalten ihren echten Stand. Moduswechsel ändert
+// den Zustand NICHT; ein versehentlicher Wechsel darf Schnell nicht beenden.
+// window.isSchnellModus + Dark-Mode spiegeln den AKTIVEN Modus (syncSchnellForMode).
+// Zwei Buttons (#schnell-toggle = Frei, #student-schnell-toggle = Schüler) zeigen
+// je ihren eigenen Modus-Zustand.
+
+function _decksOfMode(sd, mode){
+  return Object.entries(sd.decks||{}).filter(([id,d]) => ((d.mode||'free')===mode));
 }
-function _setSchnellVisual(on){
-  for(const btn of _schnellBtns()){
-    if(on){
-      btn.textContent='⚡ Schnell: AN';btn.style.background='var(--orange)';btn.style.color='white';btn.style.boxShadow='0 3px 0 #cc4a1a';
-    } else {
-      btn.textContent='⚡ Schnell: AUS';btn.style.background='#eee';btn.style.color='#888';btn.style.boxShadow='0 3px 0 #ccc';
-    }
-  }
+
+// Backup-Objekt (alle Modi) dauerhaft sichern → Boot-Recovery (index.html) holt
+// den echten Stand zurück, falls Schnell nie sauber beendet wird (Reload/Absturz).
+function _persistSchnellBackup(){
+  try{
+    const any = Object.values(window._schnellBackup||{}).some(Boolean);
+    if(any) localStorage.setItem('es_schnell_backup', JSON.stringify(window._schnellBackup));
+    else localStorage.removeItem('es_schnell_backup');
+  }catch(e){}
+}
+
+function _setSchnellBtn(id, on){
+  const btn=document.getElementById(id);
+  if(!btn) return;
+  if(on){ btn.textContent='⚡ Schnell: AN';btn.style.background='var(--orange)';btn.style.color='white';btn.style.boxShadow='0 3px 0 #cc4a1a'; }
+  else { btn.textContent='⚡ Schnell: AUS';btn.style.background='#eee';btn.style.color='#888';btn.style.boxShadow='0 3px 0 #ccc'; }
+}
+
+// Beim Anzeigen eines Modus: isSchnellModus + Dark-Mode spiegeln DIESEN Modus,
+// beide Buttons zeigen je ihren eigenen Zustand. Aus renderModeContent (ui.js).
+export function syncSchnellForMode(mode){
+  const on = !!(window.schnellByMode && window.schnellByMode[mode]);
+  window.isSchnellModus = on;
+  document.body.classList.toggle('schnell-active', on);
+  _setSchnellBtn('schnell-toggle', !!(window.schnellByMode && window.schnellByMode.free));
+  _setSchnellBtn('student-schnell-toggle', !!(window.schnellByMode && window.schnellByMode.student));
 }
 
 export function toggleSchnell() {
-  if(!window.isSchnellModus){
-    // → AN: echten Stand ALLER Decks + Vorlagen sichern, Fortschritt überall auf 0
-    // (eigene, flüchtige Wertung), dunkler Hintergrund, danach Erklär-Fenster.
-    const sd=window.SD;
-    if(!sd) return;
-    window.isSchnellModus=true;
+  const sd=window.SD; if(!sd) return;
+  const mode = sd.activeMode||'free';
+  if(!window.schnellByMode) window.schnellByMode={};
+  if(!window._schnellBackup || typeof window._schnellBackup!=='object') window._schnellBackup={};
+  const btnId = mode==='student' ? 'student-schnell-toggle' : 'schnell-toggle';
+
+  if(!window.schnellByMode[mode]){
+    // → AN (nur dieser Modus): echten Stand der Modus-Decks sichern + auf 0.
     const backup={decks:{},preset:null};
-    for(const [id,d] of Object.entries(sd.decks||{})){
+    for(const [id,d] of _decksOfMode(sd, mode)){
       backup.decks[id]=JSON.parse(JSON.stringify(d.wordStats||{}));
       d.wordStats={};
     }
-    if(sd.globalPresetStats){
+    if(mode==='free' && sd.globalPresetStats){
       backup.preset=JSON.parse(JSON.stringify(sd.globalPresetStats.wordStats||{}));
       sd.globalPresetStats.wordStats={};
     }
-    window._schnellBackup=backup;
-    // Dauerhaft sichern: überlebt Reload/Absturz. Boot-Recovery (index.html)
-    // stellt daraus den echten Stand wieder her, falls nie sauber beendet wird.
-    try{localStorage.setItem('es_schnell_backup',JSON.stringify(backup));}catch(e){}
+    window._schnellBackup[mode]=backup;
+    window.schnellByMode[mode]=true;
+    window.isSchnellModus=true;
+    _persistSchnellBackup();
     syncMirrorFromActiveDeck();
-    _setSchnellVisual(true);
+    _setSchnellBtn(btnId, true);
     document.body.classList.add('schnell-active');
     window.esAlert({ icon:'⚡', title:'Wiederholungsmodus an',
       body:'Nur zum schnellen Üben — zählt NICHT in die Statistik. Eine richtige Antwort genügt für ein Wort, falsche zählen nicht. Beim Beenden wird dieser Fortschritt wieder verworfen.' })
       .then(()=>showMenu());
   } else {
-    // → AUS: abbrechbare Warnung; bei „Beenden" echten Stand zurückholen.
+    // → AUS (nur dieser Modus): abbrechbare Warnung; bei „Beenden" echten Stand zurück.
     window.esConfirm({ icon:'⚠️', title:'Wiederholungsmodus beenden?',
       body:'Der Schnell-Fortschritt geht verloren und dein echter Stand kommt zurück.',
       ok:'Beenden', cancel:'Abbrechen', danger:true })
       .then(ok=>{
         if(!ok) return;
-        window.isSchnellModus=false;
-        const b=window._schnellBackup;
+        const b=window._schnellBackup[mode];
         if(b){
-          const sd=window.SD;
           for(const [id,ws] of Object.entries(b.decks||{})){ if(sd.decks&&sd.decks[id]) sd.decks[id].wordStats=ws; }
           if(b.preset&&sd.globalPresetStats) sd.globalPresetStats.wordStats=b.preset;
-          syncMirrorFromActiveDeck();
-          window._schnellBackup=null;
+          window._schnellBackup[mode]=null;
         }
-        try{localStorage.removeItem('es_schnell_backup');}catch(e){}
+        window.schnellByMode[mode]=false;
+        window.isSchnellModus=false;
+        _persistSchnellBackup();
+        syncMirrorFromActiveDeck();
         window.persist();
-        _setSchnellVisual(false);
+        _setSchnellBtn(btnId, false);
         document.body.classList.remove('schnell-active');
         showMenu();
       });
