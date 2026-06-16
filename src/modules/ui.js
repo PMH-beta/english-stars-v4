@@ -278,6 +278,12 @@ function _renderModeToggle(mode) {
 }
 
 export function renderModeContent(mode) {
+  // Schnell läuft global mit EINEM Backup → sobald ein anderer Modus angezeigt wird
+  // als der, in dem Schnell gestartet wurde (_schnellOwnerMode), sauber beenden.
+  // Fängt jeden Wechsel-Pfad ab, nicht nur den Toggle-Klick.
+  if (window.isSchnellModus && window._schnellOwnerMode && mode !== window._schnellOwnerMode) {
+    try { window.exitSchnellSilent && window.exitSchnellSilent(); } catch (e) {}
+  }
   const freeEl    = document.getElementById('mode-free');
   const studentEl = document.getElementById('mode-student');
   const campEl    = document.getElementById('mode-campaign');
@@ -515,7 +521,7 @@ export async function showStats() {
     _activePresetsBlock(freeDecks, catById) + _customWordsBlock(freeDecks));
 
   const studentSection = _statSection('🎒 Schülermodus',
-    _studentDecksBlock(studentDecks) + _customWordsBlock(studentDecks));
+    _studentDecksBlock(studentDecks) + _customWordsBlock(studentDecks) + _uvComingSoonBlock());
 
   host.innerHTML = campSection + freeSection + studentSection;
 }
@@ -591,6 +597,15 @@ function _activePresetsBlock(decks, catById) {
               ${right}
             </div>`;
           }).join('')}
+    </div>`;
+}
+
+// Schülermodus: Unregelmäßige Verben — noch ohne Inhalt.
+function _uvComingSoonBlock() {
+  return `
+    <div style="margin-bottom:16px;">
+      <h3 style="font-family:'Fredoka One',cursive;color:var(--purple);font-size:1rem;margin:0 0 8px;">🔁 Unregelmäßige Verben</h3>
+      <div style="font-size:.82rem;color:#999;text-align:center;padding:10px;">Kommt bald!</div>
     </div>`;
 }
 
