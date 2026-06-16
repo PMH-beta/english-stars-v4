@@ -278,12 +278,6 @@ function _renderModeToggle(mode) {
 }
 
 export function renderModeContent(mode) {
-  // Schnell läuft global mit EINEM Backup → sobald ein anderer Modus angezeigt wird
-  // als der, in dem Schnell gestartet wurde (_schnellOwnerMode), sauber beenden.
-  // Fängt jeden Wechsel-Pfad ab, nicht nur den Toggle-Klick.
-  if (window.isSchnellModus && window._schnellOwnerMode && mode !== window._schnellOwnerMode) {
-    try { window.exitSchnellSilent && window.exitSchnellSilent(); } catch (e) {}
-  }
   const freeEl    = document.getElementById('mode-free');
   const studentEl = document.getElementById('mode-student');
   const campEl    = document.getElementById('mode-campaign');
@@ -310,11 +304,6 @@ function _applyModeActiveDeck(mode) {
 export async function setActiveMode(mode) {
   const valid = ['free', 'student', 'campaign'];
   if (!valid.includes(mode)) mode = 'free';
-  const prev = window.SD.activeMode || 'free';
-  // Schnell ist global (ein Backup) → Moduswechsel beendet ihn sauber.
-  if (mode !== prev && window.isSchnellModus) {
-    try { window.exitSchnellSilent && window.exitSchnellSilent(); } catch (e) {}
-  }
   window.SD.activeMode = mode;
   _applyModeActiveDeck(mode);   // aktives Deck des Modus in den Spiegel
   persist(window.SD);
