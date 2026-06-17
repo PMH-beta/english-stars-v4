@@ -9,6 +9,7 @@ import { buildPool, toggleSchnell, syncSchnellForMode, startGame, confirmHome, g
 import { syncMirrorFromActiveDeck, activeDeck, switchDeck, createDeck, deleteDeck, renameDeck, deckProgress, renderDecks, toggleDeck, activateDeck, startGameWithDeck, newDeckPrompt, renameDeckPrompt, confirmDeleteDeck, resetDeckProgress, vmDeleteWord, vmEditWord, vmAddManual, openDeckStats } from './modules/decks.js';
 import { showScreen, saveName, showMenu, saveApiKey, skipApiKey, showProfile, editPlayerName, showStats, confirmReset, showFeedback, hideFeedback, exportData, importData, showAuth, authToggleMode, authSubmit, authResend, authLogout, authGoogleSignIn, handleLogin, handleLogout, showPasswordReset, submitPasswordReset, showNewPasswordScreen, submitNewPassword, cancelNewPassword, setActiveMode, renderModeContent, chooseStudentTab, onAppResume, checkForRemoteChange } from './modules/ui.js';
 import { pwaInstall } from './modules/pwa.js';
+import { startIrregularVerbs, uvProgress } from './modules/irregular-game.js';
 import { openVocabManager, openPresetDeckStats, vmTab, renderVocabList, parsePastedText, onScanFile, showReview, renderReviewList, removeReviewItem, addReviewItem, confirmAddVocab, renderPresetsTab, togglePresetCategory, vmBack, vmRenameActiveDeck, newDeckFlow, confirmAbortDraft } from './modules/vocab.js';
 import './modules/dialog.js'; // registriert window.esAlert/esConfirm/esPrompt (App-Overlays statt nativer Dialoge)
 import { startupSequence, finishStartup } from './modules/startup.js';
@@ -78,6 +79,11 @@ window.evaluateWithClaude = evaluateWithClaude;
 window.setMicFinalStatus = setMicFinalStatus;
 window._sfx = _sfx;
 window.playSfx = playSfx;
+
+// Gestaltwandler (UV-Engine): Einstieg + Fortschritt für den Schülermodus-UV-Tab.
+// _uvProgress wird von game.js (progressForCurrentMode) im UV-Zweig genutzt.
+window.startIrregularVerbs = startIrregularVerbs;
+window._uvProgress = uvProgress;
 
 // Decks via window für Legacy-Code
 window.syncMirrorFromActiveDeck = syncMirrorFromActiveDeck;

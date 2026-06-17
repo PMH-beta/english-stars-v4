@@ -7,6 +7,7 @@ import { releaseMicStream, stopVisualizer, voskStop, speakWord } from './speech.
 import { signIn, signUp, signOut, resendConfirmation, requestPasswordReset, updatePassword, signInWithGoogle } from './auth.js';
 import { cloudLoad, cloudReset, saveDeck, saveWordStats, saveExam, markDirty, flushPendingSync, setCloudConfirmed, getPendingCount, setKnownSig, cloudChangedRemotely } from './sync.js';
 import { commitDirty } from './dialog.js';
+import { uvProgress, uvProgressPct } from './irregular-game.js';
 
 const API_KEY_SK = 'es_apikey';
 
@@ -338,10 +339,43 @@ function renderStudentMode() {
   const uv = document.getElementById('student-uv');
   if (vs) vs.style.display = (sub === 'vs') ? 'block' : 'none';
   if (uv) uv.style.display = (sub === 'uv') ? 'block' : 'none';
-  // Schnell-Button nur in VS (UV ist Platzhalter).
+  // Schnell-Button nur in VS (UV zählt immer echt, kein Schnell-Modus).
   const schnellBtn = document.getElementById('student-schnell-toggle');
   if (schnellBtn) schnellBtn.style.display = (sub === 'vs') ? '' : 'none';
   if (sub === 'vs') renderDecks('student');
+  if (sub === 'uv') renderStudentUV();
+}
+
+// UV-Tab (Gestaltwandler): drei reine Modi mit Live-Fortschritt. Buttons starten
+// die UV-Engine (startIrregularVerbs), kein Deck.
+function renderStudentUV() {
+  const host = document.getElementById('student-uv');
+  if (!host) return;
+  const modes = [
+    { m: 'vocab',     cls: 'blue',   icon: '🔍', name: 'Erkennen',  sub: 'Richtige Form antippen' },
+    { m: 'pronounce', cls: 'pink',   icon: '🗣️', name: 'Rufen',     sub: 'Form laut sprechen' },
+    { m: 'spelling',  cls: 'purple', icon: '🔨', name: 'Schmieden', sub: 'Form schreiben' },
+  ];
+  const btns = modes.map(o => {
+    const pct = uvProgressPct(o.m);
+    const p = uvProgress(o.m);
+    return `<button class="big-btn ${o.cls}" onclick="startIrregularVerbs('${o.m}')">
+      <span class="icon-btn">${o.icon}</span>
+      <div><span>${o.name}</span><span class="btn-sub">
+        <span class="btn-progress-text">${pct}% · ${p.mastered}/${p.total} gemeistert</span>
+        <span class="btn-progress"><span class="btn-progress-fill" style="width:${pct}%"></span></span>
+      </span></div>
+    </button>`;
+  }).join('');
+  host.style.textAlign = 'left';
+  host.style.padding = '0';
+  host.innerHTML = `
+    <div style="text-align:center;margin:4px 0 14px;">
+      <div style="font-size:2.4rem;">🔁</div>
+      <div style="font-family:'Fredoka One',cursive;font-size:1.05rem;color:var(--purple);">Unregelmäßige Verben</div>
+      <div style="font-size:.78rem;color:#888;font-weight:700;">go → went → gone — in drei Disziplinen</div>
+    </div>
+    <div class="mode-buttons">${btns}</div>`;
 }
 
 function _renderStudentSubToggle(sub) {
@@ -370,6 +404,7 @@ export function showMenu() {
   if (window._pendingReload) { window._pendingReload = false; window.location.reload(); return; }
   try { releaseMicStream(); } catch (e) {}
   try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) {}
+  window.isUV = false;   // UV-Runde verlassen → window.VOCAB wird gleich neu gespiegelt
   hideFeedback();
   showScreen('menu-screen');
   document.getElementById('menu-player-name').textContent = 'Hallo, ' + window.SD.playerName + '! 👋';
@@ -512,7 +547,7 @@ export async function showStats() {
     _activePresetsBlock(freeDecks, catById) + _customWordsBlock(freeDecks));
 
   const studentSection = _statSection('🎒 Schülermodus',
-    _studentDecksBlock(studentDecks) + _customWordsBlock(studentDecks) + _uvComingSoonBlock());
+    _studentDecksBlock(studentDecks) + _customWordsBlock(studentDecks) + _uvProgressBlock());
 
   host.innerHTML = campSection + freeSection + studentSection;
 }
@@ -591,12 +626,30 @@ function _activePresetsBlock(decks, catById) {
     </div>`;
 }
 
-// Schülermodus: Unregelmäßige Verben — noch ohne Inhalt.
-function _uvComingSoonBlock() {
+// Schülermodus: Unregelmäßige Verben (Gestaltwandler) — Fortschritt je Disziplin.
+function _uvProgressBlock() {
+  const rows = [
+    { m: 'vocab',     icon: '🔍', name: 'Erkennen' },
+    { m: 'pronounce', icon: '🗣️', name: 'Rufen' },
+    { m: 'spelling',  icon: '🔨', name: 'Schmieden' },
+  ];
+  const anyPlayed = rows.some(r => uvProgress(r.m).mastered > 0 || uvProgressPct(r.m) > 0);
+  const bars = rows.map(r => {
+    const pct = uvProgressPct(r.m);
+    const p = uvProgress(r.m);
+    return `<div style="margin-bottom:8px;">
+      <div style="display:flex;justify-content:space-between;font-size:.82rem;font-weight:700;color:var(--text);margin-bottom:4px;">
+        <span>${r.icon} ${r.name}</span><span style="color:var(--purple);">${pct}% · ${p.mastered}/${p.total}</span>
+      </div>
+      <div style="height:12px;background:#eee;border-radius:10px;overflow:hidden;">
+        <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--purple),var(--pink));border-radius:10px;"></div>
+      </div>
+    </div>`;
+  }).join('');
   return `
     <div style="margin-bottom:16px;">
       <h3 style="font-family:'Fredoka One',cursive;color:var(--purple);font-size:1rem;margin:0 0 8px;">🔁 Unregelmäßige Verben</h3>
-      <div style="font-size:.82rem;color:#999;text-align:center;padding:10px;">Kommt bald!</div>
+      ${anyPlayed ? bars : '<div style="font-size:.82rem;color:#999;text-align:center;padding:10px;">Noch nicht geübt.</div>'}
     </div>`;
 }
 

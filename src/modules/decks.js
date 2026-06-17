@@ -408,6 +408,7 @@ export function activateDeck(id) {
 }
 
 export function startGameWithDeck(deckId, modeName) {
+  window.isUV = false;   // Deck-Spiel ist nie UV (Sicherheitsnetz beim Moduswechsel)
   switchDeck(deckId);
   window.startGame(modeName);
 }

@@ -7,6 +7,7 @@ import { ensureMicStream, releaseMicStream, voskStop, stopVisualizer, speakWord,
 import { persist } from './storage.js';
 import { markDirty, saveExam } from './sync.js';
 import { commitDirty } from './dialog.js';
+import { IRREGULAR_PRESET_ID, formDistractors } from './irregular-verbs.js';
 
 // Game state – all on window.* so Commit B functions (still in index.html) can read them as globals
 window.isSchnellModus = false;            // gespiegelter Zustand des AKTIVEN Modus
@@ -29,6 +30,7 @@ window._progressSaved = false;
 window._pronounceAttempts = 0;
 window._lastModePct = 0;
 window.isExamMode = false;
+window.isUV = false;                       // Gestaltwandler-Modus (Verben), kein Deck
 
 // ── Pool Utilities ──
 function shuffle(a) {
@@ -76,11 +78,56 @@ function bVocabPronounce(item) {
     question:`🎙️ Sprich auf Englisch:\n🇩🇪 ${item.de}`,hint:'',answer:item.en};
 }
 
+// ── Verb-Transformationsfragen (Gestaltwandler, Spec §3) ──
+// Zusätzlich zur UNVERÄNDERTEN Basisfrage (gehen → go) die Transformation im
+// Englischen: go → went / gone. Suffixe: _past_* / _pp_*. Distraktoren sind
+// verlockend falsche Formen (formDistractors), NICHT andere Wörter.
+function _firstForm(s){ return (s||'').split('/')[0].trim(); }
+function _verbMeta(which){
+  return which==='past'
+    ? {label:'Vergangenheit', get:i=>i.forms.past, suf:{mc:'_past_mc',sp:'_past_sp',pr:'_past_pr'}}
+    : {label:'Partizip',      get:i=>i.forms.participle, suf:{mc:'_pp_mc',sp:'_pp_sp',pr:'_pp_pr'}};
+}
+function bVerbMC(item, which){
+  const mt=_verbMeta(which); const target=_firstForm(mt.get(item));
+  return {type:'mc',badge:'vocab',statKey:statKeyFor(item.de, item.en, mt.suf.mc, item._presetId||null),_presetId:item._presetId||null,
+    question:`🔁 ${item.en} → ?\n(${mt.label})`,hint:'',
+    choices:shuffle([target,...formDistractors(item,which)]),answer:target};
+}
+function bVerbType(item, which){
+  const mt=_verbMeta(which);
+  return {type:'type',badge:'spelling',statKey:statKeyFor(item.de, item.en, mt.suf.sp, item._presetId||null),_presetId:item._presetId||null,
+    question:`✏️ ${mt.label} schreiben:\n🔁 ${item.en} → ?`,hint:'',answer:mt.get(item)};
+}
+function bVerbPronounce(item, which){
+  const mt=_verbMeta(which); const target=_firstForm(mt.get(item));
+  return {type:'pronounce',badge:'pronounce',statKey:statKeyFor(item.de, item.en, mt.suf.pr, item._presetId||null),_presetId:item._presetId||null,
+    question:`🎙️ ${mt.label} sprechen:\n🔁 ${item.en} → ?`,hint:'',answer:target};
+}
+
+// Gestaltwandler-Pool: pro Verb die Basisfrage + past- + pp-Transformation in
+// der gewählten Kompetenz. Stats laufen über _presetId → globalPresetStats.
+function buildUVPool(m, limit){
+  const all=[];
+  window.VOCAB.forEach(v=>{
+    if(!v.forms) return;   // Sicherheitsnetz — UV-Set hat immer forms
+    if(m==='vocab'){       all.push(bVocabMC(v));        all.push(bVerbMC(v,'past'));        all.push(bVerbMC(v,'pp')); }
+    else if(m==='spelling'){ all.push(bVocabType(v));     all.push(bVerbType(v,'past'));      all.push(bVerbType(v,'pp')); }
+    else if(m==='pronounce'){all.push(bVocabPronounce(v));all.push(bVerbPronounce(v,'past')); all.push(bVerbPronounce(v,'pp')); }
+  });
+  const getS=q=>window.SD?.globalPresetStats?.wordStats?.[q.statKey];
+  const take=(window.isSchnellModus&&!window.isExamMode) ? all.length : limit;
+  return weightedPickUnique(all, getS, take);
+}
+
 export function buildPool(m) {
   const vocab=window.VOCAB;
   let qs=[];
   const examLimit=window.isExamMode ? Math.min(EXAM_QUESTIONS, vocab.length*3) : QPERROUND;
   const limit=window.isSchnellModus&&!window.isExamMode ? vocab.length : examLimit;
+  if(window.isUV){
+    qs=buildUVPool(m, limit);
+  } else {
   if(m==='vocab'){
     weightedPickUnique(vocab, v=>getVocabStat(v,'_mc'), limit).forEach(v=>qs.push(bVocabMC(v)));
   }
@@ -99,6 +146,7 @@ export function buildPool(m) {
       weightedPickUnique(vocab, v=>getVocabStat(v,'_sp'), n2).forEach(v=>qs.push(bVocabType(v)));
       weightedPickUnique(vocab, v=>getVocabStat(v,'_pr'), n3).forEach(v=>qs.push(bVocabPronounce(v)));
     }
+  }
   }
   if(window._skipMasteryFilter||window.isExamMode) return shuffle(qs).slice(0, limit);
   const filtered=qs.filter(q=>!isMastered(q));
@@ -704,6 +752,10 @@ export function playSfx(type) {
 
 // ── Progress + End ──
 function progressForCurrentMode() {
+  if(window.isUV && window._uvProgress){
+    const titles={vocab:'🔍 Erkennen',spelling:'🔨 Schmieden',pronounce:'🗣️ Rufen'};
+    return {...window._uvProgress(window.mode), title: titles[window.mode]||'🔁 Gestaltwandler'};
+  }
   const presetWs = window.SD?.globalPresetStats?.wordStats || {};
   const deckWs = window.SD?.wordStats || {};
   function pf(suffix) {
@@ -802,6 +854,16 @@ function _updateGlobalPresetCategoryProgress(deck) {
 function saveProgress() {
   if(window._progressSaved||window.isFreePlay||window.isSchnellModus)return;
   window._progressSaved=true;
+  if(window.isUV){
+    // Gestaltwandler hat kein Deck: NICHT in activeDeck()/categoryProgress schreiben.
+    // Verb-Stats stehen schon live in globalPresetStats (recordStat). Hier nur
+    // Punkte/Highscore + Cloud-Markierung (global_preset, wie andere Vorlagen).
+    window.SD.totalPoints+=window.points;
+    if(window.points>window.SD.highscore) window.SD.highscore=window.points;
+    persist();
+    if(window.currentUser){ markDirty('global_preset'); markDirty('profile'); }
+    return;
+  }
   const deck = activeDeck();
   if(window.isExamMode){
     if(window.questionIndex > 0) _updateGlobalPresetCategoryProgress(deck);
