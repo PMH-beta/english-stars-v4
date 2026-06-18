@@ -260,18 +260,30 @@ function _enForm(inf) {
   return inf + 'en';                                          // go → goen
 }
 
+// Endkonsonant verdoppeln (für „verschluckte" Falschformen: burn → burnn).
+function _double(inf) {
+  inf = _firstAlt(inf).toLowerCase();
+  const last = inf.slice(-1);
+  return /[bcdfghjklmnpqrstvwxz]/.test(last) ? inf + last : inf;
+}
+
 // Genau drei plausibel-falsche Formen für eine Ziel-Form (which: 'past'|'pp').
+// Reihenfolge = stärkste Verführung zuerst; die hinteren sind Fallbacks, damit
+// auch /-Alternativ-Verben (burnt/burned) sicher 3 kollisionsfreie liefern.
 export function formDistractors(verb, which) {
   const inf = verb.en;
   const target = which === 'past' ? verb.forms.past : verb.forms.participle;
   const other  = which === 'past' ? verb.forms.participle : verb.forms.past;
   const block = new Set((target || '').split('/').map(s => s.trim().toLowerCase()));
   const cands = [
-    _regularize(inf),
-    _enForm(inf),
+    _regularize(inf),                 // go → goed
+    _enForm(inf),                     // go → goen
     _firstAlt(other),                 // die andere echte Form als Verführung
     _firstAlt(inf),                   // der Infinitiv selbst
-    _firstAlt(inf) + 't',             // Notfall-Varianten, falls oben kollidiert
+    _double(inf) + 'ed',              // burn → burnned
+    _double(inf) + 'en',              // burn → burnnen
+    _firstAlt(inf) + 'd',             // burn → burnd
+    _firstAlt(inf) + 't',
     _firstAlt(inf) + 'ed',
   ];
   const out = [];
