@@ -7,7 +7,8 @@ import { releaseMicStream, stopVisualizer, voskStop, speakWord } from './speech.
 import { signIn, signUp, signOut, resendConfirmation, requestPasswordReset, updatePassword, signInWithGoogle } from './auth.js';
 import { cloudLoad, cloudReset, saveDeck, saveWordStats, saveExam, markDirty, flushPendingSync, setCloudConfirmed, getPendingCount, setKnownSig, cloudChangedRemotely } from './sync.js';
 import { commitDirty } from './dialog.js';
-import { uvProgress, uvProgressPct } from './irregular-game.js';
+import { uvProgress, uvProgressPct, getUvCurriculum, setUvCurriculum, activeVerbs } from './irregular-game.js';
+import { CURRICULUM, TIER_CEFR } from './irregular-verbs.js';
 
 const API_KEY_SK = 'es_apikey';
 
@@ -367,15 +368,51 @@ function renderStudentUV() {
       </span></div>
     </button>`;
   }).join('');
+  // Lehrplan-Wahl (§6): Schulart + Klasse → aktiver Verb-Satz (tier ≤ Decke).
+  const cur = getUvCurriculum() || {};
+  const schularten = [
+    ['mittelschule', 'Mittelschule'], ['realschule', 'Realschule'],
+    ['gesamtschule', 'Gesamtschule'], ['gymnasium', 'Gymnasium'],
+  ];
+  const schulOpts = ['<option value="">— Schulart —</option>']
+    .concat(schularten.map(([v, l]) => `<option value="${v}"${cur.schulart === v ? ' selected' : ''}>${l}</option>`)).join('');
+  const klassen = cur.schulart ? Object.keys(CURRICULUM[cur.schulart] || {}) : [];
+  const klasseOpts = ['<option value="">— Klasse —</option>']
+    .concat(klassen.map(k => `<option value="${k}"${Number(cur.klasse) === Number(k) ? ' selected' : ''}>Klasse ${k}</option>`)).join('');
+  const active = activeVerbs();
+  const ceilingTier = active.reduce((mx, v) => Math.max(mx, v.tier), 0) || 1;
+  const lvlInfo = (cur.schulart && cur.klasse)
+    ? `${TIER_CEFR[ceilingTier] || ''} · ${active.length} Verben aktiv`
+    : `Ohne Auswahl: A1-Grundverben (${active.length})`;
+  const selStyle = "font-family:'Nunito',sans-serif;font-weight:700;font-size:.82rem;padding:8px 10px;border:2px solid #e0d4f0;border-radius:10px;background:#fff;color:var(--text);flex:1;min-width:0;";
+
   host.style.textAlign = 'left';
   host.style.padding = '0';
   host.innerHTML = `
-    <div style="text-align:center;margin:4px 0 14px;">
+    <div style="text-align:center;margin:4px 0 12px;">
       <div style="font-size:2.4rem;">🔁</div>
       <div style="font-family:'Fredoka One',cursive;font-size:1.05rem;color:var(--purple);">Unregelmäßige Verben</div>
       <div style="font-size:.78rem;color:#888;font-weight:700;">go → went → gone — in drei Disziplinen</div>
     </div>
+    <div style="background:#f7f3fc;border-radius:12px;padding:10px 12px;margin-bottom:14px;">
+      <div style="display:flex;gap:8px;margin-bottom:6px;">
+        <select id="uv-schulart" style="${selStyle}">${schulOpts}</select>
+        <select id="uv-klasse" style="${selStyle}"${cur.schulart ? '' : ' disabled'}>${klasseOpts}</select>
+      </div>
+      <div style="font-size:.74rem;color:#7a3aac;font-weight:700;text-align:center;">📚 ${lvlInfo}</div>
+    </div>
     <div class="mode-buttons">${btns}</div>`;
+
+  const schulSel = document.getElementById('uv-schulart');
+  const klasseSel = document.getElementById('uv-klasse');
+  if (schulSel) schulSel.addEventListener('change', () => {
+    setUvCurriculum(schulSel.value, null);   // Schulart gewechselt → Klasse neu wählen
+    renderStudentUV();
+  });
+  if (klasseSel) klasseSel.addEventListener('change', () => {
+    setUvCurriculum(cur.schulart, klasseSel.value);
+    renderStudentUV();
+  });
 }
 
 function _renderStudentSubToggle(sub) {

@@ -174,8 +174,17 @@ function bSchmieden(item, which, lvl){
   return {...base,question:`✏️ ${mt.label} schreiben:\n🔁 ${item.en} → ?`,answer:full};
 }
 
-// Gestaltwandler-Pool: pro Verb die Basisfrage + past- + pp-Transformation in
-// der gewählten Disziplin; die Transformationen in der EMA-abgeleiteten Methode.
+// Partizip schaltet erst frei, wenn die Vergangenheit derselben Disziplin sitzt
+// (§6: „Vergangenheit zuerst"). Stabile Schwelle ohne Interleaving-Zufall:
+// ≥3 Versuche und EMA ≥ up2.
+function _ppUnlocked(v, pastSuffix){
+  const s=window.SD?.globalPresetStats?.wordStats?.[statKeyFor(v.de,v.en,pastSuffix,IRREGULAR_PRESET_ID)];
+  return !!s && Math.floor(s.asked||0)>=3 && effectivePct(s)>=UV_LVL.up2;
+}
+
+// Gestaltwandler-Pool: pro AKTIVEM Verb (window.VOCAB = tier-gefiltert) die
+// Basisfrage + Vergangenheit; Partizip erst nach Freischaltung (§6). Methoden
+// EMA-abgeleitet (§5).
 function buildUVPool(m, limit){
   const all=[]; const pid=IRREGULAR_PRESET_ID;
   window.VOCAB.forEach(v=>{
@@ -183,15 +192,15 @@ function buildUVPool(m, limit){
     if(m==='vocab'){
       all.push(bVocabMC(v));
       all.push(bErkennen(v,'past', uvLevel(statKeyFor(v.de,v.en,'_past_mc',pid))));
-      all.push(bErkennen(v,'pp',   uvLevel(statKeyFor(v.de,v.en,'_pp_mc',pid))));
+      if(_ppUnlocked(v,'_past_mc')) all.push(bErkennen(v,'pp', uvLevel(statKeyFor(v.de,v.en,'_pp_mc',pid))));
     } else if(m==='spelling'){
       all.push(bVocabType(v));
       all.push(bSchmieden(v,'past', uvLevel(statKeyFor(v.de,v.en,'_past_sp',pid))));
-      all.push(bSchmieden(v,'pp',   uvLevel(statKeyFor(v.de,v.en,'_pp_sp',pid))));
+      if(_ppUnlocked(v,'_past_sp')) all.push(bSchmieden(v,'pp', uvLevel(statKeyFor(v.de,v.en,'_pp_sp',pid))));
     } else if(m==='pronounce'){
       all.push(bVocabPronounce(v));
       all.push(bRufen(v,'past', uvLevel(statKeyFor(v.de,v.en,'_past_pr',pid))));
-      all.push(bRufen(v,'pp',   uvLevel(statKeyFor(v.de,v.en,'_pp_pr',pid))));
+      if(_ppUnlocked(v,'_past_pr')) all.push(bRufen(v,'pp', uvLevel(statKeyFor(v.de,v.en,'_pp_pr',pid))));
     }
   });
   const getS=q=>window.SD?.globalPresetStats?.wordStats?.[q.statKey];
