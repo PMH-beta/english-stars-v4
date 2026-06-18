@@ -8,7 +8,7 @@
 // einen UV-Zweig, saveProgress einen UV-Guard. Hier nur Einstieg + Fortschritt.
 
 import { startGame } from './game.js';
-import { effectivePct } from './stats.js';
+import { effectivePct, isStatMastered } from './stats.js';
 import { statKeyFor } from './stats.js';
 import { irregularAsVocab, expectedVerbs, IRREGULAR_PRESET_ID } from './irregular-verbs.js';
 
@@ -81,4 +81,42 @@ export function uvProgress(mode) {
 export function uvProgressPct(mode) {
   const p = uvProgress(mode);
   return p.total > 0 ? Math.min(100, Math.round((p.score / p.total) * 100)) : 0;
+}
+
+// ── Lernstand (Phase 4, §7) ─────────────────────────────────────────────────
+// Alle 9 Suffixe eines Verbs (Basis + past + pp, je lesen/sprechen/schreiben).
+const UV_ALL_SUFFIXES = ['_mc','_sp','_pr','_past_mc','_past_sp','_past_pr','_pp_mc','_pp_sp','_pp_pr'];
+const UV_ART_NAMES = {
+  einzel: 'Einzelgänger', gleich: 'Gleichmacher', iau: 'i–a–u-Wandler',
+  en: '-en-Verwandler', keine: 'Faulpelze',
+};
+
+// Beherrschung eines Verbs: 'voll' (alle 9 Suffixe gemeistert) | 'offen'
+// (nichts gemeistert) | 'teilweise'.
+export function verbStatus(v, ws) {
+  ws = ws || window.SD?.globalPresetStats?.wordStats || {};
+  let m = 0;
+  for (const suf of UV_ALL_SUFFIXES) {
+    if (isStatMastered(ws[statKeyFor(v.de, v.en, suf, IRREGULAR_PRESET_ID)])) m++;
+  }
+  return m === 0 ? 'offen' : (m === UV_ALL_SUFFIXES.length ? 'voll' : 'teilweise');
+}
+
+// Gesamter Lernstand über den aktiven Satz: Verb-Zähler (voll/teilweise/offen),
+// Aufschlüsselung nach Kompetenz und nach Art, offene Verbnamen für die Liste.
+export function uvLernstand() {
+  const ws = window.SD?.globalPresetStats?.wordStats || {};
+  const verbs = activeVerbs();
+  const counts = { voll: 0, teilweise: 0, offen: 0 };
+  const byArt = {};
+  const open = [];
+  for (const v of verbs) {
+    const st = verbStatus(v, ws);
+    counts[st]++;
+    const a = byArt[v.art] || (byArt[v.art] = { name: UV_ART_NAMES[v.art] || v.art, voll: 0, total: 0 });
+    a.total++; if (st === 'voll') a.voll++;
+    if (st !== 'voll') open.push(v.en);
+  }
+  const byMode = { vocab: uvProgress('vocab'), pronounce: uvProgress('pronounce'), spelling: uvProgress('spelling') };
+  return { total: verbs.length, ...counts, byArt, byMode, open, curriculum: getUvCurriculum() };
 }

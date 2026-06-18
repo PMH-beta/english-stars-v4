@@ -7,7 +7,7 @@ import { releaseMicStream, stopVisualizer, voskStop, speakWord } from './speech.
 import { signIn, signUp, signOut, resendConfirmation, requestPasswordReset, updatePassword, signInWithGoogle } from './auth.js';
 import { cloudLoad, cloudReset, saveDeck, saveWordStats, saveExam, markDirty, flushPendingSync, setCloudConfirmed, getPendingCount, setKnownSig, cloudChangedRemotely } from './sync.js';
 import { commitDirty } from './dialog.js';
-import { uvProgress, uvProgressPct, getUvCurriculum, setUvCurriculum, activeVerbs } from './irregular-game.js';
+import { uvProgress, uvProgressPct, getUvCurriculum, setUvCurriculum, activeVerbs, uvLernstand } from './irregular-game.js';
 import { CURRICULUM, TIER_CEFR } from './irregular-verbs.js';
 
 const API_KEY_SK = 'es_apikey';
@@ -584,7 +584,7 @@ export async function showStats() {
     _activePresetsBlock(freeDecks, catById) + _customWordsBlock(freeDecks));
 
   const studentSection = _statSection('🎒 Schülermodus',
-    _studentDecksBlock(studentDecks) + _customWordsBlock(studentDecks) + _uvProgressBlock());
+    _studentDecksBlock(studentDecks) + _customWordsBlock(studentDecks) + _uvLernstandBlock());
 
   host.innerHTML = campSection + freeSection + studentSection;
 }
@@ -663,30 +663,66 @@ function _activePresetsBlock(decks, catById) {
     </div>`;
 }
 
-// Schülermodus: Unregelmäßige Verben (Gestaltwandler) — Fortschritt je Disziplin.
-function _uvProgressBlock() {
-  const rows = [
-    { m: 'vocab',     icon: '🔍', name: 'Erkennen' },
+// Schülermodus: Unregelmäßige Verben (Gestaltwandler) — Lernstand (§7):
+// erwartet vs. beherrscht, Aufschlüsselung nach Kompetenz und nach Art,
+// „offene üben" pro Disziplin (startet eine Runde, die Gemeistertes überspringt).
+function _uvLernstandBlock() {
+  const L = uvLernstand();
+  const cur = L.curriculum || {};
+  const ceilingTier = activeVerbs().reduce((mx, v) => Math.max(mx, v.tier), 0) || 1;
+  const head = (cur.schulart && cur.klasse)
+    ? `${TIER_CEFR[ceilingTier] || ''} · ${L.total} Verben erwartet`
+    : `A1-Grundverben · ${L.total} erwartet`;
+
+  // Verb-Zähler voll/teilweise/offen.
+  const chips = `<div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;font-size:.78rem;font-weight:700;margin-bottom:10px;">
+    <span style="background:rgba(58,170,92,.15);color:#2a8a4a;padding:3px 10px;border-radius:20px;">✅ ${L.voll} voll</span>
+    <span style="background:rgba(245,166,35,.18);color:#a86a08;padding:3px 10px;border-radius:20px;">🟡 ${L.teilweise} teilweise</span>
+    <span style="background:#eee;color:#888;padding:3px 10px;border-radius:20px;">⬜ ${L.offen} offen</span>
+  </div>`;
+
+  // Nach Kompetenz — Balken + „üben"-Button (Gap-Runde via Mastery-Filter).
+  const modes = [
+    { m: 'vocab', icon: '🔍', name: 'Erkennen' },
     { m: 'pronounce', icon: '🗣️', name: 'Rufen' },
-    { m: 'spelling',  icon: '🔨', name: 'Schmieden' },
+    { m: 'spelling', icon: '🔨', name: 'Schmieden' },
   ];
-  const anyPlayed = rows.some(r => uvProgress(r.m).mastered > 0 || uvProgressPct(r.m) > 0);
-  const bars = rows.map(r => {
-    const pct = uvProgressPct(r.m);
-    const p = uvProgress(r.m);
+  const compBars = modes.map(r => {
+    const p = L.byMode[r.m]; const pct = p.total > 0 ? Math.min(100, Math.round((p.score / p.total) * 100)) : 0;
+    const full = p.total > 0 && p.mastered >= p.total;
     return `<div style="margin-bottom:8px;">
-      <div style="display:flex;justify-content:space-between;font-size:.82rem;font-weight:700;color:var(--text);margin-bottom:4px;">
-        <span>${r.icon} ${r.name}</span><span style="color:var(--purple);">${pct}% · ${p.mastered}/${p.total}</span>
+      <div style="display:flex;align-items:center;gap:8px;font-size:.82rem;font-weight:700;color:var(--text);margin-bottom:4px;">
+        <span style="flex:1;">${r.icon} ${r.name}</span>
+        <span style="color:var(--purple);">${pct}% · ${p.mastered}/${p.total}</span>
+        <button onclick="startIrregularVerbs('${r.m}')" ${full ? 'disabled' : ''} style="font-family:'Fredoka One',cursive;font-size:.7rem;padding:4px 10px;border:none;border-radius:20px;cursor:pointer;${full ? 'background:#eee;color:#aaa;' : 'background:var(--purple);color:#fff;'}">${full ? '✓' : 'üben'}</button>
       </div>
       <div style="height:12px;background:#eee;border-radius:10px;overflow:hidden;">
         <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--purple),var(--pink));border-radius:10px;"></div>
       </div>
     </div>`;
   }).join('');
+
+  // Nach Art (Muster-Familien) — wie viele Verben voll beherrscht.
+  const artRows = Object.values(L.byArt).map(a => {
+    const pct = a.total > 0 ? Math.round((a.voll / a.total) * 100) : 0;
+    return `<div style="display:flex;align-items:center;gap:8px;font-size:.78rem;margin-bottom:5px;">
+      <span style="flex:1;color:var(--text);font-weight:700;">${a.name}</span>
+      <span style="color:#888;">${a.voll}/${a.total} voll</span>
+      <span style="width:70px;height:8px;background:#eee;border-radius:6px;overflow:hidden;flex-shrink:0;"><span style="display:block;height:100%;width:${pct}%;background:#3aaa5c;border-radius:6px;"></span></span>
+    </div>`;
+  }).join('');
+
+  const played = L.voll + L.teilweise > 0;
   return `
     <div style="margin-bottom:16px;">
-      <h3 style="font-family:'Fredoka One',cursive;color:var(--purple);font-size:1rem;margin:0 0 8px;">🔁 Unregelmäßige Verben</h3>
-      ${anyPlayed ? bars : '<div style="font-size:.82rem;color:#999;text-align:center;padding:10px;">Noch nicht geübt.</div>'}
+      <h3 style="font-family:'Fredoka One',cursive;color:var(--purple);font-size:1rem;margin:0 0 4px;">🔁 Unregelmäßige Verben</h3>
+      <div style="font-size:.74rem;color:#7a3aac;font-weight:700;margin-bottom:8px;">📚 ${head}</div>
+      ${chips}
+      <div style="font-size:.72rem;color:#999;font-weight:700;margin:0 0 4px;">Nach Können</div>
+      ${compBars}
+      <div style="font-size:.72rem;color:#999;font-weight:700;margin:10px 0 4px;">Nach Muster</div>
+      ${artRows}
+      ${played ? '' : '<div style="font-size:.78rem;color:#999;text-align:center;padding:8px;">Noch nicht geübt — tippe oben auf „üben".</div>'}
     </div>`;
 }
 
