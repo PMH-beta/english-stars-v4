@@ -1,5 +1,5 @@
 // src/modules/game.js
-import { QPERROUND, EXAM_QUESTIONS, calcGrade, gradeText } from './config.js';
+import { QPERROUND, EXAM_QUESTIONS, calcGrade, gradeText, UV_LVL } from './config.js';
 import { effectivePct, isMastered, statKeyFor, getVocabStat } from './stats.js';
 import { activeDeck, syncMirrorFromActiveDeck } from './decks.js';
 import { showScreen, showMenu, hideFeedback, showFeedback } from './ui.js';
@@ -78,42 +78,121 @@ function bVocabPronounce(item) {
     question:`🎙️ Sprich auf Englisch:\n🇩🇪 ${item.de}`,hint:'',answer:item.en};
 }
 
-// ── Verb-Transformationsfragen (Gestaltwandler, Spec §3) ──
+// ── Verb-Transformationsfragen (Gestaltwandler, Spec §3–5) ──
 // Zusätzlich zur UNVERÄNDERTEN Basisfrage (gehen → go) die Transformation im
-// Englischen: go → went / gone. Suffixe: _past_* / _pp_*. Distraktoren sind
-// verlockend falsche Formen (formDistractors), NICHT andere Wörter.
+// Englischen: go → went / gone. Suffixe: _past_* / _pp_*. Stats laufen über
+// _presetId → globalPresetStats.
+//
+// METHODEN-LEITER (§4): pro Disziplin drei Methoden leicht→mittel→schwer. Die
+// Stufe wird je Frage aus dem EMA abgeleitet (§5, Variante „aus EMA"): <3 Tries
+// oder EMA<up2 = leicht, ≥up2 = mittel, ≥up3 = schwer. Kein gespeicherter lvl
+// → kein Sync-Umbau. Interleaving: gelegentlich eine leichtere Variante (nie
+// „alles schwer"). Alle Methoden nutzen die vorhandenen Render-Typen
+// (mc/type/pronounce) — nur Aufgabe/Auswahl/Antwort wechseln.
 function _firstForm(s){ return (s||'').split('/')[0].trim(); }
 function _verbMeta(which){
   return which==='past'
     ? {label:'Vergangenheit', get:i=>i.forms.past, suf:{mc:'_past_mc',sp:'_past_sp',pr:'_past_pr'}}
     : {label:'Partizip',      get:i=>i.forms.participle, suf:{mc:'_pp_mc',sp:'_pp_sp',pr:'_pp_pr'}};
 }
-function bVerbMC(item, which){
-  const mt=_verbMeta(which); const target=_firstForm(mt.get(item));
-  return {type:'mc',badge:'vocab',statKey:statKeyFor(item.de, item.en, mt.suf.mc, item._presetId||null),_presetId:item._presetId||null,
-    question:`🔁 ${item.en} → ?\n(${mt.label})`,hint:'',
-    choices:shuffle([target,...formDistractors(item,which)]),answer:target};
+
+// Methodenstufe (1/2/3) aus dem vorhandenen EMA eines Suffix-Stats ableiten.
+function uvLevel(statKey){
+  const s=window.SD?.globalPresetStats?.wordStats?.[statKey];
+  let lvl=1;
+  if(s && Math.floor(s.asked||0)>=3){
+    const ep=effectivePct(s);
+    if(ep>=UV_LVL.up3) lvl=3; else if(ep>=UV_LVL.up2) lvl=2;
+  }
+  if(lvl>1 && Math.random()<UV_LVL.interleave) lvl=1+Math.floor(Math.random()*lvl); // 1..lvl
+  return lvl;
 }
-function bVerbType(item, which){
-  const mt=_verbMeta(which);
-  return {type:'type',badge:'spelling',statKey:statKeyFor(item.de, item.en, mt.suf.sp, item._presetId||null),_presetId:item._presetId||null,
-    question:`✏️ ${mt.label} schreiben:\n🔁 ${item.en} → ?`,hint:'',answer:mt.get(item)};
+
+// n Distraktoren aus den ECHTEN Formen anderer Verben (für die schwere
+// Erkennen-Stufe: keine offensichtlich erfundenen Formen wie „goed").
+function _otherForms(item, which, n, exclude){
+  const ex=(exclude||'').toLowerCase();
+  const pool=window.VOCAB.filter(v=>v!==item && v.forms)
+    .map(v=>_firstForm(which==='past'?v.forms.past:v.forms.participle))
+    .filter(f=>f && f.toLowerCase()!==ex);
+  return pick([...new Set(pool)], n);
 }
-function bVerbPronounce(item, which){
-  const mt=_verbMeta(which); const target=_firstForm(mt.get(item));
-  return {type:'pronounce',badge:'pronounce',statKey:statKeyFor(item.de, item.en, mt.suf.pr, item._presetId||null),_presetId:item._presetId||null,
-    question:`🎙️ ${mt.label} sprechen:\n🔁 ${item.en} → ?`,hint:'',answer:target};
+// n Grundformen anderer Verben (für die mittlere Erkennen-Stufe: Form→Grundform).
+function _otherInfinitives(item, n){
+  return pick(window.VOCAB.filter(v=>v!==item), n).map(v=>_firstForm(v.en));
+}
+// Eine Form mit ausgeblendetem erstem Vokal (Lücken-Buchstaben: went → „w _ n t").
+function _scaffold(w){
+  w=_firstForm(w);
+  const i=w.search(/[aeiou]/i);
+  const idx=i>=0?i:Math.floor(w.length/2);
+  const arr=w.split(''); arr[idx]='_';
+  return arr.join(' ');
+}
+
+// 🔍 Erkennen (MC, lesen)
+function bErkennen(item, which, lvl){
+  const mt=_verbMeta(which); const target=_firstForm(mt.get(item)); const inf=_firstForm(item.en);
+  const base={type:'mc',badge:'vocab',statKey:statKeyFor(item.de,item.en,mt.suf.mc,item._presetId||null),_presetId:item._presetId||null,hint:''};
+  if(lvl===2){ // mittel: Form → Grundform
+    return {...base,question:`🔁 ${target} → ?\n(Grundform)`,choices:shuffle([inf,..._otherInfinitives(item,3)]),answer:inf};
+  }
+  if(lvl===3){ // schwer: Grundform → Form, Distraktoren = echte Formen anderer Verben
+    return {...base,question:`🔁 ${inf} → ?\n(${mt.label})`,choices:shuffle([target,..._otherForms(item,which,3,target)]),answer:target};
+  }
+  // leicht: Grundform → Form, verlockend falsche Formen
+  return {...base,question:`🔁 ${inf} → ?\n(${mt.label})`,choices:shuffle([target,...formDistractors(item,which)]),answer:target};
+}
+
+// 🗣️ Rufen (Mikro, sprechen)
+function bRufen(item, which, lvl){
+  const mt=_verbMeta(which); const target=_firstForm(mt.get(item)); const inf=_firstForm(item.en);
+  const base={type:'pronounce',badge:'pronounce',statKey:statKeyFor(item.de,item.en,mt.suf.pr,item._presetId||null),_presetId:item._presetId||null,hint:''};
+  if(lvl===1){ // leicht: gezeigte Form vorlesen
+    return {...base,question:`🎙️ Lies laut vor:\n🔁 ${target}`,answer:target};
+  }
+  if(lvl===3){ // schwer: ganze Reihe sprechen
+    const chain=`${inf} ${_firstForm(item.forms.past)} ${_firstForm(item.forms.participle)}`;
+    return {...base,question:`🎙️ Sprich die ganze Reihe:\n🔁 ${inf} – ? – ?`,answer:chain};
+  }
+  // mittel: aus dem Kopf (Grundform → Form sagen)
+  return {...base,question:`🎙️ ${mt.label} sprechen:\n🔁 ${item.en} → ?`,answer:target};
+}
+
+// 🔨 Schmieden (Tippen, schreiben)
+function bSchmieden(item, which, lvl){
+  const mt=_verbMeta(which); const full=mt.get(item); const target=_firstForm(full); const inf=_firstForm(item.en);
+  const base={type:'type',badge:'spelling',statKey:statKeyFor(item.de,item.en,mt.suf.sp,item._presetId||null),_presetId:item._presetId||null,hint:''};
+  if(lvl===1){ // leicht: Lücken-Buchstaben ergänzen
+    return {...base,question:`✏️ ${mt.label} von ${inf} — ergänze:\n🔁 ${_scaffold(target)}`,answer:full};
+  }
+  if(lvl===2){ // mittel: falsche Form korrigieren
+    const wrong=(formDistractors(item,which)[0])||target;
+    return {...base,question:`✏️ Verbessere die falsche Form:\n🔁 ${wrong} → ?`,answer:full};
+  }
+  // schwer: frei tippen
+  return {...base,question:`✏️ ${mt.label} schreiben:\n🔁 ${item.en} → ?`,answer:full};
 }
 
 // Gestaltwandler-Pool: pro Verb die Basisfrage + past- + pp-Transformation in
-// der gewählten Kompetenz. Stats laufen über _presetId → globalPresetStats.
+// der gewählten Disziplin; die Transformationen in der EMA-abgeleiteten Methode.
 function buildUVPool(m, limit){
-  const all=[];
+  const all=[]; const pid=IRREGULAR_PRESET_ID;
   window.VOCAB.forEach(v=>{
     if(!v.forms) return;   // Sicherheitsnetz — UV-Set hat immer forms
-    if(m==='vocab'){       all.push(bVocabMC(v));        all.push(bVerbMC(v,'past'));        all.push(bVerbMC(v,'pp')); }
-    else if(m==='spelling'){ all.push(bVocabType(v));     all.push(bVerbType(v,'past'));      all.push(bVerbType(v,'pp')); }
-    else if(m==='pronounce'){all.push(bVocabPronounce(v));all.push(bVerbPronounce(v,'past')); all.push(bVerbPronounce(v,'pp')); }
+    if(m==='vocab'){
+      all.push(bVocabMC(v));
+      all.push(bErkennen(v,'past', uvLevel(statKeyFor(v.de,v.en,'_past_mc',pid))));
+      all.push(bErkennen(v,'pp',   uvLevel(statKeyFor(v.de,v.en,'_pp_mc',pid))));
+    } else if(m==='spelling'){
+      all.push(bVocabType(v));
+      all.push(bSchmieden(v,'past', uvLevel(statKeyFor(v.de,v.en,'_past_sp',pid))));
+      all.push(bSchmieden(v,'pp',   uvLevel(statKeyFor(v.de,v.en,'_pp_sp',pid))));
+    } else if(m==='pronounce'){
+      all.push(bVocabPronounce(v));
+      all.push(bRufen(v,'past', uvLevel(statKeyFor(v.de,v.en,'_past_pr',pid))));
+      all.push(bRufen(v,'pp',   uvLevel(statKeyFor(v.de,v.en,'_pp_pr',pid))));
+    }
   });
   const getS=q=>window.SD?.globalPresetStats?.wordStats?.[q.statKey];
   const take=(window.isSchnellModus&&!window.isExamMode) ? all.length : limit;

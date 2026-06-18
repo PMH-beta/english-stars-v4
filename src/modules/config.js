@@ -1,7 +1,7 @@
 // src/modules/config.js
 // Zentrale Konstanten und Konfiguration
 
-export const APP_VERSION = 'v4.0.195';
+export const APP_VERSION = 'v4.0.196';
 
 export const QPERROUND = 20;
 export const EXAM_QUESTIONS = 30;
@@ -23,6 +23,12 @@ export function gradeText(grade) {
 export const EMA_ALPHA = 0.45; // Faktor für gewichteten Durchschnitt der letzten Antworten
 export const MASTERY_THRESHOLD = 0.9; // 90% korrekt = gemeistert
 export const MASTERY_MIN_ATTEMPTS = 3; // mindestens 3 Versuche bevor Wort als gemeistert gilt
+
+// Gestaltwandler (UV): Methoden-Stufen werden aus dem EMA abgeleitet (kein
+// gespeicherter Zustand → kein Sync-Umbau). up2/up3 = Schwellen leicht→mittel
+// →schwer (up3 = bestehende Mastery-Schwelle). interleave = Wahrscheinlichkeit,
+// gelegentlich eine leichtere Variante einzustreuen (nie „alles schwer").
+export const UV_LVL = { up2: 0.80, up3: 0.90, interleave: 0.2 };
 
 // Erkennt ob das aktuelle Gerät ein Mobile-Touch-Gerät ist
 export function isMobile() {
