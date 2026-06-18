@@ -79,9 +79,9 @@ function bVocabPronounce(item) {
 }
 
 // ── Verb-Transformationsfragen (Gestaltwandler, Spec §3–5) ──
-// Zusätzlich zur UNVERÄNDERTEN Basisfrage (gehen → go) die Transformation im
-// Englischen: go → went / gone. Suffixe: _past_* / _pp_*. Stats laufen über
-// _presetId → globalPresetStats.
+// UV übt NUR die Formen: go → went / gone (keine Basis-Übersetzung — die deutsche
+// Bedeutung steht als Kontext über jeder Frage). Suffixe: _past_* / _pp_*. Stats
+// laufen über _presetId → globalPresetStats.
 //
 // METHODEN-LEITER (§4): pro Disziplin drei Methoden leicht→mittel→schwer. Die
 // Stufe wird je Frage aus dem EMA abgeleitet (§5, Variante „aus EMA"): <3 Tries
@@ -96,6 +96,20 @@ function _verbMeta(which){
     : {label:'Partizip',      get:i=>i.forms.participle, suf:{mc:'_pp_mc',sp:'_pp_sp',pr:'_pp_pr'}};
 }
 
+// ── Frage-Kopf: macht intuitiv klar, WELCHE Form gefragt ist ──
+// Bedeutung (🇩🇪) + farbige Plakette mit Form-Nummer (1./2./3. Form). q.question
+// wird in renderQuestion als innerHTML gesetzt → HTML hier ist erlaubt.
+const _FORM_BADGE={
+  grund:['Grundform · 1. Form','#4D96FF'],
+  past: ['Vergangenheit · 2. Form','#e8920a'],
+  pp:   ['Partizip · 3. Form','#3aaa5c'],
+};
+function _uvMeaning(de){ return `<div style="font-size:.82rem;color:#999;font-weight:700;margin-bottom:5px;">🇩🇪 ${de}</div>`; }
+function _uvBadge(key,label,bg){ const b=_FORM_BADGE[key]||[label,bg]; return `<div style="display:inline-block;background:${b[1]};color:#fff;font-family:'Fredoka One',cursive;font-size:.72rem;padding:3px 12px;border-radius:20px;margin-bottom:10px;">${b[0]}</div>`; }
+function _uvInstr(t){ return `<div style="font-size:.85rem;color:#888;font-weight:700;margin-bottom:6px;">${t}</div>`; }
+function _uvTask(t){ return `<div style="font-size:1.45rem;font-weight:800;color:var(--text);letter-spacing:.5px;">${t}</div>`; }
+function _uvHead(de,key){ return _uvMeaning(de)+_uvBadge(key); }
+
 // Methodenstufe (1/2/3) aus dem vorhandenen EMA eines Suffix-Stats ableiten.
 function uvLevel(statKey){
   const s=window.SD?.globalPresetStats?.wordStats?.[statKey];
@@ -108,18 +122,15 @@ function uvLevel(statKey){
   return lvl;
 }
 
-// n Distraktoren aus den ECHTEN Formen anderer Verben (für die schwere
-// Erkennen-Stufe: keine offensichtlich erfundenen Formen wie „goed").
+// n Distraktoren aus den ECHTEN Formen anderer Verben (für höhere Erkennen-
+// Stufen: keine offensichtlich erfundenen Formen wie „goed", sondern echte
+// Verbformen — man muss das konkrete Verb wirklich kennen).
 function _otherForms(item, which, n, exclude){
   const ex=(exclude||'').toLowerCase();
   const pool=window.VOCAB.filter(v=>v!==item && v.forms)
     .map(v=>_firstForm(which==='past'?v.forms.past:v.forms.participle))
     .filter(f=>f && f.toLowerCase()!==ex);
   return pick([...new Set(pool)], n);
-}
-// n Grundformen anderer Verben (für die mittlere Erkennen-Stufe: Form→Grundform).
-function _otherInfinitives(item, n){
-  return pick(window.VOCAB.filter(v=>v!==item), n).map(v=>_firstForm(v.en));
 }
 // Eine Form mit ausgeblendetem erstem Vokal (Lücken-Buchstaben: went → „w _ n t").
 function _scaffold(w){
@@ -130,18 +141,22 @@ function _scaffold(w){
   return arr.join(' ');
 }
 
-// 🔍 Erkennen (MC, lesen)
+// 🔍 Erkennen (MC, lesen) — immer Grundform → Form; je Stufe schwerere
+// Distraktoren (leicht: erfundene Formen → schwer: echte Fremdformen).
 function bErkennen(item, which, lvl){
   const mt=_verbMeta(which); const target=_firstForm(mt.get(item)); const inf=_firstForm(item.en);
-  const base={type:'mc',badge:'vocab',statKey:statKeyFor(item.de,item.en,mt.suf.mc,item._presetId||null),_presetId:item._presetId||null,hint:''};
-  if(lvl===2){ // mittel: Form → Grundform
-    return {...base,question:`🔁 ${target} → ?\n(Grundform)`,choices:shuffle([inf,..._otherInfinitives(item,3)]),answer:inf};
+  const base={type:'mc',badge:'vocab',statKey:statKeyFor(item.de,item.en,mt.suf.mc,item._presetId||null),_presetId:item._presetId||null,
+    question:_uvHead(item.de,which)+_uvTask(`${inf} → ?`),answer:target};
+  if(lvl===3){ // schwer: nur echte Formen anderer Verben
+    return {...base,choices:shuffle([target,..._otherForms(item,which,3,target)])};
   }
-  if(lvl===3){ // schwer: Grundform → Form, Distraktoren = echte Formen anderer Verben
-    return {...base,question:`🔁 ${inf} → ?\n(${mt.label})`,choices:shuffle([target,..._otherForms(item,which,3,target)]),answer:target};
+  if(lvl===2){ // mittel: eine erfundene + zwei echte Fremdformen
+    const fake=(formDistractors(item,which)[0]);
+    const reals=_otherForms(item,which,fake?2:3,target);
+    return {...base,choices:shuffle([target,...(fake?[fake]:[]),...reals])};
   }
-  // leicht: Grundform → Form, verlockend falsche Formen
-  return {...base,question:`🔁 ${inf} → ?\n(${mt.label})`,choices:shuffle([target,...formDistractors(item,which)]),answer:target};
+  // leicht: verlockend falsche (erfundene) Formen
+  return {...base,choices:shuffle([target,...formDistractors(item,which)])};
 }
 
 // 🗣️ Rufen (Mikro, sprechen)
@@ -149,14 +164,14 @@ function bRufen(item, which, lvl){
   const mt=_verbMeta(which); const target=_firstForm(mt.get(item)); const inf=_firstForm(item.en);
   const base={type:'pronounce',badge:'pronounce',statKey:statKeyFor(item.de,item.en,mt.suf.pr,item._presetId||null),_presetId:item._presetId||null,hint:''};
   if(lvl===1){ // leicht: gezeigte Form vorlesen
-    return {...base,question:`🎙️ Lies laut vor:\n🔁 ${target}`,answer:target};
+    return {...base,question:_uvHead(item.de,which)+_uvInstr('🎙️ Lies die Form laut vor')+_uvTask(target),answer:target};
   }
   if(lvl===3){ // schwer: ganze Reihe sprechen
     const chain=`${inf} ${_firstForm(item.forms.past)} ${_firstForm(item.forms.participle)}`;
-    return {...base,question:`🎙️ Sprich die ganze Reihe:\n🔁 ${inf} – ? – ?`,answer:chain};
+    return {...base,question:_uvMeaning(item.de)+_uvBadge('all','Alle drei Formen','#a86cdb')+_uvInstr('🎙️ Sprich die ganze Reihe')+_uvTask(`${inf} – ? – ?`),answer:chain};
   }
   // mittel: aus dem Kopf (Grundform → Form sagen)
-  return {...base,question:`🎙️ ${mt.label} sprechen:\n🔁 ${item.en} → ?`,answer:target};
+  return {...base,question:_uvHead(item.de,which)+_uvInstr('🎙️ Sprich die Form')+_uvTask(`${inf} → ?`),answer:target};
 }
 
 // 🔨 Schmieden (Tippen, schreiben)
@@ -164,14 +179,14 @@ function bSchmieden(item, which, lvl){
   const mt=_verbMeta(which); const full=mt.get(item); const target=_firstForm(full); const inf=_firstForm(item.en);
   const base={type:'type',badge:'spelling',statKey:statKeyFor(item.de,item.en,mt.suf.sp,item._presetId||null),_presetId:item._presetId||null,hint:''};
   if(lvl===1){ // leicht: Lücken-Buchstaben ergänzen
-    return {...base,question:`✏️ ${mt.label} von ${inf} — ergänze:\n🔁 ${_scaffold(target)}`,answer:full};
+    return {...base,question:_uvHead(item.de,which)+_uvInstr('✏️ Ergänze die fehlenden Buchstaben')+_uvTask(_scaffold(target)),answer:full};
   }
   if(lvl===2){ // mittel: falsche Form korrigieren
     const wrong=(formDistractors(item,which)[0])||target;
-    return {...base,question:`✏️ Verbessere die falsche Form:\n🔁 ${wrong} → ?`,answer:full};
+    return {...base,question:_uvHead(item.de,which)+_uvInstr('✏️ Diese Form ist falsch — verbessere sie')+_uvTask(`${wrong} → ?`),answer:full};
   }
   // schwer: frei tippen
-  return {...base,question:`✏️ ${mt.label} schreiben:\n🔁 ${item.en} → ?`,answer:full};
+  return {...base,question:_uvHead(item.de,which)+_uvInstr('✏️ Schreibe die richtige Form')+_uvTask(`${inf} → ?`),answer:full};
 }
 
 // Partizip schaltet erst frei, wenn die Vergangenheit derselben Disziplin sitzt
@@ -182,23 +197,41 @@ function _ppUnlocked(v, pastSuffix){
   return !!s && Math.floor(s.asked||0)>=3 && effectivePct(s)>=UV_LVL.up2;
 }
 
-// Gestaltwandler-Pool: pro AKTIVEM Verb (window.VOCAB = tier-gefiltert) die
-// Basisfrage + Vergangenheit; Partizip erst nach Freischaltung (§6). Methoden
-// EMA-abgeleitet (§5).
+// Vollwandlung (§3/Phase 5): ein Verb ist „voll", wenn alle 6 Form-Suffixe
+// (past+pp × lesen/sprechen/schreiben) gemeistert sind. Erst dann darf es in
+// den gemischten Boss.
+const UV_FORM_SUFFIXES=['_past_mc','_past_sp','_past_pr','_pp_mc','_pp_sp','_pp_pr'];
+function _uvVoll(v){
+  const ws=window.SD?.globalPresetStats?.wordStats||{};
+  return UV_FORM_SUFFIXES.every(suf=>{ const s=ws[statKeyFor(v.de,v.en,suf,IRREGULAR_PRESET_ID)]; return s && Math.floor(s.asked||0)>=3 && effectivePct(s)>=UV_LVL.up3; });
+}
+
+// Gestaltwandler-Pool: pro AKTIVEM Verb (window.VOCAB = tier-gefiltert) Vergangen-
+// heit + (nach Freischaltung) Partizip, Methode EMA-abgeleitet (§5). Keine Basis-
+// Übersetzung mehr. mixed_vocab = Vollwandlung: nur „volle" Verben, Disziplinen
+// gemischt (Boss/Prüfung).
 function buildUVPool(m, limit){
   const all=[]; const pid=IRREGULAR_PRESET_ID;
+  if(m==='mixed_vocab'){
+    window.VOCAB.forEach(v=>{
+      if(!v.forms || !_uvVoll(v)) return;
+      ['past','pp'].forEach(w=>{
+        all.push(bErkennen(v,w, uvLevel(statKeyFor(v.de,v.en,_verbMeta(w).suf.mc,pid))));
+        all.push(bRufen(v,w,    uvLevel(statKeyFor(v.de,v.en,_verbMeta(w).suf.pr,pid))));
+        all.push(bSchmieden(v,w,uvLevel(statKeyFor(v.de,v.en,_verbMeta(w).suf.sp,pid))));
+      });
+    });
+    return shuffle(all).slice(0, limit);   // isExamMode → kein Mastery-Filter (Boss prüft Gemeistertes)
+  }
   window.VOCAB.forEach(v=>{
     if(!v.forms) return;   // Sicherheitsnetz — UV-Set hat immer forms
     if(m==='vocab'){
-      all.push(bVocabMC(v));
       all.push(bErkennen(v,'past', uvLevel(statKeyFor(v.de,v.en,'_past_mc',pid))));
       if(_ppUnlocked(v,'_past_mc')) all.push(bErkennen(v,'pp', uvLevel(statKeyFor(v.de,v.en,'_pp_mc',pid))));
     } else if(m==='spelling'){
-      all.push(bVocabType(v));
       all.push(bSchmieden(v,'past', uvLevel(statKeyFor(v.de,v.en,'_past_sp',pid))));
       if(_ppUnlocked(v,'_past_sp')) all.push(bSchmieden(v,'pp', uvLevel(statKeyFor(v.de,v.en,'_pp_sp',pid))));
     } else if(m==='pronounce'){
-      all.push(bVocabPronounce(v));
       all.push(bRufen(v,'past', uvLevel(statKeyFor(v.de,v.en,'_past_pr',pid))));
       if(_ppUnlocked(v,'_past_pr')) all.push(bRufen(v,'pp', uvLevel(statKeyFor(v.de,v.en,'_pp_pr',pid))));
     }
@@ -996,8 +1029,12 @@ function showEnd() {
     const pct=window.totalCorrect/Math.max(1,totalQ);
     const grade=calcGrade(pct);
     const percent=Math.round(pct*100);
-    const deck=activeDeck();
-    if(deck){
+    // Vollwandlung (UV) hat KEIN Deck: nicht in deck.lastExam/exams schreiben.
+    // saveProgress() (oben) hat den UV-Stand bereits markiert (global_preset).
+    const deck=window.isUV ? null : activeDeck();
+    if(window.isUV){
+      if(window.currentUser) commitProgress();
+    } else if(deck){
       deck.lastExam={grade,percent,date:Date.now()};
       persist(window.SD);
       if(window.currentUser) {
@@ -1012,8 +1049,8 @@ function showEnd() {
     document.getElementById('stat-correct').textContent=window.totalCorrect+'/'+totalQ;
     document.getElementById('stat-streak').textContent=window.bestStreak;
     document.getElementById('end-hs-msg').textContent=newHS?'🎉 Neuer Highscore!':'';
-    document.getElementById('end-emoji').textContent='📊 Note '+grade;
-    document.getElementById('end-title').textContent=gradeText(grade);
+    document.getElementById('end-emoji').textContent=window.isUV?('🌟 Note '+grade):('📊 Note '+grade);
+    document.getElementById('end-title').textContent=window.isUV?('Vollwandlung — '+gradeText(grade)):gradeText(grade);
     const dateStr=new Date(deck&&deck.lastExam?deck.lastExam.date:Date.now()).toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'});
     document.getElementById('end-stars').textContent=percent+'% richtig · '+dateStr;
     if(grade<=2) window.spawnConfetti();

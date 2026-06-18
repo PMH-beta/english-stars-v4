@@ -368,6 +368,19 @@ function renderStudentUV() {
       </span></div>
     </button>`;
   }).join('');
+  // Vollwandlung (Phase 5): gemischter Boss — erst frei, wenn ≥1 Verb voll
+  // beherrscht ist (alle drei Disziplinen). Sonst gesperrt mit Hinweis.
+  const vollCount = uvLernstand().voll;
+  const unlocked = vollCount > 0;
+  const bossBtn = unlocked
+    ? `<button class="big-btn green" onclick="startIrregularVerbs('mixed_vocab')">
+        <span class="icon-btn">🌟</span>
+        <div><span>Vollwandlung</span><span class="btn-sub"><span class="btn-progress-text">Boss — alle Disziplinen gemischt · ${vollCount} Verben bereit</span></span></div>
+      </button>`
+    : `<button class="big-btn" disabled style="opacity:.55;cursor:not-allowed;background:#e8e8e8;color:#999;box-shadow:0 3px 0 #ccc;">
+        <span class="icon-btn">🔒</span>
+        <div><span>Vollwandlung</span><span class="btn-sub"><span class="btn-progress-text">Meistere ein Verb in allen drei Disziplinen</span></span></div>
+      </button>`;
   // Lehrplan-Wahl (§6): Schulart + Klasse → aktiver Verb-Satz (tier ≤ Decke).
   const cur = getUvCurriculum() || {};
   const schularten = [
@@ -401,7 +414,7 @@ function renderStudentUV() {
       </div>
       <div style="font-size:.74rem;color:#7a3aac;font-weight:700;text-align:center;">📚 ${lvlInfo}</div>
     </div>
-    <div class="mode-buttons">${btns}</div>`;
+    <div class="mode-buttons">${btns}${bossBtn}</div>`;
 
   const schulSel = document.getElementById('uv-schulart');
   const klasseSel = document.getElementById('uv-klasse');
@@ -702,13 +715,17 @@ function _uvLernstandBlock() {
     </div>`;
   }).join('');
 
-  // Nach Art (Muster-Familien) — wie viele Verben voll beherrscht.
+  // Sternbilder (Phase 5): jede Muster-Familie als Sternbild, gefüllte Sterne =
+  // Anteil voll beherrschter Verben (5er-Skala).
   const artRows = Object.values(L.byArt).map(a => {
-    const pct = a.total > 0 ? Math.round((a.voll / a.total) * 100) : 0;
+    const ratio = a.total > 0 ? a.voll / a.total : 0;
+    const filled = Math.round(ratio * 5);
+    const stars = '★★★★★'.slice(0, filled) + '☆☆☆☆☆'.slice(0, 5 - filled);
+    const done = a.total > 0 && a.voll === a.total;
     return `<div style="display:flex;align-items:center;gap:8px;font-size:.78rem;margin-bottom:5px;">
-      <span style="flex:1;color:var(--text);font-weight:700;">${a.name}</span>
-      <span style="color:#888;">${a.voll}/${a.total} voll</span>
-      <span style="width:70px;height:8px;background:#eee;border-radius:6px;overflow:hidden;flex-shrink:0;"><span style="display:block;height:100%;width:${pct}%;background:#3aaa5c;border-radius:6px;"></span></span>
+      <span style="flex:1;color:var(--text);font-weight:700;">${done ? '🌟 ' : ''}${a.name}</span>
+      <span style="letter-spacing:1px;color:#f5a623;">${stars}</span>
+      <span style="color:#888;width:54px;text-align:right;">${a.voll}/${a.total}</span>
     </div>`;
   }).join('');
 
@@ -720,7 +737,7 @@ function _uvLernstandBlock() {
       ${chips}
       <div style="font-size:.72rem;color:#999;font-weight:700;margin:0 0 4px;">Nach Können</div>
       ${compBars}
-      <div style="font-size:.72rem;color:#999;font-weight:700;margin:10px 0 4px;">Nach Muster</div>
+      <div style="font-size:.72rem;color:#999;font-weight:700;margin:10px 0 4px;">🌟 Sternbilder (Muster-Familien)</div>
       ${artRows}
       ${played ? '' : '<div style="font-size:.78rem;color:#999;text-align:center;padding:8px;">Noch nicht geübt — tippe oben auf „üben".</div>'}
     </div>`;

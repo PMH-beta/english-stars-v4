@@ -12,11 +12,12 @@ import { effectivePct, isStatMastered } from './stats.js';
 import { statKeyFor } from './stats.js';
 import { irregularAsVocab, expectedVerbs, IRREGULAR_PRESET_ID } from './irregular-verbs.js';
 
-// Form×Kompetenz-Suffixe je Kompetenz (Basisfrage + past + pp).
+// Form×Kompetenz-Suffixe je Kompetenz (nur Formen: past + pp — keine Basis-
+// Übersetzung mehr, UV übt ausschließlich die Verbformen).
 const UV_SUFFIXES = {
-  vocab:     ['_mc', '_past_mc', '_pp_mc'],
-  spelling:  ['_sp', '_past_sp', '_pp_sp'],
-  pronounce: ['_pr', '_past_pr', '_pp_pr'],
+  vocab:     ['_past_mc', '_pp_mc'],
+  spelling:  ['_past_sp', '_pp_sp'],
+  pronounce: ['_past_pr', '_pp_pr'],
 };
 
 // ── Lehrplan-Wahl (Phase 3, §6) ─────────────────────────────────────────────
@@ -84,8 +85,9 @@ export function uvProgressPct(mode) {
 }
 
 // ── Lernstand (Phase 4, §7) ─────────────────────────────────────────────────
-// Alle 9 Suffixe eines Verbs (Basis + past + pp, je lesen/sprechen/schreiben).
-const UV_ALL_SUFFIXES = ['_mc','_sp','_pr','_past_mc','_past_sp','_past_pr','_pp_mc','_pp_sp','_pp_pr'];
+// Alle 6 Form-Suffixe eines Verbs (past + pp, je lesen/sprechen/schreiben).
+// „voll" = alle 6 gemeistert (deckt sich mit _uvVoll in game.js → Vollwandlung).
+const UV_ALL_SUFFIXES = ['_past_mc','_past_sp','_past_pr','_pp_mc','_pp_sp','_pp_pr'];
 const UV_ART_NAMES = {
   einzel: 'Einzelgänger', gleich: 'Gleichmacher', iau: 'i–a–u-Wandler',
   en: '-en-Verwandler', keine: 'Faulpelze',
