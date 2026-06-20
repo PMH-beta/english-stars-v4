@@ -177,25 +177,38 @@ export const IRREGULAR_VERBS = [
   { de: 'abwerfen, vergießen', en: 'shed', past: 'shed',     pp: 'shed',     art: 'keine', tier: 5 },
 ];
 
-// ── Lehrplan-Lineal ─────────────────────────────────────────────────────────
-// Höchste Stufe (= höchstes GER-Niveau), das bis Ende der jeweiligen Klasse
-// erwartet wird. Verankert an den KMK-Bildungsstandards / LehrplanPLUS Bayern:
-//   Mittel-/Hauptschule  → A2 (Quali A2+; mittlerer Abschluss B1)
-//   Realschule           → B1/B1+ (MSA, Kl. 10)
-//   Gesamtschule         → A2–B1+ in Sek I, eigene Oberstufe bis B2/C1
-//   Gymnasium            → B1+ (Kl. 10) → B2 mit Anteilen C1 (Abitur)
-// Editierbar — Lehrpläne variieren je Bundesland.
-export const CURRICULUM = {
-  mittelschule: { 5: 1, 6: 1, 7: 2, 8: 2, 9: 2 },
-  realschule:   { 5: 1, 6: 1, 7: 2, 8: 2, 9: 3, 10: 3 },
-  gesamtschule: { 5: 1, 6: 1, 7: 2, 8: 2, 9: 3, 10: 3, 11: 4, 12: 5, 13: 5 },
-  gymnasium:    { 5: 1, 6: 2, 7: 2, 8: 3, 9: 3, 10: 3, 11: 4, 12: 5, 13: 5 },
-};
+// ── Sternbilder (Schwierigkeits-Gruppen) ────────────────────────────────────
+// Statt Schulart/Klasse: die Verben werden nach Schwierigkeit (tier 1→5) geordnet
+// und je Stufe in kleine, benannte Sternbilder à CONSTELLATION_SIZE Verben zerlegt.
+// Reihenfolge der Liste = Spielreihenfolge (leicht → schwer), linear freigeschaltet.
+const CONSTELLATION_SIZE = 6;
+export const CONSTELLATION_NAMES = [
+  'Kleiner Wagen', 'Großer Wagen', 'Kassiopeia', 'Orion', 'Schwan', 'Adler',
+  'Leier', 'Stier', 'Zwillinge', 'Löwe', 'Krebs', 'Jungfrau', 'Skorpion',
+  'Schütze', 'Pegasus', 'Andromeda', 'Perseus', 'Drache', 'Bootes', 'Widder',
+  'Fische', 'Steinbock', 'Wassermann', 'Walfisch', 'Herkules', 'Delfin',
+  'Pfeil', 'Luchs', 'Eidechse', 'Phönix', 'Greif', 'Pfau', 'Kranich', 'Tukan',
+];
 
-// Erwarteter Wortschatz für einen Schüler (Schulart + Klasse).
-export function expectedVerbs(schulart, klasse) {
-  const ceiling = (CURRICULUM[schulart] || {})[klasse] || 1;
-  return IRREGULAR_VERBS.filter((v) => v.tier <= ceiling);
+let _constellations = null;
+// Geordnete Sternbild-Liste: pro tier eigene Chunks (kein Sternbild mischt Stufen).
+export function getConstellations() {
+  if (_constellations) return _constellations;
+  const out = [];
+  for (let t = 1; t <= 5; t++) {
+    const verbs = IRREGULAR_VERBS.filter((v) => v.tier === t);
+    for (let i = 0; i < verbs.length; i += CONSTELLATION_SIZE) {
+      const idx = out.length;
+      out.push({
+        id: 'c' + idx, idx,
+        name: CONSTELLATION_NAMES[idx] || ('Sternbild ' + (idx + 1)),
+        tier: t, cefr: TIER_CEFR[t] || '',
+        verbs: verbs.slice(i, i + CONSTELLATION_SIZE),
+      });
+    }
+  }
+  _constellations = out;
+  return out;
 }
 
 // Verben einer Art (Muster-Familie) — für die Gestaltwandler-Sternbilder.

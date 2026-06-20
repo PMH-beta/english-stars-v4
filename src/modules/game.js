@@ -92,17 +92,17 @@ function bVocabPronounce(item) {
 function _firstForm(s){ return (s||'').split('/')[0].trim(); }
 function _verbMeta(which){
   return which==='past'
-    ? {label:'Vergangenheit', get:i=>i.forms.past, suf:{mc:'_past_mc',sp:'_past_sp',pr:'_past_pr'}}
-    : {label:'Partizip',      get:i=>i.forms.participle, suf:{mc:'_pp_mc',sp:'_pp_sp',pr:'_pp_pr'}};
+    ? {label:'Simple Past',    get:i=>i.forms.past, suf:{mc:'_past_mc',sp:'_past_sp',pr:'_past_pr'}}
+    : {label:'Past Participle', get:i=>i.forms.participle, suf:{mc:'_pp_mc',sp:'_pp_sp',pr:'_pp_pr'}};
 }
 
 // ── Frage-Kopf: macht intuitiv klar, WELCHE Form gefragt ist ──
 // Bedeutung (🇩🇪) + farbige Plakette mit Form-Nummer (1./2./3. Form). q.question
 // wird in renderQuestion als innerHTML gesetzt → HTML hier ist erlaubt.
 const _FORM_BADGE={
-  grund:['Grundform · 1. Form','#4D96FF'],
-  past: ['Vergangenheit · 2. Form','#e8920a'],
-  pp:   ['Partizip · 3. Form','#3aaa5c'],
+  grund:['Present','#4D96FF'],
+  past: ['Simple Past','#e8920a'],
+  pp:   ['Past Participle','#3aaa5c'],
 };
 function _uvMeaning(de){ return `<div style="font-size:.82rem;color:#999;font-weight:700;margin-bottom:5px;">🇩🇪 ${de}</div>`; }
 function _uvBadge(key,label,bg){ const b=_FORM_BADGE[key]||[label,bg]; return `<div style="display:inline-block;background:${b[1]};color:#fff;font-family:'Fredoka One',cursive;font-size:.72rem;padding:3px 12px;border-radius:20px;margin-bottom:10px;">${b[0]}</div>`; }
@@ -159,18 +159,17 @@ function bErkennen(item, which, lvl){
   return {...base,choices:shuffle([target,...formDistractors(item,which)])};
 }
 
-// 🗣️ Rufen (Mikro, sprechen)
+// 🗣️ Rufen (Mikro, sprechen) — Present steht da, die Zielform muss man WISSEN
+// und sprechen (kein bloßes Vorlesen mehr). Darum die schwerste Disziplin →
+// schaltet im Sternbild erst nach Erkennen+Schmieden frei.
 function bRufen(item, which, lvl){
   const mt=_verbMeta(which); const target=_firstForm(mt.get(item)); const inf=_firstForm(item.en);
   const base={type:'pronounce',badge:'pronounce',statKey:statKeyFor(item.de,item.en,mt.suf.pr,item._presetId||null),_presetId:item._presetId||null,hint:''};
-  if(lvl===1){ // leicht: gezeigte Form vorlesen
-    return {...base,question:_uvHead(item.de,which)+_uvInstr('🎙️ Lies die Form laut vor')+_uvTask(target),answer:target};
-  }
   if(lvl===3){ // schwer: ganze Reihe sprechen
     const chain=`${inf} ${_firstForm(item.forms.past)} ${_firstForm(item.forms.participle)}`;
     return {...base,question:_uvMeaning(item.de)+_uvBadge('all','Alle drei Formen','#a86cdb')+_uvInstr('🎙️ Sprich die ganze Reihe')+_uvTask(`${inf} – ? – ?`),answer:chain};
   }
-  // mittel: aus dem Kopf (Grundform → Form sagen)
+  // leicht/mittel: Present zeigen, Zielform aus dem Kopf sprechen
   return {...base,question:_uvHead(item.de,which)+_uvInstr('🎙️ Sprich die Form')+_uvTask(`${inf} → ?`),answer:target};
 }
 
@@ -223,17 +222,21 @@ function buildUVPool(m, limit){
     });
     return shuffle(all).slice(0, limit);   // isExamMode → kein Mastery-Filter (Boss prüft Gemeistertes)
   }
+  // Stern-Runde (Sternbild): window._uvStar = {mode, which} grenzt die Runde auf
+  // GENAU eine Disziplin × Form ein (Past- vs. Past-Participle-Stern getrennt).
+  // Die Past→PP-Reihenfolge regelt jetzt die Stern-Freischaltung (irregular-game),
+  // nicht mehr _ppUnlocked.
+  const star=window._uvStar;
+  const B={vocab:bErkennen,spelling:bSchmieden,pronounce:bRufen}[m];
+  const SUF={vocab:{past:'_past_mc',pp:'_pp_mc'},spelling:{past:'_past_sp',pp:'_pp_sp'},pronounce:{past:'_past_pr',pp:'_pp_pr'}}[m];
   window.VOCAB.forEach(v=>{
-    if(!v.forms) return;   // Sicherheitsnetz — UV-Set hat immer forms
-    if(m==='vocab'){
-      all.push(bErkennen(v,'past', uvLevel(statKeyFor(v.de,v.en,'_past_mc',pid))));
-      if(_ppUnlocked(v,'_past_mc')) all.push(bErkennen(v,'pp', uvLevel(statKeyFor(v.de,v.en,'_pp_mc',pid))));
-    } else if(m==='spelling'){
-      all.push(bSchmieden(v,'past', uvLevel(statKeyFor(v.de,v.en,'_past_sp',pid))));
-      if(_ppUnlocked(v,'_past_sp')) all.push(bSchmieden(v,'pp', uvLevel(statKeyFor(v.de,v.en,'_pp_sp',pid))));
-    } else if(m==='pronounce'){
-      all.push(bRufen(v,'past', uvLevel(statKeyFor(v.de,v.en,'_past_pr',pid))));
-      if(_ppUnlocked(v,'_past_pr')) all.push(bRufen(v,'pp', uvLevel(statKeyFor(v.de,v.en,'_pp_pr',pid))));
+    if(!v.forms || !B) return;   // Sicherheitsnetz — UV-Set hat immer forms
+    if(star){
+      all.push(B(v, star.which, uvLevel(statKeyFor(v.de,v.en,SUF[star.which],pid))));
+    } else {
+      // Fallback ohne Stern (z. B. Lernstand-Gap-Runde): Past + (nach Freischaltung) PP.
+      all.push(B(v,'past', uvLevel(statKeyFor(v.de,v.en,SUF.past,pid))));
+      if(_ppUnlocked(v,SUF.past)) all.push(B(v,'pp', uvLevel(statKeyFor(v.de,v.en,SUF.pp,pid))));
     }
   });
   const getS=q=>window.SD?.globalPresetStats?.wordStats?.[q.statKey];
@@ -1033,6 +1036,8 @@ function showEnd() {
     // saveProgress() (oben) hat den UV-Stand bereits markiert (global_preset).
     const deck=window.isUV ? null : activeDeck();
     if(window.isUV){
+      // Vollwandlung beendet → Boss-Stern des Sternbilds als bestanden markieren.
+      try{ if(window._uvConstellation && window._uvMarkBoss) window._uvMarkBoss(window._uvConstellation.idx); }catch(e){}
       if(window.currentUser) commitProgress();
     } else if(deck){
       deck.lastExam={grade,percent,date:Date.now()};

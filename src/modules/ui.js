@@ -7,8 +7,7 @@ import { releaseMicStream, stopVisualizer, voskStop, speakWord } from './speech.
 import { signIn, signUp, signOut, resendConfirmation, requestPasswordReset, updatePassword, signInWithGoogle } from './auth.js';
 import { cloudLoad, cloudReset, saveDeck, saveWordStats, saveExam, markDirty, flushPendingSync, setCloudConfirmed, getPendingCount, setKnownSig, cloudChangedRemotely } from './sync.js';
 import { commitDirty } from './dialog.js';
-import { uvProgress, uvProgressPct, getUvCurriculum, setUvCurriculum, activeVerbs, uvLernstand } from './irregular-game.js';
-import { CURRICULUM, TIER_CEFR } from './irregular-verbs.js';
+import { uvMap, uvLernstand } from './irregular-game.js';
 
 const API_KEY_SK = 'es_apikey';
 
@@ -347,57 +346,64 @@ function renderStudentMode() {
   if (sub === 'uv') renderStudentUV();
 }
 
-// UV-Tab (Gestaltwandler): drei reine Modi mit Live-Fortschritt. Buttons starten
-// die UV-Engine (startIrregularVerbs), kein Deck.
+// UV-Tab (Gestaltwandler): Sternkarte. Jedes Sternbild = Schwierigkeits-Gruppe
+// mit 7 Sternen (Erkennen/Schmieden/Rufen × Past/PP + Vollwandlung-Boss). Sterne
+// starten eine scoped Runde (startConstellationStar/Boss), kein Deck.
+function _uvStarRow(idx, s) {
+  const label = s.boss ? 'Vollwandlung' : `${s.icon} ${s.name} · ${s.form}`;
+  const click = s.boss ? `startConstellationBoss(${idx})` : `startConstellationStar(${idx},${s.i})`;
+  if (s.lit) {   // geleuchtet → goldener Stern, anklickbar zum Wiederholen
+    return `<button onclick="${click}" style="display:flex;align-items:center;gap:8px;width:100%;text-align:left;border:none;border-radius:10px;padding:9px 11px;cursor:pointer;background:rgba(245,166,35,.16);color:#a86a08;font-family:'Nunito',sans-serif;font-weight:800;font-size:.84rem;">
+      <span>⭐</span><span style="flex:1;">${label}</span><span style="font-size:.72rem;">✓</span></button>`;
+  }
+  if (s.unlocked) {   // spielbar
+    const prog = (!s.boss && s.prog) ? `<span style="font-size:.72rem;color:#fff;opacity:.85;">${s.prog.mastered}/${s.prog.total}</span>` : '';
+    const bg = s.boss ? 'var(--green,#3aaa5c)' : 'var(--purple)';
+    return `<button onclick="${click}" style="display:flex;align-items:center;gap:8px;width:100%;text-align:left;border:none;border-radius:10px;padding:9px 11px;cursor:pointer;background:${bg};color:#fff;font-family:'Nunito',sans-serif;font-weight:800;font-size:.84rem;box-shadow:0 3px 0 rgba(0,0,0,.12);">
+      <span style="flex:1;">${label}</span>${prog}<span>▸</span></button>`;
+  }
+  // gesperrt
+  return `<div style="display:flex;align-items:center;gap:8px;padding:9px 11px;border-radius:10px;background:#f2f2f2;color:#b9b9b9;font-weight:700;font-size:.84rem;">
+    <span>☆</span><span style="flex:1;">${s.boss ? 'Vollwandlung' : `${s.icon} ${s.name} · ${s.form}`}</span><span style="font-size:.7rem;">🔒</span></div>`;
+}
+
+function _uvConstCard(m, isCurrent) {
+  const idx = m.c.idx;
+  const litCount = m.stars.filter(s => s.lit && !s.boss).length;
+  const rows = m.stars.map(s => _uvStarRow(idx, s)).join('');
+  return `<div style="border:2px solid ${isCurrent ? 'var(--purple)' : '#e0d4f0'};border-radius:14px;padding:12px;margin-bottom:12px;background:#fff;">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+      <span style="font-family:'Fredoka One',cursive;color:var(--purple);font-size:1rem;flex:1;">${m.c.name}</span>
+      <span style="font-size:.7rem;font-weight:700;color:#7a3aac;background:#f3ecfb;padding:2px 8px;border-radius:20px;">${m.c.cefr}</span>
+      <span style="font-size:.72rem;color:#888;font-weight:700;">${litCount}/6 ⭐</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px;">${rows}</div>
+  </div>`;
+}
+
 function renderStudentUV() {
   const host = document.getElementById('student-uv');
   if (!host) return;
-  const modes = [
-    { m: 'vocab',     cls: 'blue',   icon: '🔍', name: 'Erkennen',  sub: 'Richtige Form antippen' },
-    { m: 'pronounce', cls: 'pink',   icon: '🗣️', name: 'Rufen',     sub: 'Form laut sprechen' },
-    { m: 'spelling',  cls: 'purple', icon: '🔨', name: 'Schmieden', sub: 'Form schreiben' },
-  ];
-  const btns = modes.map(o => {
-    const pct = uvProgressPct(o.m);
-    const p = uvProgress(o.m);
-    return `<button class="big-btn ${o.cls}" onclick="startIrregularVerbs('${o.m}')">
-      <span class="icon-btn">${o.icon}</span>
-      <div><span>${o.name}</span><span class="btn-sub">
-        <span class="btn-progress-text">${pct}% · ${p.mastered}/${p.total} gemeistert</span>
-        <span class="btn-progress"><span class="btn-progress-fill" style="width:${pct}%"></span></span>
-      </span></div>
-    </button>`;
+  const map = uvMap();
+  const currentIdx = map.findIndex(m => m.unlocked && !m.complete);
+
+  const cards = map.map(m => {
+    if (m.complete) {
+      return `<div style="display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:12px;margin-bottom:6px;background:rgba(58,170,92,.14);box-shadow:inset 0 0 0 2px #3aaa5c;">
+        <span style="font-size:1.1rem;">🌟</span>
+        <span style="flex:1;font-weight:800;color:#2a8a4a;">${m.c.name}</span>
+        <span style="font-size:.68rem;color:#2a8a4a;font-weight:700;">${m.c.cefr} · fertig</span>
+      </div>`;
+    }
+    if (!m.unlocked) {
+      return `<div style="display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:12px;margin-bottom:6px;background:#f2f2f2;color:#aaa;">
+        <span>🔒</span>
+        <span style="flex:1;font-weight:700;">${m.c.name}</span>
+        <span style="font-size:.66rem;">${m.c.cefr}</span>
+      </div>`;
+    }
+    return _uvConstCard(m, m.c.idx === currentIdx);
   }).join('');
-  // Vollwandlung (Phase 5): gemischter Boss — erst frei, wenn ≥1 Verb voll
-  // beherrscht ist (alle drei Disziplinen). Sonst gesperrt mit Hinweis.
-  const vollCount = uvLernstand().voll;
-  const unlocked = vollCount > 0;
-  const bossBtn = unlocked
-    ? `<button class="big-btn green" onclick="startIrregularVerbs('mixed_vocab')">
-        <span class="icon-btn">🌟</span>
-        <div><span>Vollwandlung</span><span class="btn-sub"><span class="btn-progress-text">Boss — alle Disziplinen gemischt · ${vollCount} Verben bereit</span></span></div>
-      </button>`
-    : `<button class="big-btn" disabled style="opacity:.55;cursor:not-allowed;background:#e8e8e8;color:#999;box-shadow:0 3px 0 #ccc;">
-        <span class="icon-btn">🔒</span>
-        <div><span>Vollwandlung</span><span class="btn-sub"><span class="btn-progress-text">Meistere ein Verb in allen drei Disziplinen</span></span></div>
-      </button>`;
-  // Lehrplan-Wahl (§6): Schulart + Klasse → aktiver Verb-Satz (tier ≤ Decke).
-  const cur = getUvCurriculum() || {};
-  const schularten = [
-    ['mittelschule', 'Mittelschule'], ['realschule', 'Realschule'],
-    ['gesamtschule', 'Gesamtschule'], ['gymnasium', 'Gymnasium'],
-  ];
-  const schulOpts = ['<option value="">— Schulart —</option>']
-    .concat(schularten.map(([v, l]) => `<option value="${v}"${cur.schulart === v ? ' selected' : ''}>${l}</option>`)).join('');
-  const klassen = cur.schulart ? Object.keys(CURRICULUM[cur.schulart] || {}) : [];
-  const klasseOpts = ['<option value="">— Klasse —</option>']
-    .concat(klassen.map(k => `<option value="${k}"${Number(cur.klasse) === Number(k) ? ' selected' : ''}>Klasse ${k}</option>`)).join('');
-  const active = activeVerbs();
-  const ceilingTier = active.reduce((mx, v) => Math.max(mx, v.tier), 0) || 1;
-  const lvlInfo = (cur.schulart && cur.klasse)
-    ? `${TIER_CEFR[ceilingTier] || ''} · ${active.length} Verben aktiv`
-    : `Ohne Auswahl: A1-Grundverben (${active.length})`;
-  const selStyle = "font-family:'Nunito',sans-serif;font-weight:700;font-size:.82rem;padding:8px 10px;border:2px solid #e0d4f0;border-radius:10px;background:#fff;color:var(--text);flex:1;min-width:0;";
 
   host.style.textAlign = 'left';
   host.style.padding = '0';
@@ -405,27 +411,9 @@ function renderStudentUV() {
     <div style="text-align:center;margin:4px 0 12px;">
       <div style="font-size:2.4rem;">🔁</div>
       <div style="font-family:'Fredoka One',cursive;font-size:1.05rem;color:var(--purple);">Unregelmäßige Verben</div>
-      <div style="font-size:.78rem;color:#888;font-weight:700;">go → went → gone — in drei Disziplinen</div>
+      <div style="font-size:.78rem;color:#888;font-weight:700;">go → went → gone — Sternbild für Sternbild</div>
     </div>
-    <div style="background:#f7f3fc;border-radius:12px;padding:10px 12px;margin-bottom:14px;">
-      <div style="display:flex;gap:8px;margin-bottom:6px;">
-        <select id="uv-schulart" style="${selStyle}">${schulOpts}</select>
-        <select id="uv-klasse" style="${selStyle}"${cur.schulart ? '' : ' disabled'}>${klasseOpts}</select>
-      </div>
-      <div style="font-size:.74rem;color:#7a3aac;font-weight:700;text-align:center;">📚 ${lvlInfo}</div>
-    </div>
-    <div class="mode-buttons">${btns}${bossBtn}</div>`;
-
-  const schulSel = document.getElementById('uv-schulart');
-  const klasseSel = document.getElementById('uv-klasse');
-  if (schulSel) schulSel.addEventListener('change', () => {
-    setUvCurriculum(schulSel.value, null);   // Schulart gewechselt → Klasse neu wählen
-    renderStudentUV();
-  });
-  if (klasseSel) klasseSel.addEventListener('change', () => {
-    setUvCurriculum(cur.schulart, klasseSel.value);
-    renderStudentUV();
-  });
+    ${cards}`;
 }
 
 function _renderStudentSubToggle(sub) {
@@ -676,70 +664,34 @@ function _activePresetsBlock(decks, catById) {
     </div>`;
 }
 
-// Schülermodus: Unregelmäßige Verben (Gestaltwandler) — Lernstand (§7):
-// erwartet vs. beherrscht, Aufschlüsselung nach Kompetenz und nach Art,
-// „offene üben" pro Disziplin (startet eine Runde, die Gemeistertes überspringt).
+// Schülermodus: Unregelmäßige Verben (Gestaltwandler) — Lernstand-Übersicht:
+// Sternbild-Karte (komplett / wie viele Sterne leuchten / gesperrt) + Gesamt-%.
 function _uvLernstandBlock() {
   const L = uvLernstand();
-  const cur = L.curriculum || {};
-  const ceilingTier = activeVerbs().reduce((mx, v) => Math.max(mx, v.tier), 0) || 1;
-  const head = (cur.schulart && cur.klasse)
-    ? `${TIER_CEFR[ceilingTier] || ''} · ${L.total} Verben erwartet`
-    : `A1-Grundverben · ${L.total} erwartet`;
+  const pct = L.maxLit > 0 ? Math.round((L.totalLit / L.maxLit) * 100) : 0;
 
-  // Verb-Zähler voll/teilweise/offen.
-  const chips = `<div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;font-size:.78rem;font-weight:700;margin-bottom:10px;">
-    <span style="background:rgba(58,170,92,.15);color:#2a8a4a;padding:3px 10px;border-radius:20px;">✅ ${L.voll} voll</span>
-    <span style="background:rgba(245,166,35,.18);color:#a86a08;padding:3px 10px;border-radius:20px;">🟡 ${L.teilweise} teilweise</span>
-    <span style="background:#eee;color:#888;padding:3px 10px;border-radius:20px;">⬜ ${L.offen} offen</span>
-  </div>`;
-
-  // Nach Kompetenz — Balken + „üben"-Button (Gap-Runde via Mastery-Filter).
-  const modes = [
-    { m: 'vocab', icon: '🔍', name: 'Erkennen' },
-    { m: 'pronounce', icon: '🗣️', name: 'Rufen' },
-    { m: 'spelling', icon: '🔨', name: 'Schmieden' },
-  ];
-  const compBars = modes.map(r => {
-    const p = L.byMode[r.m]; const pct = p.total > 0 ? Math.min(100, Math.round((p.score / p.total) * 100)) : 0;
-    const full = p.total > 0 && p.mastered >= p.total;
-    return `<div style="margin-bottom:8px;">
-      <div style="display:flex;align-items:center;gap:8px;font-size:.82rem;font-weight:700;color:var(--text);margin-bottom:4px;">
-        <span style="flex:1;">${r.icon} ${r.name}</span>
-        <span style="color:var(--purple);">${pct}% · ${p.mastered}/${p.total}</span>
-        <button onclick="startIrregularVerbs('${r.m}')" ${full ? 'disabled' : ''} style="font-family:'Fredoka One',cursive;font-size:.7rem;padding:4px 10px;border:none;border-radius:20px;cursor:pointer;${full ? 'background:#eee;color:#aaa;' : 'background:var(--purple);color:#fff;'}">${full ? '✓' : 'üben'}</button>
-      </div>
-      <div style="height:12px;background:#eee;border-radius:10px;overflow:hidden;">
-        <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--purple),var(--pink));border-radius:10px;"></div>
-      </div>
+  const rows = L.rows.map(r => {
+    const icon = r.complete ? '🌟' : (r.unlocked ? '⭐' : '🔒');
+    const col = r.complete ? '#2a8a4a' : (r.unlocked ? 'var(--text)' : '#b9b9b9');
+    const stars = '★'.repeat(r.lit) + '☆'.repeat(6 - r.lit);
+    return `<div style="display:flex;align-items:center;gap:8px;font-size:.78rem;margin-bottom:5px;color:${col};">
+      <span>${icon}</span>
+      <span style="flex:1;font-weight:700;">${r.name}</span>
+      <span style="font-size:.64rem;color:#999;">${r.cefr}</span>
+      <span style="letter-spacing:1px;color:#f5a623;width:72px;text-align:right;">${stars}</span>
     </div>`;
   }).join('');
 
-  // Sternbilder (Phase 5): jede Muster-Familie als Sternbild, gefüllte Sterne =
-  // Anteil voll beherrschter Verben (5er-Skala).
-  const artRows = Object.values(L.byArt).map(a => {
-    const ratio = a.total > 0 ? a.voll / a.total : 0;
-    const filled = Math.round(ratio * 5);
-    const stars = '★★★★★'.slice(0, filled) + '☆☆☆☆☆'.slice(0, 5 - filled);
-    const done = a.total > 0 && a.voll === a.total;
-    return `<div style="display:flex;align-items:center;gap:8px;font-size:.78rem;margin-bottom:5px;">
-      <span style="flex:1;color:var(--text);font-weight:700;">${done ? '🌟 ' : ''}${a.name}</span>
-      <span style="letter-spacing:1px;color:#f5a623;">${stars}</span>
-      <span style="color:#888;width:54px;text-align:right;">${a.voll}/${a.total}</span>
-    </div>`;
-  }).join('');
-
-  const played = L.voll + L.teilweise > 0;
+  const played = L.totalLit > 0;
   return `
     <div style="margin-bottom:16px;">
       <h3 style="font-family:'Fredoka One',cursive;color:var(--purple);font-size:1rem;margin:0 0 4px;">🔁 Unregelmäßige Verben</h3>
-      <div style="font-size:.74rem;color:#7a3aac;font-weight:700;margin-bottom:8px;">📚 ${head}</div>
-      ${chips}
-      <div style="font-size:.72rem;color:#999;font-weight:700;margin:0 0 4px;">Nach Können</div>
-      ${compBars}
-      <div style="font-size:.72rem;color:#999;font-weight:700;margin:10px 0 4px;">🌟 Sternbilder (Muster-Familien)</div>
-      ${artRows}
-      ${played ? '' : '<div style="font-size:.78rem;color:#999;text-align:center;padding:8px;">Noch nicht geübt — tippe oben auf „üben".</div>'}
+      <div style="font-size:.74rem;color:#7a3aac;font-weight:700;margin-bottom:8px;">🌟 ${L.complete}/${L.total} Sternbilder komplett · ${pct}%</div>
+      <div style="height:12px;background:#eee;border-radius:10px;overflow:hidden;margin-bottom:10px;">
+        <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--purple),var(--pink));border-radius:10px;"></div>
+      </div>
+      ${rows}
+      ${played ? '' : '<div style="font-size:.78rem;color:#999;text-align:center;padding:8px;">Noch nicht geübt — starte oben im UV-Tab beim ersten Sternbild.</div>'}
     </div>`;
 }
 

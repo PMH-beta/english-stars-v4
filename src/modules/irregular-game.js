@@ -1,67 +1,145 @@
 // src/modules/irregular-game.js
 // Gestaltwandler — eigenständige UV-Engine (unregelmäßige Verben) für den
-// Schülermodus. KEIN Deck: Quelle ist der Datensatz (irregular-verbs.js),
-// Stats wohnen in SD.globalPresetStats (presetId 'irregular-verbs').
+// Schülermodus. KEIN Deck, KEINE Schulart/Klasse: die Verben sind nach
+// Schwierigkeit in benannte Sternbilder gruppiert (irregular-verbs.js).
 //
-// Reitet bewusst auf den vorhandenen Spiel-Primitiven (game.js: startGame →
-// buildPool → Render/Antwort/Stat), getrennt vom Deck-System: buildPool kennt
-// einen UV-Zweig, saveProgress einen UV-Guard. Hier nur Einstieg + Fortschritt.
+// Ein Sternbild deckt eine kleine Wortgruppe ab und hat 7 Sterne, die in dieser
+// Reihenfolge freischalten (kodiert „Erkennen → Schmieden → Rufen" und
+// „Simple Past vor Past Participle"):
+//   1 Erkennen·Past   2 Erkennen·PP   3 Schmieden·Past   4 Schmieden·PP
+//   5 Rufen·Past      6 Rufen·PP      7 Vollwandlung (gemischter Boss)
+// Ein Stern „leuchtet", wenn ALLE Verben der Gruppe in diesem Suffix gemeistert
+// sind. Alle 6 Disziplin-Sterne leuchten ⇒ Sternbild komplett ⇒ nächstes frei.
+//
+// Stats wohnen wie bisher in SD.globalPresetStats (presetId 'irregular-verbs') —
+// kein Schema-/Sync-Umbau. Geändert wird nur, dass eine Runde auf EIN Sternbild
+// (window.VOCAB) und EINEN Stern (window._uvStar) eingegrenzt ist.
 
 import { startGame } from './game.js';
-import { effectivePct, isStatMastered } from './stats.js';
-import { statKeyFor } from './stats.js';
-import { irregularAsVocab, expectedVerbs, IRREGULAR_PRESET_ID } from './irregular-verbs.js';
+import { effectivePct, isStatMastered, statKeyFor } from './stats.js';
+import { irregularAsVocab, getConstellations, IRREGULAR_PRESET_ID } from './irregular-verbs.js';
 
-// Form×Kompetenz-Suffixe je Kompetenz (nur Formen: past + pp — keine Basis-
-// Übersetzung mehr, UV übt ausschließlich die Verbformen).
-const UV_SUFFIXES = {
-  vocab:     ['_past_mc', '_pp_mc'],
-  spelling:  ['_past_sp', '_pp_sp'],
-  pronounce: ['_past_pr', '_pp_pr'],
+// Sterne eines Sternbilds (ohne Boss) — Disziplin × Form, in Freischalt-Reihenfolge.
+export const UV_STARS = [
+  { mode: 'vocab',     which: 'past', icon: '🔍', name: 'Erkennen',  form: 'Simple Past' },
+  { mode: 'vocab',     which: 'pp',   icon: '🔍', name: 'Erkennen',  form: 'Past Participle' },
+  { mode: 'spelling',  which: 'past', icon: '🔨', name: 'Schmieden', form: 'Simple Past' },
+  { mode: 'spelling',  which: 'pp',   icon: '🔨', name: 'Schmieden', form: 'Past Participle' },
+  { mode: 'pronounce', which: 'past', icon: '🗣️', name: 'Rufen',     form: 'Simple Past' },
+  { mode: 'pronounce', which: 'pp',   icon: '🗣️', name: 'Rufen',     form: 'Past Participle' },
+];
+const SUF = {
+  vocab:     { past: '_past_mc', pp: '_pp_mc' },
+  spelling:  { past: '_past_sp', pp: '_pp_sp' },
+  pronounce: { past: '_past_pr', pp: '_pp_pr' },
 };
 
-// ── Lehrplan-Wahl (Phase 3, §6) ─────────────────────────────────────────────
-// Schulart + Klasse bestimmen die Tier-Decke (CURRICULUM). Liegt in localStorage
-// wie es_student_subtab → überlebt Cloud-Load 1:1, kein Schema-/Sync-Umbau.
-// Ohne Wahl: ceiling 1 (A1) — expectedVerbs(undefined,undefined) liefert tier≤1.
-const UV_CURRICULUM_KEY = 'es_uv_curriculum';
-export function getUvCurriculum() {
-  try { return JSON.parse(localStorage.getItem(UV_CURRICULUM_KEY) || 'null'); }
-  catch (e) { return null; }
+function _ws() { return window.SD?.globalPresetStats?.wordStats || {}; }
+
+// Bestandene Vollwandlung-Bosse (Sternbild-Index) in localStorage — wie zuvor die
+// Lehrplan-Wahl: überlebt den Cloud-Load, kein Schema-/Sync-Umbau. Die zugrunde
+// liegende Mastery bleibt synchronisiert; nur das „Boss gespielt"-Häkchen ist lokal.
+const UV_BOSS_KEY = 'es_uv_boss';
+function _bossCleared() {
+  try { return new Set(JSON.parse(localStorage.getItem(UV_BOSS_KEY) || '[]')); }
+  catch (e) { return new Set(); }
 }
-export function setUvCurriculum(schulart, klasse) {
-  try {
-    if (!schulart) localStorage.removeItem(UV_CURRICULUM_KEY);
-    else localStorage.setItem(UV_CURRICULUM_KEY, JSON.stringify({ schulart, klasse: klasse ? Number(klasse) : null }));
-  } catch (e) {}
+export function isBossCleared(idx) { return _bossCleared().has(idx); }
+export function markBossCleared(idx) {
+  try { const s = _bossCleared(); s.add(idx); localStorage.setItem(UV_BOSS_KEY, JSON.stringify([...s])); }
+  catch (e) {}
 }
 
-// Aktiver Soll-Satz (tier ≤ Klassendecke) als rohe Verb-Objekte.
-export function activeVerbs() {
-  const c = getUvCurriculum();
-  return expectedVerbs(c && c.schulart, c && c.klasse);
+// ── Stern-Zustand ───────────────────────────────────────────────────────────
+// Ein Stern leuchtet, wenn jedes Verb der Gruppe in diesem Suffix gemeistert ist.
+export function starLit(verbs, mode, which) {
+  const ws = _ws(); const suf = SUF[mode][which];
+  return verbs.length > 0 && verbs.every((v) => isStatMastered(ws[statKeyFor(v.de, v.en, suf, IRREGULAR_PRESET_ID)]));
+}
+// Fortschritt eines Sterns (gemeisterte / alle Verben der Gruppe).
+export function starProgress(verbs, mode, which) {
+  const ws = _ws(); const suf = SUF[mode][which];
+  let m = 0;
+  verbs.forEach((v) => { if (isStatMastered(ws[statKeyFor(v.de, v.en, suf, IRREGULAR_PRESET_ID)])) m++; });
+  return { mastered: m, total: verbs.length };
 }
 
-// Eine Übungsrunde starten. mode = 'vocab' (Erkennen) | 'spelling' (Schmieden)
-// | 'pronounce' (Rufen). Setzt window.VOCAB auf den AKTIVEN Verb-Satz (kein
-// Deck-Spiegel) und markiert die Runde als UV. Schnell ist hier immer aus.
-export function startIrregularVerbs(mode) {
+// Zustand aller 7 Sterne eines Sternbilds. Disziplin-Sterne linear: Stern K ist
+// erst spielbar, wenn K-1 leuchtet. Boss (7) = spielbar/leuchtet, wenn 1–6 leuchten.
+export function constellationStars(c) {
+  const states = []; let prevLit = true;
+  UV_STARS.forEach((st, i) => {
+    const lit = starLit(c.verbs, st.mode, st.which);
+    states.push({ ...st, i, lit, unlocked: prevLit, prog: starProgress(c.verbs, st.mode, st.which) });
+    prevLit = lit;
+  });
+  const allLit = states.every((s) => s.lit);   // alle 6 Disziplin-Sterne leuchten
+  // Boss: spielbar (unlocked) ab 6/6, leuchtet erst, wenn die Runde bestanden wurde.
+  states.push({ mode: 'mixed_vocab', which: null, icon: '🌟', name: 'Vollwandlung', form: '', i: 6, lit: isBossCleared(c.idx), unlocked: allLit, boss: true });
+  return states;
+}
+export function constellationComplete(c) {
+  return UV_STARS.every((st) => starLit(c.verbs, st.mode, st.which)) && isBossCleared(c.idx);
+}
+// Sternbild idx ist frei, wenn das vorige komplett ist (erstes immer frei).
+export function constellationUnlocked(idx) {
+  if (idx <= 0) return true;
+  const cs = getConstellations();
+  return !!cs[idx - 1] && constellationComplete(cs[idx - 1]);
+}
+
+// Alles, was die Sternkarte (ui.js) braucht.
+export function uvMap() {
+  return getConstellations().map((c) => ({
+    c,
+    unlocked: constellationUnlocked(c.idx),
+    complete: constellationComplete(c),
+    stars: constellationStars(c),
+  }));
+}
+
+// ── Runde starten ───────────────────────────────────────────────────────────
+function _enterUV(c) {
   window.isUV = true;
   window.isSchnellModus = false;   // UV hat keinen Schnell-Toggle → immer echte Wertung
-  const set = activeVerbs().map(irregularAsVocab);
+  window._uvConstellation = c;
   if (typeof window.VOCAB === 'undefined') window.VOCAB = [];
   window.VOCAB.length = 0;
-  for (const v of set) window.VOCAB.push(v);
-  startGame(mode);
+  c.verbs.map(irregularAsVocab).forEach((v) => window.VOCAB.push(v));
 }
 
-// Fortschritt einer Kompetenz über die AKTIVEN Verben (Basis + past + pp).
-// Gleiche Score-Formel wie progressForCurrentMode/deckProgress, Quelle ist
-// globalPresetStats. Rückgabe: { score, mastered, total }.
+// Einen Disziplin-Stern eines Sternbilds spielen (cIdx, starIdx 0–5).
+export function startConstellationStar(cIdx, starIdx) {
+  const c = getConstellations()[cIdx]; if (!c) return;
+  const st = UV_STARS[starIdx]; if (!st) return;
+  _enterUV(c);
+  window._uvStar = { mode: st.mode, which: st.which };
+  startGame(st.mode);
+}
+
+// Vollwandlung (Boss-Stern): alle Formen/Disziplinen der Gruppe gemischt.
+export function startConstellationBoss(cIdx) {
+  const c = getConstellations()[cIdx]; if (!c) return;
+  _enterUV(c);
+  window._uvStar = null;
+  startGame('mixed_vocab');
+}
+
+// ── Live-Fortschrittsbalken im Spiel (progressForCurrentMode in game.js) ─────
+// Rechnet über window.VOCAB (= das aktive Sternbild). Bei einer Stern-Runde nur
+// das aktive Suffix, beim Boss alle sechs.
 export function uvProgress(mode) {
-  const ws = window.SD?.globalPresetStats?.wordStats || {};
-  const sufs = UV_SUFFIXES[mode] || UV_SUFFIXES.vocab;
-  const verbs = activeVerbs();
+  const ws = _ws();
+  const star = window._uvStar;
+  let sufs;
+  if (mode === 'mixed_vocab' || !star) {
+    sufs = mode === 'mixed_vocab'
+      ? Object.values(SUF).flatMap((o) => [o.past, o.pp])
+      : [SUF[mode].past, SUF[mode].pp];
+  } else {
+    sufs = [SUF[mode][star.which]];
+  }
+  const verbs = (window.VOCAB || []).filter((v) => v.forms);
   let score = 0, mastered = 0;
   const total = verbs.length * sufs.length;
   for (const v of verbs) {
@@ -78,47 +156,17 @@ export function uvProgress(mode) {
   return { score, mastered, total };
 }
 
-// Prozent für einen Balken (0–100).
-export function uvProgressPct(mode) {
-  const p = uvProgress(mode);
-  return p.total > 0 ? Math.min(100, Math.round((p.score / p.total) * 100)) : 0;
-}
-
-// ── Lernstand (Phase 4, §7) ─────────────────────────────────────────────────
-// Alle 6 Form-Suffixe eines Verbs (past + pp, je lesen/sprechen/schreiben).
-// „voll" = alle 6 gemeistert (deckt sich mit _uvVoll in game.js → Vollwandlung).
-const UV_ALL_SUFFIXES = ['_past_mc','_past_sp','_past_pr','_pp_mc','_pp_sp','_pp_pr'];
-const UV_ART_NAMES = {
-  einzel: 'Einzelgänger', gleich: 'Gleichmacher', iau: 'i–a–u-Wandler',
-  en: '-en-Verwandler', keine: 'Faulpelze',
-};
-
-// Beherrschung eines Verbs: 'voll' (alle 9 Suffixe gemeistert) | 'offen'
-// (nichts gemeistert) | 'teilweise'.
-export function verbStatus(v, ws) {
-  ws = ws || window.SD?.globalPresetStats?.wordStats || {};
-  let m = 0;
-  for (const suf of UV_ALL_SUFFIXES) {
-    if (isStatMastered(ws[statKeyFor(v.de, v.en, suf, IRREGULAR_PRESET_ID)])) m++;
-  }
-  return m === 0 ? 'offen' : (m === UV_ALL_SUFFIXES.length ? 'voll' : 'teilweise');
-}
-
-// Gesamter Lernstand über den aktiven Satz: Verb-Zähler (voll/teilweise/offen),
-// Aufschlüsselung nach Kompetenz und nach Art, offene Verbnamen für die Liste.
+// ── Lernstand-Übersicht (Fortschritt-Ansicht) ───────────────────────────────
+// Sternbild-Karte: pro Sternbild gefüllte Disziplin-Sterne (0–6), komplett-Flag,
+// frei/gesperrt. Plus Gesamt-Zähler.
 export function uvLernstand() {
-  const ws = window.SD?.globalPresetStats?.wordStats || {};
-  const verbs = activeVerbs();
-  const counts = { voll: 0, teilweise: 0, offen: 0 };
-  const byArt = {};
-  const open = [];
-  for (const v of verbs) {
-    const st = verbStatus(v, ws);
-    counts[st]++;
-    const a = byArt[v.art] || (byArt[v.art] = { name: UV_ART_NAMES[v.art] || v.art, voll: 0, total: 0 });
-    a.total++; if (st === 'voll') a.voll++;
-    if (st !== 'voll') open.push(v.en);
-  }
-  const byMode = { vocab: uvProgress('vocab'), pronounce: uvProgress('pronounce'), spelling: uvProgress('spelling') };
-  return { total: verbs.length, ...counts, byArt, byMode, open, curriculum: getUvCurriculum() };
+  const map = uvMap();
+  let complete = 0, totalLit = 0;
+  const rows = map.map((m) => {
+    const lit = m.stars.filter((s) => s.lit && !s.boss).length;   // 0..6
+    totalLit += lit;
+    if (m.complete) complete++;
+    return { name: m.c.name, cefr: m.c.cefr, count: m.c.verbs.length, lit, total: 6, complete: m.complete, unlocked: m.unlocked };
+  });
+  return { total: map.length, complete, totalLit, maxLit: map.length * 6, rows };
 }
