@@ -144,6 +144,7 @@ function _scaffold(w){
 // 🔍 Erkennen (MC, lesen) — immer Grundform → Form; je Stufe schwerere
 // Distraktoren (leicht: erfundene Formen → schwer: echte Fremdformen).
 function bErkennen(item, which, lvl){
+  if(Math.random()<0.35) return bErkennenOrder(item, which);   // Drag&Drop: Formen ordnen
   const mt=_verbMeta(which); const target=_firstForm(mt.get(item)); const inf=_firstForm(item.en);
   const base={type:'mc',badge:'vocab',statKey:statKeyFor(item.de,item.en,mt.suf.mc,item._presetId||null),_presetId:item._presetId||null,
     question:_uvHead(item.de,which)+_uvTask(`${inf} → ?`),answer:target};
@@ -175,6 +176,7 @@ function bRufen(item, which, lvl){
 
 // 🔨 Schmieden (Tippen, schreiben)
 function bSchmieden(item, which, lvl){
+  if(lvl<=2 && Math.random()<0.4) return bSchmiedenOrder(item, which);   // Drag&Drop: Buchstaben ordnen
   const mt=_verbMeta(which); const full=mt.get(item); const target=_firstForm(full); const inf=_firstForm(item.en);
   const base={type:'type',badge:'spelling',statKey:statKeyFor(item.de,item.en,mt.suf.sp,item._presetId||null),_presetId:item._presetId||null,hint:''};
   if(lvl===1){ // leicht: Lücken-Buchstaben ergänzen
@@ -186,6 +188,45 @@ function bSchmieden(item, which, lvl){
   }
   // schwer: frei tippen
   return {...base,question:_uvHead(item.de,which)+_uvInstr('✏️ Schreibe die richtige Form')+_uvTask(`${inf} → ?`),answer:full};
+}
+
+// Mischt ein Array so, dass die Reihenfolge möglichst nicht schon der Lösung
+// entspricht (sonst wäre die Drag&Drop-Aufgabe sofort gelöst).
+function _scramble(arr){
+  if(arr.length<2) return arr.slice();
+  const target=arr.join(''); let out=arr.slice();
+  for(let k=0;k<8;k++){ out=shuffle(arr.slice()); if(out.join('')!==target) break; }
+  return out;
+}
+
+// 🔍 Erkennen · Drag&Drop: alle drei Formen in die richtige Reihenfolge ziehen
+// (Present · Simple Past · Past Participle). Zählt auf das aktive Erkennen-Suffix
+// (mc) des Sterns — eine reichere MC-Variante.
+function bErkennenOrder(item, which){
+  const present=_firstForm(item.en), past=_firstForm(item.forms.past), pp=_firstForm(item.forms.participle);
+  const sol=[present, past, pp];
+  return {
+    type:'order', orderKind:'forms', badge:'vocab', _presetId:item._presetId||null,
+    statKey:statKeyFor(item.de,item.en,_verbMeta(which).suf.mc,item._presetId||null),
+    question:_uvMeaning(item.de)+_uvBadge('all','Alle drei Formen','#a86cdb')+_uvInstr('🔀 Zieh die Formen in die richtige Reihenfolge'),
+    slotLabels:['Present','Simple Past','Past Participle'],
+    solution:sol, tiles:_scramble(sol),
+    answer:`${present} · ${past} · ${pp}`,
+  };
+}
+
+// 🔨 Schmieden · Drag&Drop: die Buchstaben der Zielform in die richtige
+// Reihenfolge ziehen. Zählt auf das aktive Schmieden-Suffix (sp).
+function bSchmiedenOrder(item, which){
+  const mt=_verbMeta(which); const full=mt.get(item); const target=_firstForm(full);
+  const letters=target.split('');
+  return {
+    type:'order', orderKind:'letters', badge:'spelling', _presetId:item._presetId||null,
+    statKey:statKeyFor(item.de,item.en,mt.suf.sp,item._presetId||null),
+    question:_uvHead(item.de,which)+_uvInstr('🔤 Zieh die Buchstaben in die richtige Reihenfolge'),
+    slotLabels:letters.map(()=>''), solution:letters, tiles:_scramble(letters),
+    answer:full,
+  };
 }
 
 // Partizip schaltet erst frei, wenn die Vergangenheit derselben Disziplin sitzt
@@ -492,10 +533,108 @@ function renderQuestion(q) {
     html+=`<canvas id="viz-canvas" width="300" height="60" style="display:block;margin:10px auto;border-radius:10px;background:#f5f0ff;"></canvas>`;
     html+=`<button class="mic-btn" id="mic-btn" onclick="startRecording()">🎙️ Sprechen</button>`;
     html+=`<div class="pronounce-result" id="pronounce-result" style="display:none"></div>`;
+  } else if(q.type==='order'){
+    html+=`<div class="question-text">${(q.question||'').replace(/\n/g,'<br>')}</div>`;
+    const isL=q.orderKind==='letters';
+    html+=`<div class="order-slots${isL?' letters':''}" id="order-slots">`;
+    q.slotLabels.forEach((lab,i)=>{ html+=`<div class="order-slot" data-slot="${i}">${lab?`<span class="slot-label">${lab}</span>`:''}</div>`; });
+    html+=`</div>`;
+    html+=`<div class="order-tray${isL?' letters':''}" id="order-tray">`;
+    q.tiles.forEach(t=>{ html+=`<div class="order-tile" data-val="${t}">${t}</div>`; });
+    html+=`</div>`;
+    html+=`<button class="submit-btn" id="order-check" onclick="checkOrder()" disabled>Prüfen ✓</button>`;
   }
   card.innerHTML=html;
   card.classList.remove('bounce-in');void card.offsetWidth;card.classList.add('bounce-in');
   if(q.type==='type') setTimeout(()=>document.getElementById('type-input')?.focus(),120);
+  if(q.type==='order') initOrderDnD();
+}
+
+// Pointer-basiertes Drag&Drop (touch + Maus): Kacheln aus dem Tray in geordnete
+// Slots ziehen. Bewusst KEIN HTML5-draggable (auf Tablets/Handys unzuverlässig).
+// Eine Kachel pro Slot; eine belegte Kachel wird beim Ablegen ins Tray verdrängt.
+function initOrderDnD(){
+  const tray=document.getElementById('order-tray');
+  const slotsWrap=document.getElementById('order-slots');
+  if(!tray||!slotsWrap) return;
+  const slots=[...slotsWrap.querySelectorAll('.order-slot')];
+  const checkBtn=document.getElementById('order-check');
+  let drag=null;
+
+  function updateCheck(){ if(checkBtn) checkBtn.disabled=!slots.every(s=>s.querySelector('.order-tile')); }
+  function placeTile(tile, target){
+    if(target && target.classList.contains('order-slot')){
+      const occ=target.querySelector('.order-tile');
+      if(occ && occ!==tile) tray.appendChild(occ);   // belegten Slot räumen
+      target.appendChild(tile);
+    } else {
+      tray.appendChild(tile);
+    }
+    updateCheck();
+  }
+  function targetUnder(x,y){
+    const el=document.elementFromPoint(x,y); if(!el) return null;
+    const slot=el.closest('.order-slot'); if(slot) return slot;
+    if(el===tray || tray.contains(el)) return tray;
+    return null;
+  }
+  function moveTo(x,y){ if(drag){ drag.tile.style.left=(x-drag.dx)+'px'; drag.tile.style.top=(y-drag.dy)+'px'; } }
+  function onMove(e){
+    if(!drag) return;
+    moveTo(e.clientX,e.clientY);
+    const t=targetUnder(e.clientX,e.clientY);
+    slots.forEach(s=>s.classList.toggle('drop-hover', s===t));
+    tray.classList.toggle('drop-hover', t===tray);
+  }
+  function onUp(e){
+    if(!drag) return;
+    const tile=drag.tile;
+    const t=targetUnder(e.clientX,e.clientY) || drag.home || tray;
+    tile.style.position=''; tile.style.left=''; tile.style.top='';
+    tile.style.width=''; tile.style.height=''; tile.style.zIndex=''; tile.style.pointerEvents='';
+    tile.classList.remove('dragging');
+    slots.forEach(s=>s.classList.remove('drop-hover')); tray.classList.remove('drop-hover');
+    document.removeEventListener('pointermove',onMove);
+    document.removeEventListener('pointerup',onUp);
+    document.removeEventListener('pointercancel',onUp);
+    placeTile(tile, t);
+    drag=null;
+  }
+  function onDown(e){
+    if(window.answered) return;
+    const tile=e.currentTarget; e.preventDefault();
+    const r=tile.getBoundingClientRect();
+    drag={tile, dx:e.clientX-r.left, dy:e.clientY-r.top, home:tile.parentElement};
+    tile.classList.add('dragging');
+    tile.style.width=r.width+'px'; tile.style.height=r.height+'px';
+    tile.style.position='fixed'; tile.style.left=r.left+'px'; tile.style.top=r.top+'px';
+    tile.style.zIndex=9999; tile.style.pointerEvents='none';
+    document.addEventListener('pointermove',onMove);
+    document.addEventListener('pointerup',onUp);
+    document.addEventListener('pointercancel',onUp);
+  }
+  [...document.querySelectorAll('.order-tile')].forEach(t=>t.addEventListener('pointerdown',onDown));
+  updateCheck();
+}
+
+export function checkOrder(){
+  if(window.answered) return;
+  const slotsWrap=document.getElementById('order-slots'); if(!slotsWrap) return;
+  const slots=[...slotsWrap.querySelectorAll('.order-slot')];
+  if(!slots.every(s=>s.querySelector('.order-tile'))) return;   // noch nicht voll
+  window.answered=true;
+  const q=window.currentQ;
+  const vals=slots.map(s=>(s.querySelector('.order-tile').getAttribute('data-val')||''));
+  let ok;
+  if(q.orderKind==='letters') ok = vals.join('').toLowerCase()===q.solution.join('').toLowerCase();
+  else ok = vals.length===q.solution.length && vals.every((v,i)=> v.toLowerCase()===(q.solution[i]||'').toLowerCase());
+  slots.forEach((s,i)=>{
+    const tile=s.querySelector('.order-tile'); if(!tile) return;
+    const good = q.orderKind==='letters' ? ok : (vals[i].toLowerCase()===(q.solution[i]||'').toLowerCase());
+    tile.classList.add(good?'correct':'wrong');
+  });
+  const btn=document.getElementById('order-check'); if(btn) btn.disabled=true;
+  ok?handleCorrect():handleWrong();
 }
 
 function esc(s) { return(s+'').replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }

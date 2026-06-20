@@ -569,6 +569,33 @@ body.in-game .mode-progress{display:block;}
 .submit-btn:active:not(:disabled){transform:translateY(2px);box-shadow:0 2px 0 #2a6fcc;}
 .submit-btn:disabled{opacity:.5;cursor:default;}
 
+/* ── Drag&Drop ordnen (Gestaltwandler) ── */
+.order-slots{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:6px 0 12px;}
+.order-slots.letters{gap:6px;}
+.order-slot{
+  flex:1 1 0;min-width:84px;min-height:62px;
+  border:3px dashed #d8c8f0;border-radius:14px;background:#faf7ff;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  padding:6px 4px;transition:border-color .12s,background .12s;
+}
+.order-slots.letters .order-slot{flex:0 0 auto;min-width:44px;width:44px;min-height:54px;padding:4px;}
+.order-slot .slot-label{font-size:.62rem;font-weight:800;color:#9b7fc4;text-transform:uppercase;letter-spacing:.3px;}
+.order-slot.drop-hover{border-color:var(--purple);background:#f1e8fc;}
+.order-tray{
+  display:flex;flex-wrap:wrap;gap:8px;justify-content:center;
+  min-height:58px;padding:8px;border-radius:14px;background:#f3f0f8;margin-bottom:12px;transition:background .12s;
+}
+.order-tray.drop-hover{background:#e9e2f6;}
+.order-tile{
+  font-family:'Nunito',sans-serif;font-weight:800;font-size:1.1rem;color:var(--text);
+  background:#fff;border:3px solid #e0d4f0;border-radius:12px;padding:10px 14px;cursor:grab;
+  box-shadow:0 4px 0 rgba(168,108,219,.25);touch-action:none;user-select:none;-webkit-user-select:none;line-height:1;
+}
+.order-slots.letters .order-tile,.order-tray.letters .order-tile{min-width:38px;text-align:center;padding:10px 0;}
+.order-tile.dragging{cursor:grabbing;box-shadow:0 8px 18px rgba(108,60,160,.35);opacity:.96;}
+.order-tile.correct{background:#E8F8EB;border-color:var(--green);color:#1a7a2a;box-shadow:0 4px 0 rgba(107,203,119,.4);}
+.order-tile.wrong{background:#FFE8E8;border-color:var(--red);color:#b00;box-shadow:0 4px 0 rgba(255,71,87,.3);}
+
 /* ── SCAN / REVIEW SCREEN ── */
 .scan-zone{
   border:3px dashed #e0d0ff;border-radius:18px;padding:28px 16px;
