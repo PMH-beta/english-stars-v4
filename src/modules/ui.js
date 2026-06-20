@@ -346,38 +346,62 @@ function renderStudentMode() {
   if (sub === 'uv') renderStudentUV();
 }
 
-// UV-Tab (Gestaltwandler): Sternkarte. Jedes Sternbild = Schwierigkeits-Gruppe
-// mit 7 Sternen (Erkennen/Schmieden/Rufen × Past/PP + Vollwandlung-Boss). Sterne
-// starten eine scoped Runde (startConstellationStar/Boss), kein Deck.
-function _uvStarRow(idx, s) {
-  const label = s.boss ? 'Vollwandlung' : `${s.icon} ${s.name} · ${s.form}`;
-  const click = s.boss ? `startConstellationBoss(${idx})` : `startConstellationStar(${idx},${s.i})`;
-  if (s.lit) {   // geleuchtet → goldener Stern, anklickbar zum Wiederholen
-    return `<button onclick="${click}" style="display:flex;align-items:center;gap:8px;width:100%;text-align:left;border:none;border-radius:10px;padding:9px 11px;cursor:pointer;background:rgba(245,166,35,.16);color:#a86a08;font-family:'Nunito',sans-serif;font-weight:800;font-size:.84rem;">
-      <span>⭐</span><span style="flex:1;">${label}</span><span style="font-size:.72rem;">✓</span></button>`;
-  }
-  if (s.unlocked) {   // spielbar
-    const prog = (!s.boss && s.prog) ? `<span style="font-size:.72rem;color:#fff;opacity:.85;">${s.prog.mastered}/${s.prog.total}</span>` : '';
-    const bg = s.boss ? 'var(--green,#3aaa5c)' : 'var(--purple)';
-    return `<button onclick="${click}" style="display:flex;align-items:center;gap:8px;width:100%;text-align:left;border:none;border-radius:10px;padding:9px 11px;cursor:pointer;background:${bg};color:#fff;font-family:'Nunito',sans-serif;font-weight:800;font-size:.84rem;box-shadow:0 3px 0 rgba(0,0,0,.12);">
-      <span style="flex:1;">${label}</span>${prog}<span>▸</span></button>`;
-  }
-  // gesperrt
-  return `<div style="display:flex;align-items:center;gap:8px;padding:9px 11px;border-radius:10px;background:#f2f2f2;color:#b9b9b9;font-weight:700;font-size:.84rem;">
-    <span>☆</span><span style="flex:1;">${s.boss ? 'Vollwandlung' : `${s.icon} ${s.name} · ${s.form}`}</span><span style="font-size:.7rem;">🔒</span></div>`;
+// UV-Tab (Gestaltwandler): Sternenpfad. Ein nach unten scrollbarer Nachthimmel;
+// jedes Sternbild = gezeichnetes 7-Stern-Muster (= 6 Disziplin-Sterne + Vollwandlung).
+// Sterne leuchten golden auf, wenn gemeistert; der nächste spielbare pulsiert in
+// seiner Disziplin-Farbe und wird direkt angetippt (startConstellationStar/Boss).
+//
+// Muster (viewBox 0..100 × 0..72), je 7 Punkte (Index 0–6 = Stern 0–6, 6 = Boss).
+// Bekannte Sternbilder mit echter Silhouette, der Rest stilisiert; idx zyklisch.
+const CST_PATTERNS = [
+  { pts: [[24,52],[44,56],[46,36],[26,33],[62,30],[78,22],[92,14]], edges: [[0,1],[1,2],[2,3],[3,0],[2,4],[4,5],[5,6]] }, // Kleiner Wagen
+  { pts: [[14,20],[34,16],[36,34],[16,38],[54,40],[72,48],[90,52]], edges: [[0,1],[1,2],[2,3],[3,0],[2,4],[4,5],[5,6]] }, // Großer Wagen
+  { pts: [[12,40],[28,18],[44,42],[60,16],[76,44],[88,26],[96,46]], edges: [[0,1],[1,2],[2,3],[3,4],[4,5],[5,6]] },       // Kassiopeia (W)
+  { pts: [[22,14],[70,16],[40,38],[50,42],[60,46],[26,64],[74,60]], edges: [[0,1],[0,2],[1,4],[2,3],[3,4],[2,5],[4,6]] }, // Orion
+  { pts: [[50,8],[50,26],[50,42],[28,40],[72,40],[50,58],[50,68]], edges: [[0,1],[1,2],[3,2],[2,4],[2,5],[5,6]] },        // Schwan (Kreuz)
+  { pts: [[50,10],[30,32],[70,32],[50,52],[44,66],[56,66],[50,40]], edges: [[0,1],[0,2],[1,3],[2,3],[3,4],[3,5],[0,6],[6,3]] }, // Adler (Drachen)
+  { pts: [[52,12],[38,28],[60,24],[66,46],[44,50],[30,16],[20,30]], edges: [[1,2],[2,3],[3,4],[4,1],[1,5],[5,6],[1,0]] }, // Leier
+  { pts: [[50,12],[26,30],[74,30],[36,52],[64,52],[50,40],[50,64]], edges: [[0,1],[0,2],[1,3],[2,4],[3,4],[0,5],[4,6]] }, // Cluster
+];
+const CST_STAR_COLORS = ['#5aa9ff','#5aa9ff','#bda5ff','#bda5ff','#ff8fcf','#ff8fcf','#5fd08a'];
+function _cstPattern(idx) { return CST_PATTERNS[idx % CST_PATTERNS.length]; }
+
+function _cstSvg(m) {
+  const idx = m.c.idx, pat = _cstPattern(idx), st = m.stars;
+  const lines = pat.edges.map(([a, b]) => {
+    const lit = st[a].lit && st[b].lit;
+    const [x1, y1] = pat.pts[a], [x2, y2] = pat.pts[b];
+    return `<line class="cst-line${lit ? ' lit' : ''}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`;
+  }).join('');
+  const stars = st.map((s, i) => {
+    const [x, y] = pat.pts[i];
+    const r = s.boss ? 4.6 : 3.4;
+    let cls = 'cst-star', click = '', style = '';
+    if (s.lit) { cls += ' lit'; click = s.boss ? `startConstellationBoss(${idx})` : `startConstellationStar(${idx},${i})`; }
+    else if (s.unlocked) { cls += ' play'; style = `--c:${CST_STAR_COLORS[i]}`; click = s.boss ? `startConstellationBoss(${idx})` : `startConstellationStar(${idx},${i})`; }
+    else cls += ' locked';
+    const on = click ? ` onclick="${click}"` : '';
+    const hit = click ? `<circle class="cst-hit" cx="${x}" cy="${y}" r="9" fill="transparent"/>` : '';
+    return `<g class="${cls}" style="${style}"${on}>${hit}<circle class="halo" cx="${x}" cy="${y}" r="${r + 3.5}"/><circle class="core" cx="${x}" cy="${y}" r="${r}"/></g>`;
+  }).join('');
+  return `<svg class="cst-svg" viewBox="0 0 100 72" preserveAspectRatio="xMidYMid meet">${lines}${stars}</svg>`;
 }
 
-function _uvConstCard(m, isCurrent) {
-  const idx = m.c.idx;
-  const litCount = m.stars.filter(s => s.lit && !s.boss).length;
-  const rows = m.stars.map(s => _uvStarRow(idx, s)).join('');
-  return `<div style="border:2px solid ${isCurrent ? 'var(--purple)' : '#e0d4f0'};border-radius:14px;padding:12px;margin-bottom:12px;background:#fff;">
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-      <span style="font-family:'Fredoka One',cursive;color:var(--purple);font-size:1rem;flex:1;">${m.c.name}</span>
-      <span style="font-size:.7rem;font-weight:700;color:#7a3aac;background:#f3ecfb;padding:2px 8px;border-radius:20px;">${m.c.cefr}</span>
-      <span style="font-size:.72rem;color:#888;font-weight:700;">${litCount}/6 ⭐</span>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:6px;">${rows}</div>
+function _cstCaption(m) {
+  if (m.complete) return '🌟 Sternbild komplett';
+  if (!m.unlocked) return '🔒 erst das Sternbild darüber';
+  const next = m.stars.find(s => s.unlocked && !s.lit);
+  if (!next) return '';
+  if (next.boss) return 'nächster: 🌟 Vollwandlung';
+  return `nächster: ${next.icon} ${next.name} · ${next.form}`;
+}
+
+function _cstBlock(m, isCurrent) {
+  const col = m.complete ? '#ffd45e' : (m.unlocked ? '#fff' : '#8a82a8');
+  return `<div class="cst-block${isCurrent ? ' current' : ''}${m.unlocked ? '' : ' locked'}">
+    <div class="cst-name" style="color:${col};">${m.complete ? '🌟 ' : ''}${m.c.name} <span class="cst-cefr">${m.c.cefr}</span></div>
+    ${_cstSvg(m)}
+    <div class="cst-cap">${_cstCaption(m)}</div>
   </div>`;
 }
 
@@ -386,34 +410,21 @@ function renderStudentUV() {
   if (!host) return;
   const map = uvMap();
   const currentIdx = map.findIndex(m => m.unlocked && !m.complete);
+  const blocks = map.map((m, i) =>
+    _cstBlock(m, m.c.idx === currentIdx) + (i < map.length - 1 ? '<div class="cst-link"></div>' : '')
+  ).join('');
 
-  const cards = map.map(m => {
-    if (m.complete) {
-      return `<div style="display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:12px;margin-bottom:6px;background:rgba(58,170,92,.14);box-shadow:inset 0 0 0 2px #3aaa5c;">
-        <span style="font-size:1.1rem;">🌟</span>
-        <span style="flex:1;font-weight:800;color:#2a8a4a;">${m.c.name}</span>
-        <span style="font-size:.68rem;color:#2a8a4a;font-weight:700;">${m.c.cefr} · fertig</span>
-      </div>`;
-    }
-    if (!m.unlocked) {
-      return `<div style="display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:12px;margin-bottom:6px;background:#f2f2f2;color:#aaa;">
-        <span>🔒</span>
-        <span style="flex:1;font-weight:700;">${m.c.name}</span>
-        <span style="font-size:.66rem;">${m.c.cefr}</span>
-      </div>`;
-    }
-    return _uvConstCard(m, m.c.idx === currentIdx);
-  }).join('');
-
-  host.style.textAlign = 'left';
+  host.style.textAlign = 'center';
   host.style.padding = '0';
-  host.innerHTML = `
-    <div style="text-align:center;margin:4px 0 12px;">
-      <div style="font-size:2.4rem;">🔁</div>
-      <div style="font-family:'Fredoka One',cursive;font-size:1.05rem;color:var(--purple);">Unregelmäßige Verben</div>
-      <div style="font-size:.78rem;color:#888;font-weight:700;">go → went → gone — Sternbild für Sternbild</div>
+  host.innerHTML = `<div class="star-path">
+    <div class="star-path-head">
+      <div style="font-size:2rem;">🌌</div>
+      <div class="sp-title">Sternenpfad</div>
+      <div class="sp-sub">Tippe den leuchtenden Stern und meistere ihn</div>
+      <div class="sp-legend">🔍 Erkennen · 🔨 Schmieden · 🗣️ Rufen · 🌟 Boss</div>
     </div>
-    ${cards}`;
+    ${blocks}
+  </div>`;
 }
 
 function _renderStudentSubToggle(sub) {

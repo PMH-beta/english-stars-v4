@@ -596,6 +596,32 @@ body.in-game .mode-progress{display:block;}
 .order-tile.correct{background:#E8F8EB;border-color:var(--green);color:#1a7a2a;box-shadow:0 4px 0 rgba(107,203,119,.4);}
 .order-tile.wrong{background:#FFE8E8;border-color:var(--red);color:#b00;box-shadow:0 4px 0 rgba(255,71,87,.3);}
 
+/* ── Sternenpfad (Gestaltwandler UV-Tab) ── */
+.star-path{background:linear-gradient(180deg,#1b1430,#241a40 50%,#1b1430);border-radius:18px;padding:16px 8px 24px;}
+.star-path-head{text-align:center;margin-bottom:8px;}
+.sp-title{font-family:'Fredoka One',cursive;color:#e9def7;font-size:1.15rem;}
+.sp-sub{font-size:.72rem;color:#a99fc7;font-weight:700;}
+.sp-legend{font-size:.66rem;color:#8a82a8;font-weight:700;margin-top:4px;}
+.cst-block{max-width:360px;margin:0 auto;padding:6px 8px;border-radius:16px;}
+.cst-block.locked{opacity:.5;}
+.cst-block.current{background:rgba(255,255,255,.05);box-shadow:inset 0 0 0 1px rgba(189,165,255,.35);}
+.cst-name{font-family:'Fredoka One',cursive;font-size:.95rem;margin-bottom:2px;}
+.cst-cefr{font-size:.6rem;font-weight:700;color:#cdc3ea;background:rgba(255,255,255,.1);padding:1px 7px;border-radius:20px;}
+.cst-cap{font-size:.72rem;color:#c3b8e2;font-weight:700;margin-top:2px;min-height:1.1em;}
+.cst-link{height:26px;border-left:3px dotted rgba(189,165,255,.4);width:0;margin:0 auto;}
+.cst-svg{display:block;width:100%;max-width:300px;height:auto;margin:2px auto;overflow:visible;}
+.cst-line{stroke:rgba(255,255,255,.16);stroke-width:.8;}
+.cst-line.lit{stroke:rgba(255,212,94,.55);stroke-width:1;}
+.cst-star .core{fill:#574f70;transition:fill .25s;}
+.cst-star .halo{fill:transparent;}
+.cst-star.locked .core{fill:#453f5c;}
+.cst-star.lit .core{fill:#ffd45e;}
+.cst-star.lit .halo{fill:#ffd45e;opacity:.22;}
+.cst-star.play{cursor:pointer;}
+.cst-star.play .core{fill:var(--c,#bda5ff);}
+.cst-star.play .halo{fill:var(--c,#bda5ff);animation:cstpulse 1.5s ease-in-out infinite;}
+@keyframes cstpulse{0%,100%{opacity:.12;}50%{opacity:.5;}}
+
 /* ── SCAN / REVIEW SCREEN ── */
 .scan-zone{
   border:3px dashed #e0d0ff;border-radius:18px;padding:28px 16px;
