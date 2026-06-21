@@ -144,7 +144,10 @@ function _scaffold(w){
 // 🔍 Erkennen (MC, lesen) — immer Grundform → Form; je Stufe schwerere
 // Distraktoren (leicht: erfundene Formen → schwer: echte Fremdformen).
 function bErkennen(item, which, lvl){
-  if(Math.random()<0.35) return bErkennenOrder(item, which);   // Drag&Drop: Formen ordnen
+  // Drag&Drop „alle drei Formen ordnen" erst, wenn beide Formen im Spiel sind:
+  // nur im PP-Stern (Past ist dort schon gemeistert). Im Past-Stern wäre die
+  // 3. Form (PP) noch ungesehen und per Ausschluss ratbar.
+  if(which==='pp' && Math.random()<0.35) return bErkennenOrder(item, which);
   const mt=_verbMeta(which); const target=_firstForm(mt.get(item)); const inf=_firstForm(item.en);
   const base={type:'mc',badge:'vocab',statKey:statKeyFor(item.de,item.en,mt.suf.mc,item._presetId||null),_presetId:item._presetId||null,
     question:_uvHead(item.de,which)+_uvTask(`${inf} → ?`),answer:target};
@@ -609,6 +612,10 @@ function initOrderDnD(){
     tile.style.width=r.width+'px'; tile.style.height=r.height+'px';
     tile.style.position='fixed'; tile.style.left=r.left+'px'; tile.style.top=r.top+'px';
     tile.style.zIndex=9999; tile.style.pointerEvents='none';
+    // An <body> hängen: die .game-card behält durch `bounce-in` (animation-fill
+    // forwards) ein transform:scale(1) und wäre sonst Containing-Block für die
+    // fixed-Kachel → Finger-Versatz. body hat kein transform → Viewport-Koordinaten.
+    document.body.appendChild(tile);
     document.addEventListener('pointermove',onMove);
     document.addEventListener('pointerup',onUp);
     document.addEventListener('pointercancel',onUp);
@@ -1173,12 +1180,10 @@ function showEnd() {
     const percent=Math.round(pct*100);
     // Vollwandlung (UV) hat KEIN Deck: nicht in deck.lastExam/exams schreiben.
     // saveProgress() (oben) hat den UV-Stand bereits markiert (global_preset).
-    const deck=window.isUV ? null : activeDeck();
-    if(window.isUV){
-      // Vollwandlung beendet → Boss-Stern des Sternbilds als bestanden markieren.
-      try{ if(window._uvConstellation && window._uvMarkBoss) window._uvMarkBoss(window._uvConstellation.idx); }catch(e){}
-      if(window.currentUser) commitProgress();
-    } else if(deck){
+    // UV (Gestaltwandler) kennt keinen Prüfungs-/Boss-Modus mehr — Prüfungen sind
+    // immer Deck-basiert. (UV-Bosse wandern in die Kampagne.)
+    const deck=activeDeck();
+    if(deck){
       deck.lastExam={grade,percent,date:Date.now()};
       persist(window.SD);
       if(window.currentUser) {

@@ -600,7 +600,23 @@ body.in-game .mode-progress{display:block;}
 .star-path{background:linear-gradient(180deg,#1b1430,#241a40 50%,#1b1430);border-radius:18px;padding:16px 8px 24px;}
 .star-path-head{text-align:center;margin-bottom:8px;}
 .sp-title{font-family:'Fredoka One',cursive;color:#e9def7;font-size:1.15rem;}
+.sp-stand{font-size:.74rem;color:#ffd45e;font-weight:800;margin-top:3px;}
 .sp-sub{font-size:.72rem;color:#a99fc7;font-weight:700;}
+.cst-words{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin-top:8px;}
+.cst-word{font-size:.66rem;font-weight:700;color:#c3b8e2;background:rgba(255,255,255,.06);border:1px solid rgba(189,165,255,.2);padding:2px 8px;border-radius:20px;}
+.cst-word b{color:#a99fc7;font-weight:800;}
+.cst-word.done{color:#5fd08a;background:rgba(95,208,138,.12);border-color:rgba(95,208,138,.35);}
+.cst-word.done b{color:#5fd08a;}
+
+/* Fortschritt-Seite: aufklappbare Verbliste pro Sternbild */
+.uv-cst{margin-bottom:5px;}
+.uv-cst summary{cursor:pointer;list-style:none;padding:2px 0;}
+.uv-cst summary::-webkit-details-marker{display:none;}
+.uv-cst-chev{font-size:.7rem;color:#bbb;transition:transform .2s;}
+.uv-cst[open] .uv-cst-chev{transform:rotate(180deg);}
+.uv-words{display:flex;flex-wrap:wrap;gap:4px;padding:6px 0 8px 24px;}
+.uv-word{font-size:.66rem;font-weight:700;color:#999;background:#f3f0f8;border-radius:20px;padding:2px 8px;}
+.uv-word.done{color:#2a8a4a;background:rgba(58,170,92,.14);}
 .sp-legend{font-size:.66rem;color:#8a82a8;font-weight:700;margin-top:4px;}
 .cst-block{max-width:360px;margin:0 auto;padding:6px 8px;border-radius:16px;}
 .cst-block.locked{opacity:.5;}

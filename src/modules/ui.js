@@ -7,7 +7,8 @@ import { releaseMicStream, stopVisualizer, voskStop, speakWord } from './speech.
 import { signIn, signUp, signOut, resendConfirmation, requestPasswordReset, updatePassword, signInWithGoogle } from './auth.js';
 import { cloudLoad, cloudReset, saveDeck, saveWordStats, saveExam, markDirty, flushPendingSync, setCloudConfirmed, getPendingCount, setKnownSig, cloudChangedRemotely } from './sync.js';
 import { commitDirty } from './dialog.js';
-import { uvMap, uvLernstand } from './irregular-game.js';
+import { uvMap, uvLernstand, constellationWords } from './irregular-game.js';
+import { IRREGULAR_PRESET_ID } from './irregular-verbs.js';
 
 const API_KEY_SK = 'es_apikey';
 
@@ -322,8 +323,25 @@ function _getStudentSubTab() {
   try { return localStorage.getItem(STUDENT_SUBTAB_KEY); } catch (e) { return null; }
 }
 
+// Die VS/UV-Wahl liegt nur lokal → auf einem neuen Gerät fehlt sie, obwohl der
+// Fortschritt aus der Cloud schon da ist. Dann KEINE Erstauswahl mehr zeigen,
+// sondern den bereits bespielten Pfad ableiten (UV-Verbstats bzw. Schüler-Decks).
+function _inferStudentSubTab() {
+  const sd = window.SD || {};
+  const ws = sd.globalPresetStats?.wordStats || {};
+  const uvPlayed = Object.entries(ws).some(([k, s]) => k.includes('|' + IRREGULAR_PRESET_ID) && s && s.asked > 0);
+  if (uvPlayed) return 'uv';
+  const vsPlayed = Object.values(sd.decks || {}).some(d => (d.mode || 'free') === 'student' && d.wordStats && Object.keys(d.wordStats).length > 0);
+  if (vsPlayed) return 'vs';
+  return null;
+}
+
 function renderStudentMode() {
-  const sub = _getStudentSubTab();
+  let sub = _getStudentSubTab();
+  if (!sub) {
+    const inferred = _inferStudentSubTab();
+    if (inferred) { try { localStorage.setItem(STUDENT_SUBTAB_KEY, inferred); } catch (e) {} sub = inferred; }
+  }
   const chooser = document.getElementById('student-chooser');
   const body = document.getElementById('student-body');
   if (!sub) {
@@ -347,11 +365,11 @@ function renderStudentMode() {
 }
 
 // UV-Tab (Gestaltwandler): Sternenpfad. Ein nach unten scrollbarer Nachthimmel;
-// jedes Sternbild = gezeichnetes 7-Stern-Muster (= 6 Disziplin-Sterne + Vollwandlung).
-// Sterne leuchten golden auf, wenn gemeistert; der nächste spielbare pulsiert in
-// seiner Disziplin-Farbe und wird direkt angetippt (startConstellationStar/Boss).
+// jedes Sternbild = gezeichnetes 7-Stern-Muster (= 6 spielbare Disziplin-Sterne +
+// 1 Komplett-Leuchtstern). Sterne leuchten golden auf, wenn gemeistert; der nächste
+// spielbare pulsiert in seiner Disziplin-Farbe und wird angetippt (startConstellationStar).
 //
-// Muster (viewBox 0..100 × 0..72), je 7 Punkte (Index 0–6 = Stern 0–6, 6 = Boss).
+// Muster (viewBox 0..100 × 0..72), je 7 Punkte (Index 0–5 spielbar, 6 = Komplett-Stern).
 // Bekannte Sternbilder mit echter Silhouette, der Rest stilisiert; idx zyklisch.
 const CST_PATTERNS = [
   { pts: [[24,52],[44,56],[46,36],[26,33],[62,30],[78,22],[92,14]], edges: [[0,1],[1,2],[2,3],[3,0],[2,4],[4,5],[5,6]] }, // Kleiner Wagen
@@ -375,10 +393,11 @@ function _cstSvg(m) {
   }).join('');
   const stars = st.map((s, i) => {
     const [x, y] = pat.pts[i];
-    const r = s.boss ? 4.6 : 3.4;
+    const r = s.done ? 4.6 : 3.4;
     let cls = 'cst-star', click = '', style = '';
-    if (s.lit) { cls += ' lit'; click = s.boss ? `startConstellationBoss(${idx})` : `startConstellationStar(${idx},${i})`; }
-    else if (s.unlocked) { cls += ' play'; style = `--c:${CST_STAR_COLORS[i]}`; click = s.boss ? `startConstellationBoss(${idx})` : `startConstellationStar(${idx},${i})`; }
+    if (s.done) { cls += s.lit ? ' lit' : ' locked'; }   // 7. Stern: nur Anzeige, nicht spielbar
+    else if (s.lit) { cls += ' lit'; click = `startConstellationStar(${idx},${i})`; }
+    else if (s.unlocked) { cls += ' play'; style = `--c:${CST_STAR_COLORS[i]}`; click = `startConstellationStar(${idx},${i})`; }
     else cls += ' locked';
     const on = click ? ` onclick="${click}"` : '';
     const hit = click ? `<circle class="cst-hit" cx="${x}" cy="${y}" r="9" fill="transparent"/>` : '';
@@ -390,10 +409,20 @@ function _cstSvg(m) {
 function _cstCaption(m) {
   if (m.complete) return '🌟 Sternbild komplett';
   if (!m.unlocked) return '🔒 erst das Sternbild darüber';
-  const next = m.stars.find(s => s.unlocked && !s.lit);
+  const next = m.stars.find(s => s.unlocked && !s.lit && !s.done);
   if (!next) return '';
-  if (next.boss) return 'nächster: 🌟 Vollwandlung';
   return `nächster: ${next.icon} ${next.name} · ${next.form}`;
+}
+
+// Pro-Wort-Liste (nur im aktuell aktiven Sternbild): zeigt, welche Verben schon
+// „voll" sind (alle 6 Formen) und welche noch fehlen — als Chip „go 4/6".
+function _cstWords(m) {
+  const words = constellationWords(m.c);
+  const chips = words.map(w => {
+    const done = w.mastered >= w.total;
+    return `<span class="cst-word${done ? ' done' : ''}">${done ? '✓ ' : ''}${w.en} <b>${w.mastered}/${w.total}</b></span>`;
+  }).join('');
+  return `<div class="cst-words">${chips}</div>`;
 }
 
 function _cstBlock(m, isCurrent) {
@@ -402,6 +431,7 @@ function _cstBlock(m, isCurrent) {
     <div class="cst-name" style="color:${col};">${m.complete ? '🌟 ' : ''}${m.c.name} <span class="cst-cefr">${m.c.cefr}</span></div>
     ${_cstSvg(m)}
     <div class="cst-cap">${_cstCaption(m)}</div>
+    ${isCurrent ? _cstWords(m) : ''}
   </div>`;
 }
 
@@ -414,14 +444,16 @@ function renderStudentUV() {
     _cstBlock(m, m.c.idx === currentIdx) + (i < map.length - 1 ? '<div class="cst-link"></div>' : '')
   ).join('');
 
+  const L = uvLernstand();
   host.style.textAlign = 'center';
   host.style.padding = '0';
   host.innerHTML = `<div class="star-path">
     <div class="star-path-head">
       <div style="font-size:2rem;">🌌</div>
       <div class="sp-title">Sternenpfad</div>
+      <div class="sp-stand">🌟 ${L.complete}/${L.total} Sternbilder · ⭐ ${L.totalLit}/${L.maxLit} Sterne</div>
       <div class="sp-sub">Tippe den leuchtenden Stern und meistere ihn</div>
-      <div class="sp-legend">🔍 Erkennen · 🔨 Schmieden · 🗣️ Rufen · 🌟 Boss</div>
+      <div class="sp-legend">🔍 Erkennen · 🔨 Schmieden · 🗣️ Rufen · 🌟 Komplett</div>
     </div>
     ${blocks}
   </div>`;
@@ -685,12 +717,22 @@ function _uvLernstandBlock() {
     const icon = r.complete ? '🌟' : (r.unlocked ? '⭐' : '🔒');
     const col = r.complete ? '#2a8a4a' : (r.unlocked ? 'var(--text)' : '#b9b9b9');
     const stars = '★'.repeat(r.lit) + '☆'.repeat(6 - r.lit);
-    return `<div style="display:flex;align-items:center;gap:8px;font-size:.78rem;margin-bottom:5px;color:${col};">
-      <span>${icon}</span>
-      <span style="flex:1;font-weight:700;">${r.name}</span>
-      <span style="font-size:.64rem;color:#999;">${r.cefr}</span>
-      <span style="letter-spacing:1px;color:#f5a623;width:72px;text-align:right;">${stars}</span>
-    </div>`;
+    const chips = (r.words || []).map(w => {
+      const done = w.mastered >= w.total;
+      return `<span class="uv-word${done ? ' done' : ''}">${done ? '✓ ' : ''}${window.escHtml(w.en)} ${w.mastered}/${w.total}</span>`;
+    }).join('');
+    // Aktuelles Sternbild (frei, aber noch nicht komplett) standardmäßig aufgeklappt.
+    const open = (r.unlocked && !r.complete) ? ' open' : '';
+    return `<details class="uv-cst"${open}>
+      <summary style="display:flex;align-items:center;gap:8px;font-size:.78rem;color:${col};">
+        <span>${icon}</span>
+        <span style="flex:1;font-weight:700;">${r.name}</span>
+        <span style="font-size:.64rem;color:#999;">${r.cefr}</span>
+        <span style="letter-spacing:1px;color:#f5a623;width:72px;text-align:right;">${stars}</span>
+        <span class="uv-cst-chev">▾</span>
+      </summary>
+      <div class="uv-words">${chips}</div>
+    </details>`;
   }).join('');
 
   const played = L.totalLit > 0;

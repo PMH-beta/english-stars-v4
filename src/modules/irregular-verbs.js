@@ -181,7 +181,7 @@ export const IRREGULAR_VERBS = [
 // Statt Schulart/Klasse: die Verben werden nach Schwierigkeit (tier 1→5) geordnet
 // und je Stufe in kleine, benannte Sternbilder à CONSTELLATION_SIZE Verben zerlegt.
 // Reihenfolge der Liste = Spielreihenfolge (leicht → schwer), linear freigeschaltet.
-const CONSTELLATION_SIZE = 6;
+const CONSTELLATION_SIZE = 8;
 export const CONSTELLATION_NAMES = [
   'Kleiner Wagen', 'Großer Wagen', 'Kassiopeia', 'Orion', 'Schwan', 'Adler',
   'Leier', 'Stier', 'Zwillinge', 'Löwe', 'Krebs', 'Jungfrau', 'Skorpion',

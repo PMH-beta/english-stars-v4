@@ -3,13 +3,14 @@
 // Schülermodus. KEIN Deck, KEINE Schulart/Klasse: die Verben sind nach
 // Schwierigkeit in benannte Sternbilder gruppiert (irregular-verbs.js).
 //
-// Ein Sternbild deckt eine kleine Wortgruppe ab und hat 7 Sterne, die in dieser
-// Reihenfolge freischalten (kodiert „Erkennen → Schmieden → Rufen" und
+// Ein Sternbild deckt eine kleine Wortgruppe ab und hat 6 spielbare Sterne, die in
+// dieser Reihenfolge freischalten (kodiert „Erkennen → Schmieden → Rufen" und
 // „Simple Past vor Past Participle"):
 //   1 Erkennen·Past   2 Erkennen·PP   3 Schmieden·Past   4 Schmieden·PP
-//   5 Rufen·Past      6 Rufen·PP      7 Vollwandlung (gemischter Boss)
-// Ein Stern „leuchtet", wenn ALLE Verben der Gruppe in diesem Suffix gemeistert
-// sind. Alle 6 Disziplin-Sterne leuchten ⇒ Sternbild komplett ⇒ nächstes frei.
+//   5 Rufen·Past      6 Rufen·PP
+// Der 7. Stern ist nur ein Komplett-Leuchtstern (kein Boss — Bosse/Prüfungen
+// kommen in die Kampagne). Ein Stern „leuchtet", wenn ALLE Verben der Gruppe in
+// diesem Suffix gemeistert sind. Alle 6 leuchten ⇒ Sternbild komplett ⇒ nächstes frei.
 //
 // Stats wohnen wie bisher in SD.globalPresetStats (presetId 'irregular-verbs') —
 // kein Schema-/Sync-Umbau. Geändert wird nur, dass eine Runde auf EIN Sternbild
@@ -36,20 +37,6 @@ const SUF = {
 
 function _ws() { return window.SD?.globalPresetStats?.wordStats || {}; }
 
-// Bestandene Vollwandlung-Bosse (Sternbild-Index) in localStorage — wie zuvor die
-// Lehrplan-Wahl: überlebt den Cloud-Load, kein Schema-/Sync-Umbau. Die zugrunde
-// liegende Mastery bleibt synchronisiert; nur das „Boss gespielt"-Häkchen ist lokal.
-const UV_BOSS_KEY = 'es_uv_boss';
-function _bossCleared() {
-  try { return new Set(JSON.parse(localStorage.getItem(UV_BOSS_KEY) || '[]')); }
-  catch (e) { return new Set(); }
-}
-export function isBossCleared(idx) { return _bossCleared().has(idx); }
-export function markBossCleared(idx) {
-  try { const s = _bossCleared(); s.add(idx); localStorage.setItem(UV_BOSS_KEY, JSON.stringify([...s])); }
-  catch (e) {}
-}
-
 // ── Stern-Zustand ───────────────────────────────────────────────────────────
 // Ein Stern leuchtet, wenn jedes Verb der Gruppe in diesem Suffix gemeistert ist.
 export function starLit(verbs, mode, which) {
@@ -65,7 +52,11 @@ export function starProgress(verbs, mode, which) {
 }
 
 // Zustand aller 7 Sterne eines Sternbilds. Disziplin-Sterne linear: Stern K ist
-// erst spielbar, wenn K-1 leuchtet. Boss (7) = spielbar/leuchtet, wenn 1–6 leuchten.
+// erst spielbar, wenn K-1 leuchtet. Der 7. Stern ist KEIN Boss mehr (Bosse/
+// Prüfungen wandern in die Kampagne) — er ist ein reiner Komplett-Leuchtstern:
+// nicht spielbar, leuchtet, sobald alle 6 Disziplin-Sterne leuchten. So bleibt die
+// 7-Punkt-Sternbildgrafik erhalten, und der Pfad gatet nur über synchronisierte
+// Mastery (kein lokaler Boss-Status mehr → keine Sync-Lücke).
 export function constellationStars(c) {
   const states = []; let prevLit = true;
   UV_STARS.forEach((st, i) => {
@@ -74,12 +65,11 @@ export function constellationStars(c) {
     prevLit = lit;
   });
   const allLit = states.every((s) => s.lit);   // alle 6 Disziplin-Sterne leuchten
-  // Boss: spielbar (unlocked) ab 6/6, leuchtet erst, wenn die Runde bestanden wurde.
-  states.push({ mode: 'mixed_vocab', which: null, icon: '🌟', name: 'Vollwandlung', form: '', i: 6, lit: isBossCleared(c.idx), unlocked: allLit, boss: true });
+  states.push({ mode: null, which: null, icon: '🌟', name: 'Komplett', form: '', i: 6, lit: allLit, unlocked: false, done: true });
   return states;
 }
 export function constellationComplete(c) {
-  return UV_STARS.every((st) => starLit(c.verbs, st.mode, st.which)) && isBossCleared(c.idx);
+  return UV_STARS.every((st) => starLit(c.verbs, st.mode, st.which));
 }
 // Sternbild idx ist frei, wenn das vorige komplett ist (erstes immer frei).
 export function constellationUnlocked(idx) {
@@ -117,14 +107,6 @@ export function startConstellationStar(cIdx, starIdx) {
   startGame(st.mode);
 }
 
-// Vollwandlung (Boss-Stern): alle Formen/Disziplinen der Gruppe gemischt.
-export function startConstellationBoss(cIdx) {
-  const c = getConstellations()[cIdx]; if (!c) return;
-  _enterUV(c);
-  window._uvStar = null;
-  startGame('mixed_vocab');
-}
-
 // ── Live-Fortschrittsbalken im Spiel (progressForCurrentMode in game.js) ─────
 // Rechnet über window.VOCAB (= das aktive Sternbild). Bei einer Stern-Runde nur
 // das aktive Suffix, beim Boss alle sechs.
@@ -156,6 +138,20 @@ export function uvProgress(mode) {
   return { score, mastered, total };
 }
 
+// Alle 6 Form-Suffixe (Disziplin × Form) — für die Pro-Wort-Übersicht.
+const ALL_SUF = Object.values(SUF).flatMap((o) => [o.past, o.pp]);
+
+// Pro Verb eines Sternbilds: wie viele der 6 Formen schon gemeistert sind.
+// Für die „welche Wörter kann ich schon / noch nicht"-Liste im Sternenpfad.
+export function constellationWords(c) {
+  const ws = _ws();
+  return c.verbs.map((v) => {
+    let m = 0;
+    ALL_SUF.forEach((suf) => { if (isStatMastered(ws[statKeyFor(v.de, v.en, suf, IRREGULAR_PRESET_ID)])) m++; });
+    return { de: v.de, en: v.en, mastered: m, total: ALL_SUF.length };
+  });
+}
+
 // ── Lernstand-Übersicht (Fortschritt-Ansicht) ───────────────────────────────
 // Sternbild-Karte: pro Sternbild gefüllte Disziplin-Sterne (0–6), komplett-Flag,
 // frei/gesperrt. Plus Gesamt-Zähler.
@@ -163,10 +159,10 @@ export function uvLernstand() {
   const map = uvMap();
   let complete = 0, totalLit = 0;
   const rows = map.map((m) => {
-    const lit = m.stars.filter((s) => s.lit && !s.boss).length;   // 0..6
+    const lit = m.stars.filter((s) => s.lit && !s.done).length;   // 0..6
     totalLit += lit;
     if (m.complete) complete++;
-    return { name: m.c.name, cefr: m.c.cefr, count: m.c.verbs.length, lit, total: 6, complete: m.complete, unlocked: m.unlocked };
+    return { name: m.c.name, cefr: m.c.cefr, count: m.c.verbs.length, lit, total: 6, complete: m.complete, unlocked: m.unlocked, words: constellationWords(m.c) };
   });
   return { total: map.length, complete, totalLit, maxLit: map.length * 6, rows };
 }
