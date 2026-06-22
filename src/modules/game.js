@@ -494,7 +494,7 @@ function showQuestion() {
     }
   }
   if(window.questionIndex>=window.questionPool.length){
-    if(!window.isFreePlay&&!window.isRetryPhase&&!window.isExamMode&&window.wrongQueue.length>0){
+    if(!window.isUV&&!window.isFreePlay&&!window.isRetryPhase&&!window.isExamMode&&window.wrongQueue.length>0){
       window.isRetryPhase=true;
       window.questionPool=window.wrongQueue.slice();
       window.wrongQueue=[];
