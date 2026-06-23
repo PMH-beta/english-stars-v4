@@ -454,14 +454,12 @@ function _formFoot(m, which) {
 // Participle und färbt sich um. Auf jedem freigespielten Sternbild verfügbar.
 function _cstSlider(m) {
   const idx = m.c.idx;
-  const page = (which) => {
-    const t = FORM_THEME[which];
-    return `<div class="cst-page">
-      <div class="cst-page-head ${t.key}">${t.label}</div>
-      ${_cstFormSvg(m, which)}
-      <div class="cst-page-foot">${_formFoot(m, which)}</div>
-    </div>`;
-  };
+  const page = (which) =>
+    `<div class="cst-page">${_cstFormSvg(m, which)}<div class="cst-page-foot">${_formFoot(m, which)}</div></div>`;
+  // Form-Umschalter unter dem Muster: zeigt, welche Form gerade offen ist, und
+  // springt beim Tippen dorthin. Ersetzt die alten, schwer lesbaren Punkte.
+  const tab = (which) =>
+    `<button class="cst-form-tab ${which}" onclick="uvSetForm(${idx},'${which}')">${FORM_THEME[which].label}</button>`;
   return `<div class="cst-slider-wrap">
     <div class="cst-slider">
       <button class="cst-arrow" onclick="uvSlide(${idx},-1)" aria-label="andere Form">‹</button>
@@ -470,7 +468,7 @@ function _cstSlider(m) {
       </div></div>
       <button class="cst-arrow" onclick="uvSlide(${idx},1)" aria-label="andere Form">›</button>
     </div>
-    <div class="cst-dots"><span class="uv-dot active"></span><span class="uv-dot"></span></div>
+    <div class="cst-forms">${tab('past')}${tab('pp')}</div>
   </div>`;
 }
 
@@ -563,11 +561,10 @@ function renderStudentUV() {
   host.style.padding = '0';
   host.innerHTML = `<div class="star-path">
     <div class="star-path-head">
+      <button class="sp-info" onclick="uvInfo()" aria-label="Info">i</button>
       <div style="font-size:2rem;">🌌</div>
       <div class="sp-title">Sternenpfad</div>
       <div class="sp-stand">🌟 ${L.complete}/${L.total} Sternbilder · ⭐ ${L.totalLit}/${L.maxLit} Sterne</div>
-      <div class="sp-sub">Jedes Sternbild hat zwei Seiten: ⏱ Simple Past und ✓ Past Participle — wische dazwischen, beide sind sofort spielbar. Schon <b>eine</b> Seite komplett (alle 3 Sterne) schaltet das nächste Sternbild frei. Tippe einen Stern zum Üben, „📖 Wörter" dreht die Karte um.</div>
-      <div class="sp-legend">🔍 Erkennen · 🔨 Schmieden · 🗣️ Rufen</div>
     </div>
     ${blocks}
   </div>`;
@@ -603,8 +600,33 @@ function _applyTrack(track, idx, anim) {
   track.style.transition = anim ? '' : 'none';
   track.style.transform = `translateX(${-idx * w}px)`;
   if (!anim) { void track.offsetWidth; track.style.transition = ''; }
-  const dots = track.closest('.cst-slider-wrap')?.querySelectorAll('.uv-dot');
-  if (dots) { const r = _realDot(idx); dots.forEach((d, i) => d.classList.toggle('active', i === r)); }
+  const wrap = track.closest('.cst-slider-wrap');
+  if (wrap) {
+    const form = _realDot(idx) === 0 ? 'past' : 'pp';
+    wrap.querySelectorAll('.cst-form-tab').forEach((t) => t.classList.toggle('active', t.classList.contains(form)));
+  }
+}
+
+// Direkt auf eine Form springen (Form-Umschalter). Echte Slides: 1 = Simple Past,
+// 2 = Past Participle.
+export function uvSetForm(idx, which) {
+  const track = document.querySelector(`.cst-track[data-cst="${idx}"]`);
+  if (!track) return;
+  _settleTrack(track);
+  _applyTrack(track, which === 'past' ? 1 : 2, true);
+}
+
+// Info-Popup (ⓘ oben): erklärt den Sternenpfad — ersetzt den Dauer-Erklärtext.
+export function uvInfo() {
+  window.esAlert?.({
+    icon: '🌌',
+    title: 'Sternenpfad',
+    body: 'Jedes Sternbild hat zwei Seiten:\n⏱ Simple Past und ✓ Past Participle.\n'
+      + 'Wische dazwischen oder tippe die Form-Schalter — beide sind sofort spielbar.\n\n'
+      + 'Schon EINE Seite komplett (alle 3 Sterne) öffnet das nächste Sternbild.\n\n'
+      + 'Die drei Sterne je Form sind die Übungsarten:\n🔍 Erkennen · 🔨 Schmieden · 🗣️ Rufen\n\n'
+      + 'Tippe einen Stern zum Üben — auch schon gemeisterte.\n„📖 Wörter" zeigt die Wortliste.',
+  });
 }
 
 // Nach Abschluss der Slide-Animation: stand der Track auf einem Klon (0 oder 3),
