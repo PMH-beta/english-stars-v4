@@ -557,6 +557,7 @@ body.in-game .mode-progress{display:block;}
   padding:11px 15px;border:3px solid #e0e0e0;border-radius:12px;
   width:100%;text-align:center;outline:none;transition:border-color .2s;color:var(--text);
 }
+.type-input.gap{width:72px;margin:0 auto;font-size:1.9rem;font-weight:800;padding:8px 0;text-transform:lowercase;}
 .type-input:focus {border-color:var(--blue);}
 .type-input.correct{border-color:var(--green);background:#E8F8EB;color:#1a7a2a;}
 .type-input.wrong  {border-color:var(--red);  background:#FFE8E8;color:#b00;}

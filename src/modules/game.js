@@ -104,11 +104,17 @@ const _FORM_BADGE={
   past: ['Simple Past','#e8920a'],
   pp:   ['Past Participle','#3aaa5c'],
 };
-function _uvMeaning(de){ return `<div style="font-size:.82rem;color:#999;font-weight:700;margin-bottom:5px;">🇩🇪 ${de}</div>`; }
-function _uvBadge(key,label,bg){ const b=_FORM_BADGE[key]||[label,bg]; return `<div style="display:inline-block;background:${b[1]};color:#fff;font-family:'Fredoka One',cursive;font-size:.72rem;padding:3px 12px;border-radius:20px;margin-bottom:10px;">${b[0]}</div>`; }
-function _uvInstr(t){ return `<div style="font-size:.85rem;color:#888;font-weight:700;margin-bottom:6px;">${t}</div>`; }
-function _uvTask(t){ return `<div style="font-size:1.45rem;font-weight:800;color:var(--text);letter-spacing:.5px;">${t}</div>`; }
-function _uvHead(de,key){ return _uvMeaning(de)+_uvBadge(key); }
+function _uvBadge(key,label,bg){ const b=_FORM_BADGE[key]||[label,bg]; return `<div style="display:inline-block;background:${b[1]};color:#fff;font-family:'Fredoka One',cursive;font-size:.72rem;padding:3px 12px;border-radius:20px;margin-bottom:8px;">${b[0]}</div>`; }
+function _uvInstr(t){ return `<div style="font-size:.85rem;color:#888;font-weight:700;margin-bottom:8px;">${t}</div>`; }
+// Deutsches Wort (Bedeutung) — der große, klare Anker der Aufgabe.
+function _uvWord(de){ return `<div style="font-size:1.35rem;color:var(--text);font-weight:800;margin:2px 0 6px;">🇩🇪 ${de}</div>`; }
+// Englische Aufgabe (Grundform → ?, Buchstabenlücke …) — unter dem deutschen Wort.
+function _uvTask(t){ return `<div style="font-size:1.2rem;font-weight:800;color:var(--text);letter-spacing:.5px;">${t}</div>`; }
+// UV-Fragekopf in fester Reihenfolge: Form-Plakette → (Anweisung) → deutsches Wort
+// (groß) → (englische Aufgabe). Anweisung/Aufgabe optional.
+function _uvHead(de,key,instr,task){
+  return _uvBadge(key)+(instr?_uvInstr(instr):'')+_uvWord(de)+(task?_uvTask(task):'');
+}
 
 // Methodenstufe (1/2/3) aus dem vorhandenen EMA eines Suffix-Stats ableiten.
 function uvLevel(statKey){
@@ -132,13 +138,15 @@ function _otherForms(item, which, n, exclude){
     .filter(f=>f && f.toLowerCase()!==ex);
   return pick([...new Set(pool)], n);
 }
-// Eine Form mit ausgeblendetem erstem Vokal (Lücken-Buchstaben: went → „w _ n t").
-function _scaffold(w){
+// Zielform mit EINER ausgeblendeten Stelle (erster Vokal). Liefert die Anzeige
+// „w _ n t" UND den fehlenden Buchstaben separat — so muss nur dieser eine
+// Buchstabe getippt werden, nicht das ganze Wort.
+function _gapLetter(w){
   w=_firstForm(w);
   const i=w.search(/[aeiou]/i);
   const idx=i>=0?i:Math.floor(w.length/2);
-  const arr=w.split(''); arr[idx]='_';
-  return arr.join(' ');
+  const arr=w.split(''); const letter=arr[idx]; arr[idx]='_';
+  return {display:arr.join(' '), letter};
 }
 
 // 🔍 Erkennen (MC, lesen) — immer Grundform → Form; je Stufe schwerere
@@ -150,7 +158,7 @@ function bErkennen(item, which, lvl){
   if(which==='pp' && Math.random()<0.35) return bErkennenOrder(item, which);
   const mt=_verbMeta(which); const target=_firstForm(mt.get(item)); const inf=_firstForm(item.en);
   const base={type:'mc',badge:'vocab',statKey:statKeyFor(item.de,item.en,mt.suf.mc,item._presetId||null),_presetId:item._presetId||null,
-    question:_uvHead(item.de,which)+_uvTask(`${inf} → ?`),answer:target};
+    question:_uvHead(item.de,which,'',`${inf} → ?`),answer:target};
   if(lvl===3){ // schwer: nur echte Formen anderer Verben
     return {...base,choices:shuffle([target,..._otherForms(item,which,3,target)])};
   }
@@ -171,10 +179,10 @@ function bRufen(item, which, lvl){
   const base={type:'pronounce',badge:'pronounce',statKey:statKeyFor(item.de,item.en,mt.suf.pr,item._presetId||null),_presetId:item._presetId||null,hint:''};
   if(lvl===3){ // schwer: ganze Reihe sprechen
     const chain=`${inf} ${_firstForm(item.forms.past)} ${_firstForm(item.forms.participle)}`;
-    return {...base,question:_uvMeaning(item.de)+_uvBadge('all','Alle drei Formen','#a86cdb')+_uvInstr('🎙️ Sprich die ganze Reihe')+_uvTask(`${inf} – ? – ?`),answer:chain};
+    return {...base,question:_uvBadge('all','Alle drei Formen','#a86cdb')+_uvInstr('🎙️ Sprich die ganze Reihe')+_uvWord(item.de)+_uvTask(`${inf} – ? – ?`),answer:chain};
   }
   // leicht/mittel: Present zeigen, Zielform aus dem Kopf sprechen
-  return {...base,question:_uvHead(item.de,which)+_uvInstr('🎙️ Sprich die Form')+_uvTask(`${inf} → ?`),answer:target};
+  return {...base,question:_uvHead(item.de,which,'🎙️ Sprich die Form',`${inf} → ?`),answer:target};
 }
 
 // 🔨 Schmieden (Tippen, schreiben)
@@ -182,15 +190,16 @@ function bSchmieden(item, which, lvl){
   if(lvl<=2 && Math.random()<0.4) return bSchmiedenOrder(item, which);   // Drag&Drop: Buchstaben ordnen
   const mt=_verbMeta(which); const full=mt.get(item); const target=_firstForm(full); const inf=_firstForm(item.en);
   const base={type:'type',badge:'spelling',statKey:statKeyFor(item.de,item.en,mt.suf.sp,item._presetId||null),_presetId:item._presetId||null,hint:''};
-  if(lvl===1){ // leicht: Lücken-Buchstaben ergänzen
-    return {...base,question:_uvHead(item.de,which)+_uvInstr('✏️ Ergänze die fehlenden Buchstaben')+_uvTask(_scaffold(target)),answer:full};
+  if(lvl===1){ // leicht: nur den EINEN fehlenden Buchstaben ergänzen
+    const g=_gapLetter(target);
+    return {...base,gap:true,question:_uvHead(item.de,which,'✏️ Ergänze den fehlenden Buchstaben',g.display),answer:g.letter};
   }
   if(lvl===2){ // mittel: falsche Form korrigieren
     const wrong=(formDistractors(item,which)[0])||target;
-    return {...base,question:_uvHead(item.de,which)+_uvInstr('✏️ Diese Form ist falsch — verbessere sie')+_uvTask(`${wrong} → ?`),answer:full};
+    return {...base,question:_uvHead(item.de,which,'✏️ Diese Form ist falsch — verbessere sie',`${wrong} → ?`),answer:full};
   }
   // schwer: frei tippen
-  return {...base,question:_uvHead(item.de,which)+_uvInstr('✏️ Schreibe die richtige Form')+_uvTask(`${inf} → ?`),answer:full};
+  return {...base,question:_uvHead(item.de,which,'✏️ Schreibe die richtige Form',`${inf} → ?`),answer:full};
 }
 
 // Mischt ein Array so, dass die Reihenfolge möglichst nicht schon der Lösung
@@ -211,7 +220,7 @@ function bErkennenOrder(item, which){
   return {
     type:'order', orderKind:'forms', badge:'vocab', _presetId:item._presetId||null,
     statKey:statKeyFor(item.de,item.en,_verbMeta(which).suf.mc,item._presetId||null),
-    question:_uvMeaning(item.de)+_uvBadge('all','Alle drei Formen','#a86cdb')+_uvInstr('🔀 Zieh die Formen in die richtige Reihenfolge'),
+    question:_uvBadge('all','Alle drei Formen','#a86cdb')+_uvInstr('🔀 Zieh die Formen in die richtige Reihenfolge')+_uvWord(item.de),
     slotLabels:['Present','Simple Past','Past Participle'],
     solution:sol, tiles:_scramble(sol),
     answer:`${present} · ${past} · ${pp}`,
@@ -226,7 +235,7 @@ function bSchmiedenOrder(item, which){
   return {
     type:'order', orderKind:'letters', badge:'spelling', _presetId:item._presetId||null,
     statKey:statKeyFor(item.de,item.en,mt.suf.sp,item._presetId||null),
-    question:_uvHead(item.de,which)+_uvInstr('🔤 Zieh die Buchstaben in die richtige Reihenfolge'),
+    question:_uvHead(item.de,which,'🔤 Zieh die Buchstaben in die richtige Reihenfolge'),
     slotLabels:letters.map(()=>''), solution:letters, tiles:_scramble(letters),
     answer:full,
   };
@@ -524,12 +533,18 @@ function renderQuestion(q) {
     html+=`</div>`;
   } else if(q.type==='type'){
     html+=`<div class="question-text">${(q.question||'').replace(/\n/g,'<br>')}</div>`;
-    html+=`<div class="type-input-wrap">
-      <input class="type-input" id="type-input" type="text" placeholder="Englisch tippen..."
-        autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
-        onkeydown="if(event.key==='Enter')submitType()">
-    </div>
-    <button class="submit-btn" onclick="submitType()">Prüfen ✓</button>`;
+    html+= q.gap
+      ? `<div class="type-input-wrap">
+        <input class="type-input gap" id="type-input" type="text" maxlength="1" placeholder="?"
+          autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+          onkeydown="if(event.key==='Enter')submitType()">
+      </div>`
+      : `<div class="type-input-wrap">
+        <input class="type-input" id="type-input" type="text" placeholder="Englisch tippen..."
+          autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+          onkeydown="if(event.key==='Enter')submitType()">
+      </div>`;
+    html+=`<button class="submit-btn" onclick="submitType()">Prüfen ✓</button>`;
   } else if(q.type==='pronounce'){
     html+=`<div class="question-text">${(q.question||'').replace(/\n/g,'<br>')}</div>`;
     html+=`<div class="pronounce-tip" id="pronounce-tip">Drücke den Mikrofon-Button und sprich das Wort auf Englisch!</div>`;
