@@ -106,10 +106,10 @@ const _FORM_BADGE={
 };
 function _uvBadge(key,label,bg){ const b=_FORM_BADGE[key]||[label,bg]; return `<div style="display:inline-block;background:${b[1]};color:#fff;font-family:'Fredoka One',cursive;font-size:.72rem;padding:3px 12px;border-radius:20px;margin-bottom:8px;">${b[0]}</div>`; }
 function _uvInstr(t){ return `<div style="font-size:.85rem;color:#888;font-weight:700;margin-bottom:8px;">${t}</div>`; }
-// Deutsches Wort (Bedeutung) — der große, klare Anker der Aufgabe.
-function _uvWord(de){ return `<div style="font-size:1.35rem;color:var(--text);font-weight:800;margin:2px 0 6px;">🇩🇪 ${de}</div>`; }
-// Englische Aufgabe (Grundform → ?, Buchstabenlücke …) — unter dem deutschen Wort.
-function _uvTask(t){ return `<div style="font-size:1.2rem;font-weight:800;color:var(--text);letter-spacing:.5px;">${t}</div>`; }
+// Deutsches Wort (Bedeutung) — kleiner Hinweis über der Aufgabe.
+function _uvWord(de){ return `<div style="font-size:.9rem;color:#888;font-weight:700;margin:0 0 6px;">🇩🇪 ${de}</div>`; }
+// Englische Aufgabe (Grundform → ?, Buchstabenlücke …) — der große, klare Anker.
+function _uvTask(t){ return `<div style="font-size:1.75rem;font-weight:800;color:var(--text);letter-spacing:.5px;">${t}</div>`; }
 // UV-Fragekopf in fester Reihenfolge: Form-Plakette → (Anweisung) → deutsches Wort
 // (groß) → (englische Aufgabe). Anweisung/Aufgabe optional.
 function _uvHead(de,key,instr,task){
@@ -523,7 +523,9 @@ function showQuestion() {
 function renderQuestion(q) {
   const card=document.getElementById('game-card');
   const bLabels={vocab:'🔤 Vokabeln',spelling:'✏️ Rechtschreibung',pronounce:'🎙️ Aussprache'};
-  let html=`<div class="badge ${q.badge}">${bLabels[q.badge]||'📝'}</div>`;
+  // UV (Gestaltwandler) hat eigenen Kopf (Form-Plakette etc.) — der generische
+  // Disziplin-Badge oben entfällt dort.
+  let html = window.isUV ? '' : `<div class="badge ${q.badge}">${bLabels[q.badge]||'📝'}</div>`;
   if(q.type==='mc'){
     html+=`<div class="question-text">${(q.question||'').replace(/\n/g,'<br>')}</div>`;
     html+=`<div class="choices">`;

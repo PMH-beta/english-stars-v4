@@ -371,21 +371,34 @@ function renderStudentMode() {
 //
 // Muster (viewBox 0..100 × 0..72), je 7 Punkte (Index 0–5 spielbar, 6 = Komplett-Stern).
 // Bekannte Sternbilder mit echter Silhouette, der Rest stilisiert; idx zyklisch.
-// Sternenpfad-Muster: die 7 Sterne liegen entlang EINES klaren Pfades (x steigt
-// streng monoton) — dadurch leuchtet je Form (Erkennen → Schmieden → Rufen) der
-// nächste Stern immer weiter rechts: eine logische, nie kreuzende Reihenfolge.
-// Index 6 ist der Komplett-Stern am Ende des Pfades. Die y-Profile geben jedem
-// Sternbild seinen eigenen Charakter (Mulde, Anstieg, W, Bogen …).
-const PATH_EDGES = [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6]];
+// Sternbild-Muster mit ECHTER Silhouette. Wichtig: die 6 Disziplin-Sterne sind so
+// auf die Form-Ketten verteilt, dass Simple Past (Index 0→2→4) und Past Participle
+// (1→3→5) je einer zusammenhängenden Linie des Bildes FOLGEN — es werden also keine
+// Sterne diagonal übersprungen. Index 6 = Komplett-Stern (Brennpunkt/Spitze).
+// Jedes Muster hat daher die Form-Kanten 0-2,2-4 (Past) und 1-3,3-5 (PP) plus die
+// Kanten, die die Silhouette schließen. viewBox 0..100 × 0..72.
 const CST_PATTERNS = [
-  { pts: [[12,34],[26,42],[40,47],[54,46],[68,40],[82,33],[94,22]], edges: PATH_EDGES }, // Kleiner Wagen (Mulde)
-  { pts: [[12,52],[26,46],[40,40],[54,34],[68,29],[82,23],[96,16]], edges: PATH_EDGES }, // Großer Wagen (Anstieg)
-  { pts: [[12,26],[26,48],[40,27],[54,49],[68,27],[82,46],[96,24]], edges: PATH_EDGES }, // Kassiopeia (W)
-  { pts: [[12,46],[26,32],[40,22],[54,18],[68,23],[82,33],[96,47]], edges: PATH_EDGES }, // Orion (Bogen)
-  { pts: [[12,18],[26,30],[40,42],[54,50],[68,42],[82,30],[96,18]], edges: PATH_EDGES }, // Schwan (Tal)
-  { pts: [[12,34],[26,21],[40,35],[54,22],[68,35],[82,22],[96,33]], edges: PATH_EDGES }, // Adler (Welle)
-  { pts: [[12,22],[26,34],[40,44],[54,48],[68,44],[82,34],[96,22]], edges: PATH_EDGES }, // Leier (Bogen)
-  { pts: [[12,48],[26,38],[40,40],[54,30],[68,32],[82,22],[96,16]], edges: PATH_EDGES }, // Cluster (Treppe)
+  // Kleiner Wagen: Kasten (bl-tl-tr-br) + Deichsel zum Polaris. Past = 3 Kasten-
+  // ecken der Reihe nach, PP = letzte Ecke + Deichsel.
+  { pts: [[40,46],[58,44],[40,30],[70,38],[58,28],[82,28],[92,16]], edges: [[0,2],[2,4],[4,1],[1,0],[1,3],[3,5],[5,6]] },
+  // Großer Wagen: größerer Kasten + Deichsel.
+  { pts: [[16,44],[40,42],[16,26],[60,36],[40,24],[78,30],[96,22]], edges: [[0,2],[2,4],[4,1],[1,0],[1,3],[3,5],[5,6]] },
+  // Kassiopeia: durchgehendes W — linke Hälfte Past, rechte Hälfte PP.
+  { pts: [[12,28],[54,48],[26,48],[68,26],[40,26],[82,46],[94,24]], edges: [[0,2],[2,4],[4,1],[1,3],[3,5],[5,6]] },
+  // Orion: linke Seite (Schulter-Gürtel-Fuß) Past, rechte Seite PP, Gürtel über den
+  // Komplett-Stern in der Mitte.
+  { pts: [[30,16],[66,62],[38,38],[56,42],[34,64],[62,14],[47,40]], edges: [[0,2],[2,4],[1,3],[3,5],[2,6],[6,3]] },
+  // Schwan (Nordkreuz): senkrechte Achse Past, Flügel + unten PP, Komplett-Stern im
+  // Kreuzungspunkt.
+  { pts: [[50,10],[26,40],[50,28],[74,40],[50,52],[50,66],[50,40]], edges: [[0,2],[2,6],[6,4],[4,5],[1,6],[6,3]] },
+  // Adler: stilisiertes Sechseck — linke Kante Past, rechte Kante PP, Komplett-Stern
+  // als Körpermitte.
+  { pts: [[50,12],[50,58],[28,28],[72,44],[28,44],[72,28],[50,36]], edges: [[0,2],[2,4],[4,1],[1,3],[3,5],[5,0],[2,6],[3,6]] },
+  // Leier: Vega oben + Parallelogramm (Harfe) — linke Seite Past, rechte PP.
+  { pts: [[48,10],[66,28],[32,30],[70,52],[38,54],[54,64],[50,40]], edges: [[0,2],[2,4],[0,1],[1,3],[3,5],[4,5],[2,6],[6,3]] },
+  // Cluster: Sechseck-Ring mit Komplett-Stern im Zentrum — rechter Bogen Past,
+  // linker Bogen PP.
+  { pts: [[50,12],[50,66],[72,26],[28,52],[72,52],[28,26],[50,39]], edges: [[0,2],[2,4],[4,1],[1,3],[3,5],[5,0],[0,6],[6,1]] },
 ];
 function _cstPattern(idx) { return CST_PATTERNS[idx % CST_PATTERNS.length]; }
 

@@ -178,10 +178,13 @@ export const IRREGULAR_VERBS = [
 ];
 
 // ── Sternbilder (Schwierigkeits-Gruppen) ────────────────────────────────────
-// Statt Schulart/Klasse: die Verben werden nach Schwierigkeit (tier 1→5) geordnet
-// und je Stufe in kleine, benannte Sternbilder à CONSTELLATION_SIZE Verben zerlegt.
-// Reihenfolge der Liste = Spielreihenfolge (leicht → schwer), linear freigeschaltet.
-const CONSTELLATION_SIZE = 12;
+// Die Verben werden nach Wichtigkeit/Schwierigkeit (tier 1→5, innerhalb stabil in
+// Listenreihenfolge = häufigste zuerst) geordnet und in GLEICH GROSSE Sternbilder
+// à CONSTELLATION_SIZE Verben zerlegt — durchgehend, NICHT pro Stufe (sonst hätten
+// einzelne Stufen winzige Rest-Sternbilder). So sitzen die wichtigsten Wörter am
+// Anfang, die seltenen/hohen Klassen am Ende, und jedes Sternbild ist gleich groß.
+// 150 Verben / 10 = 15 gleich große Sternbilder. Reihenfolge = Spielreihenfolge.
+const CONSTELLATION_SIZE = 10;
 export const CONSTELLATION_NAMES = [
   'Kleiner Wagen', 'Großer Wagen', 'Kassiopeia', 'Orion', 'Schwan', 'Adler',
   'Leier', 'Stier', 'Zwillinge', 'Löwe', 'Krebs', 'Jungfrau', 'Skorpion',
@@ -191,21 +194,29 @@ export const CONSTELLATION_NAMES = [
 ];
 
 let _constellations = null;
-// Geordnete Sternbild-Liste: pro tier eigene Chunks (kein Sternbild mischt Stufen).
+// Geordnete Sternbild-Liste: gesamte Verbliste nach Stufe stabil sortieren (Stufe
+// 1 = wichtigste zuerst, innerhalb der Stufe in Listenreihenfolge) und durchgehend
+// in gleich große Chunks schneiden. Ein Sternbild kann am Stufen-Übergang zwei
+// Stufen enthalten — sein CEFR-Label zeigt dann den Bereich (z. B. „A1–A2").
 export function getConstellations() {
   if (_constellations) return _constellations;
+  const ordered = IRREGULAR_VERBS
+    .map((v, i) => [v, i])
+    .sort((a, b) => (a[0].tier - b[0].tier) || (a[1] - b[1]))   // stabil: Stufe, dann Originalreihenfolge
+    .map(([v]) => v);
   const out = [];
-  for (let t = 1; t <= 5; t++) {
-    const verbs = IRREGULAR_VERBS.filter((v) => v.tier === t);
-    for (let i = 0; i < verbs.length; i += CONSTELLATION_SIZE) {
-      const idx = out.length;
-      out.push({
-        id: 'c' + idx, idx,
-        name: CONSTELLATION_NAMES[idx] || ('Sternbild ' + (idx + 1)),
-        tier: t, cefr: TIER_CEFR[t] || '',
-        verbs: verbs.slice(i, i + CONSTELLATION_SIZE),
-      });
-    }
+  for (let i = 0; i < ordered.length; i += CONSTELLATION_SIZE) {
+    const idx = out.length;
+    const verbs = ordered.slice(i, i + CONSTELLATION_SIZE);
+    const tiers = verbs.map((v) => v.tier);
+    const lo = Math.min(...tiers), hi = Math.max(...tiers);
+    out.push({
+      id: 'c' + idx, idx,
+      name: CONSTELLATION_NAMES[idx] || ('Sternbild ' + (idx + 1)),
+      tier: lo,
+      cefr: lo === hi ? (TIER_CEFR[lo] || '') : `${TIER_CEFR[lo]}–${TIER_CEFR[hi]}`,
+      verbs,
+    });
   }
   _constellations = out;
   return out;
