@@ -384,8 +384,10 @@ const CST_PATTERNS = [
 const CST_STAR_COLORS = ['#5aa9ff','#5aa9ff','#bda5ff','#bda5ff','#ff8fcf','#ff8fcf','#5fd08a'];
 function _cstPattern(idx) { return CST_PATTERNS[idx % CST_PATTERNS.length]; }
 
+// Dekorative Identitätsgrafik des Sternbilds (Sterne zeigen lit/play/locked).
+// Gespielt wird über den Past/PP-Kachel-Slider unten, nicht mehr über die Sterne.
 function _cstSvg(m) {
-  const idx = m.c.idx, pat = _cstPattern(idx), st = m.stars;
+  const pat = _cstPattern(m.c.idx), st = m.stars;
   const lines = pat.edges.map(([a, b]) => {
     const lit = st[a].lit && st[b].lit;
     const [x1, y1] = pat.pts[a], [x2, y2] = pat.pts[b];
@@ -394,54 +396,125 @@ function _cstSvg(m) {
   const stars = st.map((s, i) => {
     const [x, y] = pat.pts[i];
     const r = s.done ? 4.6 : 3.4;
-    let cls = 'cst-star', click = '', style = '';
-    if (s.done) { cls += s.lit ? ' lit' : ' locked'; }   // 7. Stern: nur Anzeige, nicht spielbar
-    else if (s.lit) { cls += ' lit'; click = `startConstellationStar(${idx},${i})`; }
-    else if (s.unlocked) { cls += ' play'; style = `--c:${CST_STAR_COLORS[i]}`; click = `startConstellationStar(${idx},${i})`; }
+    let cls = 'cst-star', style = '';
+    if (s.lit) cls += ' lit';
+    else if (s.unlocked && !s.done) { cls += ' play'; style = `--c:${CST_STAR_COLORS[i]}`; }
     else cls += ' locked';
-    const on = click ? ` onclick="${click}"` : '';
-    const hit = click ? `<circle class="cst-hit" cx="${x}" cy="${y}" r="9" fill="transparent"/>` : '';
-    return `<g class="${cls}" style="${style}"${on}>${hit}<circle class="halo" cx="${x}" cy="${y}" r="${r + 3.5}"/><circle class="core" cx="${x}" cy="${y}" r="${r}"/></g>`;
+    return `<g class="${cls}" style="${style}"><circle class="halo" cx="${x}" cy="${y}" r="${r + 3.5}"/><circle class="core" cx="${x}" cy="${y}" r="${r}"/></g>`;
   }).join('');
   return `<svg class="cst-svg" viewBox="0 0 100 72" preserveAspectRatio="xMidYMid meet">${lines}${stars}</svg>`;
 }
 
+// Past/PP-Kachel-Slider (nur im aktiven Sternbild): zwei Seiten — Simple Past
+// (Sterne 0/2/4) und Past Participle (1/3/5), je 3 Disziplin-Kacheln. Wischbar.
+function _cstSlider(m) {
+  const idx = m.c.idx;
+  const tile = (s) => {
+    let cls = 'cst-tile ' + (s.which === 'past' ? 'past' : 'pp');
+    let state, click = '';
+    if (s.lit) { cls += ' lit'; state = '✓'; click = `startConstellationStar(${idx},${s.i})`; }
+    else if (s.unlocked) { cls += ' play'; state = '▶'; click = `startConstellationStar(${idx},${s.i})`; }
+    else { cls += ' locked'; state = '🔒'; }
+    const on = click ? ` onclick="${click}"` : '';
+    return `<div class="${cls}"${on}><div class="cst-tile-icon">${s.icon}</div><div class="cst-tile-name">${s.name}</div><div class="cst-tile-state">${state}</div></div>`;
+  };
+  const past = [m.stars[0], m.stars[2], m.stars[4]].map(tile).join('');
+  const pp   = [m.stars[1], m.stars[3], m.stars[5]].map(tile).join('');
+  // Past-Participle-Seite gesperrt, solange ihre erste Disziplin weder frei noch
+  // gemeistert ist → Hinweis „erst das Sternbild vorher ausspielen".
+  const ppLocked = !(m.stars[1].unlocked || m.stars[1].lit);
+  const ppHint = ppLocked
+    ? `<div class="cst-page-hint">🔒 ${m.c.idx === 0 ? 'erst Simple Past ausspielen' : 'erst das Sternbild vorher ausspielen'}</div>`
+    : '';
+  return `<div class="cst-slider-wrap">
+    <div class="cst-slider">
+      <button class="cst-arrow" onclick="uvSlide(0)" aria-label="Simple Past">‹</button>
+      <div class="cst-slider-view"><div class="cst-track" id="uv-track">
+        <div class="cst-page"><div class="cst-page-head past">⏱ Simple Past</div><div class="cst-tiles">${past}</div></div>
+        <div class="cst-page"><div class="cst-page-head pp">✓ Past Participle</div>${ppHint}<div class="cst-tiles">${pp}</div></div>
+      </div></div>
+      <button class="cst-arrow" onclick="uvSlide(1)" aria-label="Past Participle">›</button>
+    </div>
+    <div class="cst-dots"><span class="uv-dot active" id="uv-dot0"></span><span class="uv-dot" id="uv-dot1"></span></div>
+  </div>`;
+}
+
 function _cstCaption(m) {
   if (m.complete) return '🌟 Sternbild komplett';
-  if (!m.unlocked) return '🔒 erst das Sternbild darüber';
+  if (!m.unlocked) return '🔒 erst das Sternbild davor ausspielen';
   const next = m.stars.find(s => s.unlocked && !s.lit && !s.done);
   if (!next) return '';
   return `nächster: ${next.icon} ${next.name} · ${next.form}`;
 }
 
-// Pro-Wort-Liste (nur im aktuell aktiven Sternbild): zeigt, welche Verben schon
-// „voll" sind (alle 6 Formen) und welche noch fehlen — als Chip „go 4/6".
+// Pro-Wort-Liste (Rückseite jeder Flip-Karte): Fortschritt getrennt nach
+// Simple Past (⏱ x/3) und Past Participle (✓ x/3).
 function _cstWords(m) {
   const words = constellationWords(m.c);
   const chips = words.map(w => {
-    const done = w.mastered >= w.total;
-    return `<span class="cst-word${done ? ' done' : ''}">${done ? '✓ ' : ''}${w.en} <b>${w.mastered}/${w.total}</b></span>`;
+    const pd = w.past.mastered >= w.past.total, ppd = w.pp.mastered >= w.pp.total;
+    return `<span class="cst-word"><b>${window.escHtml(w.en)}</b>` +
+      `<span class="w-form past${pd ? ' done' : ''}">⏱ ${w.past.mastered}/${w.past.total}</span>` +
+      `<span class="w-form pp${ppd ? ' done' : ''}">✓ ${w.pp.mastered}/${w.pp.total}</span></span>`;
   }).join('');
   return `<div class="cst-words">${chips}</div>`;
 }
 
-function _cstBlock(m, isCurrent) {
+// Flip-Karte: Vorderseite = Sternbild (+ Past/PP-Slider, wenn aktiv), Rückseite =
+// Wörter mit Fortschritt. Jede Karte ist umdrehbar (auch gesperrte, zum Anschauen);
+// gesperrte sind ausgegraut und haben keinen Slider.
+function _cstBlock(m, isActive) {
   const col = m.complete ? '#ffd45e' : (m.unlocked ? '#fff' : '#8a82a8');
-  return `<div class="cst-block${isCurrent ? ' current' : ''}${m.unlocked ? '' : ' locked'}">
+  // Aktiv setzen wie bei Decks: nur freigespielte Sternbilder; das aktive zeigt den
+  // Slider und ist spielbar, gesperrte gar nicht.
+  const activeCtrl = !m.unlocked ? ''
+    : (isActive ? '<div class="cst-active-tag">● Aktiv</div>'
+                : `<button class="cst-active-btn" onclick="setUvActive(${m.c.idx})">▶ Aktiv setzen</button>`);
+  const front = `<div class="cst-face cst-front">
     <div class="cst-name" style="color:${col};">${m.complete ? '🌟 ' : ''}${m.c.name} <span class="cst-cefr">${m.c.cefr}</span></div>
     ${_cstSvg(m)}
-    <div class="cst-cap">${_cstCaption(m)}</div>
-    ${isCurrent ? _cstWords(m) : ''}
+    ${isActive ? _cstSlider(m) : `<div class="cst-cap">${_cstCaption(m)}</div>`}
+    ${activeCtrl}
+    <button class="cst-flip-btn" onclick="uvFlip(this)">📖 Wörter</button>
   </div>`;
+  const back = `<div class="cst-face cst-back">
+    <div class="cst-back-title">${m.c.name} · Wörter</div>
+    ${_cstWords(m)}
+    <button class="cst-flip-btn ghost" onclick="uvFlip(this)">↩ zurück</button>
+  </div>`;
+  return `<div class="cst-flip cst-block${isActive ? ' current' : ''}${m.unlocked ? '' : ' locked'}">
+    <div class="cst-flip-inner">${front}${back}</div>
+  </div>`;
+}
+
+// Aktives Sternbild: manuell gesetztes (SD.uvActive), sofern noch erreichbar;
+// sonst automatisch das erste freie, noch nicht komplette (bzw. letzte freie).
+function _uvActiveIdx(map) {
+  const stored = window.SD && window.SD.uvActive;
+  if (typeof stored === 'number' && map[stored] && map[stored].unlocked) return stored;
+  const next = map.find(m => m.unlocked && !m.complete);
+  if (next) return next.c.idx;
+  const lastOpen = [...map].reverse().find(m => m.unlocked);
+  return lastOpen ? lastOpen.c.idx : 0;
+}
+
+// Sternbild aktiv setzen (wie aktives Deck). Nur freigespielte zulässig.
+export function setUvActive(idx) {
+  const map = uvMap();
+  if (!map[idx] || !map[idx].unlocked) return;
+  if (window.SD) window.SD.uvActive = idx;
+  try { window.persist(); } catch (e) {}
+  renderStudentUV();
 }
 
 function renderStudentUV() {
   const host = document.getElementById('student-uv');
   if (!host) return;
+  window._uvSlidePage = 0;   // jeder Aufbau startet auf der Simple-Past-Seite
   const map = uvMap();
-  const currentIdx = map.findIndex(m => m.unlocked && !m.complete);
+  const activeIdx = _uvActiveIdx(map);
   const blocks = map.map((m, i) =>
-    _cstBlock(m, m.c.idx === currentIdx) + (i < map.length - 1 ? '<div class="cst-link"></div>' : '')
+    _cstBlock(m, m.c.idx === activeIdx) + (i < map.length - 1 ? '<div class="cst-link"></div>' : '')
   ).join('');
 
   const L = uvLernstand();
@@ -452,11 +525,59 @@ function renderStudentUV() {
       <div style="font-size:2rem;">🌌</div>
       <div class="sp-title">Sternenpfad</div>
       <div class="sp-stand">🌟 ${L.complete}/${L.total} Sternbilder · ⭐ ${L.totalLit}/${L.maxLit} Sterne</div>
-      <div class="sp-sub">Tippe den leuchtenden Stern und meistere ihn</div>
-      <div class="sp-legend">🔍 Erkennen · 🔨 Schmieden · 🗣️ Rufen · 🌟 Komplett</div>
+      <div class="sp-sub">Wische zwischen ⏱ Simple Past und ✓ Past Participle. „▶ Aktiv setzen" wählt ein Sternbild, „📖 Wörter" dreht es um.</div>
+      <div class="sp-legend">🔍 Erkennen · 🔨 Schmieden · 🗣️ Rufen</div>
     </div>
     ${blocks}
   </div>`;
+  initUvSlider();
+}
+
+// Flip-Karte umdrehen (Vorderseite Sternbild ↔ Rückseite Wörter).
+export function uvFlip(btn) {
+  const f = btn && btn.closest('.cst-flip');
+  if (f) f.classList.toggle('flipped');
+}
+
+// Past/PP-Slider auf Seite 0 (Simple Past) oder 1 (Past Participle) setzen.
+export function uvSlide(page) { _applyUvSlide(page, true); }
+function _applyUvSlide(page, anim) {
+  const track = document.getElementById('uv-track');
+  if (!track) return;
+  const w = track.parentElement.offsetWidth;
+  window._uvSlidePage = page;
+  if (!anim) track.style.transition = 'none';
+  track.style.transform = `translateX(${-page * w}px)`;
+  if (!anim) { void track.offsetWidth; track.style.transition = ''; }
+  const d0 = document.getElementById('uv-dot0'), d1 = document.getElementById('uv-dot1');
+  if (d0) d0.classList.toggle('active', page === 0);
+  if (d1) d1.classList.toggle('active', page === 1);
+}
+
+// Horizontaler Finger-Swipe für den Past/PP-Slider (nur ein aktives Sternbild).
+function initUvSlider() {
+  const track = document.getElementById('uv-track');
+  if (!track) return;
+  _applyUvSlide(window._uvSlidePage || 0, false);
+  let startX = null, dx = 0;
+  track.addEventListener('pointerdown', (e) => { startX = e.clientX; dx = 0; track.style.transition = 'none'; });
+  track.addEventListener('pointermove', (e) => {
+    if (startX === null) return;
+    dx = e.clientX - startX;
+    const w = track.parentElement.offsetWidth;
+    track.style.transform = `translateX(${-(window._uvSlidePage || 0) * w + dx}px)`;
+  });
+  const end = () => {
+    if (startX === null) return;
+    track.style.transition = '';
+    const w = track.parentElement.offsetWidth;
+    let p = window._uvSlidePage || 0;
+    if (dx < -w * 0.2) p = 1; else if (dx > w * 0.2) p = 0;
+    _applyUvSlide(p, true);
+    startX = null; dx = 0;
+  };
+  track.addEventListener('pointerup', end);
+  track.addEventListener('pointercancel', end);
 }
 
 function _renderStudentSubToggle(sub) {

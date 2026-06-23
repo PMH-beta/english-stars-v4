@@ -51,18 +51,39 @@ export function starProgress(verbs, mode, which) {
   return { mastered: m, total: verbs.length };
 }
 
-// Zustand aller 7 Sterne eines Sternbilds. Disziplin-Sterne linear: Stern K ist
-// erst spielbar, wenn K-1 leuchtet. Der 7. Stern ist KEIN Boss mehr (Bosse/
-// Prüfungen wandern in die Kampagne) — er ist ein reiner Komplett-Leuchtstern:
-// nicht spielbar, leuchtet, sobald alle 6 Disziplin-Sterne leuchten. So bleibt die
-// 7-Punkt-Sternbildgrafik erhalten, und der Pfad gatet nur über synchronisierte
-// Mastery (kein lokaler Boss-Status mehr → keine Sync-Lücke).
+// Disziplin-Reihenfolge innerhalb einer Form: Erkennen → Schmieden → Rufen.
+const DISC_ORDER = ['vocab', 'spelling', 'pronounce'];
+
+// Eine Form (Simple Past / Past Participle) eines Sternbilds ist fertig, wenn alle
+// drei Disziplinen dieser Form gemeistert sind.
+export function formComplete(c, which) {
+  return DISC_ORDER.every((mode) => starLit(c.verbs, mode, which));
+}
+
+// Freischaltung pro Form über Sternbilder hinweg — zwei getrennte Ketten:
+//   Simple Past N      ← Simple Past N-1 fertig   (erstes Sternbild: sofort frei)
+//   Past Participle N  ← Past Participle N-1 fertig
+// Sonderfall erstes Sternbild: Past Participle erst frei, wenn dessen Simple Past
+// fertig ist (Past vor PP am Einstieg).
+export function formUnlocked(idx, which) {
+  const cs = getConstellations();
+  if (which === 'past') return idx <= 0 || formComplete(cs[idx - 1], 'past');
+  if (idx <= 0) return formComplete(cs[0], 'past');
+  return formComplete(cs[idx - 1], 'pp');
+}
+
+// Zustand aller 7 Sterne eines Sternbilds. Jede Form hat ihre eigene Kette
+// (formUnlocked); innerhalb einer Form klettern die Disziplinen linear
+// (Erkennen → Schmieden → Rufen). Der 7. Stern ist KEIN Boss (Bosse/Prüfungen
+// wandern in die Kampagne) — ein reiner Komplett-Leuchtstern: nicht spielbar,
+// leuchtet, sobald alle 6 Disziplin-Sterne leuchten.
 export function constellationStars(c) {
-  const states = []; let prevLit = true;
-  UV_STARS.forEach((st, i) => {
+  const states = UV_STARS.map((st, i) => {
     const lit = starLit(c.verbs, st.mode, st.which);
-    states.push({ ...st, i, lit, unlocked: prevLit, prog: starProgress(c.verbs, st.mode, st.which) });
-    prevLit = lit;
+    const di = DISC_ORDER.indexOf(st.mode);
+    const prevDiscLit = di === 0 ? true : starLit(c.verbs, DISC_ORDER[di - 1], st.which);
+    const unlocked = formUnlocked(c.idx, st.which) && prevDiscLit;
+    return { ...st, i, lit, unlocked, prog: starProgress(c.verbs, st.mode, st.which) };
   });
   const allLit = states.every((s) => s.lit);   // alle 6 Disziplin-Sterne leuchten
   states.push({ mode: null, which: null, icon: '🌟', name: 'Komplett', form: '', i: 6, lit: allLit, unlocked: false, done: true });
@@ -71,11 +92,9 @@ export function constellationStars(c) {
 export function constellationComplete(c) {
   return UV_STARS.every((st) => starLit(c.verbs, st.mode, st.which));
 }
-// Sternbild idx ist frei, wenn das vorige komplett ist (erstes immer frei).
+// Sternbild „erreichbar" (nicht ausgegraut): sobald seine Simple-Past-Seite frei ist.
 export function constellationUnlocked(idx) {
-  if (idx <= 0) return true;
-  const cs = getConstellations();
-  return !!cs[idx - 1] && constellationComplete(cs[idx - 1]);
+  return formUnlocked(idx, 'past');
 }
 
 // Alles, was die Sternkarte (ui.js) braucht.
@@ -138,17 +157,30 @@ export function uvProgress(mode) {
   return { score, mastered, total };
 }
 
-// Alle 6 Form-Suffixe (Disziplin × Form) — für die Pro-Wort-Übersicht.
-const ALL_SUF = Object.values(SUF).flatMap((o) => [o.past, o.pp]);
+// Form-Suffixe getrennt nach Simple Past / Past Participle (je 3 Disziplinen) —
+// für die Pro-Wort-Übersicht, die den Fortschritt nach Form aufteilt.
+const PAST_SUF = Object.values(SUF).map((o) => o.past);
+const PP_SUF   = Object.values(SUF).map((o) => o.pp);
+function _countMastered(v, sufs, ws) {
+  let m = 0;
+  sufs.forEach((suf) => { if (isStatMastered(ws[statKeyFor(v.de, v.en, suf, IRREGULAR_PRESET_ID)])) m++; });
+  return m;
+}
 
-// Pro Verb eines Sternbilds: wie viele der 6 Formen schon gemeistert sind.
-// Für die „welche Wörter kann ich schon / noch nicht"-Liste im Sternenpfad.
+// Pro Verb eines Sternbilds: gemeisterte Formen getrennt nach Simple Past und
+// Past Participle (je x/3). mastered/total bleiben als Gesamtwert erhalten
+// (Lernstand-Ansicht). Für die Pro-Wort-Liste im Sternenpfad.
 export function constellationWords(c) {
   const ws = _ws();
   return c.verbs.map((v) => {
-    let m = 0;
-    ALL_SUF.forEach((suf) => { if (isStatMastered(ws[statKeyFor(v.de, v.en, suf, IRREGULAR_PRESET_ID)])) m++; });
-    return { de: v.de, en: v.en, mastered: m, total: ALL_SUF.length };
+    const pm  = _countMastered(v, PAST_SUF, ws);
+    const ppm = _countMastered(v, PP_SUF, ws);
+    return {
+      de: v.de, en: v.en,
+      past: { mastered: pm,  total: PAST_SUF.length },
+      pp:   { mastered: ppm, total: PP_SUF.length },
+      mastered: pm + ppm, total: PAST_SUF.length + PP_SUF.length,
+    };
   });
 }
 
