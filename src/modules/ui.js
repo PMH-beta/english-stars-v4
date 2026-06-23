@@ -499,12 +499,15 @@ function _uvActiveIdx(map) {
 }
 
 // Sternbild aktiv setzen (wie aktives Deck). Nur freigespielte zulässig.
+// Persistiert lokal und pusht das Profil (uv_active) in die Cloud — gleicher
+// Weg wie setActiveMode (markDirty('profile') + commitDirty).
 export function setUvActive(idx) {
   const map = uvMap();
   if (!map[idx] || !map[idx].unlocked) return;
   if (window.SD) window.SD.uvActive = idx;
-  try { window.persist(); } catch (e) {}
+  persist(window.SD);
   renderStudentUV();
+  if (window.currentUser) { markDirty('profile'); commitDirty(); }
 }
 
 function renderStudentUV() {

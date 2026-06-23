@@ -118,7 +118,7 @@ export async function cloudLoad(userId) {
 
 async function _cloudLoadOnce(userId) {
   const [profileRes, decksRes, wordStatsRes, presetStatsRes, presetCatProgRes] = await Promise.all([
-    fetchWithRetry(() => supabase.from('profiles').select('player_name, highscore, total_points, active_deck_id, active_mode, updated_at').eq('id', userId).maybeSingle()),
+    fetchWithRetry(() => supabase.from('profiles').select('player_name, highscore, total_points, active_deck_id, active_mode, uv_active, updated_at').eq('id', userId).maybeSingle()),
     fetchWithRetry(() => supabase.from('decks').select('*').eq('user_id', userId).order('sort_order').order('created_at')),
     fetchWithRetry(() => supabase.from('word_stats').select('*').eq('user_id', userId)),
     fetchWithRetry(() => supabase.from('preset_stats').select('*').eq('user_id', userId)),
@@ -171,6 +171,7 @@ async function _cloudLoadOnce(userId) {
       highscore:    profile.highscore    || 0,
       totalPoints:  profile.total_points || 0,
       activeMode:   profile.active_mode  || 'free',
+      uvActive:     profile.uv_active ?? null,
       activeDeckId: null,
       decks:        {},
       categoryProgress: { ...EMPTY_CAT },
@@ -218,6 +219,7 @@ async function _cloudLoadOnce(userId) {
     highscore:        profile.highscore || 0,
     totalPoints:      profile.total_points || 0,
     activeMode:       profile.active_mode || 'free',
+    uvActive:         profile.uv_active ?? null,
     activeDeckId,
     decks,
     categoryProgress: { ...EMPTY_CAT },
@@ -241,6 +243,7 @@ export async function saveProfile(sd, userId) {
     total_points:   sd.totalPoints || 0,
     active_deck_id: isUUID(sd.activeDeckId) ? sd.activeDeckId : null,
     active_mode:    sd.activeMode || 'free',
+    uv_active:      Number.isInteger(sd.uvActive) ? sd.uvActive : null,
   };
   const { data, error } = await fetchWithRetry(() => supabase
     .from('profiles')
@@ -415,7 +418,7 @@ export async function cloudReset(userId) {
 
   const { error: profErr } = await supabase
     .from('profiles')
-    .update({ highscore: 0, total_points: 0, active_deck_id: null, active_mode: 'free' })
+    .update({ highscore: 0, total_points: 0, active_deck_id: null, active_mode: 'free', uv_active: null })
     .eq('id', userId);
   if (profErr) throw new Error('[sync] cloudReset profile: ' + profErr.message);
 }
