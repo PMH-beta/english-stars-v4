@@ -60,16 +60,20 @@ export function formComplete(c, which) {
   return DISC_ORDER.every((mode) => starLit(c.verbs, mode, which));
 }
 
-// Freischaltung pro Form über Sternbilder hinweg — zwei getrennte Ketten:
-//   Simple Past N      ← Simple Past N-1 fertig   (erstes Sternbild: sofort frei)
-//   Past Participle N  ← Past Participle N-1 fertig
-// Sonderfall erstes Sternbild: Past Participle erst frei, wenn dessen Simple Past
-// fertig ist (Past vor PP am Einstieg).
-export function formUnlocked(idx, which) {
-  const cs = getConstellations();
-  if (which === 'past') return idx <= 0 || formComplete(cs[idx - 1], 'past');
-  if (idx <= 0) return formComplete(cs[0], 'past');
-  return formComplete(cs[idx - 1], 'pp');
+// Freischaltung: Ein Sternbild ist erreichbar, sobald beim VORHERIGEN mindestens
+// EINE Form (Simple Past ODER Past Participle) komplett ist — man muss also nur
+// eine der beiden Seiten fertigspielen, um weiterzukommen. Das erste Sternbild ist
+// immer frei. Innerhalb eines erreichbaren Sternbilds sind BEIDE Formen sofort
+// offen: man wählt selbst, ob man zuerst Past oder Past Participle übt.
+export function constellationUnlocked(idx) {
+  if (idx <= 0) return true;
+  const prev = getConstellations()[idx - 1];
+  return formComplete(prev, 'past') || formComplete(prev, 'pp');
+}
+// which bleibt im Signatur erhalten (constellationStars ruft pro Form auf); beide
+// Formen teilen jetzt dieselbe Freischaltung.
+export function formUnlocked(idx, _which) {
+  return constellationUnlocked(idx);
 }
 
 // Zustand aller 7 Sterne eines Sternbilds. Jede Form hat ihre eigene Kette
@@ -91,10 +95,6 @@ export function constellationStars(c) {
 }
 export function constellationComplete(c) {
   return UV_STARS.every((st) => starLit(c.verbs, st.mode, st.which));
-}
-// Sternbild „erreichbar" (nicht ausgegraut): sobald seine Simple-Past-Seite frei ist.
-export function constellationUnlocked(idx) {
-  return formUnlocked(idx, 'past');
 }
 
 // Alles, was die Sternkarte (ui.js) braucht.

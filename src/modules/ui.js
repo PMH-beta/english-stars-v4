@@ -394,23 +394,6 @@ const CST_PATTERNS = [
 ];
 function _cstPattern(idx) { return CST_PATTERNS[idx % CST_PATTERNS.length]; }
 
-// Disziplin-Glyph IM Stern als sauberes Vektor-Icon (statt winzigem Emoji-Text,
-// das je nach Gerät anders/unscharf gerendert wurde). Drei klar unterscheidbare
-// Symbole: Erkennen = Lupe, Schmieden = Hammer, Rufen = Schallwellen. Die Farbe
-// folgt über currentColor dem Stern-Zustand (per CSS), an (x,y) zentriert.
-function _discGlyph(mode, x, y) {
-  const g = (inner) => `<g class="cst-ic-v" transform="translate(${x} ${y})">${inner}</g>`;
-  if (mode === 'vocab')                                              // 🔍 Lupe
-    return g('<circle class="ic-stroke" cx="-.55" cy="-.55" r="1.75" fill="none"/>'
-      + '<line class="ic-stroke ic-bold" x1=".7" y1=".7" x2="2.05" y2="2.05"/>');
-  if (mode === 'spelling')                                           // 🔨 Hammer
-    return g('<line class="ic-stroke ic-bold" x1="-1.7" y1="2" x2=".5" y2="-.4"/>'
-      + '<line class="ic-stroke ic-thick" x1="-.8" y1="-1.7" x2="1.95" y2=".55"/>');
-  return g('<path class="ic-fill" d="M-1.9 -1 L-.6 -1 L.8 -2.2 L.8 2.2 L-.6 1 L-1.9 1 Z"/>'   // 🗣️ Schallwellen
-    + '<path class="ic-stroke" d="M1.5 -1.2 A1.8 1.8 0 0 1 1.5 1.2" fill="none"/>'
-    + '<path class="ic-stroke ic-thin" d="M2.4 -2 A2.9 2.9 0 0 1 2.4 2" fill="none"/>');
-}
-
 // Form-Themen: das Muster färbt sich um, je nachdem ob Simple Past oder Past
 // Participle angezeigt wird (gleiche Farbsprache wie überall: Past = bernstein ⏱,
 // PP = grün ✓).
@@ -450,7 +433,6 @@ function _cstFormSvg(m, which) {
       + `<circle class="halo" cx="${x}" cy="${y}" r="7.5"/>`
       + `<circle class="ring" cx="${x}" cy="${y}" r="5.2"/>`
       + `<circle class="core" cx="${x}" cy="${y}" r="3.8"/>`
-      + _discGlyph(s.mode, x, y)
       + (s.lit ? `<text class="cst-chk" x="${x + 5.4}" y="${y - 4.6}" text-anchor="middle" dominant-baseline="central">✓</text>` : '')
       + `</g>`;
   }).join('');
@@ -461,8 +443,9 @@ function _cstFormSvg(m, which) {
 function _formFoot(m, which) {
   const stars = m.stars.filter((s) => s.which === which);
   const open = stars.some((s) => s.unlocked || s.lit);
-  if (!open) return `<span class="foot-lock">🔒 ${m.c.idx === 0 ? 'erst Simple Past spielen' : 'erst Sternbild davor'}</span>`;
-  if (stars.every((s) => s.lit)) return `<span class="foot-done">✓ Form komplett</span>`;
+  if (!open) return `<span class="foot-lock">🔒 erst das Sternbild davor</span>`;
+  if (stars.every((s) => s.lit))
+    return `<span class="foot-done">✓ Form komplett${m.last ? '' : ' · 🔓 nächstes Sternbild frei'}</span>`;
   const next = stars.find((s) => s.unlocked && !s.lit);
   return next ? `nächster: ${next.icon} ${next.name}` : '';
 }
@@ -493,7 +476,7 @@ function _cstSlider(m) {
 
 function _cstCaption(m) {
   if (m.complete) return '🌟 Sternbild komplett';
-  if (!m.unlocked) return '🔒 erst das Sternbild davor ausspielen';
+  if (!m.unlocked) return '🔒 erst eine Form im Sternbild davor schaffen';
   const next = m.stars.find(s => s.unlocked && !s.lit && !s.done);
   if (!next) return '';
   return `nächster: ${next.icon} ${next.name} · ${next.form}`;
@@ -570,9 +553,10 @@ function renderStudentUV() {
   if (!host) return;
   const map = uvMap();
   const activeIdx = _uvActiveIdx(map);
-  const blocks = map.map((m, i) =>
-    _cstBlock(m, m.c.idx === activeIdx) + (i < map.length - 1 ? '<div class="cst-link"></div>' : '')
-  ).join('');
+  const blocks = map.map((m, i) => {
+    m.last = i === map.length - 1;
+    return _cstBlock(m, m.c.idx === activeIdx) + (i < map.length - 1 ? '<div class="cst-link"></div>' : '');
+  }).join('');
 
   const L = uvLernstand();
   host.style.textAlign = 'center';
@@ -582,7 +566,7 @@ function renderStudentUV() {
       <div style="font-size:2rem;">🌌</div>
       <div class="sp-title">Sternenpfad</div>
       <div class="sp-stand">🌟 ${L.complete}/${L.total} Sternbilder · ⭐ ${L.totalLit}/${L.maxLit} Sterne</div>
-      <div class="sp-sub">Wische jedes Sternbild zwischen ⏱ Simple Past und ✓ Past Participle. Tippe einen Stern zum Üben — auch schon gemeisterte. „📖 Wörter" dreht die Karte um.</div>
+      <div class="sp-sub">Jedes Sternbild hat zwei Seiten: ⏱ Simple Past und ✓ Past Participle — wische dazwischen, beide sind sofort spielbar. Schon <b>eine</b> Seite komplett (alle 3 Sterne) schaltet das nächste Sternbild frei. Tippe einen Stern zum Üben, „📖 Wörter" dreht die Karte um.</div>
       <div class="sp-legend">🔍 Erkennen · 🔨 Schmieden · 🗣️ Rufen</div>
     </div>
     ${blocks}
