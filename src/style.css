@@ -633,21 +633,29 @@ body.in-game .mode-progress{display:block;}
 .cst-star .core{fill:#574f70;transition:fill .25s;}
 .cst-star .halo{fill:transparent;}
 .cst-star .ring{fill:none;stroke:transparent;stroke-width:1;}
-.cst-ic{font-size:4.6px;}                       /* Disziplin-Emoji im Stern */
+/* Disziplin-Glyph im Stern (Lupe/Hammer/Schallwellen) — Farbe folgt dem Zustand */
+.cst-ic-v{color:#ece6ff;}
+.cst-ic-v .ic-stroke{stroke:currentColor;stroke-width:.85;stroke-linecap:round;fill:none;}
+.cst-ic-v .ic-bold{stroke-width:1.1;}
+.cst-ic-v .ic-thick{stroke-width:1.7;}
+.cst-ic-v .ic-thin{stroke-width:.62;}
+.cst-ic-v .ic-fill{fill:currentColor;stroke:none;}
 .cst-chk{font-size:4.4px;font-weight:900;fill:#3a2a00;}
 .cst-star[data-play]{cursor:pointer;}
 /* Geister-Sterne der anderen Form: nur angedeutet */
 .cst-star.ghost .core{fill:rgba(255,255,255,.16);}
 /* gesperrte aktive Form */
 .cst-star.locked .core{fill:#453f5c;}
-.cst-star.locked .cst-ic{opacity:.3;}
+.cst-star.locked .cst-ic-v{color:#7b739c;opacity:.6;}
 /* spielbar (nächste/offene Disziplin) — pulsiert in der Formfarbe */
 .cst-star.play.past .core{fill:#e8920a;}
 .cst-star.play.pp   .core{fill:#3aaa5c;}
 .cst-star.play.past .halo{fill:#ffb155;}
 .cst-star.play.pp   .halo{fill:#6fdc9b;}
 .cst-star.play .halo{animation:cstpulse 1.5s ease-in-out infinite;}
-/* gemeistert: deutlich golden mit Ring + ✓ */
+.cst-star.play .cst-ic-v{color:#fff;}
+/* gemeistert: deutlich golden mit Ring + ✓, Glyph dunkel auf Gold */
+.cst-star.lit .cst-ic-v{color:#5a3d00;}
 .cst-star.lit .core{fill:#ffd45e;}
 .cst-star.lit .halo{fill:#ffd45e;opacity:.3;}
 .cst-star.lit .ring{stroke:#fff3c4;stroke-width:1.1;}
@@ -675,7 +683,7 @@ body.in-game .mode-progress{display:block;}
 .cst-slider-wrap{margin-top:6px;width:100%;}
 .cst-slider{display:flex;align-items:center;gap:4px;justify-content:center;}
 .cst-slider-view{overflow:hidden;flex:1;max-width:300px;}
-.cst-track{display:flex;will-change:transform;touch-action:pan-y;}
+.cst-track{display:flex;will-change:transform;touch-action:pan-y;transition:transform .42s cubic-bezier(.22,.61,.36,1);}
 .cst-page{flex:0 0 100%;}
 .cst-page-head{font-family:'Fredoka One',cursive;font-size:.78rem;margin-bottom:2px;}
 .cst-page-head.past{color:#ffb155;}

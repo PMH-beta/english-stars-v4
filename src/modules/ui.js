@@ -371,17 +371,45 @@ function renderStudentMode() {
 //
 // Muster (viewBox 0..100 × 0..72), je 7 Punkte (Index 0–5 spielbar, 6 = Komplett-Stern).
 // Bekannte Sternbilder mit echter Silhouette, der Rest stilisiert; idx zyklisch.
+// Jedes Muster: 7 Punkte (0–5 spielbar, 6 = Komplett-Stern) und Kanten, die eine
+// klare, KREUZUNGSFREIE Silhouette bilden — der Komplett-Stern sitzt jeweils an
+// einem natürlichen Brennpunkt (Spitze, Schweif oder Zentrum).
 const CST_PATTERNS = [
-  { pts: [[24,52],[44,56],[46,36],[26,33],[62,30],[78,22],[92,14]], edges: [[0,1],[1,2],[2,3],[3,0],[2,4],[4,5],[5,6]] }, // Kleiner Wagen
-  { pts: [[14,20],[34,16],[36,34],[16,38],[54,40],[72,48],[90,52]], edges: [[0,1],[1,2],[2,3],[3,0],[2,4],[4,5],[5,6]] }, // Großer Wagen
-  { pts: [[12,40],[28,18],[44,42],[60,16],[76,44],[88,26],[96,46]], edges: [[0,1],[1,2],[2,3],[3,4],[4,5],[5,6]] },       // Kassiopeia (W)
-  { pts: [[22,14],[70,16],[40,38],[50,42],[60,46],[26,64],[74,60]], edges: [[0,1],[0,2],[1,4],[2,3],[3,4],[2,5],[4,6]] }, // Orion
-  { pts: [[50,8],[50,26],[50,42],[28,40],[72,40],[50,58],[50,68]], edges: [[0,1],[1,2],[3,2],[2,4],[2,5],[5,6]] },        // Schwan (Kreuz)
-  { pts: [[50,10],[30,32],[70,32],[50,52],[44,66],[56,66],[50,40]], edges: [[0,1],[0,2],[1,3],[2,3],[3,4],[3,5],[0,6],[6,3]] }, // Adler (Drachen)
-  { pts: [[52,12],[38,28],[60,24],[66,46],[44,50],[30,16],[20,30]], edges: [[1,2],[2,3],[3,4],[4,1],[1,5],[5,6],[1,0]] }, // Leier
-  { pts: [[50,12],[26,30],[74,30],[36,52],[64,52],[50,40],[50,64]], edges: [[0,1],[0,2],[1,3],[2,4],[3,4],[0,5],[4,6]] }, // Cluster
+  // Kleiner Wagen: Kasten (0-1-2-3) + Deichsel nach rechts oben zum Komplett-Stern.
+  { pts: [[28,46],[48,50],[52,32],[32,28],[66,40],[80,30],[92,18]], edges: [[0,1],[1,2],[2,3],[3,0],[1,4],[4,5],[5,6]] },
+  // Großer Wagen: größerer Kasten, Deichsel aus der oberen Ecke.
+  { pts: [[20,40],[40,46],[44,28],[24,24],[60,34],[78,30],[94,22]], edges: [[0,1],[1,2],[2,3],[3,0],[2,4],[4,5],[5,6]] },
+  // Kassiopeia: sauberes W (durchgehender Zickzack, x monoton → nie kreuzend).
+  { pts: [[12,26],[26,48],[40,26],[54,48],[68,26],[82,46],[94,24]], edges: [[0,1],[1,2],[2,3],[3,4],[4,5],[5,6]] },
+  // Orion: zwei Schultern, drei Gürtelsterne, zwei Füße (Sanduhr); Fuß = Komplett.
+  { pts: [[24,16],[70,18],[40,40],[48,42],[56,44],[28,64],[74,62]], edges: [[0,2],[2,3],[3,4],[4,1],[2,5],[4,6]] },
+  // Schwan / Nordkreuz: senkrechte Achse + Flügel, Komplett-Stern im Kreuzungspunkt.
+  { pts: [[50,8],[50,26],[26,38],[74,38],[50,46],[50,64],[50,38]], edges: [[0,1],[1,6],[6,4],[4,5],[2,6],[6,3]] },
+  // Adler (Drachen): Raute (0-1-3-2) + Schweif-Dreieck zum Komplett-Stern unten.
+  { pts: [[50,10],[28,32],[72,32],[50,50],[44,62],[58,62],[50,70]], edges: [[0,1],[1,3],[3,2],[2,0],[3,4],[3,5],[4,6],[5,6]] },
+  // Leier: Querbalken + Seitenkanten laufen über das Zentrum zur Komplett-Spitze.
+  { pts: [[50,10],[30,30],[70,30],[34,52],[66,52],[50,40],[50,64]], edges: [[0,1],[0,2],[1,2],[1,3],[2,4],[3,5],[4,5],[5,6]] },
+  // Cluster: konvexes Sechseck mit Diagonale durch den Komplett-Stern im Zentrum.
+  { pts: [[50,10],[26,26],[74,26],[26,52],[74,52],[50,64],[50,38]], edges: [[0,1],[1,3],[3,5],[5,4],[4,2],[2,0],[0,6],[6,5]] },
 ];
 function _cstPattern(idx) { return CST_PATTERNS[idx % CST_PATTERNS.length]; }
+
+// Disziplin-Glyph IM Stern als sauberes Vektor-Icon (statt winzigem Emoji-Text,
+// das je nach Gerät anders/unscharf gerendert wurde). Drei klar unterscheidbare
+// Symbole: Erkennen = Lupe, Schmieden = Hammer, Rufen = Schallwellen. Die Farbe
+// folgt über currentColor dem Stern-Zustand (per CSS), an (x,y) zentriert.
+function _discGlyph(mode, x, y) {
+  const g = (inner) => `<g class="cst-ic-v" transform="translate(${x} ${y})">${inner}</g>`;
+  if (mode === 'vocab')                                              // 🔍 Lupe
+    return g('<circle class="ic-stroke" cx="-.55" cy="-.55" r="1.75" fill="none"/>'
+      + '<line class="ic-stroke ic-bold" x1=".7" y1=".7" x2="2.05" y2="2.05"/>');
+  if (mode === 'spelling')                                           // 🔨 Hammer
+    return g('<line class="ic-stroke ic-bold" x1="-1.7" y1="2" x2=".5" y2="-.4"/>'
+      + '<line class="ic-stroke ic-thick" x1="-.8" y1="-1.7" x2="1.95" y2=".55"/>');
+  return g('<path class="ic-fill" d="M-1.9 -1 L-.6 -1 L.8 -2.2 L.8 2.2 L-.6 1 L-1.9 1 Z"/>'   // 🗣️ Schallwellen
+    + '<path class="ic-stroke" d="M1.5 -1.2 A1.8 1.8 0 0 1 1.5 1.2" fill="none"/>'
+    + '<path class="ic-stroke ic-thin" d="M2.4 -2 A2.9 2.9 0 0 1 2.4 2" fill="none"/>');
+}
 
 // Form-Themen: das Muster färbt sich um, je nachdem ob Simple Past oder Past
 // Participle angezeigt wird (gleiche Farbsprache wie überall: Past = bernstein ⏱,
@@ -422,7 +450,7 @@ function _cstFormSvg(m, which) {
       + `<circle class="halo" cx="${x}" cy="${y}" r="7.5"/>`
       + `<circle class="ring" cx="${x}" cy="${y}" r="5.2"/>`
       + `<circle class="core" cx="${x}" cy="${y}" r="3.8"/>`
-      + `<text class="cst-ic" x="${x}" y="${y}" text-anchor="middle" dominant-baseline="central">${s.icon}</text>`
+      + _discGlyph(s.mode, x, y)
       + (s.lit ? `<text class="cst-chk" x="${x + 5.4}" y="${y - 4.6}" text-anchor="middle" dominant-baseline="central">✓</text>` : '')
       + `</g>`;
   }).join('');
@@ -454,8 +482,8 @@ function _cstSlider(m) {
   return `<div class="cst-slider-wrap">
     <div class="cst-slider">
       <button class="cst-arrow" onclick="uvSlide(${idx},-1)" aria-label="andere Form">‹</button>
-      <div class="cst-slider-view"><div class="cst-track" data-cst="${idx}" data-page="0">
-        ${page('past')}${page('pp')}
+      <div class="cst-slider-view"><div class="cst-track" data-cst="${idx}" data-idx="1">
+        ${page('pp')}${page('past')}${page('pp')}${page('past')}
       </div></div>
       <button class="cst-arrow" onclick="uvSlide(${idx},1)" aria-label="andere Form">›</button>
     </div>
@@ -568,22 +596,39 @@ export function uvFlip(btn) {
   if (f) f.classList.toggle('flipped');
 }
 
-// Slider eines Sternbilds um eine Form weiterdrehen (dir −1/+1, mit Wrap: bei nur
-// zwei Seiten führt jede Richtung zur anderen Form).
+// Endlos-Slider: der Track trägt vier Seiten [pp, past, pp, past]. „Echt" sind die
+// mittleren beiden (Index 1 = Simple Past, 2 = Past Participle); 0 und 3 sind Klone
+// als Anlauf in beide Richtungen. Beim Erreichen eines Klons springt der Track
+// nach der Animation lautlos auf die echte Gegenseite — so kann man unbegrenzt in
+// jede Richtung weiterwischen, ohne harten Rücksprung.
+function _trackW(track) { return track.parentElement.offsetWidth; }
+function _realDot(i) { return (i % 2 === 1) ? 0 : 1; }   // 1,3→past (Punkt 0); 0,2→pp (Punkt 1)
+
+// Slider per Pfeil eine Seite weiter (dir −1/+1). Wrap übernimmt _settleTrack.
 export function uvSlide(idx, dir) {
   const track = document.querySelector(`.cst-track[data-cst="${idx}"]`);
   if (!track) return;
-  const next = (((+track.dataset.page || 0) + dir) % 2 + 2) % 2;
-  _applyTrack(track, next, true);
+  _applyTrack(track, (+track.dataset.idx || 1) + dir, true);
 }
-function _applyTrack(track, page, anim) {
-  const w = track.parentElement.offsetWidth;
-  track.dataset.page = page;
-  if (!anim) track.style.transition = 'none';
-  track.style.transform = `translateX(${-page * w}px)`;
+
+// Track auf Slide-Index setzen. anim=false blendet die Transition kurz aus (für den
+// lautlosen Klon→Echt-Sprung und das Erst-Layout).
+function _applyTrack(track, idx, anim) {
+  const w = _trackW(track);
+  track.dataset.idx = idx;
+  track.style.transition = anim ? '' : 'none';
+  track.style.transform = `translateX(${-idx * w}px)`;
   if (!anim) { void track.offsetWidth; track.style.transition = ''; }
   const dots = track.closest('.cst-slider-wrap')?.querySelectorAll('.uv-dot');
-  if (dots) dots.forEach((d, i) => d.classList.toggle('active', i === page));
+  if (dots) { const r = _realDot(idx); dots.forEach((d, i) => d.classList.toggle('active', i === r)); }
+}
+
+// Nach Abschluss der Slide-Animation: stand der Track auf einem Klon (0 oder 3),
+// lautlos auf die echte Gegenseite (2 bzw. 1) umsetzen.
+function _settleTrack(track) {
+  const i = +track.dataset.idx || 1;
+  if (i >= 3) _applyTrack(track, 1, false);
+  else if (i <= 0) _applyTrack(track, 2, false);
 }
 
 // Jeder Sternbild-Slider bekommt Finger-Swipe + Tap-auf-Stern. Tap und Wisch
@@ -591,31 +636,36 @@ function _applyTrack(track, page, anim) {
 // startet keine Runde, ein Tap auf einen [data-play]-Stern schon.
 function initUvSliders() {
   document.querySelectorAll('.cst-track').forEach((track) => {
-    _applyTrack(track, +track.dataset.page || 0, false);
+    _applyTrack(track, +track.dataset.idx || 1, false);
     let startX = null, dx = 0;
     track.addEventListener('pointerdown', (e) => {
-      startX = e.clientX; dx = 0; track._moved = false; track.style.transition = 'none';
+      _settleTrack(track);   // evtl. noch laufenden Klon-Sprung sofort abschließen
+      startX = e.clientX; dx = 0; track._moved = false;
+      track.style.transition = 'none';
+      track.setPointerCapture?.(e.pointerId);
     });
     track.addEventListener('pointermove', (e) => {
       if (startX === null) return;
       dx = e.clientX - startX;
-      const w = track.parentElement.offsetWidth;
-      const p = +track.dataset.page || 0;
-      const off = Math.max(-w, Math.min(0, -p * w + dx));   // an den Rändern bremsen
+      const w = _trackW(track), cur = +track.dataset.idx || 1;
+      const off = Math.max(-3 * w, Math.min(0, -cur * w + dx));
       track.style.transform = `translateX(${off}px)`;
     });
     const end = () => {
       if (startX === null) return;
-      track.style.transition = '';
-      const w = track.parentElement.offsetWidth;
-      let p = +track.dataset.page || 0;
+      const w = _trackW(track), cur = +track.dataset.idx || 1;
       if (Math.abs(dx) > 6) track._moved = true;
-      if (dx < -w * 0.2) p = 1; else if (dx > w * 0.2) p = 0;
-      _applyTrack(track, p, true);
+      let ni = cur;
+      if (dx < -w * 0.18) ni = cur + 1; else if (dx > w * 0.18) ni = cur - 1;
+      _applyTrack(track, ni, true);
+      if (ni === cur) _settleTrack(track);   // keine Bewegung → transitionend bleibt aus
       startX = null; dx = 0;
     };
     track.addEventListener('pointerup', end);
     track.addEventListener('pointercancel', end);
+    track.addEventListener('transitionend', (e) => {
+      if (e.propertyName === 'transform') _settleTrack(track);
+    });
     track.addEventListener('click', (e) => {
       if (track._moved) { track._moved = false; return; }   // war ein Wisch
       const g = e.target.closest('[data-play]');
