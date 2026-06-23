@@ -371,26 +371,21 @@ function renderStudentMode() {
 //
 // Muster (viewBox 0..100 × 0..72), je 7 Punkte (Index 0–5 spielbar, 6 = Komplett-Stern).
 // Bekannte Sternbilder mit echter Silhouette, der Rest stilisiert; idx zyklisch.
-// Jedes Muster: 7 Punkte (0–5 spielbar, 6 = Komplett-Stern) und Kanten, die eine
-// klare, KREUZUNGSFREIE Silhouette bilden — der Komplett-Stern sitzt jeweils an
-// einem natürlichen Brennpunkt (Spitze, Schweif oder Zentrum).
+// Sternenpfad-Muster: die 7 Sterne liegen entlang EINES klaren Pfades (x steigt
+// streng monoton) — dadurch leuchtet je Form (Erkennen → Schmieden → Rufen) der
+// nächste Stern immer weiter rechts: eine logische, nie kreuzende Reihenfolge.
+// Index 6 ist der Komplett-Stern am Ende des Pfades. Die y-Profile geben jedem
+// Sternbild seinen eigenen Charakter (Mulde, Anstieg, W, Bogen …).
+const PATH_EDGES = [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6]];
 const CST_PATTERNS = [
-  // Kleiner Wagen: Kasten (0-1-2-3) + Deichsel nach rechts oben zum Komplett-Stern.
-  { pts: [[28,46],[48,50],[52,32],[32,28],[66,40],[80,30],[92,18]], edges: [[0,1],[1,2],[2,3],[3,0],[1,4],[4,5],[5,6]] },
-  // Großer Wagen: größerer Kasten, Deichsel aus der oberen Ecke.
-  { pts: [[20,40],[40,46],[44,28],[24,24],[60,34],[78,30],[94,22]], edges: [[0,1],[1,2],[2,3],[3,0],[2,4],[4,5],[5,6]] },
-  // Kassiopeia: sauberes W (durchgehender Zickzack, x monoton → nie kreuzend).
-  { pts: [[12,26],[26,48],[40,26],[54,48],[68,26],[82,46],[94,24]], edges: [[0,1],[1,2],[2,3],[3,4],[4,5],[5,6]] },
-  // Orion: zwei Schultern, drei Gürtelsterne, zwei Füße (Sanduhr); Fuß = Komplett.
-  { pts: [[24,16],[70,18],[40,40],[48,42],[56,44],[28,64],[74,62]], edges: [[0,2],[2,3],[3,4],[4,1],[2,5],[4,6]] },
-  // Schwan / Nordkreuz: senkrechte Achse + Flügel, Komplett-Stern im Kreuzungspunkt.
-  { pts: [[50,8],[50,26],[26,38],[74,38],[50,46],[50,64],[50,38]], edges: [[0,1],[1,6],[6,4],[4,5],[2,6],[6,3]] },
-  // Adler (Drachen): Raute (0-1-3-2) + Schweif-Dreieck zum Komplett-Stern unten.
-  { pts: [[50,10],[28,32],[72,32],[50,50],[44,62],[58,62],[50,70]], edges: [[0,1],[1,3],[3,2],[2,0],[3,4],[3,5],[4,6],[5,6]] },
-  // Leier: Querbalken + Seitenkanten laufen über das Zentrum zur Komplett-Spitze.
-  { pts: [[50,10],[30,30],[70,30],[34,52],[66,52],[50,40],[50,64]], edges: [[0,1],[0,2],[1,2],[1,3],[2,4],[3,5],[4,5],[5,6]] },
-  // Cluster: konvexes Sechseck mit Diagonale durch den Komplett-Stern im Zentrum.
-  { pts: [[50,10],[26,26],[74,26],[26,52],[74,52],[50,64],[50,38]], edges: [[0,1],[1,3],[3,5],[5,4],[4,2],[2,0],[0,6],[6,5]] },
+  { pts: [[12,34],[26,42],[40,47],[54,46],[68,40],[82,33],[94,22]], edges: PATH_EDGES }, // Kleiner Wagen (Mulde)
+  { pts: [[12,52],[26,46],[40,40],[54,34],[68,29],[82,23],[96,16]], edges: PATH_EDGES }, // Großer Wagen (Anstieg)
+  { pts: [[12,26],[26,48],[40,27],[54,49],[68,27],[82,46],[96,24]], edges: PATH_EDGES }, // Kassiopeia (W)
+  { pts: [[12,46],[26,32],[40,22],[54,18],[68,23],[82,33],[96,47]], edges: PATH_EDGES }, // Orion (Bogen)
+  { pts: [[12,18],[26,30],[40,42],[54,50],[68,42],[82,30],[96,18]], edges: PATH_EDGES }, // Schwan (Tal)
+  { pts: [[12,34],[26,21],[40,35],[54,22],[68,35],[82,22],[96,33]], edges: PATH_EDGES }, // Adler (Welle)
+  { pts: [[12,22],[26,34],[40,44],[54,48],[68,44],[82,34],[96,22]], edges: PATH_EDGES }, // Leier (Bogen)
+  { pts: [[12,48],[26,38],[40,40],[54,30],[68,32],[82,22],[96,16]], edges: PATH_EDGES }, // Cluster (Treppe)
 ];
 function _cstPattern(idx) { return CST_PATTERNS[idx % CST_PATTERNS.length]; }
 
@@ -456,11 +451,11 @@ function _cstSlider(m) {
   const idx = m.c.idx;
   const page = (which) =>
     `<div class="cst-page">${_cstFormSvg(m, which)}<div class="cst-page-foot">${_formFoot(m, which)}</div></div>`;
-  // Form-Umschalter unter dem Muster: zeigt, welche Form gerade offen ist, und
-  // springt beim Tippen dorthin. Ersetzt die alten, schwer lesbaren Punkte.
-  const tab = (which) =>
-    `<button class="cst-form-tab ${which}" onclick="uvSetForm(${idx},'${which}')">${FORM_THEME[which].label}</button>`;
+  // Aktuelle Form als Label direkt unter dem Namen (nur die gerade gezeigte) und
+  // antippbare Punkte unten zum Wechseln. Beides aktualisiert _applyTrack beim
+  // Sliden. Start: Simple Past (Slide-Index 1).
   return `<div class="cst-slider-wrap">
+    <div class="cst-form-now past">${FORM_THEME.past.label}</div>
     <div class="cst-slider">
       <button class="cst-arrow" onclick="uvSlide(${idx},-1)" aria-label="andere Form">‹</button>
       <div class="cst-slider-view"><div class="cst-track" data-cst="${idx}" data-idx="1">
@@ -468,7 +463,10 @@ function _cstSlider(m) {
       </div></div>
       <button class="cst-arrow" onclick="uvSlide(${idx},1)" aria-label="andere Form">›</button>
     </div>
-    <div class="cst-forms">${tab('past')}${tab('pp')}</div>
+    <div class="cst-dots">
+      <button class="uv-dot active" onclick="uvSetForm(${idx},'past')" aria-label="Simple Past"></button>
+      <button class="uv-dot" onclick="uvSetForm(${idx},'pp')" aria-label="Past Participle"></button>
+    </div>
   </div>`;
 }
 
@@ -602,8 +600,14 @@ function _applyTrack(track, idx, anim) {
   if (!anim) { void track.offsetWidth; track.style.transition = ''; }
   const wrap = track.closest('.cst-slider-wrap');
   if (wrap) {
-    const form = _realDot(idx) === 0 ? 'past' : 'pp';
-    wrap.querySelectorAll('.cst-form-tab').forEach((t) => t.classList.toggle('active', t.classList.contains(form)));
+    const isPast = _realDot(idx) === 0;
+    const now = wrap.querySelector('.cst-form-now');
+    if (now) {
+      now.textContent = (isPast ? FORM_THEME.past : FORM_THEME.pp).label;
+      now.classList.toggle('past', isPast);
+      now.classList.toggle('pp', !isPast);
+    }
+    wrap.querySelectorAll('.uv-dot').forEach((d, i) => d.classList.toggle('active', i === (isPast ? 0 : 1)));
   }
 }
 
@@ -621,11 +625,13 @@ export function uvInfo() {
   window.esAlert?.({
     icon: '🌌',
     title: 'Sternenpfad',
-    body: 'Jedes Sternbild hat zwei Seiten:\n⏱ Simple Past und ✓ Past Participle.\n'
-      + 'Wische dazwischen oder tippe die Form-Schalter — beide sind sofort spielbar.\n\n'
-      + 'Schon EINE Seite komplett (alle 3 Sterne) öffnet das nächste Sternbild.\n\n'
-      + 'Die drei Sterne je Form sind die Übungsarten:\n🔍 Erkennen · 🔨 Schmieden · 🗣️ Rufen\n\n'
-      + 'Tippe einen Stern zum Üben — auch schon gemeisterte.\n„📖 Wörter" zeigt die Wortliste.',
+    body: 'Jedes Sternbild übt zwei Zeitformen:\n⏱ Simple Past und ✓ Past Participle.\n'
+      + 'Wische dazwischen oder tippe die Punkte — beide kannst du sofort spielen.\n\n'
+      + 'Jede Zeitform hat drei Übungs-Sterne:\n🔍 Erkennen · 🔨 Schmieden · 🗣️ Rufen.\n'
+      + 'Leuchten alle drei Sterne einer Zeitform golden, ist diese Zeitform geschafft '
+      + '— und das nächste Sternbild geht auf.\n\n'
+      + 'Du musst also nur EINE der beiden Zeitformen schaffen, um weiterzukommen.\n\n'
+      + 'Tippe einen Stern zum Üben (auch schon goldene).\n„📖 Wörter" zeigt die Wortliste.',
   });
 }
 

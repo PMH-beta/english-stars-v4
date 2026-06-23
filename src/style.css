@@ -621,7 +621,7 @@ body.in-game .mode-progress{display:block;}
 .cst-block{max-width:360px;margin:0 auto;padding:8px 10px 14px;border-radius:16px;}
 .cst-block.locked{opacity:.5;}
 .cst-block.current{background:rgba(255,255,255,.05);box-shadow:inset 0 0 0 1px rgba(189,165,255,.35);}
-.cst-name{font-family:'Fredoka One',cursive;font-size:.95rem;margin-bottom:8px;}
+.cst-name{font-family:'Fredoka One',cursive;font-size:.95rem;margin-bottom:4px;}
 .cst-cefr{font-size:.6rem;font-weight:700;color:#cdc3ea;background:rgba(255,255,255,.1);padding:1px 7px;border-radius:20px;}
 .cst-cap{font-size:.72rem;color:#c3b8e2;font-weight:700;margin-top:2px;min-height:1.1em;}
 .cst-link{height:26px;border-left:3px dotted rgba(189,165,255,.4);width:0;margin:0 auto;}
@@ -666,11 +666,11 @@ body.in-game .mode-progress{display:block;}
    damit „↩ zurück" exakt dort sitzt wo „📖 Wörter" war. */
 .cst-flip-btn{margin-top:auto;font-family:'Fredoka One',cursive;font-size:.72rem;padding:6px 16px;border-radius:50px;cursor:pointer;background:rgba(189,165,255,.18);color:#d9ccff;border:1px solid rgba(189,165,255,.35);}
 .cst-flip-btn.ghost{background:transparent;}
-.cst-active-btn{margin-top:12px;font-family:'Fredoka One',cursive;font-size:.7rem;padding:5px 14px;border-radius:50px;cursor:pointer;background:rgba(95,208,138,.16);color:#9be6b8;border:1px solid rgba(95,208,138,.4);}
-.cst-active-tag{margin-top:12px;font-family:'Fredoka One',cursive;font-size:.7rem;color:#5fd08a;}
+.cst-active-btn{margin-top:16px;font-family:'Fredoka One',cursive;font-size:.72rem;padding:6px 16px;border-radius:50px;cursor:pointer;background:rgba(95,208,138,.16);color:#9be6b8;border:1px solid rgba(95,208,138,.4);}
+.cst-active-tag{margin-top:16px;font-family:'Fredoka One',cursive;font-size:.72rem;color:#5fd08a;}
 
 /* UV: Past/PP-Slider (das ganze Sternbild slidet & färbt sich um) */
-.cst-slider-wrap{margin-top:10px;width:100%;}
+.cst-slider-wrap{margin-top:4px;width:100%;}
 .cst-slider{display:flex;align-items:center;gap:4px;justify-content:center;}
 .cst-slider-view{overflow:hidden;flex:1;max-width:300px;}
 .cst-track{display:flex;will-change:transform;touch-action:pan-y;transition:transform .42s cubic-bezier(.22,.61,.36,1);}
@@ -678,12 +678,15 @@ body.in-game .mode-progress{display:block;}
 .cst-page-foot{font-size:.68rem;color:#c3b8e2;font-weight:700;margin-top:8px;min-height:1.2em;}
 .cst-page-foot .foot-lock{color:#a99fc7;}
 .cst-page-foot .foot-done{color:#ffd45e;}
-.cst-arrow{background:none;border:none;color:#bda5ff;font-size:1.4rem;line-height:1;cursor:pointer;padding:4px 2px;flex-shrink:0;}
-/* Form-Umschalter (⏱ Simple Past / ✓ Past Participle), aktive Form hervorgehoben */
-.cst-forms{display:flex;gap:7px;justify-content:center;margin-top:12px;}
-.cst-form-tab{font-family:'Fredoka One',cursive;font-size:.7rem;padding:5px 13px;border-radius:50px;cursor:pointer;border:1.5px solid transparent;background:rgba(255,255,255,.06);color:#9a90bb;transition:background .2s,border-color .2s,color .2s;}
-.cst-form-tab.past.active{background:rgba(255,177,85,.18);border-color:rgba(255,177,85,.6);color:#ffc987;}
-.cst-form-tab.pp.active{background:rgba(111,220,155,.18);border-color:rgba(111,220,155,.6);color:#8fe6b5;}
+.cst-arrow{background:none;border:none;color:#bda5ff;font-size:1.4rem;line-height:1;cursor:pointer;padding:4px 6px;flex-shrink:0;}
+/* Aktuelle Zeitform als Label direkt unter dem Sternbild-Namen */
+.cst-form-now{font-family:'Fredoka One',cursive;font-size:.84rem;margin-bottom:10px;}
+.cst-form-now.past{color:#ffb155;}
+.cst-form-now.pp{color:#6fdc9b;}
+/* Navigationspunkte unten — aktive Form hervorgehoben, antippbar */
+.cst-dots{display:flex;gap:10px;justify-content:center;margin-top:14px;}
+.uv-dot{width:9px;height:9px;border-radius:50%;border:none;padding:0;cursor:pointer;background:rgba(255,255,255,.22);transition:background .2s,transform .2s;}
+.uv-dot.active{background:#cdbcff;transform:scale(1.3);}
 
 /* UV: Pro-Wort-Fortschritt getrennt Past/PP */
 .cst-word{display:inline-flex;align-items:center;gap:5px;}

@@ -562,7 +562,8 @@ function initOrderDnD(){
   if(!tray||!slotsWrap) return;
   const slots=[...slotsWrap.querySelectorAll('.order-slot')];
   const checkBtn=document.getElementById('order-check');
-  let drag=null;
+  let drag=null;        // aktives Ziehen (Kachel ist abgehoben)
+  let pending=null;     // pointerdown – noch offen, ob Tap oder Ziehen
 
   function updateCheck(){ if(checkBtn) checkBtn.disabled=!slots.every(s=>s.querySelector('.order-tile')); }
   function placeTile(tile, target){
@@ -575,47 +576,70 @@ function initOrderDnD(){
     }
     updateCheck();
   }
+  // Tap (ohne Ziehen): Kachel im Tray → in den nächsten freien Slot; Kachel in
+  // einem Slot → zurück ins Tray (rückwärts). So geht Sortieren auch per Klick.
+  function tapPlace(tile){
+    if(tile.parentElement && tile.parentElement.classList.contains('order-slot')){
+      tray.appendChild(tile);
+    } else {
+      const slot=slots.find(s=>!s.querySelector('.order-tile'));
+      if(!slot) return;
+      placeTile(tile, slot);
+    }
+    updateCheck();
+  }
   function targetUnder(x,y){
     const el=document.elementFromPoint(x,y); if(!el) return null;
     const slot=el.closest('.order-slot'); if(slot) return slot;
     if(el===tray || tray.contains(el)) return tray;
     return null;
   }
-  function moveTo(x,y){ if(drag){ drag.tile.style.left=(x-drag.dx)+'px'; drag.tile.style.top=(y-drag.dy)+'px'; } }
-  function onMove(e){
-    if(!drag) return;
-    moveTo(e.clientX,e.clientY);
-    const t=targetUnder(e.clientX,e.clientY);
-    slots.forEach(s=>s.classList.toggle('drop-hover', s===t));
-    tray.classList.toggle('drop-hover', t===tray);
-  }
-  function onUp(e){
-    if(!drag) return;
-    const tile=drag.tile;
-    const t=targetUnder(e.clientX,e.clientY) || drag.home || tray;
-    tile.style.position=''; tile.style.left=''; tile.style.top='';
-    tile.style.width=''; tile.style.height=''; tile.style.zIndex=''; tile.style.pointerEvents='';
-    tile.classList.remove('dragging');
-    slots.forEach(s=>s.classList.remove('drop-hover')); tray.classList.remove('drop-hover');
-    document.removeEventListener('pointermove',onMove);
-    document.removeEventListener('pointerup',onUp);
-    document.removeEventListener('pointercancel',onUp);
-    placeTile(tile, t);
-    drag=null;
-  }
-  function onDown(e){
-    if(window.answered) return;
-    const tile=e.currentTarget; e.preventDefault();
-    const r=tile.getBoundingClientRect();
-    drag={tile, dx:e.clientX-r.left, dy:e.clientY-r.top, home:tile.parentElement};
+  // Kachel abheben (fixed an <body>: die .game-card behält durch `bounce-in`
+  // ein transform und wäre sonst Containing-Block → Finger-Versatz).
+  function liftTile(x,y){
+    const tile=pending.tile, r=tile.getBoundingClientRect();
+    drag={tile, dx:x-r.left, dy:y-r.top, home:pending.home};
     tile.classList.add('dragging');
     tile.style.width=r.width+'px'; tile.style.height=r.height+'px';
     tile.style.position='fixed'; tile.style.left=r.left+'px'; tile.style.top=r.top+'px';
     tile.style.zIndex=9999; tile.style.pointerEvents='none';
-    // An <body> hängen: die .game-card behält durch `bounce-in` (animation-fill
-    // forwards) ein transform:scale(1) und wäre sonst Containing-Block für die
-    // fixed-Kachel → Finger-Versatz. body hat kein transform → Viewport-Koordinaten.
     document.body.appendChild(tile);
+  }
+  function onMove(e){
+    if(pending && !drag){
+      if(Math.hypot(e.clientX-pending.startX, e.clientY-pending.startY)<=6) return;
+      liftTile(e.clientX,e.clientY);   // Schwelle überschritten → echtes Ziehen
+    }
+    if(!drag) return;
+    drag.tile.style.left=(e.clientX-drag.dx)+'px';
+    drag.tile.style.top=(e.clientY-drag.dy)+'px';
+    const t=targetUnder(e.clientX,e.clientY);
+    slots.forEach(s=>s.classList.toggle('drop-hover', s===t));
+    tray.classList.toggle('drop-hover', t===tray);
+  }
+  function cleanup(){
+    document.removeEventListener('pointermove',onMove);
+    document.removeEventListener('pointerup',onUp);
+    document.removeEventListener('pointercancel',onUp);
+  }
+  function onUp(e){
+    if(drag){
+      const tile=drag.tile;
+      const t=targetUnder(e.clientX,e.clientY) || drag.home || tray;
+      tile.style.position=''; tile.style.left=''; tile.style.top='';
+      tile.style.width=''; tile.style.height=''; tile.style.zIndex=''; tile.style.pointerEvents='';
+      tile.classList.remove('dragging');
+      slots.forEach(s=>s.classList.remove('drop-hover')); tray.classList.remove('drop-hover');
+      placeTile(tile, t);
+      drag=null; pending=null; cleanup(); return;
+    }
+    if(pending){ const tile=pending.tile; pending=null; cleanup(); tapPlace(tile); return; }
+    cleanup();
+  }
+  function onDown(e){
+    if(window.answered) return;
+    e.preventDefault();
+    pending={tile:e.currentTarget, startX:e.clientX, startY:e.clientY, home:e.currentTarget.parentElement};
     document.addEventListener('pointermove',onMove);
     document.addEventListener('pointerup',onUp);
     document.addEventListener('pointercancel',onUp);
