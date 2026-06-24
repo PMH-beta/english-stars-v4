@@ -7,7 +7,7 @@ import { releaseMicStream, stopVisualizer, voskStop, speakWord } from './speech.
 import { signIn, signUp, signOut, resendConfirmation, requestPasswordReset, updatePassword, signInWithGoogle } from './auth.js';
 import { cloudLoad, cloudReset, saveDeck, saveWordStats, saveExam, markDirty, flushPendingSync, setCloudConfirmed, getPendingCount, setKnownSig, cloudChangedRemotely, deleteCloudPresetStats } from './sync.js';
 import { commitDirty } from './dialog.js';
-import { uvMap, uvLernstand, constellationWords, constellationUnlocked } from './irregular-game.js';
+import { uvMap, uvLernstand, constellationWords } from './irregular-game.js';
 import { IRREGULAR_PRESET_ID, uvAvailableVerbs, CONSTELLATION_SIZE, cefrOf } from './irregular-verbs.js';
 
 const API_KEY_SK = 'es_apikey';
@@ -659,9 +659,10 @@ function renderStudentUV() {
     m.last = i === map.length - 1;
     return _cstBlock(m, m.c.idx === activeIdx);
   });
-  // Befüllen-Karte fürs nächste Sternbild (linear: vorheriges muss eine Form fertig
-  // haben), solange noch freie Wörter da sind.
-  if (constellationUnlocked(map.length) && uvAvailableVerbs().length >= CONSTELLATION_SIZE) {
+  // Befüllen-Karte fürs nächste Sternbild — frei verfügbar (kein Freispielen nötig),
+  // solange noch genug freie Wörter da sind. So lassen sich alle Sternbilder vorab
+  // befüllen.
+  if (uvAvailableVerbs().length >= CONSTELLATION_SIZE) {
     parts.push(_cstFillCard());
   }
   const blocks = parts.join('<div class="cst-link"></div>');
