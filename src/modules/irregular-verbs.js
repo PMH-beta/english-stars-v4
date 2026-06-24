@@ -177,14 +177,11 @@ export const IRREGULAR_VERBS = [
   { de: 'abwerfen, vergießen', en: 'shed', past: 'shed',     pp: 'shed',     art: 'keine', tier: 5 },
 ];
 
-// ── Sternbilder (Schwierigkeits-Gruppen) ────────────────────────────────────
-// Die Verben werden nach Wichtigkeit/Schwierigkeit (tier 1→5, innerhalb stabil in
-// Listenreihenfolge = häufigste zuerst) geordnet und in GLEICH GROSSE Sternbilder
-// à CONSTELLATION_SIZE Verben zerlegt — durchgehend, NICHT pro Stufe (sonst hätten
-// einzelne Stufen winzige Rest-Sternbilder). So sitzen die wichtigsten Wörter am
-// Anfang, die seltenen/hohen Klassen am Ende, und jedes Sternbild ist gleich groß.
-// 150 Verben / 10 = 15 gleich große Sternbilder. Reihenfolge = Spielreihenfolge.
-const CONSTELLATION_SIZE = 10;
+// ── Sternbilder (selbst befüllt) ────────────────────────────────────────────
+// Sternbilder werden vom Kind selbst befüllt: pro Sternbild 10 Wörter, die es
+// üben will (SD.uvFills = Liste von en-Listen, eine pro Sternbild). Schon vergebene
+// Wörter fallen aus dem Pool. Reihenfolge der Sternbilder = Befüll-Reihenfolge.
+export const CONSTELLATION_SIZE = 10;
 export const CONSTELLATION_NAMES = [
   'Kleiner Wagen', 'Großer Wagen', 'Kassiopeia', 'Orion', 'Schwan', 'Adler',
   'Leier', 'Stier', 'Zwillinge', 'Löwe', 'Krebs', 'Jungfrau', 'Skorpion',
@@ -193,33 +190,40 @@ export const CONSTELLATION_NAMES = [
   'Pfeil', 'Luchs', 'Eidechse', 'Phönix', 'Greif', 'Pfau', 'Kranich', 'Tukan',
 ];
 
-let _constellations = null;
-// Geordnete Sternbild-Liste: gesamte Verbliste nach Stufe stabil sortieren (Stufe
-// 1 = wichtigste zuerst, innerhalb der Stufe in Listenreihenfolge) und durchgehend
-// in gleich große Chunks schneiden. Ein Sternbild kann am Stufen-Übergang zwei
-// Stufen enthalten — sein CEFR-Label zeigt dann den Bereich (z. B. „A1–A2").
+const _byEn = new Map(IRREGULAR_VERBS.map((v) => [v.en, v]));
+
+// Aktuelle Befüllungen (en-Listen je Sternbild) aus dem Spielstand. Robust gegen
+// fehlende/kaputte Einträge.
+function _fills() {
+  const f = window.SD && window.SD.uvFills;
+  return Array.isArray(f) ? f : [];
+}
+
+// Sternbild-Liste aus den Befüllungen aufbauen (KEIN Cache — hängt am Spielstand).
 export function getConstellations() {
-  if (_constellations) return _constellations;
-  const ordered = IRREGULAR_VERBS
-    .map((v, i) => [v, i])
-    .sort((a, b) => (a[0].tier - b[0].tier) || (a[1] - b[1]))   // stabil: Stufe, dann Originalreihenfolge
-    .map(([v]) => v);
-  const out = [];
-  for (let i = 0; i < ordered.length; i += CONSTELLATION_SIZE) {
-    const idx = out.length;
-    const verbs = ordered.slice(i, i + CONSTELLATION_SIZE);
+  return _fills().map((ens, idx) => {
+    const verbs = (Array.isArray(ens) ? ens : []).map((en) => _byEn.get(en)).filter(Boolean);
     const tiers = verbs.map((v) => v.tier);
-    const lo = Math.min(...tiers), hi = Math.max(...tiers);
-    out.push({
+    const lo = tiers.length ? Math.min(...tiers) : 1;
+    const hi = tiers.length ? Math.max(...tiers) : 1;
+    return {
       id: 'c' + idx, idx,
       name: CONSTELLATION_NAMES[idx] || ('Sternbild ' + (idx + 1)),
       tier: lo,
       cefr: lo === hi ? (TIER_CEFR[lo] || '') : `${TIER_CEFR[lo]}–${TIER_CEFR[hi]}`,
       verbs,
-    });
-  }
-  _constellations = out;
-  return out;
+    };
+  });
+}
+
+// Noch nicht vergebene Verben, nach Wichtigkeit/Stufe sortiert (häufigste zuerst).
+export function uvAvailableVerbs() {
+  const used = new Set(_fills().flat());
+  return IRREGULAR_VERBS
+    .map((v, i) => [v, i])
+    .filter(([v]) => !used.has(v.en))
+    .sort((a, b) => (a[0].tier - b[0].tier) || (a[1] - b[1]))
+    .map(([v]) => v);
 }
 
 // Verben einer Art (Muster-Familie) — für die Gestaltwandler-Sternbilder.

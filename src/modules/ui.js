@@ -5,10 +5,10 @@ import { syncMirrorFromActiveDeck, deckProgress, presetProgressPct, renderDecks,
 import { getPresetCategories } from './vocab.js';
 import { releaseMicStream, stopVisualizer, voskStop, speakWord } from './speech.js';
 import { signIn, signUp, signOut, resendConfirmation, requestPasswordReset, updatePassword, signInWithGoogle } from './auth.js';
-import { cloudLoad, cloudReset, saveDeck, saveWordStats, saveExam, markDirty, flushPendingSync, setCloudConfirmed, getPendingCount, setKnownSig, cloudChangedRemotely } from './sync.js';
+import { cloudLoad, cloudReset, saveDeck, saveWordStats, saveExam, markDirty, flushPendingSync, setCloudConfirmed, getPendingCount, setKnownSig, cloudChangedRemotely, deleteCloudPresetStats } from './sync.js';
 import { commitDirty } from './dialog.js';
-import { uvMap, uvLernstand, constellationWords } from './irregular-game.js';
-import { IRREGULAR_PRESET_ID } from './irregular-verbs.js';
+import { uvMap, uvLernstand, constellationWords, constellationUnlocked } from './irregular-game.js';
+import { IRREGULAR_PRESET_ID, uvAvailableVerbs, CONSTELLATION_SIZE, cefrOf } from './irregular-verbs.js';
 
 const API_KEY_SK = 'es_apikey';
 
@@ -550,15 +550,121 @@ export function setUvActive(idx) {
   if (window.currentUser) { markDirty('profile'); commitDirty(); }
 }
 
+// Setzt den gesamten UV-Fortschritt zurück (alle Verb-Stats des irregular-Presets):
+// lokal sofort, Cloud per deleteCloudPresetStats (kein Retry — wie resetDeckProgress).
+async function _resetUvProgress() {
+  const gps = window.SD && window.SD.globalPresetStats;
+  const keys = (gps && gps.wordStats)
+    ? Object.keys(gps.wordStats).filter((k) => k.includes('|' + IRREGULAR_PRESET_ID))
+    : [];
+  keys.forEach((k) => { delete gps.wordStats[k]; });
+  if (gps && gps.categoryProgress) delete gps.categoryProgress[IRREGULAR_PRESET_ID];
+  if (window.currentUser && keys.length) {
+    try { await deleteCloudPresetStats(keys, [IRREGULAR_PRESET_ID], window.currentUser.id); }
+    catch (e) { console.error('[uvReset] Cloud-Delete fehlgeschlagen:', e.message); }
+  }
+}
+
+// Erstinitialisierung des Befüllen-Systems: GENAU EINMAL den alten UV-Fortschritt
+// zurücksetzen und leer starten (SD.uvFills = []). Danach ist uvFills ein Array →
+// Guard greift, kein erneuter Reset.
+function _uvEnsureInit() {
+  if (!window.SD || Array.isArray(window.SD.uvFills)) return;
+  window.SD.uvFills = [];
+  _resetUvProgress();                  // lokal sofort wirksam, Cloud async
+  persist(window.SD);
+  if (window.currentUser) { markDirty('profile'); commitDirty(); }
+}
+
+// Ein Sternbild mit den gewählten Wörtern (en-Liste) befüllen + speichern/syncen.
+function _uvFill(ens) {
+  if (!window.SD || !Array.isArray(ens) || ens.length !== CONSTELLATION_SIZE) return;
+  if (!Array.isArray(window.SD.uvFills)) window.SD.uvFills = [];
+  window.SD.uvFills.push(ens.slice());
+  persist(window.SD);
+  if (window.currentUser) { markDirty('profile'); commitDirty(); }
+  renderStudentUV();
+}
+
+// Befüllen-Karte für das nächste, noch leere Sternbild.
+function _cstFillCard() {
+  const remaining = uvAvailableVerbs().length;
+  return `<div class="cst-block cst-fill">
+    <div class="cst-fill-star">✨</div>
+    <div class="cst-fill-title">Neues Sternbild</div>
+    <div class="cst-fill-sub">Wähle ${CONSTELLATION_SIZE} Wörter zum Üben · <b>${remaining}</b> noch frei</div>
+    <button class="cst-fill-btn" onclick="uvOpenFill()">✨ Befüllen</button>
+  </div>`;
+}
+
+// Popup: aus allen noch freien Wörtern (nach Stufe sortiert) GENAU 10 wählen.
+// Kein Doppeltwählen (vergebene Wörter sind gar nicht in der Liste); max 10.
+export function uvOpenFill() {
+  const avail = uvAvailableVerbs();
+  if (avail.length < CONSTELLATION_SIZE) return;
+  const N = CONSTELLATION_SIZE;
+  const overlay = document.createElement('div');
+  overlay.className = 'uv-fill-overlay';
+  overlay.innerHTML = `<div class="uv-fill-card">
+    <div class="uv-fill-head">
+      <div class="uv-fill-title">✨ Sternbild befüllen</div>
+      <div class="uv-fill-hint">Wähle genau ${N} Wörter, die du üben willst.</div>
+      <div class="uv-fill-count"><span id="uv-fill-n">0</span>/${N}</div>
+    </div>
+    <div class="uv-fill-list">
+      ${avail.map((v) => `<label class="uv-fill-row" data-en="${window.escHtml(v.en)}">
+        <input type="checkbox" class="uv-fill-cb"/>
+        <span class="uv-fill-de">${window.escHtml(v.de)}</span>
+        <span class="uv-fill-en">${window.escHtml(v.en)}</span>
+        <span class="uv-fill-cefr">${cefrOf(v)}</span>
+      </label>`).join('')}
+    </div>
+    <div class="uv-fill-foot">
+      <button class="uv-fill-cancel" id="uv-fill-cancel">Abbrechen</button>
+      <button class="uv-fill-ok" id="uv-fill-ok" disabled>Fertig</button>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+  const sel = new Set();
+  const nEl = overlay.querySelector('#uv-fill-n');
+  const okBtn = overlay.querySelector('#uv-fill-ok');
+  const close = () => overlay.remove();
+  overlay.querySelector('#uv-fill-cancel').addEventListener('click', close);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+  overlay.querySelectorAll('.uv-fill-row').forEach((row) => {
+    const cb = row.querySelector('.uv-fill-cb');
+    const en = row.getAttribute('data-en');
+    cb.addEventListener('change', () => {
+      if (cb.checked && sel.size >= N) { cb.checked = false; return; }   // max N
+      if (cb.checked) { sel.add(en); row.classList.add('sel'); }
+      else { sel.delete(en); row.classList.remove('sel'); }
+      nEl.textContent = String(sel.size);
+      okBtn.disabled = sel.size !== N;
+    });
+  });
+  okBtn.addEventListener('click', () => {
+    if (sel.size !== N) return;
+    close();
+    _uvFill([...sel]);
+  });
+}
+
 function renderStudentUV() {
   const host = document.getElementById('student-uv');
   if (!host) return;
+  _uvEnsureInit();                       // beim ersten Mal: UV-Reset + leer starten
   const map = uvMap();
   const activeIdx = _uvActiveIdx(map);
-  const blocks = map.map((m, i) => {
+  const parts = map.map((m, i) => {
     m.last = i === map.length - 1;
-    return _cstBlock(m, m.c.idx === activeIdx) + (i < map.length - 1 ? '<div class="cst-link"></div>' : '');
-  }).join('');
+    return _cstBlock(m, m.c.idx === activeIdx);
+  });
+  // Befüllen-Karte fürs nächste Sternbild (linear: vorheriges muss eine Form fertig
+  // haben), solange noch freie Wörter da sind.
+  if (constellationUnlocked(map.length) && uvAvailableVerbs().length >= CONSTELLATION_SIZE) {
+    parts.push(_cstFillCard());
+  }
+  const blocks = parts.join('<div class="cst-link"></div>');
 
   const L = uvLernstand();
   host.style.textAlign = 'center';
