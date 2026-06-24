@@ -8,7 +8,7 @@ import { signIn, signUp, signOut, resendConfirmation, requestPasswordReset, upda
 import { cloudLoad, cloudReset, saveDeck, saveWordStats, saveExam, markDirty, flushPendingSync, setCloudConfirmed, getPendingCount, setKnownSig, cloudChangedRemotely, deleteCloudPresetStats } from './sync.js';
 import { commitDirty } from './dialog.js';
 import { uvMap, uvLernstand, constellationWords } from './irregular-game.js';
-import { IRREGULAR_PRESET_ID, uvAvailableVerbs, CONSTELLATION_SIZE, cefrOf } from './irregular-verbs.js';
+import { IRREGULAR_PRESET_ID, uvAvailableVerbs, CONSTELLATION_SIZE, cefrOf, forgeObject } from './irregular-verbs.js';
 
 const API_KEY_SK = 'es_apikey';
 
@@ -664,37 +664,133 @@ export function uvOpenFill() {
   });
 }
 
+// ── Schmiede (Gestaltwandler): ersetzt den Sternenpfad ──────────────────────
+// Jede Gruppe = eine Schmiede-Station mit ZWEI Werkstücken desselben Typs:
+// 🔩 Stahl = ⏱ Simple Past · 🥇 Gold = ✓ Past Participle. Die bestehende Engine
+// (uvMap) liefert weiter die Disziplin-„Sterne" pro Form; sie werden hier nur als
+// Schmiede-Schritte dargestellt: 🪨 Erz brechen (Erkennen) · 🔨 Hämmern (Schmieden)
+// · 🔥 Härten (Rufen, nur Simple Past). Stat/Logik/Freischaltung UNVERÄNDERT.
+// Optik bewusst schlicht (Platzhalter) — Feinschliff folgt in späterer Phase.
+const FORGE_STEP = {
+  vocab:     { icon: '🪨', name: 'Erz brechen' },
+  spelling:  { icon: '🔨', name: 'Hämmern' },
+  pronounce: { icon: '🔥', name: 'Härten' },
+};
+const FORGE_MAT = {
+  past: { label: '⏱ Simple Past', mat: 'Stahl' },
+  pp:   { label: '✓ Past Participle', mat: 'Gold' },
+};
+
+// Ein Schmiede-Schritt (= ein Disziplin-Stern einer Form). Spielbar (data-play)
+// sobald freigeschaltet oder schon gemeistert (Wiederholung).
+function _forgeStepBtn(idx, s) {
+  const fs = FORGE_STEP[s.mode] || { icon: '•', name: s.mode };
+  const pct = s.prog && s.prog.total ? Math.round((s.prog.mastered / s.prog.total) * 100) : 0;
+  let cls = 'forge-step', play = '';
+  if (s.lit)           { cls += ' done'; play = `${idx}:${s.i}`; }
+  else if (s.unlocked) { cls += ' open'; play = `${idx}:${s.i}`; }
+  else                 { cls += ' locked'; }
+  const on = play ? ` data-play="${play}"` : '';
+  const tail = s.lit ? '✓' : (s.unlocked ? `${pct}%` : '🔒');
+  return `<button class="${cls}"${on}><span class="fs-ic">${fs.icon}</span>`
+    + `<span class="fs-nm">${fs.name}</span><span class="fs-tl">${tail}</span></button>`;
+}
+
+// Ein Werkstück (Stahl-Past oder Gold-PP) einer Station. data-stage = wie viele
+// Schritte fertig sind (für spätere „Gegenstand nimmt Form an"-Optik).
+function _forgeItem(m, which) {
+  const ob = forgeObject(m.c.idx), mt = FORGE_MAT[which];
+  const steps = m.stars.filter((s) => s.which === which);
+  const litN = steps.filter((s) => s.lit).length;
+  const done = steps.length > 0 && litN === steps.length;
+  const open = steps.some((s) => s.unlocked || s.lit);
+  const stepsHtml = steps.map((s) => _forgeStepBtn(m.c.idx, s)).join('');
+  const foot = !open ? '<span class="fi-lock">🔒 erst die Station davor</span>'
+    : done ? `<span class="fi-done">✨ ${mt.mat}-${ob.name} fertig</span>`
+    : `<span class="fi-prog">${litN}/${steps.length} Schritte</span>`;
+  return `<div class="forge-item ${which}${done ? ' done' : ''}" data-stage="${litN}" data-steps="${steps.length}">
+    <div class="fi-icon">${ob.icon}</div>
+    <div class="fi-title">${mt.mat}-${ob.name}</div>
+    <div class="fi-form">${mt.label}</div>
+    <div class="forge-steps">${stepsHtml}</div>
+    <div class="fi-foot">${foot}</div>
+  </div>`;
+}
+
+// Wortliste einer Station (aufklappbar) — getrennt Stahl (⏱) / Gold (✓).
+function _forgeWords(m) {
+  const chips = constellationWords(m.c).map((w) => {
+    const pd = w.past.mastered >= w.past.total, ppd = w.pp.mastered >= w.pp.total;
+    return `<span class="forge-word"><b>${window.escHtml(w.en)}</b>`
+      + `<span class="fw-p${pd ? ' done' : ''}">⏱ ${w.past.mastered}/${w.past.total}</span>`
+      + `<span class="fw-g${ppd ? ' done' : ''}">✓ ${w.pp.mastered}/${w.pp.total}</span></span>`;
+  }).join('');
+  return `<details class="forge-words"><summary>📖 Wörter</summary><div class="fw-grid">${chips}</div></details>`;
+}
+
+// Eine Schmiede-Station (= Gruppe): zwei Werkstücke + Aktiv-Steuerung + Wörter.
+function _forgeStation(m, isActive) {
+  const ob = forgeObject(m.c.idx);
+  const activeCtrl = !m.unlocked ? ''
+    : (isActive ? '<span class="forge-active-tag">● Aktiv</span>'
+                : `<button class="forge-active-btn" onclick="setUvActive(${m.c.idx})">▶ Aktiv setzen</button>`);
+  return `<div class="forge-station${isActive ? ' current' : ''}${m.unlocked ? '' : ' locked'}${m.complete ? ' complete' : ''}">
+    <div class="forge-head">
+      <span class="forge-title">${ob.icon} ${ob.name}${m.complete ? ' 🌟' : ''}</span>
+      <span class="forge-cefr">${m.c.cefr}</span>
+      ${activeCtrl}
+    </div>
+    <div class="forge-items">${_forgeItem(m, 'past')}${_forgeItem(m, 'pp')}</div>
+    ${_forgeWords(m)}
+  </div>`;
+}
+
+// Auftrags-Karte fürs nächste leere Werkstück — frei verfügbar (kein Freispielen
+// nötig), solange genug freie Verben da sind. So lassen sich alle Stationen vorab
+// befüllen.
+function _forgeFillCard() {
+  const remaining = uvAvailableVerbs().length;
+  return `<div class="forge-station forge-fill">
+    <div class="forge-fill-ic">✨</div>
+    <div class="forge-fill-title">Neuer Schmiede-Auftrag</div>
+    <div class="forge-fill-sub">Wähle ${CONSTELLATION_SIZE} Verben zum Schmieden · <b>${remaining}</b> noch frei</div>
+    <button class="forge-fill-btn" onclick="uvOpenFill()">✨ Werkstoff wählen</button>
+  </div>`;
+}
+
 function renderStudentUV() {
   const host = document.getElementById('student-uv');
   if (!host) return;
   _uvEnsureInit();                       // beim ersten Mal: UV-Reset + leer starten
   const map = uvMap();
   const activeIdx = _uvActiveIdx(map);
-  const parts = map.map((m, i) => {
-    m.last = i === map.length - 1;
-    return _cstBlock(m, m.c.idx === activeIdx);
-  });
-  // Befüllen-Karte fürs nächste Sternbild — frei verfügbar (kein Freispielen nötig),
-  // solange noch genug freie Wörter da sind. So lassen sich alle Sternbilder vorab
-  // befüllen.
-  if (uvAvailableVerbs().length >= CONSTELLATION_SIZE) {
-    parts.push(_cstFillCard());
-  }
-  const blocks = parts.join('<div class="cst-link"></div>');
+  const parts = map.map((m) => _forgeStation(m, m.c.idx === activeIdx));
+  if (uvAvailableVerbs().length >= CONSTELLATION_SIZE) parts.push(_forgeFillCard());
 
   const L = uvLernstand();
   host.style.textAlign = 'center';
   host.style.padding = '0';
-  host.innerHTML = `<div class="star-path">
-    <div class="star-path-head">
-      <button class="sp-info" onclick="uvInfo()" aria-label="Info">i</button>
-      <div style="font-size:2rem;">🌌</div>
-      <div class="sp-title">Sternenpfad</div>
-      <div class="sp-stand">🌟 ${L.complete}/${L.total} Sternbilder · ⭐ ${L.totalLit}/${L.maxLit} Sterne</div>
+  host.innerHTML = `<div class="forge">
+    <div class="forge-top">
+      <button class="forge-info" onclick="uvInfo()" aria-label="Info">i</button>
+      <div class="forge-emoji">⚒️</div>
+      <div class="forge-h1">Die Schmiede</div>
+      <div class="forge-stand">🛠️ ${L.complete}/${L.total} Stationen · 🔨 ${L.totalLit}/${L.maxLit} Schritte</div>
     </div>
-    ${blocks}
+    ${parts.join('')}
   </div>`;
-  initUvSliders();
+  _bindForgeTaps(host);
+}
+
+// Tap auf einen spielbaren Schritt → Runde starten. Über onclick-Property (nicht
+// addEventListener), damit sich bei Re-Render nichts stapelt (host bleibt bestehen).
+function _bindForgeTaps(host) {
+  host.onclick = (e) => {
+    const el = e.target.closest('[data-play]');
+    if (!el || !host.contains(el)) return;
+    const [ci, si] = el.getAttribute('data-play').split(':').map(Number);
+    window.startConstellationStar(ci, si);
+  };
 }
 
 // Flip-Karte umdrehen (Vorderseite Sternbild ↔ Rückseite Wörter).
@@ -751,15 +847,15 @@ export function uvSetForm(idx, which) {
 // Info-Popup (ⓘ oben): erklärt den Sternenpfad — ersetzt den Dauer-Erklärtext.
 export function uvInfo() {
   window.esAlert?.({
-    icon: '🌌',
-    title: 'Sternenpfad',
-    body: 'Jedes Sternbild übt zwei Zeitformen:\n⏱ Simple Past und ✓ Past Participle.\n'
-      + 'Wische dazwischen oder tippe die Punkte — beide kannst du sofort spielen.\n\n'
-      + 'Jede Zeitform hat drei Übungs-Sterne:\n🔍 Erkennen · 🔨 Schmieden · 🗣️ Rufen.\n'
-      + 'Leuchten alle drei Sterne einer Zeitform golden, ist diese Zeitform geschafft '
-      + '— und das nächste Sternbild geht auf.\n\n'
-      + 'Du musst also nur EINE der beiden Zeitformen schaffen, um weiterzukommen.\n\n'
-      + 'Tippe einen Stern zum Üben (auch schon goldene).\n„📖 Wörter" zeigt die Wortliste.',
+    icon: '⚒️',
+    title: 'Die Schmiede',
+    body: 'Jede Station schmiedet zwei Werkstücke aus demselben Verb:\n'
+      + '🔩 Stahl = ⏱ Simple Past · 🥇 Gold = ✓ Past Participle.\n\n'
+      + 'Stahl braucht drei Schritte:\n🪨 Erz brechen · 🔨 Hämmern · 🔥 Härten.\n'
+      + 'Gold braucht zwei:\n🪨 Erz brechen · 🔨 Hämmern.\n\n'
+      + 'Ist EIN Werkstück fertig (alle Schritte gemeistert), geht die nächste '
+      + 'Station auf. Du musst also nur Stahl ODER Gold schaffen, um weiterzukommen.\n\n'
+      + 'Tippe einen Schritt zum Üben (auch fertige zum Wiederholen).\n„📖 Wörter" zeigt die Verbliste.',
   });
 }
 

@@ -923,3 +923,65 @@ body.in-game .mode-progress{display:block;}
   0%,100%{transform:translateY(0);}
   50%{transform:translateY(-12px);}
 }
+
+/* ── SCHMIEDE (Gestaltwandler-UV) — helle Platzhalter-Optik (Phase 1) ──────────
+   Ersetzt den dunklen Sternenpfad. Bewusst schlicht; die endgültige Optik
+   (Werkstück-Stufen, Funken usw.) kommt in einer späteren Phase. */
+.forge{padding:4px 0 24px;}
+.forge-top{text-align:center;margin-bottom:14px;position:relative;}
+.forge-emoji{font-size:2rem;}
+.forge-h1{font-family:'Fredoka One',cursive;color:var(--purple);font-size:1.2rem;}
+.forge-stand{font-size:.74rem;color:#a06a00;font-weight:800;margin-top:3px;}
+.forge-info{position:absolute;top:0;right:2px;width:28px;height:28px;border-radius:50%;border:1.5px solid rgba(168,108,219,.5);background:rgba(168,108,219,.1);color:var(--purple);font-family:'Fredoka One',cursive;font-size:1rem;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;}
+
+.forge-station{max-width:420px;margin:0 auto 12px;padding:12px 12px 10px;border-radius:16px;background:#fff;box-shadow:var(--shadow);border:1px solid #eee;}
+.forge-station.locked{opacity:.5;}
+.forge-station.current{border-color:rgba(168,108,219,.55);box-shadow:0 0 0 2px rgba(168,108,219,.25),var(--shadow);}
+.forge-station.complete{border-color:#ffd45e;}
+.forge-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
+.forge-title{font-family:'Fredoka One',cursive;font-size:1rem;color:var(--text);}
+.forge-cefr{font-size:.6rem;font-weight:800;color:var(--purple);background:rgba(168,108,219,.12);padding:2px 8px;border-radius:20px;}
+.forge-active-tag{margin-left:auto;font-family:'Fredoka One',cursive;font-size:.72rem;color:#3a9b45;}
+.forge-active-btn{margin-left:auto;font-family:'Fredoka One',cursive;font-size:.72rem;padding:5px 12px;border-radius:50px;cursor:pointer;background:rgba(95,208,138,.16);color:#2a8a4a;border:1px solid rgba(95,208,138,.5);}
+
+.forge-items{display:flex;gap:10px;}
+.forge-item{flex:1;min-width:0;border-radius:14px;padding:10px 8px;text-align:center;border:2px solid transparent;}
+.forge-item.past{background:linear-gradient(180deg,#eef2f7,#dbe4ef);border-color:#c2cedd;}   /* Stahl */
+.forge-item.pp{background:linear-gradient(180deg,#fff6da,#ffe7a6);border-color:#f0d486;}      /* Gold  */
+.forge-item.done{box-shadow:0 0 0 2px #ffd45e inset;}
+.fi-icon{font-size:2rem;line-height:1;}
+.forge-item.past .fi-icon{filter:grayscale(.6);}
+.fi-title{font-family:'Fredoka One',cursive;font-size:.8rem;margin-top:4px;color:#444;}
+.fi-form{font-size:.66rem;font-weight:800;margin-top:1px;}
+.forge-item.past .fi-form{color:#3a6ea8;}
+.forge-item.pp .fi-form{color:#a06a00;}
+.forge-steps{display:flex;flex-direction:column;gap:5px;margin:8px 0 6px;}
+.forge-step{display:flex;align-items:center;gap:6px;width:100%;font-family:'Nunito',sans-serif;font-weight:800;font-size:.72rem;padding:6px 8px;border-radius:10px;border:1.5px solid #d8d8d8;background:#fff;color:#999;cursor:default;}
+.forge-step .fs-nm{flex:1;text-align:left;}
+.forge-step .fs-tl{flex-shrink:0;font-size:.66rem;}
+.forge-step.open{border-color:var(--purple);color:var(--purple);background:#faf5ff;cursor:pointer;}
+.forge-step.done{border-color:#ffd45e;background:#fff8df;color:#a06a00;cursor:pointer;}
+.forge-step.locked{opacity:.6;}
+.fi-foot{font-size:.66rem;font-weight:800;min-height:1.1em;}
+.fi-lock{color:#aaa;}
+.fi-done{color:#a06a00;}
+.fi-prog{color:#888;}
+
+.forge-words{margin-top:10px;}
+.forge-words summary{font-family:'Fredoka One',cursive;font-size:.74rem;color:var(--purple);cursor:pointer;list-style:none;}
+.forge-words summary::-webkit-details-marker{display:none;}
+.fw-grid{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin-top:8px;}
+.forge-word{display:inline-flex;align-items:center;gap:5px;font-size:.66rem;font-weight:700;color:#777;background:#f5f5f5;border:1px solid #e5e5e5;padding:2px 8px;border-radius:20px;}
+.forge-word b{color:#555;font-weight:800;}
+.fw-p,.fw-g{font-weight:800;}
+.fw-p{color:#3a6ea8;}
+.fw-g{color:#a06a00;}
+.fw-p.done,.fw-g.done{color:#3a9b45;}
+
+.forge-fill{display:flex;flex-direction:column;align-items:center;gap:6px;padding:18px 12px;border:2px dashed rgba(168,108,219,.45);background:rgba(168,108,219,.05);}
+.forge-fill-ic{font-size:1.8rem;}
+.forge-fill-title{font-family:'Fredoka One',cursive;color:var(--purple);font-size:1rem;}
+.forge-fill-sub{font-size:.72rem;color:#999;font-weight:700;}
+.forge-fill-sub b{color:var(--purple);}
+.forge-fill-btn{margin-top:6px;font-family:'Fredoka One',cursive;font-size:.82rem;padding:9px 22px;border-radius:50px;cursor:pointer;color:#fff;border:none;background:linear-gradient(135deg,#a86cdb,#c084fc);box-shadow:0 4px 0 #7a4ba8;}
+.forge-fill-btn:active{transform:translateY(2px);box-shadow:0 2px 0 #7a4ba8;}

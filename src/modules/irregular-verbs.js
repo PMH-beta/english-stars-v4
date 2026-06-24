@@ -190,6 +190,27 @@ export const CONSTELLATION_NAMES = [
   'Pfeil', 'Luchs', 'Eidechse', 'Phönix', 'Greif', 'Pfau', 'Kranich', 'Tukan',
 ];
 
+// ── Schmiede-Gegenstände (Gestaltwandler-Optik) ─────────────────────────────
+// Pro Gruppen-Slot EIN Gegenstandstyp — einmal in Stahl (Simple Past), einmal in
+// Gold (Past Participle). Reihenfolge = Schwierigkeits-Rampe (schlicht → prächtig),
+// passt zur Befüll-Reihenfolge (leichteste Verben zuerst). Ab Slot 13 zyklisch.
+// Icons sind Platzhalter — die echte Optik macht der Designer später.
+export const FORGE_OBJECTS = [
+  { type: 'hufeisen',   name: 'Hufeisen',   icon: '🧲' },
+  { type: 'schluessel', name: 'Schlüssel',  icon: '🔑' },
+  { type: 'hammer',     name: 'Hammer',     icon: '🔨' },
+  { type: 'dolch',      name: 'Dolch',      icon: '🗡️' },
+  { type: 'schild',     name: 'Schild',     icon: '🛡️' },
+  { type: 'axt',        name: 'Axt',        icon: '🪓' },
+  { type: 'schwert',    name: 'Schwert',    icon: '⚔️' },
+  { type: 'helm',       name: 'Helm',       icon: '🪖' },
+  { type: 'ring',       name: 'Ring',       icon: '💍' },
+  { type: 'amulett',    name: 'Amulett',    icon: '📿' },
+  { type: 'kelch',      name: 'Kelch',      icon: '🏆' },
+  { type: 'krone',      name: 'Krone',      icon: '👑' },
+];
+export function forgeObject(idx) { return FORGE_OBJECTS[idx % FORGE_OBJECTS.length]; }
+
 const _byEn = new Map(IRREGULAR_VERBS.map((v) => [v.en, v]));
 
 // Aktuelle Befüllungen (en-Listen je Sternbild) aus dem Spielstand. Robust gegen
