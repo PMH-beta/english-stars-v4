@@ -3,14 +3,13 @@
 // Schülermodus. KEIN Deck, KEINE Schulart/Klasse: die Verben sind nach
 // Schwierigkeit in benannte Sternbilder gruppiert (irregular-verbs.js).
 //
-// Ein Sternbild deckt eine kleine Wortgruppe ab und hat 6 spielbare Sterne, die in
-// dieser Reihenfolge freischalten (kodiert „Erkennen → Schmieden → Rufen" und
-// „Simple Past vor Past Participle"):
+// Ein Sternbild deckt eine kleine Wortgruppe ab und hat 5 spielbare Sterne, die in
+// dieser Reihenfolge freischalten (kodiert „Erkennen → Schmieden → Rufen"):
 //   1 Erkennen·Past   2 Erkennen·PP   3 Schmieden·Past   4 Schmieden·PP
-//   5 Rufen·Past      6 Rufen·PP
-// Der 7. Stern ist nur ein Komplett-Leuchtstern (kein Boss — Bosse/Prüfungen
+//   5 Rufen·Past   (Rufen nur auf Simple Past — weniger wichtig)
+// Der 6. Stern ist nur ein Komplett-Leuchtstern (kein Boss — Bosse/Prüfungen
 // kommen in die Kampagne). Ein Stern „leuchtet", wenn ALLE Verben der Gruppe in
-// diesem Suffix gemeistert sind. Alle 6 leuchten ⇒ Sternbild komplett ⇒ nächstes frei.
+// diesem Suffix gemeistert sind. Alle 5 leuchten ⇒ Sternbild komplett ⇒ nächstes frei.
 //
 // Stats wohnen wie bisher in SD.globalPresetStats (presetId 'irregular-verbs') —
 // kein Schema-/Sync-Umbau. Geändert wird nur, dass eine Runde auf EIN Sternbild
@@ -21,13 +20,15 @@ import { effectivePct, isStatMastered, statKeyFor } from './stats.js';
 import { irregularAsVocab, getConstellations, IRREGULAR_PRESET_ID } from './irregular-verbs.js';
 
 // Sterne eines Sternbilds (ohne Boss) — Disziplin × Form, in Freischalt-Reihenfolge.
+// Rufen (Aussprache) ist weniger wichtig → nur EIN Rufen-Stern (auf Simple Past)
+// statt je einem pro Form. Damit hat ein Sternbild 5 spielbare Sterne:
+// Erkennen×2, Schmieden×2, Rufen×1. Index-Reihenfolge: past = 0,2,4 · pp = 1,3.
 export const UV_STARS = [
   { mode: 'vocab',     which: 'past', icon: '🔍', name: 'Erkennen',  form: 'Simple Past' },
   { mode: 'vocab',     which: 'pp',   icon: '🔍', name: 'Erkennen',  form: 'Past Participle' },
   { mode: 'spelling',  which: 'past', icon: '🔨', name: 'Schmieden', form: 'Simple Past' },
   { mode: 'spelling',  which: 'pp',   icon: '🔨', name: 'Schmieden', form: 'Past Participle' },
   { mode: 'pronounce', which: 'past', icon: '🗣️', name: 'Rufen',     form: 'Simple Past' },
-  { mode: 'pronounce', which: 'pp',   icon: '🗣️', name: 'Rufen',     form: 'Past Participle' },
 ];
 const SUF = {
   vocab:     { past: '_past_mc', pp: '_pp_mc' },
@@ -51,13 +52,14 @@ export function starProgress(verbs, mode, which) {
   return { mastered: m, total: verbs.length };
 }
 
-// Disziplin-Reihenfolge innerhalb einer Form: Erkennen → Schmieden → Rufen.
-const DISC_ORDER = ['vocab', 'spelling', 'pronounce'];
+// Disziplin-Reihenfolge je Form: Simple Past hat Erkennen → Schmieden → Rufen,
+// Past Participle nur Erkennen → Schmieden (kein Rufen).
+const DISC_ORDER = { past: ['vocab', 'spelling', 'pronounce'], pp: ['vocab', 'spelling'] };
 
 // Eine Form (Simple Past / Past Participle) eines Sternbilds ist fertig, wenn alle
-// drei Disziplinen dieser Form gemeistert sind.
+// ihre Disziplinen gemeistert sind (Past 3, PP 2).
 export function formComplete(c, which) {
-  return DISC_ORDER.every((mode) => starLit(c.verbs, mode, which));
+  return DISC_ORDER[which].every((mode) => starLit(c.verbs, mode, which));
 }
 
 // Freischaltung: Ein Sternbild ist erreichbar, sobald beim VORHERIGEN mindestens
@@ -80,17 +82,18 @@ export function formUnlocked(idx, _which) {
 // (formUnlocked); innerhalb einer Form klettern die Disziplinen linear
 // (Erkennen → Schmieden → Rufen). Der 7. Stern ist KEIN Boss (Bosse/Prüfungen
 // wandern in die Kampagne) — ein reiner Komplett-Leuchtstern: nicht spielbar,
-// leuchtet, sobald alle 6 Disziplin-Sterne leuchten.
+// leuchtet, sobald alle 5 Disziplin-Sterne leuchten.
 export function constellationStars(c) {
   const states = UV_STARS.map((st, i) => {
     const lit = starLit(c.verbs, st.mode, st.which);
-    const di = DISC_ORDER.indexOf(st.mode);
-    const prevDiscLit = di === 0 ? true : starLit(c.verbs, DISC_ORDER[di - 1], st.which);
+    const order = DISC_ORDER[st.which];
+    const di = order.indexOf(st.mode);
+    const prevDiscLit = di <= 0 ? true : starLit(c.verbs, order[di - 1], st.which);
     const unlocked = formUnlocked(c.idx, st.which) && prevDiscLit;
     return { ...st, i, lit, unlocked, prog: starProgress(c.verbs, st.mode, st.which) };
   });
-  const allLit = states.every((s) => s.lit);   // alle 6 Disziplin-Sterne leuchten
-  states.push({ mode: null, which: null, icon: '🌟', name: 'Komplett', form: '', i: 6, lit: allLit, unlocked: false, done: true });
+  const allLit = states.every((s) => s.lit);   // alle 5 Disziplin-Sterne leuchten
+  states.push({ mode: null, which: null, icon: '🌟', name: 'Komplett', form: '', i: 5, lit: allLit, unlocked: false, done: true });
   return states;
 }
 export function constellationComplete(c) {
@@ -157,10 +160,11 @@ export function uvProgress(mode) {
   return { score, mastered, total };
 }
 
-// Form-Suffixe getrennt nach Simple Past / Past Participle (je 3 Disziplinen) —
-// für die Pro-Wort-Übersicht, die den Fortschritt nach Form aufteilt.
-const PAST_SUF = Object.values(SUF).map((o) => o.past);
-const PP_SUF   = Object.values(SUF).map((o) => o.pp);
+// Form-Suffixe getrennt nach Simple Past (3 Disziplinen inkl. Rufen) und Past
+// Participle (2 Disziplinen, kein Rufen) — für die Pro-Wort-Übersicht. Muss zur
+// Stern-Struktur (UV_STARS / DISC_ORDER) passen, sonst wird PP nie „voll".
+const PAST_SUF = DISC_ORDER.past.map((mode) => SUF[mode].past);
+const PP_SUF   = DISC_ORDER.pp.map((mode) => SUF[mode].pp);
 function _countMastered(v, sufs, ws) {
   let m = 0;
   sufs.forEach((suf) => { if (isStatMastered(ws[statKeyFor(v.de, v.en, suf, IRREGULAR_PRESET_ID)])) m++; });
@@ -191,10 +195,10 @@ export function uvLernstand() {
   const map = uvMap();
   let complete = 0, totalLit = 0;
   const rows = map.map((m) => {
-    const lit = m.stars.filter((s) => s.lit && !s.done).length;   // 0..6
+    const lit = m.stars.filter((s) => s.lit && !s.done).length;   // 0..5
     totalLit += lit;
     if (m.complete) complete++;
-    return { name: m.c.name, cefr: m.c.cefr, count: m.c.verbs.length, lit, total: 6, complete: m.complete, unlocked: m.unlocked, words: constellationWords(m.c) };
+    return { name: m.c.name, cefr: m.c.cefr, count: m.c.verbs.length, lit, total: 5, complete: m.complete, unlocked: m.unlocked, words: constellationWords(m.c) };
   });
-  return { total: map.length, complete, totalLit, maxLit: map.length * 6, rows };
+  return { total: map.length, complete, totalLit, maxLit: map.length * 5, rows };
 }

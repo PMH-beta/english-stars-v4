@@ -365,40 +365,33 @@ function renderStudentMode() {
 }
 
 // UV-Tab (Gestaltwandler): Sternenpfad. Ein nach unten scrollbarer Nachthimmel;
-// jedes Sternbild = gezeichnetes 7-Stern-Muster (= 6 spielbare Disziplin-Sterne +
+// jedes Sternbild = gezeichnetes 6-Punkt-Muster (5 spielbare Disziplin-Sterne +
 // 1 Komplett-Leuchtstern). Sterne leuchten golden auf, wenn gemeistert; der nächste
 // spielbare pulsiert in seiner Disziplin-Farbe und wird angetippt (startConstellationStar).
 //
-// Muster (viewBox 0..100 × 0..72), je 7 Punkte (Index 0–5 spielbar, 6 = Komplett-Stern).
-// Bekannte Sternbilder mit echter Silhouette, der Rest stilisiert; idx zyklisch.
-// Sternbild-Muster mit ECHTER Silhouette. Wichtig: die 6 Disziplin-Sterne sind so
-// auf die Form-Ketten verteilt, dass Simple Past (Index 0→2→4) und Past Participle
-// (1→3→5) je einer zusammenhängenden Linie des Bildes FOLGEN — es werden also keine
-// Sterne diagonal übersprungen. Index 6 = Komplett-Stern (Brennpunkt/Spitze).
-// Jedes Muster hat daher die Form-Kanten 0-2,2-4 (Past) und 1-3,3-5 (PP) plus die
-// Kanten, die die Silhouette schließen. viewBox 0..100 × 0..72.
+// Echte Silhouetten. Die 5 Disziplin-Sterne sind so auf die Form-Ketten verteilt,
+// dass Simple Past (Index 0→2→4) und Past Participle (1→3) je einer zusammenhängenden
+// Linie des Bildes FOLGEN — keine Sterne werden diagonal übersprungen. Index 5 =
+// Komplett-Stern. Jedes Muster hat daher die Kanten 0-2,2-4 (Past) und 1-3 (PP) plus
+// die Kanten, die die Silhouette schließen. viewBox 0..100 × 0..72.
 const CST_PATTERNS = [
-  // Kleiner Wagen: Kasten (bl-tl-tr-br) + Deichsel zum Polaris. Past = 3 Kasten-
-  // ecken der Reihe nach, PP = letzte Ecke + Deichsel.
-  { pts: [[40,46],[58,44],[40,30],[70,38],[58,28],[82,28],[92,16]], edges: [[0,2],[2,4],[4,1],[1,0],[1,3],[3,5],[5,6]] },
+  // Kleiner Wagen: Kasten (bl-tl-tr-br) + Deichsel zum Komplett-Stern.
+  { pts: [[38,46],[56,44],[38,30],[74,34],[56,28],[90,20]], edges: [[0,2],[2,4],[4,1],[1,0],[1,3],[3,5]] },
   // Großer Wagen: größerer Kasten + Deichsel.
-  { pts: [[16,44],[40,42],[16,26],[60,36],[40,24],[78,30],[96,22]], edges: [[0,2],[2,4],[4,1],[1,0],[1,3],[3,5],[5,6]] },
-  // Kassiopeia: durchgehendes W — linke Hälfte Past, rechte Hälfte PP.
-  { pts: [[12,28],[54,48],[26,48],[68,26],[40,26],[82,46],[94,24]], edges: [[0,2],[2,4],[4,1],[1,3],[3,5],[5,6]] },
-  // Orion: linke Seite (Schulter-Gürtel-Fuß) Past, rechte Seite PP, Gürtel über den
+  { pts: [[16,44],[40,42],[16,28],[62,34],[40,26],[92,24]], edges: [[0,2],[2,4],[4,1],[1,0],[1,3],[3,5]] },
+  // Kassiopeia: 5-Sterne-W — linke Hälfte Past, rechte Hälfte PP.
+  { pts: [[12,28],[64,48],[28,48],[80,30],[46,28],[94,22]], edges: [[0,2],[2,4],[4,1],[1,3],[3,5]] },
+  // Orion: linke Linie (Schulter-Gürtel-Fuß) Past, rechte Seite PP, Gürtel über den
   // Komplett-Stern in der Mitte.
-  { pts: [[30,16],[66,62],[38,38],[56,42],[34,64],[62,14],[47,40]], edges: [[0,2],[2,4],[1,3],[3,5],[2,6],[6,3]] },
-  // Schwan (Nordkreuz): senkrechte Achse Past, Flügel + unten PP, Komplett-Stern im
-  // Kreuzungspunkt.
-  { pts: [[50,10],[26,40],[50,28],[74,40],[50,52],[50,66],[50,40]], edges: [[0,2],[2,6],[6,4],[4,5],[1,6],[6,3]] },
-  // Adler: stilisiertes Sechseck — linke Kante Past, rechte Kante PP, Komplett-Stern
-  // als Körpermitte.
-  { pts: [[50,12],[50,58],[28,28],[72,44],[28,44],[72,28],[50,36]], edges: [[0,2],[2,4],[4,1],[1,3],[3,5],[5,0],[2,6],[3,6]] },
-  // Leier: Vega oben + Parallelogramm (Harfe) — linke Seite Past, rechte PP.
-  { pts: [[48,10],[66,28],[32,30],[70,52],[38,54],[54,64],[50,40]], edges: [[0,2],[2,4],[0,1],[1,3],[3,5],[4,5],[2,6],[6,3]] },
-  // Cluster: Sechseck-Ring mit Komplett-Stern im Zentrum — rechter Bogen Past,
-  // linker Bogen PP.
-  { pts: [[50,12],[50,66],[72,26],[28,52],[72,52],[28,26],[50,39]], edges: [[0,2],[2,4],[4,1],[1,3],[3,5],[5,0],[0,6],[6,1]] },
+  { pts: [[28,16],[72,16],[40,40],[70,60],[34,62],[54,42]], edges: [[0,2],[2,4],[1,3],[2,5],[5,1],[5,3]] },
+  // Schwan (Nordkreuz): senkrechte Achse Past, Flügel PP, Komplett-Stern unten.
+  { pts: [[50,10],[26,42],[50,28],[74,42],[50,44],[50,66]], edges: [[0,2],[2,4],[4,5],[1,4],[4,3]] },
+  // Adler: Flügel-Chevron — linker Flügel Past, rechter Flügel PP, Körper = Komplett.
+  { pts: [[20,42],[64,28],[36,28],[80,42],[50,18],[50,40]], edges: [[0,2],[2,4],[4,1],[1,3],[4,5]] },
+  // Leier: Vega oben + Harfe — linke Seite Past, rechte PP, Komplett-Stern unten.
+  { pts: [[44,12],[64,32],[28,32],[68,54],[36,54],[50,60]], edges: [[0,2],[2,4],[0,1],[1,3],[4,5],[5,3]] },
+  // Cluster: Fünfeck-Ring mit Komplett-Stern im Zentrum — rechter Bogen Past, linker PP.
+  { pts: [[50,12],[32,56],[74,28],[26,28],[68,56],[50,40]], edges: [[0,2],[2,4],[4,1],[1,3],[3,0],[0,5],[5,1]] },
 ];
 function _cstPattern(idx) { return CST_PATTERNS[idx % CST_PATTERNS.length]; }
 
@@ -958,7 +951,7 @@ function _uvLernstandBlock() {
   const rows = L.rows.map(r => {
     const icon = r.complete ? '🌟' : (r.unlocked ? '⭐' : '🔒');
     const col = r.complete ? '#2a8a4a' : (r.unlocked ? 'var(--text)' : '#b9b9b9');
-    const stars = '★'.repeat(r.lit) + '☆'.repeat(6 - r.lit);
+    const stars = '★'.repeat(r.lit) + '☆'.repeat(Math.max(0, r.total - r.lit));
     const chips = (r.words || []).map(w => {
       const done = w.mastered >= w.total;
       return `<span class="uv-word${done ? ' done' : ''}">${done ? '✓ ' : ''}${window.escHtml(w.en)} ${w.mastered}/${w.total}</span>`;
