@@ -692,7 +692,7 @@ function _forgeStepBtn(idx, s, isNext) {
   else                 { cls += ' locked'; }
   const on = play ? ` data-play="${play}"` : '';
   const tail = s.lit ? '✓' : (s.unlocked ? `${pct}%` : '🔒');
-  return `<button class="${cls}"${on}><span class="fs-ic">${fs.icon}</span>`
+  return `<button type="button" class="${cls}"${on}><span class="fs-ic">${fs.icon}</span>`
     + `<span class="fs-nm">${fs.name}</span><span class="fs-tl">${tail}</span></button>`;
 }
 
@@ -738,19 +738,44 @@ function _forgeWords(m) {
   return `<details class="forge-words"><summary>📖 Wörter</summary><div class="fw-grid">${chips}</div></details>`;
 }
 
-// Eine Schmiede-Station (= Gruppe): zwei Werkstücke + Aktiv-Steuerung + Wörter.
+// Slider: eine Zeitform pro Ansicht (Stahl-Past ↔ Gold-PP), wischen/Punkte wie
+// früher. Nutzt die bestehende Slider-Mechanik (uvSlide/uvSetForm/initUvSliders);
+// nur der Seiteninhalt ist jetzt ein Werkstück statt eines Sternbilds. Endlos-
+// Track mit 4 Seiten [pp, past, pp, past] — echte Seiten sind 1 (Past) und 2 (PP).
+function _forgeSlider(m) {
+  const idx = m.c.idx;
+  const page = (which) => `<div class="cst-page">${_forgeItem(m, which)}</div>`;
+  return `<div class="cst-slider-wrap">
+    <div class="cst-form-now past">${FORM_THEME.past.label}</div>
+    <div class="cst-slider">
+      <button class="cst-arrow" onclick="uvSlide(${idx},-1)" aria-label="andere Form">‹</button>
+      <div class="cst-slider-view"><div class="cst-track" data-cst="${idx}" data-idx="1">
+        ${page('pp')}${page('past')}${page('pp')}${page('past')}
+      </div></div>
+      <button class="cst-arrow" onclick="uvSlide(${idx},1)" aria-label="andere Form">›</button>
+    </div>
+    <div class="cst-dots">
+      <button class="uv-dot active" onclick="uvSetForm(${idx},'past')" aria-label="Simple Past"></button>
+      <button class="uv-dot" onclick="uvSetForm(${idx},'pp')" aria-label="Past Participle"></button>
+    </div>
+  </div>`;
+}
+
+// Eine Schmiede-Station (= Gruppe): freigeschaltet → Slider zwischen Stahl-Past
+// und Gold-PP; gesperrt → eine statische Vorschau. Plus Aktiv-Steuerung + Wörter.
 function _forgeStation(m, isActive) {
   const ob = forgeObject(m.c.idx);
   const activeCtrl = !m.unlocked ? ''
     : (isActive ? '<span class="forge-active-tag">● Aktiv</span>'
                 : `<button class="forge-active-btn" onclick="setUvActive(${m.c.idx})">▶ Aktiv setzen</button>`);
+  const body = m.unlocked ? _forgeSlider(m) : _forgeItem(m, 'past');
   return `<div class="forge-station${isActive ? ' current' : ''}${m.unlocked ? '' : ' locked'}${m.complete ? ' complete' : ''}">
     <div class="forge-head">
       <span class="forge-title">${ob.icon} ${ob.name}${m.complete ? ' 🌟' : ''}</span>
       <span class="forge-cefr">${m.c.cefr}</span>
       ${activeCtrl}
     </div>
-    <div class="forge-items">${_forgeItem(m, 'past')}${_forgeItem(m, 'pp')}</div>
+    ${body}
     ${_forgeWords(m)}
   </div>`;
 }
@@ -789,18 +814,7 @@ function renderStudentUV() {
     </div>
     ${parts.join('')}
   </div>`;
-  _bindForgeTaps(host);
-}
-
-// Tap auf einen spielbaren Schritt → Runde starten. Über onclick-Property (nicht
-// addEventListener), damit sich bei Re-Render nichts stapelt (host bleibt bestehen).
-function _bindForgeTaps(host) {
-  host.onclick = (e) => {
-    const el = e.target.closest('[data-play]');
-    if (!el || !host.contains(el)) return;
-    const [ci, si] = el.getAttribute('data-play').split(':').map(Number);
-    window.startConstellationStar(ci, si);
-  };
+  initUvSliders();   // Slider-Wisch + Tap-auf-Schritt (data-play → Runde) binden
 }
 
 // Flip-Karte umdrehen (Vorderseite Sternbild ↔ Rückseite Wörter).
