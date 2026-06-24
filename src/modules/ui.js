@@ -683,12 +683,12 @@ const FORGE_MAT = {
 
 // Ein Schmiede-Schritt (= ein Disziplin-Stern einer Form). Spielbar (data-play)
 // sobald freigeschaltet oder schon gemeistert (Wiederholung).
-function _forgeStepBtn(idx, s) {
+function _forgeStepBtn(idx, s, isNext) {
   const fs = FORGE_STEP[s.mode] || { icon: '•', name: s.mode };
   const pct = s.prog && s.prog.total ? Math.round((s.prog.mastered / s.prog.total) * 100) : 0;
   let cls = 'forge-step', play = '';
   if (s.lit)           { cls += ' done'; play = `${idx}:${s.i}`; }
-  else if (s.unlocked) { cls += ' open'; play = `${idx}:${s.i}`; }
+  else if (s.unlocked) { cls += isNext ? ' open next' : ' open'; play = `${idx}:${s.i}`; }
   else                 { cls += ' locked'; }
   const on = play ? ` data-play="${play}"` : '';
   const tail = s.lit ? '✓' : (s.unlocked ? `${pct}%` : '🔒');
@@ -696,20 +696,30 @@ function _forgeStepBtn(idx, s) {
     + `<span class="fs-nm">${fs.name}</span><span class="fs-tl">${tail}</span></button>`;
 }
 
-// Ein Werkstück (Stahl-Past oder Gold-PP) einer Station. data-stage = wie viele
-// Schritte fertig sind (für spätere „Gegenstand nimmt Form an"-Optik).
+// Ein Werkstück (Stahl-Past oder Gold-PP) einer Station. Der Gegenstand wird Teil
+// für Teil geschmiedet: pro gemeistertem Schritt ein „verbautes" Segment (bleibt
+// erhalten, da aus den Stats abgeleitet), das nächste Teil pulsiert, der Rest ist
+// noch leer. data-stage = wie viele Teile fertig sind (Anker für deine Objekt-Optik).
 function _forgeItem(m, which) {
   const ob = forgeObject(m.c.idx), mt = FORGE_MAT[which];
   const steps = m.stars.filter((s) => s.which === which);
   const litN = steps.filter((s) => s.lit).length;
   const done = steps.length > 0 && litN === steps.length;
   const open = steps.some((s) => s.unlocked || s.lit);
-  const stepsHtml = steps.map((s) => _forgeStepBtn(m.c.idx, s)).join('');
+  // Nächstes zu schmiedendes Teil = erster offener, noch nicht fertiger Schritt.
+  const nextI = steps.findIndex((s) => s.unlocked && !s.lit);
+  const build = steps.map((s, i) => {
+    const st = s.lit ? 'built' : (i === nextI ? 'next' : 'empty');
+    return `<span class="fi-seg ${st}"></span>`;
+  }).join('');
+  const stepsHtml = steps.map((s, i) => _forgeStepBtn(m.c.idx, s, i === nextI)).join('');
+  const prog = steps.length ? litN / steps.length : 0;   // 0..1 → Gegenstand „erscheint"
   const foot = !open ? '<span class="fi-lock">🔒 erst die Station davor</span>'
     : done ? `<span class="fi-done">✨ ${mt.mat}-${ob.name} fertig</span>`
-    : `<span class="fi-prog">${litN}/${steps.length} Schritte</span>`;
+    : `<span class="fi-prog">${litN}/${steps.length} Teile geschmiedet</span>`;
   return `<div class="forge-item ${which}${done ? ' done' : ''}" data-stage="${litN}" data-steps="${steps.length}">
-    <div class="fi-icon">${ob.icon}</div>
+    <div class="fi-icon" style="opacity:${(0.4 + 0.6 * prog).toFixed(2)}">${ob.icon}</div>
+    <div class="fi-build">${build}</div>
     <div class="fi-title">${mt.mat}-${ob.name}</div>
     <div class="fi-form">${mt.label}</div>
     <div class="forge-steps">${stepsHtml}</div>

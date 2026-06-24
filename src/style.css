@@ -949,8 +949,17 @@ body.in-game .mode-progress{display:block;}
 .forge-item.past{background:linear-gradient(180deg,#eef2f7,#dbe4ef);border-color:#c2cedd;}   /* Stahl */
 .forge-item.pp{background:linear-gradient(180deg,#fff6da,#ffe7a6);border-color:#f0d486;}      /* Gold  */
 .forge-item.done{box-shadow:0 0 0 2px #ffd45e inset;}
-.fi-icon{font-size:2rem;line-height:1;}
+.fi-icon{font-size:2rem;line-height:1;transition:opacity .3s,filter .3s,text-shadow .3s;}
 .forge-item.past .fi-icon{filter:grayscale(.6);}
+.forge-item.done .fi-icon{filter:none;text-shadow:0 0 12px rgba(255,212,94,.95);}
+/* Bau-Segmente: pro Schritt ein Teil des Gegenstands. built = bleibt erhalten,
+   next = pulsiert (wird als Nächstes geschmiedet), empty = noch offen. */
+.fi-build{display:flex;gap:5px;justify-content:center;margin:6px 0 2px;}
+.fi-seg{width:18px;height:20px;border-radius:4px;border:1.5px dashed #d5d5d5;background:rgba(0,0,0,.03);transition:background .25s,border-color .25s;}
+.forge-item.past .fi-seg.built{background:linear-gradient(180deg,#cdd8e6,#9fb0c6);border:1.5px solid #8ea0b8;}
+.forge-item.pp   .fi-seg.built{background:linear-gradient(180deg,#ffe48a,#f3c34a);border:1.5px solid #e0ae33;}
+.fi-seg.next{border:1.5px solid var(--purple);background:rgba(168,108,219,.14);animation:forgePulse 1.3s ease-in-out infinite;}
+@keyframes forgePulse{0%,100%{opacity:.45;}50%{opacity:1;}}
 .fi-title{font-family:'Fredoka One',cursive;font-size:.8rem;margin-top:4px;color:#444;}
 .fi-form{font-size:.66rem;font-weight:800;margin-top:1px;}
 .forge-item.past .fi-form{color:#3a6ea8;}
@@ -960,6 +969,7 @@ body.in-game .mode-progress{display:block;}
 .forge-step .fs-nm{flex:1;text-align:left;}
 .forge-step .fs-tl{flex-shrink:0;font-size:.66rem;}
 .forge-step.open{border-color:var(--purple);color:var(--purple);background:#faf5ff;cursor:pointer;}
+.forge-step.next{box-shadow:0 0 0 2px rgba(168,108,219,.4);}
 .forge-step.done{border-color:#ffd45e;background:#fff8df;color:#a06a00;cursor:pointer;}
 .forge-step.locked{opacity:.6;}
 .fi-foot{font-size:.66rem;font-weight:800;min-height:1.1em;}
