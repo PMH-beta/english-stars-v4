@@ -408,6 +408,16 @@ const FORM_THEME = {
 // anderen Form sind blasse Geister-Punkte, der Komplett-Stern leuchtet golden,
 // sobald alle sechs Disziplinen sitzen. Tippen wird zentral im Track behandelt
 // (data-play), damit ein Wisch nicht versehentlich eine Runde startet.
+// Fortschritts-Bogen um einen noch nicht fertigen Stern: dünner Track + farbiger
+// Bogen, der den Anteil gemeisterter Wörter dieser Disziplin zeigt (oben startend).
+function _progArc(x, y, pct, which) {
+  const r = 6.3, circ = 2 * Math.PI * r;
+  const len = Math.max(0.02, Math.min(1, pct)) * circ;
+  return `<circle class="cst-prog-track" cx="${x}" cy="${y}" r="${r}" fill="none"/>`
+    + `<circle class="cst-prog ${which}" cx="${x}" cy="${y}" r="${r}" fill="none"`
+    + ` stroke-dasharray="${len.toFixed(2)} ${(circ - len).toFixed(2)}" transform="rotate(-90 ${x} ${y})"/>`;
+}
+
 function _cstFormSvg(m, which) {
   const pat = _cstPattern(m.c.idx), st = m.stars;
   const lines = pat.edges.map(([a, b]) => {
@@ -430,8 +440,11 @@ function _cstFormSvg(m, which) {
     else if (s.unlocked) { cls += ' play';   play = `${m.c.idx}:${s.i}`; }
     else                 { cls += ' locked'; }
     const on = play ? ` data-play="${play}"` : '';
+    const prog = s.prog || { mastered: 0, total: 0 };
+    const pct = prog.total ? prog.mastered / prog.total : 0;
     return `<g class="${cls}"${on}>`
       + `<circle class="halo" cx="${x}" cy="${y}" r="7.5"/>`
+      + (!s.lit && pct > 0 ? _progArc(x, y, pct, which) : '')
       + `<circle class="ring" cx="${x}" cy="${y}" r="5.2"/>`
       + `<circle class="core" cx="${x}" cy="${y}" r="3.8"/>`
       + (s.lit ? `<text class="cst-chk" x="${x + 5.4}" y="${y - 4.6}" text-anchor="middle" dominant-baseline="central">✓</text>` : '')
@@ -448,7 +461,9 @@ function _formFoot(m, which) {
   if (stars.every((s) => s.lit))
     return `<span class="foot-done">✓ Form komplett${m.last ? '' : ' · 🔓 nächstes Sternbild frei'}</span>`;
   const next = stars.find((s) => s.unlocked && !s.lit);
-  return next ? `nächster: ${next.icon} ${next.name}` : '';
+  if (!next) return '';
+  const pct = next.prog && next.prog.total ? Math.round((next.prog.mastered / next.prog.total) * 100) : 0;
+  return `${next.icon} ${next.name} · <b>${pct}%</b>`;
 }
 
 // Past/PP-Slider: das ganze Sternbild slidet zwischen Simple Past und Past
