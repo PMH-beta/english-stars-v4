@@ -162,13 +162,15 @@ export function uvProgress(mode) {
   const star = window._uvStar;
   let sufs;
   if (mode === 'mixed_vocab') {
-    sufs = Object.values(SUF).flatMap((o) => [o.past, o.pp]);
-  } else if (star && star.mixed) {
-    sufs = Object.values(SUF).map((o) => o[star.which]);   // alle 5 Modi der Form
-  } else if (!star) {
+    sufs = Object.values(SUF).flatMap((o) => [o.past, o.pp]);                 // Boss: alle 10
+  } else if (mode === 'uvmix') {
+    sufs = Object.values(SUF).map((o) => o[(star && star.which) || 'past']);  // ganze Waffe (Form)
+  } else if (star && star.which && SUF[mode]) {
+    sufs = [SUF[mode][star.which]];                                           // EIN Teil (Modus × Form)
+  } else if (!star && SUF[mode]) {
     sufs = [SUF[mode].past, SUF[mode].pp];
   } else {
-    sufs = [SUF[mode][star.which]];
+    sufs = Object.values(SUF).map((o) => o[(star && star.which) || 'past']);
   }
   const verbs = (window.VOCAB || []).filter((v) => v.forms);
   let score = 0, mastered = 0;

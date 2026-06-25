@@ -800,12 +800,12 @@ function _forgeWords(m) {
       + `<span class="fw-p${pd ? ' done' : ''}">⏱ ${w.past.mastered}/${w.past.total}</span>`
       + `<span class="fw-g${ppd ? ' done' : ''}">✓ ${w.pp.mastered}/${w.pp.total}</span></span>`;
   }).join('');
-  return `<details class="forge-words"><summary>📖 Wörter</summary><div class="fw-grid">${chips}</div></details>`;
+  return `<details class="forge-words"><summary>📖 Wörter anzeigen</summary><div class="fw-grid">${chips}</div></details>`;
 }
 
 // Slider: eine Zeitform pro Ansicht (Stahl-Past ↔ Gold-PP), wischen/Punkte/Pfeile.
-// Nur ZWEI Seiten mit Anschlag (Index 0 = Past, 1 = PP) — kein Endlos-Klon mehr,
-// das war bei schnellem Rückwärts-Wischen fehleranfällig (Punkte hingen fest).
+// Unendlich in beide Richtungen über einen 3-Seiten-Track [PP, Past, PP], der nach
+// jedem Wechsel wieder zentriert für die neue Form aufgebaut wird (_forgeFillTrack).
 function _forgeSlider(m) {
   const idx = m.c.idx;
   const page = (which) => `<div class="cst-page">${_forgeItem(m, which)}</div>`;
@@ -813,8 +813,8 @@ function _forgeSlider(m) {
     <div class="cst-form-now past">${FORM_THEME.past.label}</div>
     <div class="cst-slider">
       <button class="cst-arrow" onclick="uvSlide(${idx},-1)" aria-label="andere Form">‹</button>
-      <div class="cst-slider-view"><div class="cst-track" data-cst="${idx}" data-idx="0">
-        ${page('past')}${page('pp')}
+      <div class="cst-slider-view"><div class="cst-track" data-cst="${idx}" data-form="0" style="transform:translateX(-100%)">
+        ${page('pp')}${page('past')}${page('pp')}
       </div></div>
       <button class="cst-arrow" onclick="uvSlide(${idx},1)" aria-label="andere Form">›</button>
     </div>
@@ -886,44 +886,88 @@ export function uvFlip(btn) {
   if (f) f.classList.toggle('flipped');
 }
 
-// 2-Seiten-Slider (0 = Simple Past, 1 = Past Participle) mit Anschlag — robust auch
-// bei schnellem Wischen in beide Richtungen (kein Endlos-Klon mehr).
+// Unendlich-Slider (2 Formen) ohne Klon-Kanten: der Track zeigt IMMER 3 Seiten
+// [andere, aktuelle, andere] und ist auf die Mitte zentriert. Ein Wisch/Pfeil in
+// JEDE Richtung wechselt zur anderen Form; danach wird der Track für die neue Form
+// wieder zentriert aufgebaut → in beide Richtungen unbegrenzt, robust auch schnell.
 function _trackW(track) { return track.parentElement.offsetWidth; }
+function _curForm(track) { return (+track.dataset.form || 0); }   // 0 = Past, 1 = PP
+function _formWhich(f) { return f === 0 ? 'past' : 'pp'; }
 
-// Slider per Pfeil eine Seite weiter (dir −1/+1), _applyTrack klemmt auf 0..1.
+// Track für die AKTUELLE Form neu aufbauen (3 Seiten, zentriert) + Chrome.
+function _forgeFillTrack(track) {
+  const m = uvMap().find((x) => x.c.idx === +track.dataset.cst);
+  if (!m) return;
+  const cur = _curForm(track), page = (w) => `<div class="cst-page">${_forgeItem(m, w)}</div>`;
+  track.innerHTML = page(_formWhich(cur ? 0 : 1)) + page(_formWhich(cur)) + page(_formWhich(cur ? 0 : 1));
+  _centerTrack(track, false);
+  _updateSliderChrome(track);
+}
+
+// Auf die Mittel-Seite setzen (anim=false ohne Übergang, für Erst-/Re-Layout).
+function _centerTrack(track, anim) {
+  const w = _trackW(track);
+  track.style.transition = anim ? '' : 'none';
+  track.style.transform = `translateX(${-w}px)`;
+  if (!anim) { void track.offsetWidth; track.style.transition = ''; }
+}
+
+function _updateSliderChrome(track) {
+  const wrap = track.closest('.cst-slider-wrap'); if (!wrap) return;
+  const isPast = _curForm(track) === 0;
+  const now = wrap.querySelector('.cst-form-now');
+  if (now) {
+    now.textContent = (isPast ? FORM_THEME.past : FORM_THEME.pp).label;
+    now.classList.toggle('past', isPast); now.classList.toggle('pp', !isPast);
+  }
+  wrap.querySelectorAll('.uv-dot').forEach((d, i) => d.classList.toggle('active', i === (isPast ? 0 : 1)));
+}
+
+// Snap abschließen: Form togglen (Snap = Formwechsel) + zentriert neu aufbauen.
+// Bumpt _gen → alle noch geplanten Finalizer dieses Tracks werden entwertet.
+function _finalizeSnap(track) {
+  if (!track._pending) return;
+  track._pending = null;
+  track._gen = (track._gen || 0) + 1;
+  track.dataset.form = _curForm(track) ? '0' : '1';
+  _forgeFillTrack(track);
+}
+
+// Zur Nachbarseite animieren (targetPx) und nach der Transition togglen+zentrieren.
+// transitionend primär, Timeout als Fallback; _gen-Token gegen veraltete Finalizer.
+function _snapToggle(track, targetPx) {
+  track.style.transition = '';
+  track.style.transform = `translateX(${targetPx}px)`;
+  track._pending = {};
+  const gen = (track._gen = (track._gen || 0) + 1);
+  const fin = () => { track.removeEventListener('transitionend', onEnd); if (track._gen === gen) _finalizeSnap(track); };
+  const onEnd = (e) => { if (e.propertyName === 'transform') fin(); };
+  track.addEventListener('transitionend', onEnd);
+  setTimeout(fin, 520);
+}
+
+function _snapBack(track) {   // unter Schwelle: glatt zur Mitte zurück (kein Toggle)
+  track.style.transition = '';
+  track.style.transform = `translateX(${-_trackW(track)}px)`;
+}
+
+// Pfeil/Tap: in beide Richtungen zur anderen Form (es gibt nur zwei).
 export function uvSlide(idx, dir) {
   const track = document.querySelector(`.cst-track[data-cst="${idx}"]`);
   if (!track) return;
-  _applyTrack(track, (+track.dataset.idx || 0) + dir, true);
+  if (track._pending) _finalizeSnap(track);
+  _centerTrack(track, false); void track.offsetWidth;
+  _snapToggle(track, dir > 0 ? -2 * _trackW(track) : 0);
 }
 
-// Track auf Slide-Index setzen (0|1, geklemmt). anim=false blendet die Transition
-// kurz aus (Erst-Layout). Form-Label + Punkte kommen direkt aus dem Index.
-function _applyTrack(track, idx, anim) {
-  const w = _trackW(track);
-  idx = Math.max(0, Math.min(1, idx));
-  track.dataset.idx = idx;
-  track.style.transition = anim ? '' : 'none';
-  track.style.transform = `translateX(${-idx * w}px)`;
-  if (!anim) { void track.offsetWidth; track.style.transition = ''; }
-  const wrap = track.closest('.cst-slider-wrap');
-  if (wrap) {
-    const isPast = idx === 0;
-    const now = wrap.querySelector('.cst-form-now');
-    if (now) {
-      now.textContent = (isPast ? FORM_THEME.past : FORM_THEME.pp).label;
-      now.classList.toggle('past', isPast);
-      now.classList.toggle('pp', !isPast);
-    }
-    wrap.querySelectorAll('.uv-dot').forEach((d, i) => d.classList.toggle('active', i === idx));
-  }
-}
-
-// Direkt auf eine Form springen (0 = Simple Past, 1 = Past Participle).
+// Punkt: direkt auf eine Form. Schon dort → nur zentrieren, sonst animiert wechseln.
 export function uvSetForm(idx, which) {
   const track = document.querySelector(`.cst-track[data-cst="${idx}"]`);
   if (!track) return;
-  _applyTrack(track, which === 'past' ? 0 : 1, true);
+  if (track._pending) _finalizeSnap(track);
+  if (_curForm(track) === (which === 'past' ? 0 : 1)) { _centerTrack(track, false); return; }
+  _centerTrack(track, false); void track.offsetWidth;
+  _snapToggle(track, -2 * _trackW(track));
 }
 
 // Info-Popup (ⓘ oben): erklärt den Sternenpfad — ersetzt den Dauer-Erklärtext.
@@ -944,12 +988,16 @@ export function uvInfo() {
 
 // Jeder Slider bekommt Finger-Swipe + Tap. Tap und Wisch werden über die Strecke
 // getrennt: ein echter Wisch (track._moved) startet keine Runde, ein Tap auf die
-// Waffe ([data-forge]) schon. Anschlag bei 0 (Past) und 1 (PP) — kein Klon/Settle.
+// Waffe ([data-forge]) schon. Gewischt wird immer von der Mitte (3-Seiten-Track).
 function initUvSliders() {
   document.querySelectorAll('.cst-track').forEach((track) => {
-    _applyTrack(track, +track.dataset.idx || 0, false);
+    if (!track.dataset.form) track.dataset.form = '0';
+    _centerTrack(track, false);
+    _updateSliderChrome(track);
     let startX = null, dx = 0;
     track.addEventListener('pointerdown', (e) => {
+      if (track._pending) _finalizeSnap(track);   // laufenden Snap sofort abschließen
+      _centerTrack(track, false);
       startX = e.clientX; dx = 0; track._moved = false;
       track.style.transition = 'none';
       track.setPointerCapture?.(e.pointerId);
@@ -957,18 +1005,17 @@ function initUvSliders() {
     track.addEventListener('pointermove', (e) => {
       if (startX === null) return;
       dx = e.clientX - startX;
-      const w = _trackW(track), cur = +track.dataset.idx || 0;
-      const off = Math.max(-w, Math.min(0, -cur * w + dx));   // Anschlag 0..1
-      track.style.transform = `translateX(${off}px)`;
+      track.style.transform = `translateX(${-_trackW(track) + dx}px)`;
     });
     const end = () => {
       if (startX === null) return;
-      const w = _trackW(track), cur = +track.dataset.idx || 0;
+      const w = _trackW(track);
       if (Math.abs(dx) > 6) track._moved = true;
-      let ni = cur;
-      if (dx < -w * 0.18) ni = cur + 1; else if (dx > w * 0.18) ni = cur - 1;
-      _applyTrack(track, ni, true);   // klemmt selbst auf 0..1
-      startX = null; dx = 0;
+      startX = null;
+      if (dx < -w * 0.18) _snapToggle(track, -2 * w);        // nach links → andere Form
+      else if (dx > w * 0.18) _snapToggle(track, 0);         // nach rechts → andere Form
+      else _snapBack(track);                                 // zu kurz → zurück zur Mitte
+      dx = 0;
     };
     track.addEventListener('pointerup', end);
     track.addEventListener('pointercancel', end);

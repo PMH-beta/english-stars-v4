@@ -105,11 +105,13 @@ const _FORM_BADGE={
   pp:   ['Past Participle','#3aaa5c'],
 };
 function _uvBadge(key,label,bg){ const b=_FORM_BADGE[key]||[label,bg]; return `<div style="display:inline-block;background:${b[1]};color:#fff;font-family:'Fredoka One',cursive;font-size:.72rem;padding:3px 12px;border-radius:20px;margin-bottom:8px;">${b[0]}</div>`; }
-function _uvInstr(t){ return `<div style="font-size:.85rem;color:#888;font-weight:700;margin-bottom:8px;">${t}</div>`; }
-// Deutsches Wort (Bedeutung) — kleiner Hinweis über der Aufgabe.
-function _uvWord(de){ return `<div style="font-size:.9rem;color:#888;font-weight:700;margin:0 0 6px;">🇩🇪 ${de}</div>`; }
-// Englische Aufgabe (Grundform → ?, Buchstabenlücke …) — der große, klare Anker.
-function _uvTask(t){ return `<div style="font-size:1.75rem;font-weight:800;color:var(--text);letter-spacing:.5px;">${t}</div>`; }
+// Anweisung — als abgegrenzte Plakette (klar als Erklärung erkennbar, NICHT als
+// das Vorgabewort). Eigener Look: gerahmt, gedämpft.
+function _uvInstr(t){ return `<div style="display:inline-block;background:#f1f3f7;color:#5a6473;font-weight:700;font-size:.78rem;padding:5px 13px;border-radius:20px;margin-bottom:12px;">${t}</div>`; }
+// Deutsches Wort (Bedeutung) = die EINZIGE Vorgabe, groß und prominent.
+function _uvWord(de){ return `<div style="font-size:2.1rem;font-weight:800;color:var(--text);letter-spacing:.3px;margin:2px 0 4px;">🇩🇪 ${de}</div>`; }
+// Aufgaben-Zusatz (Buchstabenlücke, falsche Form …) — sekundär unter dem Wort.
+function _uvTask(t){ return `<div style="font-size:1.35rem;font-weight:800;color:#6a7180;letter-spacing:.5px;margin-top:8px;">${t}</div>`; }
 // UV-Fragekopf in fester Reihenfolge: Form-Plakette → (Anweisung) → deutsches Wort
 // (groß) → (englische Aufgabe). Anweisung/Aufgabe optional.
 function _uvHead(de,key,instr,task){
@@ -156,7 +158,7 @@ function bErkennen(item, which, lvl, suf){
   // Schritt (bUV) mit eigenem Suffix — darum hier keine zufällige Beimischung mehr.
   const mt=_verbMeta(which); const target=_firstForm(mt.get(item)); const inf=_firstForm(item.en);
   const base={type:'mc',badge:'vocab',statKey:statKeyFor(item.de,item.en,suf||mt.suf.mc,item._presetId||null),_presetId:item._presetId||null,
-    question:_uvHead(item.de,which,'',`${inf} → ?`),answer:target};
+    question:_uvHead(item.de,which,'',''),answer:target};
   if(lvl===3){ // schwer: nur echte Formen anderer Verben
     return {...base,choices:shuffle([target,..._otherForms(item,which,3,target)])};
   }
@@ -177,10 +179,10 @@ function bRufen(item, which, lvl, suf){
   const base={type:'pronounce',badge:'pronounce',statKey:statKeyFor(item.de,item.en,suf||mt.suf.pr,item._presetId||null),_presetId:item._presetId||null,hint:''};
   if(lvl===3){ // schwer: ganze Reihe sprechen
     const chain=`${inf} ${_firstForm(item.forms.past)} ${_firstForm(item.forms.participle)}`;
-    return {...base,question:_uvBadge('all','Alle drei Formen','#a86cdb')+_uvInstr('🎙️ Sprich die ganze Reihe')+_uvWord(item.de)+_uvTask(`${inf} – ? – ?`),answer:chain};
+    return {...base,question:_uvBadge('all','Alle drei Formen','#a86cdb')+_uvInstr('🎙️ Sprich alle drei Formen')+_uvWord(item.de),answer:chain};
   }
-  // leicht/mittel: Present zeigen, Zielform aus dem Kopf sprechen
-  return {...base,question:_uvHead(item.de,which,'🎙️ Sprich die Form',`${inf} → ?`),answer:target};
+  // leicht/mittel: nur das deutsche Wort, Zielform aus dem Kopf sprechen
+  return {...base,question:_uvHead(item.de,which,'🎙️ Sprich die Form',''),answer:target};
 }
 
 // 🔨 Schmieden (Tippen, schreiben)
@@ -190,14 +192,15 @@ function bSchmieden(item, which, lvl, suf){
   const base={type:'type',badge:'spelling',statKey:statKeyFor(item.de,item.en,suf||mt.suf.sp,item._presetId||null),_presetId:item._presetId||null,hint:''};
   if(lvl===1){ // leicht: nur den EINEN fehlenden Buchstaben ergänzen
     const g=_gapLetter(target);
-    return {...base,gap:true,question:_uvHead(item.de,which,'✏️ Ergänze den fehlenden Buchstaben',g.display),answer:g.letter};
+    // speak = das GANZE Wort (TTS soll nicht nur den einen Buchstaben vorlesen).
+    return {...base,gap:true,speak:target,question:_uvHead(item.de,which,'✏️ Ergänze den fehlenden Buchstaben',g.display),answer:g.letter};
   }
   if(lvl===2){ // mittel: falsche Form korrigieren
     const wrong=(formDistractors(item,which)[0])||target;
-    return {...base,question:_uvHead(item.de,which,'✏️ Diese Form ist falsch — verbessere sie',`${wrong} → ?`),answer:full};
+    return {...base,question:_uvHead(item.de,which,'✏️ Diese Form ist falsch — verbessere sie',wrong),answer:full};
   }
-  // schwer: frei tippen
-  return {...base,question:_uvHead(item.de,which,'✏️ Schreibe die richtige Form',`${inf} → ?`),answer:full};
+  // schwer: frei tippen — nur das deutsche Wort als Vorgabe
+  return {...base,question:_uvHead(item.de,which,'✏️ Schreibe die richtige Form',''),answer:full};
 }
 
 // Mischt ein Array so, dass die Reihenfolge möglichst nicht schon der Lösung
@@ -264,13 +267,16 @@ const SUF_ALL={
 // Einen Schmiede-Schritt bauen: jeder Modus ruft seinen Builder mit SEINEM Suffix.
 function bUV(item, mode, which, lvl){
   const suf=SUF_ALL[mode] && SUF_ALL[mode][which];
+  let q;
   switch(mode){
-    case 'forms':     return bErkennenOrder(item, which, suf);
-    case 'letters':   return bSchmiedenOrder(item, which, suf);
-    case 'spelling':  return bSchmieden(item, which, lvl, suf);
-    case 'pronounce': return bRufen(item, which, lvl, suf);
-    default:          return bErkennen(item, which, lvl, suf);   // 'vocab'
+    case 'forms':     q=bErkennenOrder(item, which, suf); break;
+    case 'letters':   q=bSchmiedenOrder(item, which, suf); break;
+    case 'spelling':  q=bSchmieden(item, which, lvl, suf); break;
+    case 'pronounce': q=bRufen(item, which, lvl, suf); break;
+    default:          q=bErkennen(item, which, lvl, suf); break;   // 'vocab'
   }
+  q._uvMode=mode;   // Modus dieses Teils → In-Game-Fortschritt des aktuellen Teils
+  return q;
 }
 function _uvVoll(v){
   const ws=window.SD?.globalPresetStats?.wordStats||{};
@@ -553,6 +559,7 @@ function showQuestion() {
   document.getElementById('progress-fill').style.width=(window.questionIndex/window.questionPool.length*100)+'%';
   window.currentQ=window.questionPool[window.questionIndex];
   renderQuestion(window.currentQ);
+  if(window.isUV) updateModeProgress(false);   // Balken auf das aktuelle Teil (Frage-Modus)
 }
 
 function renderQuestion(q) {
@@ -967,8 +974,9 @@ function handleCorrect() {
     showFeedback(true,msg,'');
     if(window.currentQ&&window.currentQ.type==='pronounce') setMicFinalStatus(true);
     try{ playSfx(window.streak>=3?'streak':'correct'); }catch(e){}
-    if(window.currentQ&&window.currentQ.answer){
-      const w=window.currentQ.answer;
+    if(window.currentQ&&(window.currentQ.speak||window.currentQ.answer)){
+      // speak überschreibt answer (z. B. Buchstaben-Lücke: ganzes Wort statt 1 Buchstabe).
+      const w=window.currentQ.speak||window.currentQ.answer;
       setTimeout(()=>{ try{ speakWordOnce(w); }catch(e){} }, 150);
     }
     if(window.streak===5||window.streak===10) window.spawnConfetti();
@@ -1100,9 +1108,12 @@ export function playSfx(type) {
 function progressForCurrentMode() {
   if(window.isUV && window._uvProgress){
     const star=window._uvStar;
+    const stepTitles={vocab:'🔍 Erkennen',forms:'🧩 Formen ordnen',spelling:'🔨 Schmieden',letters:'🔤 Buchstaben',pronounce:'🗣️ Aussprache'};
     const formTitle = star && star.which ? (star.which==='past' ? '⏱ Simple Past' : '✓ Past Participle') : '⚒️ Schmiede';
-    const titles={vocab:'🔍 Erkennen',spelling:'🔨 Schmieden',pronounce:'🗣️ Aussprache'};
-    return {...window._uvProgress(window.mode), title: titles[window.mode]||formTitle};
+    // Gemischte Form-Runde: Fortschritt + Titel des AKTUELLEN Teils (Modus der Frage),
+    // nicht der ganzen Waffe.
+    const curMode = (window.mode==='uvmix' && window.currentQ && window.currentQ._uvMode) ? window.currentQ._uvMode : window.mode;
+    return {...window._uvProgress(curMode), title: stepTitles[curMode]||formTitle};
   }
   const presetWs = window.SD?.globalPresetStats?.wordStats || {};
   const deckWs = window.SD?.wordStats || {};
