@@ -912,30 +912,36 @@ function _centerTrack(track, anim) {
   if (!anim) { void track.offsetWidth; track.style.transition = ''; }
 }
 
-function _updateSliderChrome(track) {
+// Punkte + Überschrift SOFORT für eine bestimmte Form (0/1) setzen — unabhängig
+// von der Animation, damit das Chrome super reaktiv ist.
+function _showChrome(track, form) {
   const wrap = track.closest('.cst-slider-wrap'); if (!wrap) return;
-  const isPast = _curForm(track) === 0;
+  const isPast = form === 0;
   const now = wrap.querySelector('.cst-form-now');
   if (now) {
     now.textContent = (isPast ? FORM_THEME.past : FORM_THEME.pp).label;
     now.classList.toggle('past', isPast); now.classList.toggle('pp', !isPast);
   }
-  wrap.querySelectorAll('.uv-dot').forEach((d, i) => d.classList.toggle('active', i === (isPast ? 0 : 1)));
+  wrap.querySelectorAll('.uv-dot').forEach((d, i) => d.classList.toggle('active', i === form));
 }
+function _updateSliderChrome(track) { _showChrome(track, _curForm(track)); }
 
-// Snap abschließen: Form togglen (Snap = Formwechsel) + zentriert neu aufbauen.
-// Bumpt _gen → alle noch geplanten Finalizer dieses Tracks werden entwertet.
+// Form als Datenquelle setzen + Chrome sofort aktualisieren.
+function _setForm(track, f) { track.dataset.form = String(f); _showChrome(track, f); }
+
+// Snap abschließen: NUR zentriert neu aufbauen (die Form wurde schon beim Commit
+// gesetzt). Bumpt _gen → veraltete Finalizer werden entwertet.
 function _finalizeSnap(track) {
   if (!track._pending) return;
   track._pending = null;
   track._gen = (track._gen || 0) + 1;
-  track.dataset.form = _curForm(track) ? '0' : '1';
   _forgeFillTrack(track);
 }
 
-// Zur Nachbarseite animieren (targetPx) und nach der Transition togglen+zentrieren.
-// transitionend primär, Timeout als Fallback; _gen-Token gegen veraltete Finalizer.
-function _snapToggle(track, targetPx) {
+// Zur Nachbarseite animieren; targetForm wird SOFORT gesetzt (Chrome reaktiv), die
+// Track-Neuzentrierung folgt nach der Transition (transitionend + Timeout-Fallback).
+function _snapToggle(track, targetPx, targetForm) {
+  _setForm(track, targetForm);
   track.style.transition = '';
   track.style.transform = `translateX(${targetPx}px)`;
   track._pending = {};
@@ -949,6 +955,7 @@ function _snapToggle(track, targetPx) {
 function _snapBack(track) {   // unter Schwelle: glatt zur Mitte zurück (kein Toggle)
   track.style.transition = '';
   track.style.transform = `translateX(${-_trackW(track)}px)`;
+  _showChrome(track, _curForm(track));   // Chrome zurück auf die aktuelle Form
 }
 
 // Pfeil/Tap: in beide Richtungen zur anderen Form (es gibt nur zwei).
@@ -956,18 +963,20 @@ export function uvSlide(idx, dir) {
   const track = document.querySelector(`.cst-track[data-cst="${idx}"]`);
   if (!track) return;
   if (track._pending) _finalizeSnap(track);
+  const target = _curForm(track) ? 0 : 1;
   _centerTrack(track, false); void track.offsetWidth;
-  _snapToggle(track, dir > 0 ? -2 * _trackW(track) : 0);
+  _snapToggle(track, dir > 0 ? -2 * _trackW(track) : 0, target);
 }
 
 // Punkt: direkt auf eine Form. Schon dort → nur zentrieren, sonst animiert wechseln.
 export function uvSetForm(idx, which) {
   const track = document.querySelector(`.cst-track[data-cst="${idx}"]`);
   if (!track) return;
+  const want = which === 'past' ? 0 : 1;
   if (track._pending) _finalizeSnap(track);
-  if (_curForm(track) === (which === 'past' ? 0 : 1)) { _centerTrack(track, false); return; }
+  if (_curForm(track) === want) { _centerTrack(track, false); return; }
   _centerTrack(track, false); void track.offsetWidth;
-  _snapToggle(track, -2 * _trackW(track));
+  _snapToggle(track, -2 * _trackW(track), want);
 }
 
 // Info-Popup (ⓘ oben): erklärt den Sternenpfad — ersetzt den Dauer-Erklärtext.
@@ -1005,16 +1014,19 @@ function initUvSliders() {
     track.addEventListener('pointermove', (e) => {
       if (startX === null) return;
       dx = e.clientX - startX;
-      track.style.transform = `translateX(${-_trackW(track) + dx}px)`;
+      const w = _trackW(track), cur = _curForm(track);
+      track.style.transform = `translateX(${-w + dx}px)`;
+      // Chrome live: ab der Snap-Schwelle schon die andere Form zeigen.
+      _showChrome(track, (Math.abs(dx) > w * 0.18) ? (cur ? 0 : 1) : cur);
     });
     const end = () => {
       if (startX === null) return;
-      const w = _trackW(track);
+      const w = _trackW(track), cur = _curForm(track), other = cur ? 0 : 1;
       if (Math.abs(dx) > 6) track._moved = true;
       startX = null;
-      if (dx < -w * 0.18) _snapToggle(track, -2 * w);        // nach links → andere Form
-      else if (dx > w * 0.18) _snapToggle(track, 0);         // nach rechts → andere Form
-      else _snapBack(track);                                 // zu kurz → zurück zur Mitte
+      if (dx < -w * 0.18) _snapToggle(track, -2 * w, other);   // nach links → andere Form
+      else if (dx > w * 0.18) _snapToggle(track, 0, other);    // nach rechts → andere Form
+      else _snapBack(track);                                   // zu kurz → zurück zur Mitte
       dx = 0;
     };
     track.addEventListener('pointerup', end);
