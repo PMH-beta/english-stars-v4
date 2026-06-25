@@ -242,6 +242,57 @@ function bSchmiedenOrder(item, which, suf){
   };
 }
 
+// 🔍 Erkennen · Falsche Form korrigieren (MC): eine falsche Form steht da, die
+// richtige auswählen. Auswahl-Aufgabe (kein Tippen), zählt aufs Erkennen-Slot.
+function bErkennenFix(item, which, lvl, suf){
+  const mt=_verbMeta(which); const target=_firstForm(mt.get(item));
+  const wrong=(formDistractors(item,which)[0])||_firstForm(item.en);
+  const base={type:'mc',badge:'vocab',_presetId:item._presetId||null,
+    statKey:statKeyFor(item.de,item.en,suf,item._presetId||null),
+    question:_uvHead(item.de,which,'❌ Diese Form ist falsch — welche stimmt?',wrong),answer:target};
+  if(lvl===3) return {...base,choices:shuffle([target,..._otherForms(item,which,3,target)])};
+  if(lvl===2) return {...base,choices:shuffle([target,wrong,..._otherForms(item,which,2,target)])};
+  return {...base,choices:shuffle([target,...formDistractors(item,which)])};
+}
+
+// 🔨 Schmieden · fehlender Buchstabe (Lücke). speak = ganzes Wort (TTS).
+function bSchmiedenGap(item, which, suf){
+  const mt=_verbMeta(which); const target=_firstForm(mt.get(item));
+  const g=_gapLetter(target);
+  return {type:'type',badge:'spelling',gap:true,speak:target,hint:'',_presetId:item._presetId||null,
+    statKey:statKeyFor(item.de,item.en,suf,item._presetId||null),
+    question:_uvHead(item.de,which,'✏️ Ergänze den fehlenden Buchstaben',g.display),answer:g.letter};
+}
+
+// 🔨 Schmieden · ganzes Wort tippen (nur deutsches Wort als Vorgabe).
+function bSchmiedenType(item, which, suf){
+  const mt=_verbMeta(which); const full=mt.get(item);
+  return {type:'type',badge:'spelling',hint:'',_presetId:item._presetId||null,
+    statKey:statKeyFor(item.de,item.en,suf,item._presetId||null),
+    question:_uvHead(item.de,which,'✏️ Schreibe die richtige Form',''),answer:full};
+}
+
+// Eine Schmiede-Frage für eine Disziplin — Aufgabentyp je Frage ZUFÄLLIG.
+//  🔍 Erkennen   → MC · Wörter stapeln (3 Formen) · falsche Form korrigieren
+//  🔨 Schmieden  → fehlender Buchstabe · Buchstaben sortieren · ganzes Wort tippen
+//  🪄 Verzaubern → Aussprache (deutsches Wort als Vorgabe)
+function bDisc(item, which, disc, suf){
+  const lvl=uvLevel(statKeyFor(item.de,item.en,suf,IRREGULAR_PRESET_ID));
+  if(disc==='erkennen'){
+    const r=Math.random();
+    if(r<0.34) return bErkennen(item,which,lvl,suf);
+    if(r<0.67) return bErkennenOrder(item,which,suf);
+    return bErkennenFix(item,which,lvl,suf);
+  }
+  if(disc==='schmieden'){
+    const r=Math.random();
+    if(r<0.34) return bSchmiedenGap(item,which,suf);
+    if(r<0.67) return bSchmiedenOrder(item,which,suf);
+    return bSchmiedenType(item,which,suf);
+  }
+  return bRufen(item,which,1,suf);   // verzaubern: einzelne Form sprechen
+}
+
 // Partizip schaltet erst frei, wenn die Vergangenheit derselben Disziplin sitzt
 // (§6: „Vergangenheit zuerst"). Stabile Schwelle ohne Interleaving-Zufall:
 // ≥3 Versuche und EMA ≥ up2.
@@ -300,42 +351,17 @@ function buildUVPool(m, limit){
     });
     return shuffle(all).slice(0, limit);   // isExamMode → kein Mastery-Filter (Boss prüft Gemeistertes)
   }
-  // Form-Runde (eine Waffe): alle 5 Modi EINER Form gemischt (window._uvStar.mixed).
-  // Jede Frage zählt auf ihr eigenes Suffix → die 5 Teile der Waffe leuchten nach
-  // und nach auf. Mastery-Filter (buildPool) lässt schon gemeisterte Modi weg.
-  if(m==='uvmix' && window._uvStar && window._uvStar.mixed){
-    const which=window._uvStar.which||'past';
-    window.VOCAB.forEach(v=>{
-      if(!v.forms) return;
-      ['vocab','forms','spelling','letters','pronounce'].forEach(mode=>{
-        const suf=SUF_ALL[mode][which];
-        all.push(bUV(v, mode, which, uvLevel(statKeyFor(v.de,v.en,suf,pid))));
-      });
-    });
+  // Slot-Runde (EIN Teil einer Waffe): window._uvStar = {which, slot, discipline, suf}.
+  // Eine Runde übt GENAU diese Disziplin auf dem Teil-Suffix; der Aufgabentyp wird
+  // je Frage zufällig gewählt (bDisc). Mastery-Filter (buildPool) lässt schon
+  // gemeisterte Verben weg → die Runde fokussiert die noch offenen.
+  if(m==='uvslot' && window._uvStar && window._uvStar.suf){
+    const {which, discipline, suf}=window._uvStar;
+    window.VOCAB.forEach(v=>{ if(v.forms) all.push(bDisc(v, which, discipline, suf)); });
     const getS=q=>window.SD?.globalPresetStats?.wordStats?.[q.statKey];
     return weightedPickUnique(all, getS, limit);
   }
-  // Stern-Runde (Sternbild): window._uvStar = {mode, which} grenzt die Runde auf
-  // GENAU eine Disziplin × Form ein (Past- vs. Past-Participle-Stern getrennt).
-  // Die Past→PP-Reihenfolge regelt jetzt die Stern-Freischaltung (irregular-game),
-  // nicht mehr _ppUnlocked.
-  // m = der aktive Modus (vocab|forms|spelling|letters|pronounce), window._uvStar
-  // grenzt die Runde auf GENAU diesen Modus × Form ein (ein Schmiede-Schritt).
-  const star=window._uvStar;
-  const SUF=SUF_ALL[m];
-  window.VOCAB.forEach(v=>{
-    if(!v.forms || !SUF) return;   // Sicherheitsnetz — UV-Set hat immer forms
-    if(star){
-      all.push(bUV(v, m, star.which, uvLevel(statKeyFor(v.de,v.en,SUF[star.which],pid))));
-    } else {
-      // Fallback ohne Stern (z. B. Lernstand-Gap-Runde): Past + (nach Freischaltung) PP.
-      all.push(bUV(v, m, 'past', uvLevel(statKeyFor(v.de,v.en,SUF.past,pid))));
-      if(_ppUnlocked(v,SUF.past)) all.push(bUV(v, m, 'pp', uvLevel(statKeyFor(v.de,v.en,SUF.pp,pid))));
-    }
-  });
-  const getS=q=>window.SD?.globalPresetStats?.wordStats?.[q.statKey];
-  const take=(window.isSchnellModus&&!window.isExamMode) ? all.length : limit;
-  return weightedPickUnique(all, getS, take);
+  return [];   // anderen UV-Modus gibt es nicht mehr
 }
 
 export function buildPool(m) {
@@ -492,7 +518,7 @@ export function startGame(m) {
 }
 
 function _launchGame(m) {
-  const hasPronounce=(m==='pronounce'||m==='mixed_vocab'||m==='uvmix');
+  const hasPronounce=(m==='pronounce'||m==='mixed_vocab'||(m==='uvslot'&&window._uvStar?.discipline==='verzaubern'));
   if(hasPronounce&&navigator.mediaDevices){
     try{ warmAudio(); }catch(e){}   // AudioContext in der User-Geste aufwecken → Visualizer/Erkennung ab Runde 1 warm
     try{ warmIosMic(); }catch(e){}  // iOS: Mic-Prompt/Session jetzt etablieren statt mitten in Runde 1
@@ -1107,13 +1133,11 @@ export function playSfx(type) {
 // ── Progress + End ──
 function progressForCurrentMode() {
   if(window.isUV && window._uvProgress){
+    // Slot-Runde: Fortschritt + Titel beziehen sich auf das AKTUELLE Teil (Disziplin).
     const star=window._uvStar;
-    const stepTitles={vocab:'🔍 Erkennen',forms:'🧩 Formen ordnen',spelling:'🔨 Schmieden',letters:'🔤 Buchstaben',pronounce:'🗣️ Aussprache'};
-    const formTitle = star && star.which ? (star.which==='past' ? '⏱ Simple Past' : '✓ Past Participle') : '⚒️ Schmiede';
-    // Gemischte Form-Runde: Fortschritt + Titel des AKTUELLEN Teils (Modus der Frage),
-    // nicht der ganzen Waffe.
-    const curMode = (window.mode==='uvmix' && window.currentQ && window.currentQ._uvMode) ? window.currentQ._uvMode : window.mode;
-    return {...window._uvProgress(curMode), title: stepTitles[curMode]||formTitle};
+    const discTitles={erkennen:'🔍 Erkennen',schmieden:'🔨 Schmieden',verzaubern:'🪄 Verzaubern'};
+    const title = (star && discTitles[star.discipline]) || '⚒️ Schmiede';
+    return {...window._uvProgress(), title};
   }
   const presetWs = window.SD?.globalPresetStats?.wordStats || {};
   const deckWs = window.SD?.wordStats || {};

@@ -1,120 +1,100 @@
 // src/modules/irregular-game.js
 // Gestaltwandler — eigenständige UV-Engine (unregelmäßige Verben) für den
-// Schülermodus. KEIN Deck, KEINE Schulart/Klasse: die Verben sind nach
-// Schwierigkeit in benannte Sternbilder gruppiert (irregular-verbs.js).
+// Schülermodus. KEIN Deck, KEINE Schulart/Klasse: die Verben werden vom Kind in
+// Sternbilder/Stationen befüllt (irregular-verbs.js, SD.uvFills).
 //
-// Ein Sternbild deckt eine kleine Wortgruppe ab und hat 5 spielbare Sterne, die in
-// dieser Reihenfolge freischalten (kodiert „Erkennen → Schmieden → Rufen"):
-//   1 Erkennen·Past   2 Erkennen·PP   3 Schmieden·Past   4 Schmieden·PP
-//   5 Rufen·Past   (Rufen nur auf Simple Past — weniger wichtig)
-// Der 6. Stern ist nur ein Komplett-Leuchtstern (kein Boss — Bosse/Prüfungen
-// kommen in die Kampagne). Ein Stern „leuchtet", wenn ALLE Verben der Gruppe in
-// diesem Suffix gemeistert sind. Alle 5 leuchten ⇒ Sternbild komplett ⇒ nächstes frei.
-//
-// Stats wohnen wie bisher in SD.globalPresetStats (presetId 'irregular-verbs') —
-// kein Schema-/Sync-Umbau. Geändert wird nur, dass eine Runde auf EIN Sternbild
-// (window.VOCAB) und EINEN Stern (window._uvStar) eingegrenzt ist.
+// Schmiede-Modell: jede Station hat zwei Waffen (Stahl = Simple Past, Gold = Past
+// Participle). Jede Waffe = 5 TEILE (Slots). Zusammensetzung fest: Erkennen ×2,
+// Schmieden ×2, Verzaubern ×1 — die Reihenfolge ist grob zufällig, aber FIX pro
+// Waffe (deterministisch geseedet), mit der Regel: Verzaubern nur in Teil 3–5.
+// Jeder Teil ist ein eigener „aufleuchtbarer" Slot mit eigenem Stat-Suffix
+// (_past_s0 … _pp_s4) in SD.globalPresetStats (presetId 'irregular-verbs').
 
 import { startGame } from './game.js';
 import { effectivePct, isStatMastered, statKeyFor } from './stats.js';
 import { irregularAsVocab, getConstellations, IRREGULAR_PRESET_ID } from './irregular-verbs.js';
 
-// Schritte eines Sternbilds (= Schmiede-Teile pro Waffe). Jede Zeitform hat jetzt
-// 5 Schritte — je ein eigener Spielmodus aus dem Bestand, in Freischalt-Reihenfolge:
-//   🔍 Erkennen (MC) · 🧩 Formen ordnen (D&D) · 🔨 Schmieden (Tippen)
-//   · 🔤 Buchstaben ordnen (D&D) · 🗣️ Aussprache (Sprechen)
-// Aussprache kommt genau EINMAL pro Form. Past = Index 0–4, PP = Index 5–9.
-// Jeder Modus hat ein eigenes Stat-Suffix → eigener „aufleuchtbarer" Teil.
-export const UV_STARS = [
-  // Simple Past (Stahl-Waffe)
-  { mode: 'vocab',     which: 'past', icon: '🔍', name: 'Erkennen',       form: 'Simple Past' },
-  { mode: 'forms',     which: 'past', icon: '🧩', name: 'Formen ordnen',  form: 'Simple Past' },
-  { mode: 'spelling',  which: 'past', icon: '🔨', name: 'Schmieden',      form: 'Simple Past' },
-  { mode: 'letters',   which: 'past', icon: '🔤', name: 'Buchstaben',     form: 'Simple Past' },
-  { mode: 'pronounce', which: 'past', icon: '🗣️', name: 'Aussprache',     form: 'Simple Past' },
-  // Past Participle (Gold-Waffe)
-  { mode: 'vocab',     which: 'pp',   icon: '🔍', name: 'Erkennen',       form: 'Past Participle' },
-  { mode: 'forms',     which: 'pp',   icon: '🧩', name: 'Formen ordnen',  form: 'Past Participle' },
-  { mode: 'spelling',  which: 'pp',   icon: '🔨', name: 'Schmieden',      form: 'Past Participle' },
-  { mode: 'letters',   which: 'pp',   icon: '🔤', name: 'Buchstaben',     form: 'Past Participle' },
-  { mode: 'pronounce', which: 'pp',   icon: '🗣️', name: 'Aussprache',     form: 'Past Participle' },
-];
-const SUF = {
-  vocab:     { past: '_past_mc', pp: '_pp_mc' },
-  forms:     { past: '_past_fo', pp: '_pp_fo' },
-  spelling:  { past: '_past_sp', pp: '_pp_sp' },
-  letters:   { past: '_past_lo', pp: '_pp_lo' },
-  pronounce: { past: '_past_pr', pp: '_pp_pr' },
+export const SLOTS_PER_FORM = 5;
+// Die drei Disziplinen (Icon + Name) — von ui.js/game.js für Label/% genutzt.
+export const FORGE_DISC = {
+  erkennen:   { icon: '🔍', name: 'Erkennen' },
+  schmieden:  { icon: '🔨', name: 'Schmieden' },
+  verzaubern: { icon: '🪄', name: 'Verzaubern' },
 };
 
 function _ws() { return window.SD?.globalPresetStats?.wordStats || {}; }
+function _slotSuf(which, i) { return `_${which}_s${i}`; }   // which = 'past' | 'pp'
 
-// ── Stern-Zustand ───────────────────────────────────────────────────────────
-// Ein Stern leuchtet, wenn jedes Verb der Gruppe in diesem Suffix gemeistert ist.
-export function starLit(verbs, mode, which) {
-  const ws = _ws(); const suf = SUF[mode][which];
+// Kleiner deterministischer PRNG → stabile, aber je Waffe unterschiedliche Anordnung.
+function _seeded(seed) {
+  let s = seed >>> 0;
+  return () => {
+    s = (s + 0x6D2B79F5) >>> 0;
+    let t = s;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// Die 5 Disziplinen-Slots einer Waffe (deterministisch, jede Waffe anders).
+// Erkennen ×2, Schmieden ×2, Verzaubern ×1 — Verzaubern nur in Slot 2–4 (= Teil 3–5).
+export function weaponSlots(cIdx, which) {
+  const rnd = _seeded(((cIdx + 1) * 73856093) ^ (which === 'pp' ? 19349663 : 0));
+  const vPos = 2 + Math.floor(rnd() * 3);
+  const rest = ['erkennen', 'erkennen', 'schmieden', 'schmieden'];
+  for (let i = rest.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [rest[i], rest[j]] = [rest[j], rest[i]]; }
+  const slots = []; let r = 0;
+  for (let i = 0; i < SLOTS_PER_FORM; i++) slots.push(i === vPos ? 'verzaubern' : rest[r++]);
+  return slots;
+}
+
+// ── Slot-Zustand ──────────────────────────────────────────────────────────────
+// Ein Slot „leuchtet", wenn jedes Verb der Gruppe in diesem Slot-Suffix sitzt.
+export function starLit(verbs, suf) {
+  const ws = _ws();
   return verbs.length > 0 && verbs.every((v) => isStatMastered(ws[statKeyFor(v.de, v.en, suf, IRREGULAR_PRESET_ID)]));
 }
-// Fortschritt eines Sterns (gemeisterte / alle Verben der Gruppe).
-export function starProgress(verbs, mode, which) {
-  const ws = _ws(); const suf = SUF[mode][which];
-  let m = 0;
+export function starProgress(verbs, suf) {
+  const ws = _ws(); let m = 0;
   verbs.forEach((v) => { if (isStatMastered(ws[statKeyFor(v.de, v.en, suf, IRREGULAR_PRESET_ID)])) m++; });
   return { mastered: m, total: verbs.length };
 }
 
-// Disziplin-Reihenfolge je Form: Simple Past hat Erkennen → Schmieden → Rufen,
-// Past Participle nur Erkennen → Schmieden (kein Rufen).
-const DISC_ORDER = {
-  past: ['vocab', 'forms', 'spelling', 'letters', 'pronounce'],
-  pp:   ['vocab', 'forms', 'spelling', 'letters', 'pronounce'],
-};
-
-// Eine Form (Simple Past / Past Participle) eines Sternbilds ist fertig, wenn alle
-// ihre Disziplinen gemeistert sind (Past 3, PP 2).
+// Eine Form ist fertig, wenn alle 5 Slot-Teile leuchten.
 export function formComplete(c, which) {
-  return DISC_ORDER[which].every((mode) => starLit(c.verbs, mode, which));
+  return weaponSlots(c.idx, which).every((_, i) => starLit(c.verbs, _slotSuf(which, i)));
 }
 
-// Freischaltung: Ein Sternbild ist erreichbar, sobald beim VORHERIGEN mindestens
-// EINE Form (Simple Past ODER Past Participle) komplett ist — man muss also nur
-// eine der beiden Seiten fertigspielen, um weiterzukommen. Das erste Sternbild ist
-// immer frei. Innerhalb eines erreichbaren Sternbilds sind BEIDE Formen sofort
-// offen: man wählt selbst, ob man zuerst Past oder Past Participle übt.
+// Freischaltung: nächste Station offen, sobald beim vorigen EINE Form komplett ist.
 export function constellationUnlocked(idx) {
   if (idx <= 0) return true;
   const prev = getConstellations()[idx - 1];
   return formComplete(prev, 'past') || formComplete(prev, 'pp');
 }
-// which bleibt im Signatur erhalten (constellationStars ruft pro Form auf); beide
-// Formen teilen jetzt dieselbe Freischaltung.
-export function formUnlocked(idx, _which) {
-  return constellationUnlocked(idx);
-}
+export function formUnlocked(idx) { return constellationUnlocked(idx); }
 
-// Zustand aller Schritte eines Sternbilds (10 spielbare + 1 Komplett). Jede Form
-// hat ihre eigene Kette (formUnlocked); innerhalb einer Form klettern die Modi
-// linear (Erkennen → Formen ordnen → Schmieden → Buchstaben → Aussprache). Der
-// letzte Eintrag ist KEIN Boss (Bosse/Prüfungen wandern in die Kampagne) — ein
-// reiner Komplett-Leuchtstern: nicht spielbar, leuchtet, sobald alle 10 leuchten.
+// Zustand aller 10 Slot-Teile (5 je Form). Innerhalb einer Form werden die Teile
+// der Reihe nach freigeschaltet (Teil i offen, wenn Teil i-1 fertig ist).
 export function constellationStars(c) {
-  const states = UV_STARS.map((st, i) => {
-    const lit = starLit(c.verbs, st.mode, st.which);
-    const order = DISC_ORDER[st.which];
-    const di = order.indexOf(st.mode);
-    const prevDiscLit = di <= 0 ? true : starLit(c.verbs, order[di - 1], st.which);
-    const unlocked = formUnlocked(c.idx, st.which) && prevDiscLit;
-    return { ...st, i, lit, unlocked, prog: starProgress(c.verbs, st.mode, st.which) };
+  const out = [];
+  ['past', 'pp'].forEach((which) => {
+    const slots = weaponSlots(c.idx, which);
+    let prevLit = true;
+    slots.forEach((disc, i) => {
+      const suf = _slotSuf(which, i);
+      const lit = starLit(c.verbs, suf);
+      const unlocked = formUnlocked(c.idx) && prevLit;
+      out.push({ which, i, discipline: disc, suffix: suf, lit, unlocked, prog: starProgress(c.verbs, suf) });
+      prevLit = lit;
+    });
   });
-  const allLit = states.every((s) => s.lit);   // alle 10 Schritt-Sterne leuchten
-  states.push({ mode: null, which: null, icon: '🌟', name: 'Komplett', form: '', i: UV_STARS.length, lit: allLit, unlocked: false, done: true });
-  return states;
+  return out;
 }
 export function constellationComplete(c) {
-  return UV_STARS.every((st) => starLit(c.verbs, st.mode, st.which));
+  return formComplete(c, 'past') && formComplete(c, 'pp');
 }
 
-// Alles, was die Sternkarte (ui.js) braucht.
 export function uvMap() {
   return getConstellations().map((c) => ({
     c,
@@ -134,44 +114,34 @@ function _enterUV(c) {
   c.verbs.map(irregularAsVocab).forEach((v) => window.VOCAB.push(v));
 }
 
-// Einen Disziplin-Stern eines Sternbilds spielen (cIdx, starIdx 0–5).
-export function startConstellationStar(cIdx, starIdx) {
-  const c = getConstellations()[cIdx]; if (!c) return;
-  const st = UV_STARS[starIdx]; if (!st) return;
-  _enterUV(c);
-  window._uvStar = { mode: st.mode, which: st.which };
-  startGame(st.mode);
-}
+// Alt-Pfad (Einzel-Stern-Tap) entfällt im Slot-Modell — Stub für Kompatibilität
+// (window.startConstellationStar wird im Render nicht mehr verdrahtet).
+export function startConstellationStar() {}
 
-// Eine ganze WAFFE (Form) schmieden: eine Runde mischt alle 5 Modi dieser Form
-// zufällig (durchmischt), jede Frage zählt auf ihr eigenes Suffix. So sieht das
-// Kind keine Einzel-Schritte mehr — es tippt die Waffe an und übt gemischt.
+// Eine Waffe (Form) schmieden: spielt das AKTUELLE Teil (erstes offenes, noch nicht
+// fertige; sonst das letzte offene → Wiederholung). Eine Runde = EINE Disziplin;
+// die Aufgabentypen werden je Frage zufällig gewählt (game.js bDisc).
 export function startConstellationForm(cIdx, which) {
   if (which !== 'past' && which !== 'pp') return;
   const c = getConstellations()[cIdx]; if (!c) return;
+  const slots = constellationStars(c).filter((s) => s.which === which);
+  let slot = slots.find((s) => s.unlocked && !s.lit);
+  if (!slot) slot = [...slots].reverse().find((s) => s.unlocked) || slots[0];
+  if (!slot) return;
   _enterUV(c);
-  window._uvStar = { which, mixed: true };
-  startGame('uvmix');
+  window._uvStar = { which, slot: slot.i, discipline: slot.discipline, suf: slot.suffix };
+  startGame('uvslot');
 }
 
-// ── Live-Fortschrittsbalken im Spiel (progressForCurrentMode in game.js) ─────
-// Rechnet über window.VOCAB (= das aktive Sternbild). Bei einer Stern-Runde nur
-// das aktive Suffix, beim Boss alle sechs.
-export function uvProgress(mode) {
+// ── Live-Fortschritt im Spiel (progressForCurrentMode in game.js) ────────────
+// Slot-Runde → genau das aktive Teil-Suffix. Fallback: ganze Waffe.
+export function uvProgress() {
   const ws = _ws();
   const star = window._uvStar;
   let sufs;
-  if (mode === 'mixed_vocab') {
-    sufs = Object.values(SUF).flatMap((o) => [o.past, o.pp]);                 // Boss: alle 10
-  } else if (mode === 'uvmix') {
-    sufs = Object.values(SUF).map((o) => o[(star && star.which) || 'past']);  // ganze Waffe (Form)
-  } else if (star && star.which && SUF[mode]) {
-    sufs = [SUF[mode][star.which]];                                           // EIN Teil (Modus × Form)
-  } else if (!star && SUF[mode]) {
-    sufs = [SUF[mode].past, SUF[mode].pp];
-  } else {
-    sufs = Object.values(SUF).map((o) => o[(star && star.which) || 'past']);
-  }
+  if (star && star.suf) sufs = [star.suf];
+  else if (star && star.which) sufs = Array.from({ length: SLOTS_PER_FORM }, (_, i) => _slotSuf(star.which, i));
+  else sufs = [];
   const verbs = (window.VOCAB || []).filter((v) => v.forms);
   let score = 0, mastered = 0;
   const total = verbs.length * sufs.length;
@@ -181,53 +151,40 @@ export function uvProgress(mode) {
       if (!s || !s.asked) continue;
       const asked = s.asked, pct = effectivePct(s);
       if (Math.floor(asked) >= 3 && pct >= 0.9) { score += 1; mastered += 1; }
-      else if (asked >= 1) {
-        score += Math.max(0, (pct - 0.5) * 2) * Math.min(asked / 3, 1) * 0.85;
-      }
+      else if (asked >= 1) score += Math.max(0, (pct - 0.5) * 2) * Math.min(asked / 3, 1) * 0.85;
     }
   }
   return { score, mastered, total };
 }
 
-// Form-Suffixe getrennt nach Simple Past (3 Disziplinen inkl. Rufen) und Past
-// Participle (2 Disziplinen, kein Rufen) — für die Pro-Wort-Übersicht. Muss zur
-// Stern-Struktur (UV_STARS / DISC_ORDER) passen, sonst wird PP nie „voll".
-const PAST_SUF = DISC_ORDER.past.map((mode) => SUF[mode].past);
-const PP_SUF   = DISC_ORDER.pp.map((mode) => SUF[mode].pp);
-function _countMastered(v, sufs, ws) {
-  let m = 0;
-  sufs.forEach((suf) => { if (isStatMastered(ws[statKeyFor(v.de, v.en, suf, IRREGULAR_PRESET_ID)])) m++; });
-  return m;
-}
-
-// Pro Verb eines Sternbilds: gemeisterte Formen getrennt nach Simple Past und
-// Past Participle (je x/3). mastered/total bleiben als Gesamtwert erhalten
-// (Lernstand-Ansicht). Für die Pro-Wort-Liste im Sternenpfad.
+// Pro-Wort-Liste (Wörter-Dropdown): gemeisterte Teile getrennt nach Past/PP (je x/5).
 export function constellationWords(c) {
   const ws = _ws();
+  const cnt = (v, which) => {
+    let m = 0;
+    for (let i = 0; i < SLOTS_PER_FORM; i++) if (isStatMastered(ws[statKeyFor(v.de, v.en, _slotSuf(which, i), IRREGULAR_PRESET_ID)])) m++;
+    return m;
+  };
   return c.verbs.map((v) => {
-    const pm  = _countMastered(v, PAST_SUF, ws);
-    const ppm = _countMastered(v, PP_SUF, ws);
+    const pm = cnt(v, 'past'), ppm = cnt(v, 'pp');
     return {
       de: v.de, en: v.en,
-      past: { mastered: pm,  total: PAST_SUF.length },
-      pp:   { mastered: ppm, total: PP_SUF.length },
-      mastered: pm + ppm, total: PAST_SUF.length + PP_SUF.length,
+      past: { mastered: pm, total: SLOTS_PER_FORM },
+      pp:   { mastered: ppm, total: SLOTS_PER_FORM },
+      mastered: pm + ppm, total: 2 * SLOTS_PER_FORM,
     };
   });
 }
 
-// ── Lernstand-Übersicht (Fortschritt-Ansicht) ───────────────────────────────
-// Sternbild-Karte: pro Sternbild gefüllte Disziplin-Sterne (0–6), komplett-Flag,
-// frei/gesperrt. Plus Gesamt-Zähler.
+// ── Lernstand-Übersicht (Kopfzeile der Schmiede) ─────────────────────────────
 export function uvLernstand() {
   const map = uvMap();
   let complete = 0, totalLit = 0;
   const rows = map.map((m) => {
-    const lit = m.stars.filter((s) => s.lit && !s.done).length;   // 0..10
+    const lit = m.stars.filter((s) => s.lit).length;   // 0..10
     totalLit += lit;
     if (m.complete) complete++;
-    return { name: m.c.name, cefr: m.c.cefr, count: m.c.verbs.length, lit, total: UV_STARS.length, complete: m.complete, unlocked: m.unlocked, words: constellationWords(m.c) };
+    return { name: m.c.name, cefr: m.c.cefr, count: m.c.verbs.length, lit, total: 2 * SLOTS_PER_FORM, complete: m.complete, unlocked: m.unlocked, words: constellationWords(m.c) };
   });
-  return { total: map.length, complete, totalLit, maxLit: map.length * UV_STARS.length, rows };
+  return { total: map.length, complete, totalLit, maxLit: map.length * 2 * SLOTS_PER_FORM, rows };
 }

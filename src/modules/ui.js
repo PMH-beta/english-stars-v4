@@ -7,7 +7,7 @@ import { releaseMicStream, stopVisualizer, voskStop, speakWord } from './speech.
 import { signIn, signUp, signOut, resendConfirmation, requestPasswordReset, updatePassword, signInWithGoogle } from './auth.js';
 import { cloudLoad, cloudReset, saveDeck, saveWordStats, saveExam, markDirty, flushPendingSync, setCloudConfirmed, getPendingCount, setKnownSig, cloudChangedRemotely, deleteCloudPresetStats } from './sync.js';
 import { commitDirty } from './dialog.js';
-import { uvMap, uvLernstand, constellationWords } from './irregular-game.js';
+import { uvMap, uvLernstand, constellationWords, FORGE_DISC } from './irregular-game.js';
 import { IRREGULAR_PRESET_ID, uvAvailableVerbs, CONSTELLATION_SIZE, cefrOf, forgeObject } from './irregular-verbs.js';
 
 const API_KEY_SK = 'es_apikey';
@@ -769,11 +769,11 @@ function _forgeItem(m, which) {
   const nextI = steps.findIndex((s) => s.unlocked && !s.lit);
   const state = done ? 'done' : (open ? 'active' : 'locked');
   const tap = open ? ` data-forge="${m.c.idx}:${which}"` : '';
-  // Balken bezieht sich auf den aktuellen Schritt: Name + % gemeisterter Verben.
+  // Balken bezieht sich auf das aktuelle Teil: Disziplin-Name + % gemeisterter Verben.
   let label, pct, showPct = true;
   if (done) { label = '✓ Waffe fertig'; pct = 100; showPct = false; }
   else if (nextI >= 0) {
-    const s = steps[nextI], fs = FORGE_STEP[s.mode] || { icon: '•', name: s.mode };
+    const s = steps[nextI], fs = FORGE_DISC[s.discipline] || { icon: '•', name: s.discipline };
     pct = s.prog && s.prog.total ? Math.round((s.prog.mastered / s.prog.total) * 100) : 0;
     label = `${fs.icon} ${fs.name}`;
   } else { label = '🔒 erst die Station davor'; pct = 0; showPct = false; }
@@ -986,12 +986,12 @@ export function uvInfo() {
     title: 'Die Schmiede',
     body: 'Jede Station schmiedet zwei Waffen:\n'
       + '🔩 Stahl = ⏱ Simple Past · 🥇 Gold = ✓ Past Participle.\n\n'
-      + 'Jede Waffe entsteht in 5 Schritten:\n'
-      + '🔍 Erkennen · 🧩 Formen ordnen · 🔨 Schmieden · 🔤 Buchstaben · 🗣️ Aussprache.\n\n'
-      + 'Ist EINE Waffe fertig (alle 5 Teile geschmiedet), geht die nächste Station '
-      + 'auf — du musst also nur Stahl ODER Gold schaffen, um weiterzukommen.\n\n'
-      + 'Wische zwischen den beiden Waffen. Tippe einen Schritt zum Üben (auch fertige '
-      + 'zum Wiederholen).\n„📖 Wörter" zeigt die Verbliste.',
+      + 'Jede Waffe hat 5 Teile aus drei Disziplinen:\n'
+      + '🔍 Erkennen · 🔨 Schmieden · 🪄 Verzaubern (Aussprache).\n'
+      + 'Verzaubern kommt erst in den späteren Teilen — erst kennen & schreiben.\n\n'
+      + 'Tippe die Waffe → das aktuelle Teil wird geschmiedet (Aufgaben kommen '
+      + 'zufällig). Ist EINE Waffe fertig, geht die nächste Station auf.\n\n'
+      + 'Wische zwischen den beiden Waffen. „📖 Wörter" zeigt die Verbliste.',
   });
 }
 
