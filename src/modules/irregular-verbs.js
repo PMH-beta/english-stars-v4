@@ -195,21 +195,17 @@ export const CONSTELLATION_NAMES = [
 // langweiligen Hufeisen. Icons sind Platzhalter — die echte Optik macht der
 // Designer. Pro Station werden ZWEI verschiedene gebaut: eine Stahl-Waffe (Simple
 // Past) und eine Gold-Waffe (Past Participle), die sich auch in der Form unterscheiden.
+// Kuratiertes Set: Gegenstände, die sich sauber in 5 gestapelte Teile zerlegen
+// lassen (Griff→Kopf/Klinge), damit jede Waffe Teil für Teil geschmiedet werden
+// kann. Die Teil-Geometrie (SVG) liegt in ui.js (WEAPON_PARTS, je type). icon =
+// Fallback. Mehr Typen jederzeit ergänzbar (type + 5 Pfade in WEAPON_PARTS).
 export const FORGE_OBJECTS = [
-  { type: 'schwert',    name: 'Schwert',        icon: '⚔️' },
-  { type: 'dolch',      name: 'Dolch',          icon: '🗡️' },
-  { type: 'axt',        name: 'Streitaxt',      icon: '🪓' },
-  { type: 'bogen',      name: 'Bogen',          icon: '🏹' },
-  { type: 'schild',     name: 'Schild',         icon: '🛡️' },
-  { type: 'dreizack',   name: 'Dreizack',       icon: '🔱' },
-  { type: 'hammer',     name: 'Streithammer',   icon: '🔨' },
-  { type: 'stab',       name: 'Zauberstab',     icon: '🪄' },
-  { type: 'helm',       name: 'Helm',           icon: '🪖' },
-  { type: 'kristall',   name: 'Kristall',       icon: '💎' },
-  { type: 'amulett',    name: 'Amulett',        icon: '📿' },
-  { type: 'krone',      name: 'Krone',          icon: '👑' },
-  { type: 'ring',       name: 'Ring',           icon: '💍' },
-  { type: 'schluessel', name: 'Reliktschlüssel', icon: '🗝️' },
+  { type: 'schwert', name: 'Schwert',      icon: '⚔️' },
+  { type: 'dolch',   name: 'Dolch',        icon: '🗡️' },
+  { type: 'speer',   name: 'Speer',        icon: '🔱' },
+  { type: 'axt',     name: 'Streitaxt',    icon: '🪓' },
+  { type: 'hammer',  name: 'Streithammer', icon: '🔨' },
+  { type: 'stab',    name: 'Zauberstab',   icon: '🪄' },
 ];
 // Zwei verschiedene Gegenstände je Station: Stahl-Waffe (Past) = gerader Index,
 // Gold-Waffe (PP) = der nächste. Zyklisch.

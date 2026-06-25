@@ -683,6 +683,63 @@ const FORGE_MAT = {
   pp:   { label: '✓ Past Participle', mat: 'Gold' },
 };
 
+// ── Waffen-Geometrie ─────────────────────────────────────────────────────────
+// Jede Waffe = 5 SVG-Teile in Schmiede-Reihenfolge (unten→oben), passend zu den
+// 5 Schritten der Form. viewBox 0 0 100 120. Platzhalter-Silhouetten — du kannst
+// die Pfade durch echte Kunst ersetzen, die Zustands-Logik (built/next/ghost)
+// trägt sich von selbst. Weitere Typen: hier 5 Pfade ergänzen + Name in FORGE_OBJECTS.
+const WEAPON_PARTS = {
+  // 0 Knauf · 1 Griff · 2 Parier · 3 Klinge unten · 4 Klingenspitze
+  schwert: [
+    'M50 104 L58 112 L50 120 L42 112 Z',
+    'M45 86 H55 V104 H45 Z',
+    'M30 80 L36 76 H64 L70 80 L64 84 H36 Z',
+    'M44 80 H56 L53 30 H47 Z',
+    'M47 30 H53 L50 6 Z',
+  ],
+  // Dolch: kürzer, breite Blattklinge
+  dolch: [
+    'M50 106 L57 113 L50 120 L43 113 Z',
+    'M46 90 H54 V106 H46 Z',
+    'M36 84 H64 V90 H36 Z',
+    'M44 84 H56 L57 58 H43 Z',
+    'M43 58 H57 L50 30 Z',
+  ],
+  // Speer: langer Schaft (3) + Tülle + Blattspitze
+  speer: [
+    'M47 92 H53 V120 H47 Z',
+    'M47 60 H53 V92 H47 Z',
+    'M47 38 H53 V60 H47 Z',
+    'M44 32 H56 L53 40 H47 Z',
+    'M50 4 L59 26 L50 36 L41 26 Z',
+  ],
+  // Streitaxt: Schaft (3) + Kopfkern + Doppelklinge
+  axt: [
+    'M47 92 H53 V120 H47 Z',
+    'M47 60 H53 V92 H47 Z',
+    'M47 36 H53 V60 H47 Z',
+    'M40 34 H60 V54 H40 Z',
+    'M40 34 L22 40 L22 50 L40 54 Z M60 34 L78 40 L78 50 L60 54 Z',
+  ],
+  // Streithammer: Schaft (3) + Kopfkern + Kopfbacken
+  hammer: [
+    'M47 92 H53 V120 H47 Z',
+    'M47 62 H53 V92 H47 Z',
+    'M47 40 H53 V62 H47 Z',
+    'M36 30 H64 V52 H36 Z',
+    'M36 32 L26 36 V46 L36 50 Z M64 32 L74 36 V46 L64 50 Z',
+  ],
+  // Zauberstab: Stab (3) + Fassung + Edelstein
+  stab: [
+    'M47 92 H53 V120 H47 Z',
+    'M47 60 H53 V92 H47 Z',
+    'M47 40 H53 V60 H47 Z',
+    'M42 36 H58 L54 46 H46 Z',
+    'M50 6 L63 24 L50 42 L37 24 Z',
+  ],
+};
+WEAPON_PARTS._default = WEAPON_PARTS.schwert;
+
 // Füll-Ring um die Waffe (wie der Fortschritts-Kreis im alten Sternenmodell):
 // füllt sich mit dem Form-Fortschritt 0..1; fertig = ganzer Ring.
 function _forgeRing(pct, which, done) {
@@ -694,16 +751,30 @@ function _forgeRing(pct, which, done) {
     + ` stroke-dasharray="${len.toFixed(1)} ${(circ - len).toFixed(1)}" transform="rotate(-90 55 55)"/></svg>`;
 }
 
+// Die Waffe als 5-teiliges SVG: gemeisterte Teile solide (built), das nächste zu
+// schmiedende Teil pulsiert (next), der Rest ist transparent (ghost) — so erkennt
+// man die Endform schon vorher. Teil-Index = Schritt-Reihenfolge (unten→oben).
+function _forgeWeaponSvg(type, steps, nextI) {
+  const parts = WEAPON_PARTS[type] || WEAPON_PARTS._default;
+  const paths = parts.map((d, i) => {
+    const s = steps[i];
+    const cls = (s && s.lit) ? 'wp built' : (i === nextI ? 'wp next' : 'wp ghost');
+    return `<path class="${cls}" d="${d}"/>`;
+  }).join('');
+  return `<svg class="fw-weapon" viewBox="0 0 100 120" aria-hidden="true">${paths}</svg>`;
+}
+
 // Eine Waffe (Stahl-Past oder Gold-PP) als großer Mittelpunkt. KEINE Einzel-Schritte
-// sichtbar — antippen startet eine Runde, die alle 5 Modi der Form zufällig mischt
-// (startConstellationForm). Der Fortschritt steckt im Füll-Ring; die aktive Waffe
-// pulsiert/leuchtet (Anker für deine spätere Teil-für-Teil-Optik via data-stage).
+// als Buttons — antippen startet eine Runde, die alle 5 Modi der Form zufällig mischt
+// (startConstellationForm). Fortschritt = Füll-Ring; die Waffe entsteht Teil für Teil.
 function _forgeItem(m, which) {
   const ob = forgeObject(m.c.idx, which), mt = FORGE_MAT[which];
   const steps = m.stars.filter((s) => s.which === which);
   const litN = steps.filter((s) => s.lit).length;
   const done = steps.length > 0 && litN === steps.length;
   const open = steps.some((s) => s.unlocked || s.lit);
+  // Nächstes zu schmiedendes Teil = erster offener, noch nicht fertiger Schritt.
+  const nextI = steps.findIndex((s) => s.unlocked && !s.lit);
   // Glatter Fortschritt 0..1 = Mittel der Teil-Fortschritte (für den Füll-Ring).
   const prog = steps.length
     ? steps.reduce((a, s) => a + (s.prog && s.prog.total ? s.prog.mastered / s.prog.total : 0), 0) / steps.length
@@ -713,7 +784,7 @@ function _forgeItem(m, which) {
   return `<div class="forge-weapon-wrap">
     <div class="forge-weapon ${which} ${state}"${tap} data-stage="${litN}" data-steps="${steps.length}">
       ${_forgeRing(prog, which, done)}
-      <div class="fw-emoji">${ob.icon}</div>
+      ${_forgeWeaponSvg(ob.type, steps, nextI)}
     </div>
     <div class="fw-name">${mt.mat}-${ob.name}</div>
   </div>`;
