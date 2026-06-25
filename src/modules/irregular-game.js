@@ -143,6 +143,17 @@ export function startConstellationStar(cIdx, starIdx) {
   startGame(st.mode);
 }
 
+// Eine ganze WAFFE (Form) schmieden: eine Runde mischt alle 5 Modi dieser Form
+// zufällig (durchmischt), jede Frage zählt auf ihr eigenes Suffix. So sieht das
+// Kind keine Einzel-Schritte mehr — es tippt die Waffe an und übt gemischt.
+export function startConstellationForm(cIdx, which) {
+  if (which !== 'past' && which !== 'pp') return;
+  const c = getConstellations()[cIdx]; if (!c) return;
+  _enterUV(c);
+  window._uvStar = { which, mixed: true };
+  startGame('uvmix');
+}
+
 // ── Live-Fortschrittsbalken im Spiel (progressForCurrentMode in game.js) ─────
 // Rechnet über window.VOCAB (= das aktive Sternbild). Bei einer Stern-Runde nur
 // das aktive Suffix, beim Boss alle sechs.
@@ -150,10 +161,12 @@ export function uvProgress(mode) {
   const ws = _ws();
   const star = window._uvStar;
   let sufs;
-  if (mode === 'mixed_vocab' || !star) {
-    sufs = mode === 'mixed_vocab'
-      ? Object.values(SUF).flatMap((o) => [o.past, o.pp])
-      : [SUF[mode].past, SUF[mode].pp];
+  if (mode === 'mixed_vocab') {
+    sufs = Object.values(SUF).flatMap((o) => [o.past, o.pp]);
+  } else if (star && star.mixed) {
+    sufs = Object.values(SUF).map((o) => o[star.which]);   // alle 5 Modi der Form
+  } else if (!star) {
+    sufs = [SUF[mode].past, SUF[mode].pp];
   } else {
     sufs = [SUF[mode][star.which]];
   }

@@ -683,49 +683,39 @@ const FORGE_MAT = {
   pp:   { label: '✓ Past Participle', mat: 'Gold' },
 };
 
-// Ein Schmiede-Schritt (= ein Disziplin-Stern einer Form). Spielbar (data-play)
-// sobald freigeschaltet oder schon gemeistert (Wiederholung).
-function _forgeStepBtn(idx, s, isNext) {
-  const fs = FORGE_STEP[s.mode] || { icon: '•', name: s.mode };
-  const pct = s.prog && s.prog.total ? Math.round((s.prog.mastered / s.prog.total) * 100) : 0;
-  let cls = 'forge-step', play = '';
-  if (s.lit)           { cls += ' done'; play = `${idx}:${s.i}`; }
-  else if (s.unlocked) { cls += isNext ? ' open next' : ' open'; play = `${idx}:${s.i}`; }
-  else                 { cls += ' locked'; }
-  const on = play ? ` data-play="${play}"` : '';
-  const tail = s.lit ? '✓' : (s.unlocked ? `${pct}%` : '🔒');
-  return `<button type="button" class="${cls}"${on}><span class="fs-ic">${fs.icon}</span>`
-    + `<span class="fs-nm">${fs.name}</span><span class="fs-tl">${tail}</span></button>`;
+// Füll-Ring um die Waffe (wie der Fortschritts-Kreis im alten Sternenmodell):
+// füllt sich mit dem Form-Fortschritt 0..1; fertig = ganzer Ring.
+function _forgeRing(pct, which, done) {
+  const r = 46, circ = 2 * Math.PI * r;
+  const len = done ? circ : Math.max(0.001, Math.min(1, pct)) * circ;
+  return `<svg class="fw-ring ${which}${done ? ' done' : ''}" viewBox="0 0 110 110" aria-hidden="true">`
+    + `<circle class="fw-ring-track" cx="55" cy="55" r="${r}" fill="none"/>`
+    + `<circle class="fw-ring-fill" cx="55" cy="55" r="${r}" fill="none"`
+    + ` stroke-dasharray="${len.toFixed(1)} ${(circ - len).toFixed(1)}" transform="rotate(-90 55 55)"/></svg>`;
 }
 
-// Ein Werkstück (Stahl-Past oder Gold-PP) einer Station. Der Gegenstand wird Teil
-// für Teil geschmiedet: pro gemeistertem Schritt ein „verbautes" Segment (bleibt
-// erhalten, da aus den Stats abgeleitet), das nächste Teil pulsiert, der Rest ist
-// noch leer. data-stage = wie viele Teile fertig sind (Anker für deine Objekt-Optik).
+// Eine Waffe (Stahl-Past oder Gold-PP) als großer Mittelpunkt. KEINE Einzel-Schritte
+// sichtbar — antippen startet eine Runde, die alle 5 Modi der Form zufällig mischt
+// (startConstellationForm). Der Fortschritt steckt im Füll-Ring; die aktive Waffe
+// pulsiert/leuchtet (Anker für deine spätere Teil-für-Teil-Optik via data-stage).
 function _forgeItem(m, which) {
   const ob = forgeObject(m.c.idx, which), mt = FORGE_MAT[which];
   const steps = m.stars.filter((s) => s.which === which);
   const litN = steps.filter((s) => s.lit).length;
   const done = steps.length > 0 && litN === steps.length;
   const open = steps.some((s) => s.unlocked || s.lit);
-  // Nächstes zu schmiedendes Teil = erster offener, noch nicht fertiger Schritt.
-  const nextI = steps.findIndex((s) => s.unlocked && !s.lit);
-  const build = steps.map((s, i) => {
-    const st = s.lit ? 'built' : (i === nextI ? 'next' : 'empty');
-    return `<span class="fi-seg ${st}"></span>`;
-  }).join('');
-  const stepsHtml = steps.map((s, i) => _forgeStepBtn(m.c.idx, s, i === nextI)).join('');
-  const prog = steps.length ? litN / steps.length : 0;   // 0..1 → Gegenstand „erscheint"
-  const foot = !open ? '<span class="fi-lock">🔒 erst die Station davor</span>'
-    : done ? `<span class="fi-done">✨ ${mt.mat}-${ob.name} fertig</span>`
-    : `<span class="fi-prog">${litN}/${steps.length} Teile geschmiedet</span>`;
-  return `<div class="forge-item ${which}${done ? ' done' : ''}" data-stage="${litN}" data-steps="${steps.length}">
-    <div class="fi-icon" style="opacity:${(0.4 + 0.6 * prog).toFixed(2)}">${ob.icon}</div>
-    <div class="fi-build">${build}</div>
-    <div class="fi-title">${mt.mat}-${ob.name}</div>
-    <div class="fi-form">${mt.label}</div>
-    <div class="forge-steps">${stepsHtml}</div>
-    <div class="fi-foot">${foot}</div>
+  // Glatter Fortschritt 0..1 = Mittel der Teil-Fortschritte (für den Füll-Ring).
+  const prog = steps.length
+    ? steps.reduce((a, s) => a + (s.prog && s.prog.total ? s.prog.mastered / s.prog.total : 0), 0) / steps.length
+    : 0;
+  const state = done ? 'done' : (open ? 'active' : 'locked');
+  const tap = open ? ` data-forge="${m.c.idx}:${which}"` : '';
+  return `<div class="forge-weapon-wrap">
+    <div class="forge-weapon ${which} ${state}"${tap} data-stage="${litN}" data-steps="${steps.length}">
+      ${_forgeRing(prog, which, done)}
+      <div class="fw-emoji">${ob.icon}</div>
+    </div>
+    <div class="fw-name">${mt.mat}-${ob.name}</div>
   </div>`;
 }
 
@@ -930,6 +920,14 @@ function initUvSliders() {
     });
     track.addEventListener('click', (e) => {
       if (track._moved) { track._moved = false; return; }   // war ein Wisch
+      // Ganze Waffe antippen → gemischte Form-Runde (alle 5 Modi zufällig).
+      const f = e.target.closest('[data-forge]');
+      if (f) {
+        const [ci, which] = f.getAttribute('data-forge').split(':');
+        window.startConstellationForm(Number(ci), which);
+        return;
+      }
+      // Einzel-Schritt (Alt-Pfad, falls noch verwendet).
       const g = e.target.closest('[data-play]');
       if (!g) return;
       const [ci, si] = g.getAttribute('data-play').split(':').map(Number);

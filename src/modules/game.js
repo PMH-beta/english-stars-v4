@@ -294,6 +294,21 @@ function buildUVPool(m, limit){
     });
     return shuffle(all).slice(0, limit);   // isExamMode → kein Mastery-Filter (Boss prüft Gemeistertes)
   }
+  // Form-Runde (eine Waffe): alle 5 Modi EINER Form gemischt (window._uvStar.mixed).
+  // Jede Frage zählt auf ihr eigenes Suffix → die 5 Teile der Waffe leuchten nach
+  // und nach auf. Mastery-Filter (buildPool) lässt schon gemeisterte Modi weg.
+  if(m==='uvmix' && window._uvStar && window._uvStar.mixed){
+    const which=window._uvStar.which||'past';
+    window.VOCAB.forEach(v=>{
+      if(!v.forms) return;
+      ['vocab','forms','spelling','letters','pronounce'].forEach(mode=>{
+        const suf=SUF_ALL[mode][which];
+        all.push(bUV(v, mode, which, uvLevel(statKeyFor(v.de,v.en,suf,pid))));
+      });
+    });
+    const getS=q=>window.SD?.globalPresetStats?.wordStats?.[q.statKey];
+    return weightedPickUnique(all, getS, limit);
+  }
   // Stern-Runde (Sternbild): window._uvStar = {mode, which} grenzt die Runde auf
   // GENAU eine Disziplin × Form ein (Past- vs. Past-Participle-Stern getrennt).
   // Die Past→PP-Reihenfolge regelt jetzt die Stern-Freischaltung (irregular-game),
@@ -471,7 +486,7 @@ export function startGame(m) {
 }
 
 function _launchGame(m) {
-  const hasPronounce=(m==='pronounce'||m==='mixed_vocab');
+  const hasPronounce=(m==='pronounce'||m==='mixed_vocab'||m==='uvmix');
   if(hasPronounce&&navigator.mediaDevices){
     try{ warmAudio(); }catch(e){}   // AudioContext in der User-Geste aufwecken → Visualizer/Erkennung ab Runde 1 warm
     try{ warmIosMic(); }catch(e){}  // iOS: Mic-Prompt/Session jetzt etablieren statt mitten in Runde 1
@@ -1084,8 +1099,10 @@ export function playSfx(type) {
 // ── Progress + End ──
 function progressForCurrentMode() {
   if(window.isUV && window._uvProgress){
-    const titles={vocab:'🔍 Erkennen',spelling:'🔨 Schmieden',pronounce:'🗣️ Rufen'};
-    return {...window._uvProgress(window.mode), title: titles[window.mode]||'🔁 Gestaltwandler'};
+    const star=window._uvStar;
+    const formTitle = star && star.which ? (star.which==='past' ? '⏱ Simple Past' : '✓ Past Participle') : '⚒️ Schmiede';
+    const titles={vocab:'🔍 Erkennen',spelling:'🔨 Schmieden',pronounce:'🗣️ Aussprache'};
+    return {...window._uvProgress(window.mode), title: titles[window.mode]||formTitle};
   }
   const presetWs = window.SD?.globalPresetStats?.wordStats || {};
   const deckWs = window.SD?.wordStats || {};
