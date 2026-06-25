@@ -685,88 +685,80 @@ const FORGE_MAT = {
 
 // ── Waffen-Geometrie ─────────────────────────────────────────────────────────
 // Jede Waffe = 5 SVG-Teile in Schmiede-Reihenfolge (unten→oben), passend zu den
-// 5 Schritten der Form. viewBox 0 0 100 120. Platzhalter-Silhouetten — du kannst
-// die Pfade durch echte Kunst ersetzen, die Zustands-Logik (built/next/ghost)
-// trägt sich von selbst. Weitere Typen: hier 5 Pfade ergänzen + Name in FORGE_OBJECTS.
+// 5 Schritten der Form. `vb` = eng anliegende viewBox je Waffe, damit jede Form so
+// GROSS wie möglich dargestellt wird (preserveAspectRatio meet füllt den Platz).
+// Platzhalter-Silhouetten — du kannst die Pfade/vb durch echte Kunst ersetzen, die
+// Zustands-Logik (built/next/ghost) trägt sich von selbst. Neue Typen: hier
+// { vb, parts:[5] } ergänzen + Name in FORGE_OBJECTS.
 const WEAPON_PARTS = {
   // 0 Knauf · 1 Griff · 2 Parier · 3 Klinge unten · 4 Klingenspitze
-  schwert: [
+  schwert: { vb: '28 4 44 118', parts: [
     'M50 104 L58 112 L50 120 L42 112 Z',
     'M45 86 H55 V104 H45 Z',
     'M30 80 L36 76 H64 L70 80 L64 84 H36 Z',
     'M44 80 H56 L53 30 H47 Z',
     'M47 30 H53 L50 6 Z',
-  ],
+  ] },
   // Dolch: kürzer, breite Blattklinge
-  dolch: [
+  dolch: { vb: '34 28 32 94', parts: [
     'M50 106 L57 113 L50 120 L43 113 Z',
     'M46 90 H54 V106 H46 Z',
     'M36 84 H64 V90 H36 Z',
     'M44 84 H56 L57 58 H43 Z',
     'M43 58 H57 L50 30 Z',
-  ],
+  ] },
   // Speer: langer Schaft (3) + Tülle + Blattspitze
-  speer: [
+  speer: { vb: '39 2 22 118', parts: [
     'M47 92 H53 V120 H47 Z',
     'M47 60 H53 V92 H47 Z',
     'M47 38 H53 V60 H47 Z',
     'M44 32 H56 L53 40 H47 Z',
     'M50 4 L59 26 L50 36 L41 26 Z',
-  ],
+  ] },
   // Streitaxt: Schaft (3) + Kopfkern + Doppelklinge
-  axt: [
+  axt: { vb: '20 32 60 90', parts: [
     'M47 92 H53 V120 H47 Z',
     'M47 60 H53 V92 H47 Z',
     'M47 36 H53 V60 H47 Z',
     'M40 34 H60 V54 H40 Z',
     'M40 34 L22 40 L22 50 L40 54 Z M60 34 L78 40 L78 50 L60 54 Z',
-  ],
+  ] },
   // Streithammer: Schaft (3) + Kopfkern + Kopfbacken
-  hammer: [
+  hammer: { vb: '24 28 52 94', parts: [
     'M47 92 H53 V120 H47 Z',
     'M47 62 H53 V92 H47 Z',
     'M47 40 H53 V62 H47 Z',
     'M36 30 H64 V52 H36 Z',
     'M36 32 L26 36 V46 L36 50 Z M64 32 L74 36 V46 L64 50 Z',
-  ],
+  ] },
   // Zauberstab: Stab (3) + Fassung + Edelstein
-  stab: [
+  stab: { vb: '35 4 30 118', parts: [
     'M47 92 H53 V120 H47 Z',
     'M47 60 H53 V92 H47 Z',
     'M47 40 H53 V60 H47 Z',
     'M42 36 H58 L54 46 H46 Z',
     'M50 6 L63 24 L50 42 L37 24 Z',
-  ],
+  ] },
 };
 WEAPON_PARTS._default = WEAPON_PARTS.schwert;
-
-// Füll-Ring um die Waffe (wie der Fortschritts-Kreis im alten Sternenmodell):
-// füllt sich mit dem Form-Fortschritt 0..1; fertig = ganzer Ring.
-function _forgeRing(pct, which, done) {
-  const r = 46, circ = 2 * Math.PI * r;
-  const len = done ? circ : Math.max(0.001, Math.min(1, pct)) * circ;
-  return `<svg class="fw-ring ${which}${done ? ' done' : ''}" viewBox="0 0 110 110" aria-hidden="true">`
-    + `<circle class="fw-ring-track" cx="55" cy="55" r="${r}" fill="none"/>`
-    + `<circle class="fw-ring-fill" cx="55" cy="55" r="${r}" fill="none"`
-    + ` stroke-dasharray="${len.toFixed(1)} ${(circ - len).toFixed(1)}" transform="rotate(-90 55 55)"/></svg>`;
-}
 
 // Die Waffe als 5-teiliges SVG: gemeisterte Teile solide (built), das nächste zu
 // schmiedende Teil pulsiert (next), der Rest ist transparent (ghost) — so erkennt
 // man die Endform schon vorher. Teil-Index = Schritt-Reihenfolge (unten→oben).
 function _forgeWeaponSvg(type, steps, nextI) {
-  const parts = WEAPON_PARTS[type] || WEAPON_PARTS._default;
-  const paths = parts.map((d, i) => {
+  const w = WEAPON_PARTS[type] || WEAPON_PARTS._default;
+  const paths = w.parts.map((d, i) => {
     const s = steps[i];
     const cls = (s && s.lit) ? 'wp built' : (i === nextI ? 'wp next' : 'wp ghost');
     return `<path class="${cls}" d="${d}"/>`;
   }).join('');
-  return `<svg class="fw-weapon" viewBox="0 0 100 120" aria-hidden="true">${paths}</svg>`;
+  return `<svg class="fw-weapon" viewBox="${w.vb}" preserveAspectRatio="xMidYMid meet" aria-hidden="true">${paths}</svg>`;
 }
 
-// Eine Waffe (Stahl-Past oder Gold-PP) als großer Mittelpunkt. KEINE Einzel-Schritte
-// als Buttons — antippen startet eine Runde, die alle 5 Modi der Form zufällig mischt
-// (startConstellationForm). Fortschritt = Füll-Ring; die Waffe entsteht Teil für Teil.
+// Eine Waffe (Stahl-Past oder Gold-PP) groß als Mittelpunkt. KEINE Einzel-Schritte
+// als Buttons — antippen startet eine gemischte Runde (startConstellationForm). Unter
+// der Waffe ein Fortschrittsbalken für den AKTUELLEN Schritt (das gerade pulsierende
+// Teil): Schritt-Name + % = Anteil der schon gemeisterten Verben dieses Schritts.
 function _forgeItem(m, which) {
   const ob = forgeObject(m.c.idx, which), mt = FORGE_MAT[which];
   const steps = m.stars.filter((s) => s.which === which);
@@ -775,18 +767,28 @@ function _forgeItem(m, which) {
   const open = steps.some((s) => s.unlocked || s.lit);
   // Nächstes zu schmiedendes Teil = erster offener, noch nicht fertiger Schritt.
   const nextI = steps.findIndex((s) => s.unlocked && !s.lit);
-  // Glatter Fortschritt 0..1 = Mittel der Teil-Fortschritte (für den Füll-Ring).
-  const prog = steps.length
-    ? steps.reduce((a, s) => a + (s.prog && s.prog.total ? s.prog.mastered / s.prog.total : 0), 0) / steps.length
-    : 0;
   const state = done ? 'done' : (open ? 'active' : 'locked');
   const tap = open ? ` data-forge="${m.c.idx}:${which}"` : '';
+  // Balken bezieht sich auf den aktuellen Schritt: Name + % gemeisterter Verben.
+  let label, pct, showPct = true;
+  if (done) { label = '✓ Waffe fertig'; pct = 100; showPct = false; }
+  else if (nextI >= 0) {
+    const s = steps[nextI], fs = FORGE_STEP[s.mode] || { icon: '•', name: s.mode };
+    pct = s.prog && s.prog.total ? Math.round((s.prog.mastered / s.prog.total) * 100) : 0;
+    label = `${fs.icon} ${fs.name}`;
+  } else { label = '🔒 erst die Station davor'; pct = 0; showPct = false; }
   return `<div class="forge-weapon-wrap">
+    <div class="fw-name">${mt.mat}-${ob.name}</div>
     <div class="forge-weapon ${which} ${state}"${tap} data-stage="${litN}" data-steps="${steps.length}">
-      ${_forgeRing(prog, which, done)}
       ${_forgeWeaponSvg(ob.type, steps, nextI)}
     </div>
-    <div class="fw-name">${mt.mat}-${ob.name}</div>
+    <div class="fw-step ${state}">
+      <div class="fw-step-top">
+        <span class="fw-step-name">${label}</span>
+        ${showPct ? `<span class="fw-step-pct">${pct}%</span>` : ''}
+      </div>
+      <div class="fw-bar"><div class="fw-bar-fill ${which}" style="width:${pct}%"></div></div>
+    </div>
   </div>`;
 }
 
@@ -801,10 +803,9 @@ function _forgeWords(m) {
   return `<details class="forge-words"><summary>📖 Wörter</summary><div class="fw-grid">${chips}</div></details>`;
 }
 
-// Slider: eine Zeitform pro Ansicht (Stahl-Past ↔ Gold-PP), wischen/Punkte wie
-// früher. Nutzt die bestehende Slider-Mechanik (uvSlide/uvSetForm/initUvSliders);
-// nur der Seiteninhalt ist jetzt ein Werkstück statt eines Sternbilds. Endlos-
-// Track mit 4 Seiten [pp, past, pp, past] — echte Seiten sind 1 (Past) und 2 (PP).
+// Slider: eine Zeitform pro Ansicht (Stahl-Past ↔ Gold-PP), wischen/Punkte/Pfeile.
+// Nur ZWEI Seiten mit Anschlag (Index 0 = Past, 1 = PP) — kein Endlos-Klon mehr,
+// das war bei schnellem Rückwärts-Wischen fehleranfällig (Punkte hingen fest).
 function _forgeSlider(m) {
   const idx = m.c.idx;
   const page = (which) => `<div class="cst-page">${_forgeItem(m, which)}</div>`;
@@ -812,8 +813,8 @@ function _forgeSlider(m) {
     <div class="cst-form-now past">${FORM_THEME.past.label}</div>
     <div class="cst-slider">
       <button class="cst-arrow" onclick="uvSlide(${idx},-1)" aria-label="andere Form">‹</button>
-      <div class="cst-slider-view"><div class="cst-track" data-cst="${idx}" data-idx="1">
-        ${page('pp')}${page('past')}${page('pp')}${page('past')}
+      <div class="cst-slider-view"><div class="cst-track" data-cst="${idx}" data-idx="0">
+        ${page('past')}${page('pp')}
       </div></div>
       <button class="cst-arrow" onclick="uvSlide(${idx},1)" aria-label="andere Form">›</button>
     </div>
@@ -885,49 +886,44 @@ export function uvFlip(btn) {
   if (f) f.classList.toggle('flipped');
 }
 
-// Endlos-Slider: der Track trägt vier Seiten [pp, past, pp, past]. „Echt" sind die
-// mittleren beiden (Index 1 = Simple Past, 2 = Past Participle); 0 und 3 sind Klone
-// als Anlauf in beide Richtungen. Beim Erreichen eines Klons springt der Track
-// nach der Animation lautlos auf die echte Gegenseite — so kann man unbegrenzt in
-// jede Richtung weiterwischen, ohne harten Rücksprung.
+// 2-Seiten-Slider (0 = Simple Past, 1 = Past Participle) mit Anschlag — robust auch
+// bei schnellem Wischen in beide Richtungen (kein Endlos-Klon mehr).
 function _trackW(track) { return track.parentElement.offsetWidth; }
-function _realDot(i) { return (i % 2 === 1) ? 0 : 1; }   // 1,3→past (Punkt 0); 0,2→pp (Punkt 1)
 
-// Slider per Pfeil eine Seite weiter (dir −1/+1). Wrap übernimmt _settleTrack.
+// Slider per Pfeil eine Seite weiter (dir −1/+1), _applyTrack klemmt auf 0..1.
 export function uvSlide(idx, dir) {
   const track = document.querySelector(`.cst-track[data-cst="${idx}"]`);
   if (!track) return;
-  _applyTrack(track, (+track.dataset.idx || 1) + dir, true);
+  _applyTrack(track, (+track.dataset.idx || 0) + dir, true);
 }
 
-// Track auf Slide-Index setzen. anim=false blendet die Transition kurz aus (für den
-// lautlosen Klon→Echt-Sprung und das Erst-Layout).
+// Track auf Slide-Index setzen (0|1, geklemmt). anim=false blendet die Transition
+// kurz aus (Erst-Layout). Form-Label + Punkte kommen direkt aus dem Index.
 function _applyTrack(track, idx, anim) {
   const w = _trackW(track);
+  idx = Math.max(0, Math.min(1, idx));
   track.dataset.idx = idx;
   track.style.transition = anim ? '' : 'none';
   track.style.transform = `translateX(${-idx * w}px)`;
   if (!anim) { void track.offsetWidth; track.style.transition = ''; }
   const wrap = track.closest('.cst-slider-wrap');
   if (wrap) {
-    const isPast = _realDot(idx) === 0;
+    const isPast = idx === 0;
     const now = wrap.querySelector('.cst-form-now');
     if (now) {
       now.textContent = (isPast ? FORM_THEME.past : FORM_THEME.pp).label;
       now.classList.toggle('past', isPast);
       now.classList.toggle('pp', !isPast);
     }
-    wrap.querySelectorAll('.uv-dot').forEach((d, i) => d.classList.toggle('active', i === (isPast ? 0 : 1)));
+    wrap.querySelectorAll('.uv-dot').forEach((d, i) => d.classList.toggle('active', i === idx));
   }
 }
 
-// Direkt auf eine Form springen (Form-Umschalter). Echte Slides: 1 = Simple Past,
-// 2 = Past Participle.
+// Direkt auf eine Form springen (0 = Simple Past, 1 = Past Participle).
 export function uvSetForm(idx, which) {
   const track = document.querySelector(`.cst-track[data-cst="${idx}"]`);
   if (!track) return;
-  _settleTrack(track);
-  _applyTrack(track, which === 'past' ? 1 : 2, true);
+  _applyTrack(track, which === 'past' ? 0 : 1, true);
 }
 
 // Info-Popup (ⓘ oben): erklärt den Sternenpfad — ersetzt den Dauer-Erklärtext.
@@ -946,23 +942,14 @@ export function uvInfo() {
   });
 }
 
-// Nach Abschluss der Slide-Animation: stand der Track auf einem Klon (0 oder 3),
-// lautlos auf die echte Gegenseite (2 bzw. 1) umsetzen.
-function _settleTrack(track) {
-  const i = +track.dataset.idx || 1;
-  if (i >= 3) _applyTrack(track, 1, false);
-  else if (i <= 0) _applyTrack(track, 2, false);
-}
-
-// Jeder Sternbild-Slider bekommt Finger-Swipe + Tap-auf-Stern. Tap und Wisch
-// werden über die zurückgelegte Strecke getrennt: ein echter Wisch (track._moved)
-// startet keine Runde, ein Tap auf einen [data-play]-Stern schon.
+// Jeder Slider bekommt Finger-Swipe + Tap. Tap und Wisch werden über die Strecke
+// getrennt: ein echter Wisch (track._moved) startet keine Runde, ein Tap auf die
+// Waffe ([data-forge]) schon. Anschlag bei 0 (Past) und 1 (PP) — kein Klon/Settle.
 function initUvSliders() {
   document.querySelectorAll('.cst-track').forEach((track) => {
-    _applyTrack(track, +track.dataset.idx || 1, false);
+    _applyTrack(track, +track.dataset.idx || 0, false);
     let startX = null, dx = 0;
     track.addEventListener('pointerdown', (e) => {
-      _settleTrack(track);   // evtl. noch laufenden Klon-Sprung sofort abschließen
       startX = e.clientX; dx = 0; track._moved = false;
       track.style.transition = 'none';
       track.setPointerCapture?.(e.pointerId);
@@ -970,25 +957,21 @@ function initUvSliders() {
     track.addEventListener('pointermove', (e) => {
       if (startX === null) return;
       dx = e.clientX - startX;
-      const w = _trackW(track), cur = +track.dataset.idx || 1;
-      const off = Math.max(-3 * w, Math.min(0, -cur * w + dx));
+      const w = _trackW(track), cur = +track.dataset.idx || 0;
+      const off = Math.max(-w, Math.min(0, -cur * w + dx));   // Anschlag 0..1
       track.style.transform = `translateX(${off}px)`;
     });
     const end = () => {
       if (startX === null) return;
-      const w = _trackW(track), cur = +track.dataset.idx || 1;
+      const w = _trackW(track), cur = +track.dataset.idx || 0;
       if (Math.abs(dx) > 6) track._moved = true;
       let ni = cur;
       if (dx < -w * 0.18) ni = cur + 1; else if (dx > w * 0.18) ni = cur - 1;
-      _applyTrack(track, ni, true);
-      if (ni === cur) _settleTrack(track);   // keine Bewegung → transitionend bleibt aus
+      _applyTrack(track, ni, true);   // klemmt selbst auf 0..1
       startX = null; dx = 0;
     };
     track.addEventListener('pointerup', end);
     track.addEventListener('pointercancel', end);
-    track.addEventListener('transitionend', (e) => {
-      if (e.propertyName === 'transform') _settleTrack(track);
-    });
     track.addEventListener('click', (e) => {
       if (track._moved) { track._moved = false; return; }   // war ein Wisch
       // Ganze Waffe antippen → gemischte Form-Runde (alle 5 Modi zufällig).
