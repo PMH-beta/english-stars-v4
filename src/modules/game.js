@@ -148,7 +148,7 @@ function _gapLetter(w){
   const i=w.search(/[aeiou]/i);
   const idx=i>=0?i:Math.floor(w.length/2);
   const arr=w.split(''); const letter=arr[idx]; arr[idx]='_';
-  return {display:arr.join(' '), letter};
+  return {display:arr.join(' '), word:w, idx, letter};
 }
 
 // 🔍 Erkennen (MC, lesen) — immer Grundform → Form; je Stufe schwerere
@@ -265,8 +265,9 @@ function bSchmiedenGap(item, which, suf){
   const mt=_verbMeta(which); const target=_firstForm(mt.get(item));
   const g=_gapLetter(target);
   return {type:'type',badge:'spelling',gap:true,speak:target,hint:'',_presetId:item._presetId||null,
+    gapWord:g.word, gapIdx:g.idx,
     statKey:statKeyFor(item.de,item.en,suf,item._presetId||null),
-    question:_uvHead(item.de,which,'✏️ Ergänze den fehlenden Buchstaben',g.display),answer:g.letter};
+    question:_uvHead(item.de,which,'✏️ Ergänze den fehlenden Buchstaben',''),answer:g.letter};
 }
 
 // 🔨 Schmieden · ganzes Wort tippen (nur deutsches Wort als Vorgabe).
@@ -608,17 +609,26 @@ function renderQuestion(q) {
     html+=`</div>`;
   } else if(q.type==='type'){
     html+=`<div class="question-text">${(q.question||'').replace(/\n/g,'<br>')}</div>`;
-    html+= q.gap
-      ? `<div class="type-input-wrap">
-        <input class="type-input gap" id="type-input" type="text" maxlength="1" placeholder="?"
-          autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
-          onkeydown="if(event.key==='Enter')submitType()">
-      </div>`
-      : `<div class="type-input-wrap">
+    if(q.gap){
+      // Lücke INLINE im Wort: der getippte Buchstabe erscheint direkt an seiner
+      // Stelle → das Wort steht als Ganzes da (kein separates Kästchen darunter).
+      const w=q.gapWord||''; let cells='';
+      for(let k=0;k<w.length;k++){
+        cells += (k===q.gapIdx)
+          ? `<input class="gap-cell gap-input" id="type-input" type="text" maxlength="1" placeholder="_"
+              autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+              oninput="this.classList.toggle('filled', !!this.value)"
+              onkeydown="if(event.key==='Enter')submitType()">`
+          : `<span class="gap-cell">${w[k]}</span>`;
+      }
+      html+=`<div class="gap-word">${cells}</div>`;
+    } else {
+      html+=`<div class="type-input-wrap">
         <input class="type-input" id="type-input" type="text" placeholder="Englisch tippen..."
           autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
           onkeydown="if(event.key==='Enter')submitType()">
       </div>`;
+    }
     html+=`<button class="submit-btn" onclick="submitType()">Prüfen ✓</button>`;
   } else if(q.type==='pronounce'){
     html+=`<div class="question-text">${(q.question||'').replace(/\n/g,'<br>')}</div>`;

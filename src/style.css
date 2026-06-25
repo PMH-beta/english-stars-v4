@@ -561,6 +561,17 @@ body.in-game .mode-progress{display:block;}
 .type-input:focus {border-color:var(--blue);}
 .type-input.correct{border-color:var(--green);background:#E8F8EB;color:#1a7a2a;}
 .type-input.wrong  {border-color:var(--red);  background:#FFE8E8;color:#b00;}
+
+/* Buchstaben-Lücke INLINE im Wort: getippter Buchstabe sitzt direkt an seiner
+   Stelle → das Wort steht als Ganzes da. */
+.gap-word{display:inline-flex;align-items:center;justify-content:center;gap:7px;flex-wrap:wrap;margin:8px 0 16px;}
+.gap-cell{font-family:'Fredoka One',cursive;font-size:2rem;font-weight:800;color:var(--text);min-width:.7em;text-align:center;line-height:1.2;}
+.gap-cell.gap-input{width:1.1em;padding:0 0 2px;border:none;border-bottom:3px solid var(--purple);background:transparent;outline:none;color:var(--purple);caret-color:var(--purple);border-radius:0;}
+.gap-cell.gap-input::placeholder{color:#cdbce8;}
+.gap-input.filled{animation:gapPop .25s ease;}
+@keyframes gapPop{0%{transform:translateY(7px);opacity:.2;}100%{transform:translateY(0);opacity:1;}}
+.gap-cell.gap-input.correct{color:#1a7a2a;border-bottom-color:var(--green);}
+.gap-cell.gap-input.wrong{color:#b00;border-bottom-color:var(--red);}
 .submit-btn{
   font-family:'Fredoka One',cursive;font-size:1rem;padding:11px 30px;
   background:var(--blue);color:white;border:none;border-radius:12px;
