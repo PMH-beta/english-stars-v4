@@ -191,25 +191,33 @@ export const CONSTELLATION_NAMES = [
 ];
 
 // ── Schmiede-Gegenstände (Gestaltwandler-Optik) ─────────────────────────────
-// Pro Gruppen-Slot EIN Gegenstandstyp — einmal in Stahl (Simple Past), einmal in
-// Gold (Past Participle). Reihenfolge = Schwierigkeits-Rampe (schlicht → prächtig),
-// passt zur Befüll-Reihenfolge (leichteste Verben zuerst). Ab Slot 13 zyklisch.
-// Icons sind Platzhalter — die echte Optik macht der Designer später.
+// Motivierende Beute-Gegenstände (später evtl. in der Kampagne nutzbar), keine
+// langweiligen Hufeisen. Icons sind Platzhalter — die echte Optik macht der
+// Designer. Pro Station werden ZWEI verschiedene gebaut: eine Stahl-Waffe (Simple
+// Past) und eine Gold-Waffe (Past Participle), die sich auch in der Form unterscheiden.
 export const FORGE_OBJECTS = [
-  { type: 'hufeisen',   name: 'Hufeisen',   icon: '🧲' },
-  { type: 'schluessel', name: 'Schlüssel',  icon: '🔑' },
-  { type: 'hammer',     name: 'Hammer',     icon: '🔨' },
-  { type: 'dolch',      name: 'Dolch',      icon: '🗡️' },
-  { type: 'schild',     name: 'Schild',     icon: '🛡️' },
-  { type: 'axt',        name: 'Axt',        icon: '🪓' },
-  { type: 'schwert',    name: 'Schwert',    icon: '⚔️' },
-  { type: 'helm',       name: 'Helm',       icon: '🪖' },
-  { type: 'ring',       name: 'Ring',       icon: '💍' },
-  { type: 'amulett',    name: 'Amulett',    icon: '📿' },
-  { type: 'kelch',      name: 'Kelch',      icon: '🏆' },
-  { type: 'krone',      name: 'Krone',      icon: '👑' },
+  { type: 'schwert',    name: 'Schwert',        icon: '⚔️' },
+  { type: 'dolch',      name: 'Dolch',          icon: '🗡️' },
+  { type: 'axt',        name: 'Streitaxt',      icon: '🪓' },
+  { type: 'bogen',      name: 'Bogen',          icon: '🏹' },
+  { type: 'schild',     name: 'Schild',         icon: '🛡️' },
+  { type: 'dreizack',   name: 'Dreizack',       icon: '🔱' },
+  { type: 'hammer',     name: 'Streithammer',   icon: '🔨' },
+  { type: 'stab',       name: 'Zauberstab',     icon: '🪄' },
+  { type: 'helm',       name: 'Helm',           icon: '🪖' },
+  { type: 'kristall',   name: 'Kristall',       icon: '💎' },
+  { type: 'amulett',    name: 'Amulett',        icon: '📿' },
+  { type: 'krone',      name: 'Krone',          icon: '👑' },
+  { type: 'ring',       name: 'Ring',           icon: '💍' },
+  { type: 'schluessel', name: 'Reliktschlüssel', icon: '🗝️' },
 ];
-export function forgeObject(idx) { return FORGE_OBJECTS[idx % FORGE_OBJECTS.length]; }
+// Zwei verschiedene Gegenstände je Station: Stahl-Waffe (Past) = gerader Index,
+// Gold-Waffe (PP) = der nächste. Zyklisch.
+export function forgeObject(idx, which) {
+  const n = FORGE_OBJECTS.length;
+  const i = which === 'pp' ? (idx * 2 + 1) : (idx * 2);
+  return FORGE_OBJECTS[((i % n) + n) % n];
+}
 
 const _byEn = new Map(IRREGULAR_VERBS.map((v) => [v.en, v]));
 

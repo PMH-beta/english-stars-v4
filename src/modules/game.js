@@ -151,13 +151,11 @@ function _gapLetter(w){
 
 // 🔍 Erkennen (MC, lesen) — immer Grundform → Form; je Stufe schwerere
 // Distraktoren (leicht: erfundene Formen → schwer: echte Fremdformen).
-function bErkennen(item, which, lvl){
-  // Drag&Drop „alle drei Formen ordnen" erst, wenn beide Formen im Spiel sind:
-  // nur im PP-Stern (Past ist dort schon gemeistert). Im Past-Stern wäre die
-  // 3. Form (PP) noch ungesehen und per Ausschluss ratbar.
-  if(which==='pp' && Math.random()<0.35) return bErkennenOrder(item, which);
+function bErkennen(item, which, lvl, suf){
+  // Reines MC-Erkennen. „Formen ordnen" (D&D) ist jetzt ein EIGENER Schmiede-
+  // Schritt (bUV) mit eigenem Suffix — darum hier keine zufällige Beimischung mehr.
   const mt=_verbMeta(which); const target=_firstForm(mt.get(item)); const inf=_firstForm(item.en);
-  const base={type:'mc',badge:'vocab',statKey:statKeyFor(item.de,item.en,mt.suf.mc,item._presetId||null),_presetId:item._presetId||null,
+  const base={type:'mc',badge:'vocab',statKey:statKeyFor(item.de,item.en,suf||mt.suf.mc,item._presetId||null),_presetId:item._presetId||null,
     question:_uvHead(item.de,which,'',`${inf} → ?`),answer:target};
   if(lvl===3){ // schwer: nur echte Formen anderer Verben
     return {...base,choices:shuffle([target,..._otherForms(item,which,3,target)])};
@@ -174,9 +172,9 @@ function bErkennen(item, which, lvl){
 // 🗣️ Rufen (Mikro, sprechen) — Present steht da, die Zielform muss man WISSEN
 // und sprechen (kein bloßes Vorlesen mehr). Darum die schwerste Disziplin →
 // schaltet im Sternbild erst nach Erkennen+Schmieden frei.
-function bRufen(item, which, lvl){
+function bRufen(item, which, lvl, suf){
   const mt=_verbMeta(which); const target=_firstForm(mt.get(item)); const inf=_firstForm(item.en);
-  const base={type:'pronounce',badge:'pronounce',statKey:statKeyFor(item.de,item.en,mt.suf.pr,item._presetId||null),_presetId:item._presetId||null,hint:''};
+  const base={type:'pronounce',badge:'pronounce',statKey:statKeyFor(item.de,item.en,suf||mt.suf.pr,item._presetId||null),_presetId:item._presetId||null,hint:''};
   if(lvl===3){ // schwer: ganze Reihe sprechen
     const chain=`${inf} ${_firstForm(item.forms.past)} ${_firstForm(item.forms.participle)}`;
     return {...base,question:_uvBadge('all','Alle drei Formen','#a86cdb')+_uvInstr('🎙️ Sprich die ganze Reihe')+_uvWord(item.de)+_uvTask(`${inf} – ? – ?`),answer:chain};
@@ -186,10 +184,10 @@ function bRufen(item, which, lvl){
 }
 
 // 🔨 Schmieden (Tippen, schreiben)
-function bSchmieden(item, which, lvl){
-  if(lvl<=2 && Math.random()<0.4) return bSchmiedenOrder(item, which);   // Drag&Drop: Buchstaben ordnen
+function bSchmieden(item, which, lvl, suf){
+  // Reines Tippen. „Buchstaben ordnen" (D&D) ist jetzt ein EIGENER Schritt (bUV).
   const mt=_verbMeta(which); const full=mt.get(item); const target=_firstForm(full); const inf=_firstForm(item.en);
-  const base={type:'type',badge:'spelling',statKey:statKeyFor(item.de,item.en,mt.suf.sp,item._presetId||null),_presetId:item._presetId||null,hint:''};
+  const base={type:'type',badge:'spelling',statKey:statKeyFor(item.de,item.en,suf||mt.suf.sp,item._presetId||null),_presetId:item._presetId||null,hint:''};
   if(lvl===1){ // leicht: nur den EINEN fehlenden Buchstaben ergänzen
     const g=_gapLetter(target);
     return {...base,gap:true,question:_uvHead(item.de,which,'✏️ Ergänze den fehlenden Buchstaben',g.display),answer:g.letter};
@@ -214,12 +212,12 @@ function _scramble(arr){
 // 🔍 Erkennen · Drag&Drop: alle drei Formen in die richtige Reihenfolge ziehen
 // (Present · Simple Past · Past Participle). Zählt auf das aktive Erkennen-Suffix
 // (mc) des Sterns — eine reichere MC-Variante.
-function bErkennenOrder(item, which){
+function bErkennenOrder(item, which, suf){
   const present=_firstForm(item.en), past=_firstForm(item.forms.past), pp=_firstForm(item.forms.participle);
   const sol=[present, past, pp];
   return {
     type:'order', orderKind:'forms', badge:'vocab', _presetId:item._presetId||null,
-    statKey:statKeyFor(item.de,item.en,_verbMeta(which).suf.mc,item._presetId||null),
+    statKey:statKeyFor(item.de,item.en,suf||_verbMeta(which).suf.mc,item._presetId||null),
     question:_uvBadge('all','Alle drei Formen','#a86cdb')+_uvInstr('🔀 Zieh die Formen in die richtige Reihenfolge')+_uvWord(item.de),
     slotLabels:['Present','Simple Past','Past Participle'],
     solution:sol, tiles:_scramble(sol),
@@ -229,12 +227,12 @@ function bErkennenOrder(item, which){
 
 // 🔨 Schmieden · Drag&Drop: die Buchstaben der Zielform in die richtige
 // Reihenfolge ziehen. Zählt auf das aktive Schmieden-Suffix (sp).
-function bSchmiedenOrder(item, which){
+function bSchmiedenOrder(item, which, suf){
   const mt=_verbMeta(which); const full=mt.get(item); const target=_firstForm(full);
   const letters=target.split('');
   return {
     type:'order', orderKind:'letters', badge:'spelling', _presetId:item._presetId||null,
-    statKey:statKeyFor(item.de,item.en,mt.suf.sp,item._presetId||null),
+    statKey:statKeyFor(item.de,item.en,suf||mt.suf.sp,item._presetId||null),
     question:_uvHead(item.de,which,'🔤 Zieh die Buchstaben in die richtige Reihenfolge'),
     slotLabels:letters.map(()=>''), solution:letters, tiles:_scramble(letters),
     answer:full,
@@ -249,10 +247,31 @@ function _ppUnlocked(v, pastSuffix){
   return !!s && Math.floor(s.asked||0)>=3 && effectivePct(s)>=UV_LVL.up2;
 }
 
-// Vollwandlung (§3/Phase 5): ein Verb ist „voll", wenn alle 6 Form-Suffixe
-// (past+pp × lesen/sprechen/schreiben) gemeistert sind. Erst dann darf es in
-// den gemischten Boss.
-const UV_FORM_SUFFIXES=['_past_mc','_past_sp','_past_pr','_pp_mc','_pp_sp','_pp_pr'];
+// Vollwandlung (§3/Phase 5): ein Verb ist „voll", wenn ALLE 10 Form-Suffixe
+// (past+pp × Erkennen/Formen/Schmieden/Buchstaben/Aussprache) gemeistert sind.
+// Erst dann darf es in den gemischten Boss (Kampagne).
+const UV_FORM_SUFFIXES=['_past_mc','_past_fo','_past_sp','_past_lo','_past_pr','_pp_mc','_pp_fo','_pp_sp','_pp_lo','_pp_pr'];
+
+// Schritt-Suffixe je Modus × Form (muss zu UV_STARS/SUF in irregular-game.js passen).
+// Jeder Modus ist ein eigener „aufleuchtbarer" Schmiede-Schritt mit eigenem Stat.
+const SUF_ALL={
+  vocab:    {past:'_past_mc', pp:'_pp_mc'},
+  forms:    {past:'_past_fo', pp:'_pp_fo'},
+  spelling: {past:'_past_sp', pp:'_pp_sp'},
+  letters:  {past:'_past_lo', pp:'_pp_lo'},
+  pronounce:{past:'_past_pr', pp:'_pp_pr'},
+};
+// Einen Schmiede-Schritt bauen: jeder Modus ruft seinen Builder mit SEINEM Suffix.
+function bUV(item, mode, which, lvl){
+  const suf=SUF_ALL[mode] && SUF_ALL[mode][which];
+  switch(mode){
+    case 'forms':     return bErkennenOrder(item, which, suf);
+    case 'letters':   return bSchmiedenOrder(item, which, suf);
+    case 'spelling':  return bSchmieden(item, which, lvl, suf);
+    case 'pronounce': return bRufen(item, which, lvl, suf);
+    default:          return bErkennen(item, which, lvl, suf);   // 'vocab'
+  }
+}
 function _uvVoll(v){
   const ws=window.SD?.globalPresetStats?.wordStats||{};
   return UV_FORM_SUFFIXES.every(suf=>{ const s=ws[statKeyFor(v.de,v.en,suf,IRREGULAR_PRESET_ID)]; return s && Math.floor(s.asked||0)>=3 && effectivePct(s)>=UV_LVL.up3; });
@@ -279,17 +298,18 @@ function buildUVPool(m, limit){
   // GENAU eine Disziplin × Form ein (Past- vs. Past-Participle-Stern getrennt).
   // Die Past→PP-Reihenfolge regelt jetzt die Stern-Freischaltung (irregular-game),
   // nicht mehr _ppUnlocked.
+  // m = der aktive Modus (vocab|forms|spelling|letters|pronounce), window._uvStar
+  // grenzt die Runde auf GENAU diesen Modus × Form ein (ein Schmiede-Schritt).
   const star=window._uvStar;
-  const B={vocab:bErkennen,spelling:bSchmieden,pronounce:bRufen}[m];
-  const SUF={vocab:{past:'_past_mc',pp:'_pp_mc'},spelling:{past:'_past_sp',pp:'_pp_sp'},pronounce:{past:'_past_pr',pp:'_pp_pr'}}[m];
+  const SUF=SUF_ALL[m];
   window.VOCAB.forEach(v=>{
-    if(!v.forms || !B) return;   // Sicherheitsnetz — UV-Set hat immer forms
+    if(!v.forms || !SUF) return;   // Sicherheitsnetz — UV-Set hat immer forms
     if(star){
-      all.push(B(v, star.which, uvLevel(statKeyFor(v.de,v.en,SUF[star.which],pid))));
+      all.push(bUV(v, m, star.which, uvLevel(statKeyFor(v.de,v.en,SUF[star.which],pid))));
     } else {
       // Fallback ohne Stern (z. B. Lernstand-Gap-Runde): Past + (nach Freischaltung) PP.
-      all.push(B(v,'past', uvLevel(statKeyFor(v.de,v.en,SUF.past,pid))));
-      if(_ppUnlocked(v,SUF.past)) all.push(B(v,'pp', uvLevel(statKeyFor(v.de,v.en,SUF.pp,pid))));
+      all.push(bUV(v, m, 'past', uvLevel(statKeyFor(v.de,v.en,SUF.past,pid))));
+      if(_ppUnlocked(v,SUF.past)) all.push(bUV(v, m, 'pp', uvLevel(statKeyFor(v.de,v.en,SUF.pp,pid))));
     }
   });
   const getS=q=>window.SD?.globalPresetStats?.wordStats?.[q.statKey];

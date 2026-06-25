@@ -19,20 +19,31 @@ import { startGame } from './game.js';
 import { effectivePct, isStatMastered, statKeyFor } from './stats.js';
 import { irregularAsVocab, getConstellations, IRREGULAR_PRESET_ID } from './irregular-verbs.js';
 
-// Sterne eines Sternbilds (ohne Boss) — Disziplin × Form, in Freischalt-Reihenfolge.
-// Rufen (Aussprache) ist weniger wichtig → nur EIN Rufen-Stern (auf Simple Past)
-// statt je einem pro Form. Damit hat ein Sternbild 5 spielbare Sterne:
-// Erkennen×2, Schmieden×2, Rufen×1. Index-Reihenfolge: past = 0,2,4 · pp = 1,3.
+// Schritte eines Sternbilds (= Schmiede-Teile pro Waffe). Jede Zeitform hat jetzt
+// 5 Schritte — je ein eigener Spielmodus aus dem Bestand, in Freischalt-Reihenfolge:
+//   🔍 Erkennen (MC) · 🧩 Formen ordnen (D&D) · 🔨 Schmieden (Tippen)
+//   · 🔤 Buchstaben ordnen (D&D) · 🗣️ Aussprache (Sprechen)
+// Aussprache kommt genau EINMAL pro Form. Past = Index 0–4, PP = Index 5–9.
+// Jeder Modus hat ein eigenes Stat-Suffix → eigener „aufleuchtbarer" Teil.
 export const UV_STARS = [
-  { mode: 'vocab',     which: 'past', icon: '🔍', name: 'Erkennen',  form: 'Simple Past' },
-  { mode: 'vocab',     which: 'pp',   icon: '🔍', name: 'Erkennen',  form: 'Past Participle' },
-  { mode: 'spelling',  which: 'past', icon: '🔨', name: 'Schmieden', form: 'Simple Past' },
-  { mode: 'spelling',  which: 'pp',   icon: '🔨', name: 'Schmieden', form: 'Past Participle' },
-  { mode: 'pronounce', which: 'past', icon: '🗣️', name: 'Rufen',     form: 'Simple Past' },
+  // Simple Past (Stahl-Waffe)
+  { mode: 'vocab',     which: 'past', icon: '🔍', name: 'Erkennen',       form: 'Simple Past' },
+  { mode: 'forms',     which: 'past', icon: '🧩', name: 'Formen ordnen',  form: 'Simple Past' },
+  { mode: 'spelling',  which: 'past', icon: '🔨', name: 'Schmieden',      form: 'Simple Past' },
+  { mode: 'letters',   which: 'past', icon: '🔤', name: 'Buchstaben',     form: 'Simple Past' },
+  { mode: 'pronounce', which: 'past', icon: '🗣️', name: 'Aussprache',     form: 'Simple Past' },
+  // Past Participle (Gold-Waffe)
+  { mode: 'vocab',     which: 'pp',   icon: '🔍', name: 'Erkennen',       form: 'Past Participle' },
+  { mode: 'forms',     which: 'pp',   icon: '🧩', name: 'Formen ordnen',  form: 'Past Participle' },
+  { mode: 'spelling',  which: 'pp',   icon: '🔨', name: 'Schmieden',      form: 'Past Participle' },
+  { mode: 'letters',   which: 'pp',   icon: '🔤', name: 'Buchstaben',     form: 'Past Participle' },
+  { mode: 'pronounce', which: 'pp',   icon: '🗣️', name: 'Aussprache',     form: 'Past Participle' },
 ];
 const SUF = {
   vocab:     { past: '_past_mc', pp: '_pp_mc' },
+  forms:     { past: '_past_fo', pp: '_pp_fo' },
   spelling:  { past: '_past_sp', pp: '_pp_sp' },
+  letters:   { past: '_past_lo', pp: '_pp_lo' },
   pronounce: { past: '_past_pr', pp: '_pp_pr' },
 };
 
@@ -54,7 +65,10 @@ export function starProgress(verbs, mode, which) {
 
 // Disziplin-Reihenfolge je Form: Simple Past hat Erkennen → Schmieden → Rufen,
 // Past Participle nur Erkennen → Schmieden (kein Rufen).
-const DISC_ORDER = { past: ['vocab', 'spelling', 'pronounce'], pp: ['vocab', 'spelling'] };
+const DISC_ORDER = {
+  past: ['vocab', 'forms', 'spelling', 'letters', 'pronounce'],
+  pp:   ['vocab', 'forms', 'spelling', 'letters', 'pronounce'],
+};
 
 // Eine Form (Simple Past / Past Participle) eines Sternbilds ist fertig, wenn alle
 // ihre Disziplinen gemeistert sind (Past 3, PP 2).
@@ -78,11 +92,11 @@ export function formUnlocked(idx, _which) {
   return constellationUnlocked(idx);
 }
 
-// Zustand aller 7 Sterne eines Sternbilds. Jede Form hat ihre eigene Kette
-// (formUnlocked); innerhalb einer Form klettern die Disziplinen linear
-// (Erkennen → Schmieden → Rufen). Der 7. Stern ist KEIN Boss (Bosse/Prüfungen
-// wandern in die Kampagne) — ein reiner Komplett-Leuchtstern: nicht spielbar,
-// leuchtet, sobald alle 5 Disziplin-Sterne leuchten.
+// Zustand aller Schritte eines Sternbilds (10 spielbare + 1 Komplett). Jede Form
+// hat ihre eigene Kette (formUnlocked); innerhalb einer Form klettern die Modi
+// linear (Erkennen → Formen ordnen → Schmieden → Buchstaben → Aussprache). Der
+// letzte Eintrag ist KEIN Boss (Bosse/Prüfungen wandern in die Kampagne) — ein
+// reiner Komplett-Leuchtstern: nicht spielbar, leuchtet, sobald alle 10 leuchten.
 export function constellationStars(c) {
   const states = UV_STARS.map((st, i) => {
     const lit = starLit(c.verbs, st.mode, st.which);
@@ -92,8 +106,8 @@ export function constellationStars(c) {
     const unlocked = formUnlocked(c.idx, st.which) && prevDiscLit;
     return { ...st, i, lit, unlocked, prog: starProgress(c.verbs, st.mode, st.which) };
   });
-  const allLit = states.every((s) => s.lit);   // alle 5 Disziplin-Sterne leuchten
-  states.push({ mode: null, which: null, icon: '🌟', name: 'Komplett', form: '', i: 5, lit: allLit, unlocked: false, done: true });
+  const allLit = states.every((s) => s.lit);   // alle 10 Schritt-Sterne leuchten
+  states.push({ mode: null, which: null, icon: '🌟', name: 'Komplett', form: '', i: UV_STARS.length, lit: allLit, unlocked: false, done: true });
   return states;
 }
 export function constellationComplete(c) {
@@ -195,10 +209,10 @@ export function uvLernstand() {
   const map = uvMap();
   let complete = 0, totalLit = 0;
   const rows = map.map((m) => {
-    const lit = m.stars.filter((s) => s.lit && !s.done).length;   // 0..5
+    const lit = m.stars.filter((s) => s.lit && !s.done).length;   // 0..10
     totalLit += lit;
     if (m.complete) complete++;
-    return { name: m.c.name, cefr: m.c.cefr, count: m.c.verbs.length, lit, total: 5, complete: m.complete, unlocked: m.unlocked, words: constellationWords(m.c) };
+    return { name: m.c.name, cefr: m.c.cefr, count: m.c.verbs.length, lit, total: UV_STARS.length, complete: m.complete, unlocked: m.unlocked, words: constellationWords(m.c) };
   });
-  return { total: map.length, complete, totalLit, maxLit: map.length * 5, rows };
+  return { total: map.length, complete, totalLit, maxLit: map.length * UV_STARS.length, rows };
 }

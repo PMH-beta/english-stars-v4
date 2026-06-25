@@ -672,9 +672,11 @@ export function uvOpenFill() {
 // · 🔥 Härten (Rufen, nur Simple Past). Stat/Logik/Freischaltung UNVERÄNDERT.
 // Optik bewusst schlicht (Platzhalter) — Feinschliff folgt in späterer Phase.
 const FORGE_STEP = {
-  vocab:     { icon: '🪨', name: 'Erz brechen' },
-  spelling:  { icon: '🔨', name: 'Hämmern' },
-  pronounce: { icon: '🔥', name: 'Härten' },
+  vocab:     { icon: '🔍', name: 'Erkennen' },
+  forms:     { icon: '🧩', name: 'Formen ordnen' },
+  spelling:  { icon: '🔨', name: 'Schmieden' },
+  letters:   { icon: '🔤', name: 'Buchstaben' },
+  pronounce: { icon: '🗣️', name: 'Aussprache' },
 };
 const FORGE_MAT = {
   past: { label: '⏱ Simple Past', mat: 'Stahl' },
@@ -701,7 +703,7 @@ function _forgeStepBtn(idx, s, isNext) {
 // erhalten, da aus den Stats abgeleitet), das nächste Teil pulsiert, der Rest ist
 // noch leer. data-stage = wie viele Teile fertig sind (Anker für deine Objekt-Optik).
 function _forgeItem(m, which) {
-  const ob = forgeObject(m.c.idx), mt = FORGE_MAT[which];
+  const ob = forgeObject(m.c.idx, which), mt = FORGE_MAT[which];
   const steps = m.stars.filter((s) => s.which === which);
   const litN = steps.filter((s) => s.lit).length;
   const done = steps.length > 0 && litN === steps.length;
@@ -764,14 +766,13 @@ function _forgeSlider(m) {
 // Eine Schmiede-Station (= Gruppe): freigeschaltet → Slider zwischen Stahl-Past
 // und Gold-PP; gesperrt → eine statische Vorschau. Plus Aktiv-Steuerung + Wörter.
 function _forgeStation(m, isActive) {
-  const ob = forgeObject(m.c.idx);
   const activeCtrl = !m.unlocked ? ''
     : (isActive ? '<span class="forge-active-tag">● Aktiv</span>'
                 : `<button class="forge-active-btn" onclick="setUvActive(${m.c.idx})">▶ Aktiv setzen</button>`);
   const body = m.unlocked ? _forgeSlider(m) : _forgeItem(m, 'past');
   return `<div class="forge-station${isActive ? ' current' : ''}${m.unlocked ? '' : ' locked'}${m.complete ? ' complete' : ''}">
     <div class="forge-head">
-      <span class="forge-title">${ob.icon} ${ob.name}${m.complete ? ' 🌟' : ''}</span>
+      <span class="forge-title">⚒️ Auftrag ${m.c.idx + 1}${m.complete ? ' 🌟' : ''}</span>
       <span class="forge-cefr">${m.c.cefr}</span>
       ${activeCtrl}
     </div>
@@ -873,13 +874,14 @@ export function uvInfo() {
   window.esAlert?.({
     icon: '⚒️',
     title: 'Die Schmiede',
-    body: 'Jede Station schmiedet zwei Werkstücke aus demselben Verb:\n'
+    body: 'Jede Station schmiedet zwei Waffen:\n'
       + '🔩 Stahl = ⏱ Simple Past · 🥇 Gold = ✓ Past Participle.\n\n'
-      + 'Stahl braucht drei Schritte:\n🪨 Erz brechen · 🔨 Hämmern · 🔥 Härten.\n'
-      + 'Gold braucht zwei:\n🪨 Erz brechen · 🔨 Hämmern.\n\n'
-      + 'Ist EIN Werkstück fertig (alle Schritte gemeistert), geht die nächste '
-      + 'Station auf. Du musst also nur Stahl ODER Gold schaffen, um weiterzukommen.\n\n'
-      + 'Tippe einen Schritt zum Üben (auch fertige zum Wiederholen).\n„📖 Wörter" zeigt die Verbliste.',
+      + 'Jede Waffe entsteht in 5 Schritten:\n'
+      + '🔍 Erkennen · 🧩 Formen ordnen · 🔨 Schmieden · 🔤 Buchstaben · 🗣️ Aussprache.\n\n'
+      + 'Ist EINE Waffe fertig (alle 5 Teile geschmiedet), geht die nächste Station '
+      + 'auf — du musst also nur Stahl ODER Gold schaffen, um weiterzukommen.\n\n'
+      + 'Wische zwischen den beiden Waffen. Tippe einen Schritt zum Üben (auch fertige '
+      + 'zum Wiederholen).\n„📖 Wörter" zeigt die Verbliste.',
   });
 }
 
