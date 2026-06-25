@@ -244,15 +244,20 @@ function bSchmiedenOrder(item, which, suf){
 
 // 🔍 Erkennen · Falsche Form korrigieren (MC): eine falsche Form steht da, die
 // richtige auswählen. Auswahl-Aufgabe (kein Tippen), zählt aufs Erkennen-Slot.
-function bErkennenFix(item, which, lvl, suf){
+function bErkennenFix(item, which, suf){
   const mt=_verbMeta(which); const target=_firstForm(mt.get(item));
   const wrong=(formDistractors(item,which)[0])||_firstForm(item.en);
-  const base={type:'mc',badge:'vocab',_presetId:item._presetId||null,
+  // Distraktoren OHNE die oben gezeigte falsche Form — die darf NICHT zur Auswahl stehen.
+  const pool=[...formDistractors(item,which), ..._otherForms(item,which,4,target)]
+    .filter(d=>d && d.toLowerCase()!==wrong.toLowerCase() && d.toLowerCase()!==target.toLowerCase());
+  const distract=[...new Set(pool)].slice(0,3);
+  // KEIN deutsches Wort — die falsche englische Form steht groß oben (durchgestrichen).
+  const head=_uvBadge(which)
+    +_uvInstr('❌ Diese Form ist falsch — welche stimmt?')
+    +`<div style="font-size:2.1rem;font-weight:800;color:#c0392b;text-decoration:line-through;letter-spacing:.3px;margin:2px 0 6px;">${wrong}</div>`;
+  return {type:'mc',badge:'vocab',_presetId:item._presetId||null,
     statKey:statKeyFor(item.de,item.en,suf,item._presetId||null),
-    question:_uvHead(item.de,which,'❌ Diese Form ist falsch — welche stimmt?',wrong),answer:target};
-  if(lvl===3) return {...base,choices:shuffle([target,..._otherForms(item,which,3,target)])};
-  if(lvl===2) return {...base,choices:shuffle([target,wrong,..._otherForms(item,which,2,target)])};
-  return {...base,choices:shuffle([target,...formDistractors(item,which)])};
+    question:head, answer:target, choices:shuffle([target,...distract])};
 }
 
 // 🔨 Schmieden · fehlender Buchstabe (Lücke). speak = ganzes Wort (TTS).
@@ -282,7 +287,7 @@ function bDisc(item, which, disc, suf){
     const r=Math.random();
     if(r<0.34) return bErkennen(item,which,lvl,suf);
     if(r<0.67) return bErkennenOrder(item,which,suf);
-    return bErkennenFix(item,which,lvl,suf);
+    return bErkennenFix(item,which,suf);
   }
   if(disc==='schmieden'){
     const r=Math.random();

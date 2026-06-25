@@ -774,7 +774,7 @@ function _forgeItem(m, which) {
   if (done) { label = '✓ Waffe fertig'; pct = 100; showPct = false; }
   else if (nextI >= 0) {
     const s = steps[nextI], fs = FORGE_DISC[s.discipline] || { icon: '•', name: s.discipline };
-    pct = s.prog && s.prog.total ? Math.round((s.prog.mastered / s.prog.total) * 100) : 0;
+    pct = s.prog && s.prog.total ? Math.min(100, Math.round((s.prog.score / s.prog.total) * 100)) : 0;
     label = `${fs.icon} ${fs.name}`;
   } else { label = '🔒 erst die Station davor'; pct = 0; showPct = false; }
   return `<div class="forge-weapon-wrap">

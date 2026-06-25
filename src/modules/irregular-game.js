@@ -61,6 +61,20 @@ export function starProgress(verbs, suf) {
   return { mastered: m, total: verbs.length };
 }
 
+// Fortschritt eines Slots als SCORE (Teilpunkte je Verb aus dem EMA) — EXAKT die
+// Rechnung wie der In-Game-Balken, damit Übersicht und Spiel denselben % zeigen.
+function _slotScore(verbs, suf) {
+  const ws = _ws(); let score = 0, mastered = 0;
+  for (const v of verbs) {
+    const s = ws[statKeyFor(v.de, v.en, suf, IRREGULAR_PRESET_ID)];
+    if (!s || !s.asked) continue;
+    const asked = s.asked, pct = effectivePct(s);
+    if (Math.floor(asked) >= 3 && pct >= 0.9) { score += 1; mastered += 1; }
+    else if (asked >= 1) score += Math.max(0, (pct - 0.5) * 2) * Math.min(asked / 3, 1) * 0.85;
+  }
+  return { score, mastered, total: verbs.length };
+}
+
 // Eine Form ist fertig, wenn alle 5 Slot-Teile leuchten.
 export function formComplete(c, which) {
   return weaponSlots(c.idx, which).every((_, i) => starLit(c.verbs, _slotSuf(which, i)));
@@ -85,7 +99,7 @@ export function constellationStars(c) {
       const suf = _slotSuf(which, i);
       const lit = starLit(c.verbs, suf);
       const unlocked = formUnlocked(c.idx) && prevLit;
-      out.push({ which, i, discipline: disc, suffix: suf, lit, unlocked, prog: starProgress(c.verbs, suf) });
+      out.push({ which, i, discipline: disc, suffix: suf, lit, unlocked, prog: _slotScore(c.verbs, suf) });
       prevLit = lit;
     });
   });
@@ -136,25 +150,15 @@ export function startConstellationForm(cIdx, which) {
 // ── Live-Fortschritt im Spiel (progressForCurrentMode in game.js) ────────────
 // Slot-Runde → genau das aktive Teil-Suffix. Fallback: ganze Waffe.
 export function uvProgress() {
-  const ws = _ws();
   const star = window._uvStar;
-  let sufs;
-  if (star && star.suf) sufs = [star.suf];
-  else if (star && star.which) sufs = Array.from({ length: SLOTS_PER_FORM }, (_, i) => _slotSuf(star.which, i));
-  else sufs = [];
   const verbs = (window.VOCAB || []).filter((v) => v.forms);
-  let score = 0, mastered = 0;
-  const total = verbs.length * sufs.length;
-  for (const v of verbs) {
-    for (const suf of sufs) {
-      const s = ws[statKeyFor(v.de, v.en, suf, IRREGULAR_PRESET_ID)];
-      if (!s || !s.asked) continue;
-      const asked = s.asked, pct = effectivePct(s);
-      if (Math.floor(asked) >= 3 && pct >= 0.9) { score += 1; mastered += 1; }
-      else if (asked >= 1) score += Math.max(0, (pct - 0.5) * 2) * Math.min(asked / 3, 1) * 0.85;
-    }
+  if (star && star.suf) return _slotScore(verbs, star.suf);   // aktuelles Teil (= Overview-%)
+  if (star && star.which) {                                   // Fallback: ganze Waffe
+    let score = 0, mastered = 0, total = 0;
+    for (let i = 0; i < SLOTS_PER_FORM; i++) { const r = _slotScore(verbs, _slotSuf(star.which, i)); score += r.score; mastered += r.mastered; total += r.total; }
+    return { score, mastered, total };
   }
-  return { score, mastered, total };
+  return { score: 0, mastered: 0, total: 0 };
 }
 
 // Pro-Wort-Liste (Wörter-Dropdown): gemeisterte Teile getrennt nach Past/PP (je x/5).
