@@ -80,11 +80,11 @@ export function formComplete(c, which) {
   return weaponSlots(c.idx, which).every((_, i) => starLit(c.verbs, _slotSuf(which, i)));
 }
 
-// Freischaltung: nächste Station offen, sobald beim vorigen EINE Form komplett ist.
+// Freischaltung: jede vom Kind SELBST angelegte Station (= jeder Befüll-Auftrag)
+// ist sofort spielbar — kein Vorab-Freispielen der vorigen Station nötig. Innerhalb
+// einer Form bleiben die Schritte trotzdem der Reihe nach gestaffelt (constellationStars).
 export function constellationUnlocked(idx) {
-  if (idx <= 0) return true;
-  const prev = getConstellations()[idx - 1];
-  return formComplete(prev, 'past') || formComplete(prev, 'pp');
+  return idx >= 0 && idx < getConstellations().length;
 }
 export function formUnlocked(idx) { return constellationUnlocked(idx); }
 
