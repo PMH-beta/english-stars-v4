@@ -104,10 +104,11 @@ const _FORM_BADGE={
   past: ['Simple Past','#e8920a'],
   pp:   ['Past Participle','#3aaa5c'],
 };
-function _uvBadge(key,label,bg){ const b=_FORM_BADGE[key]||[label,bg]; return `<div style="display:inline-block;background:${b[1]};color:#fff;font-family:'Fredoka One',cursive;font-size:.72rem;padding:3px 12px;border-radius:20px;margin-bottom:8px;">${b[0]}</div>`; }
+function _uvBadge(key,label,bg){ const b=_FORM_BADGE[key]||[label,bg]; return `<div style="margin-bottom:8px;"><span style="display:inline-block;background:${b[1]};color:#fff;font-family:'Fredoka One',cursive;font-size:.72rem;padding:3px 12px;border-radius:20px;">${b[0]}</span></div>`; }
 // Anweisung — als abgegrenzte Plakette (klar als Erklärung erkennbar, NICHT als
-// das Vorgabewort). Eigener Look: gerahmt, gedämpft.
-function _uvInstr(t){ return `<div style="display:inline-block;background:#f1f3f7;color:#5a6473;font-weight:700;font-size:.78rem;padding:5px 13px;border-radius:20px;margin-bottom:12px;">${t}</div>`; }
+// das Vorgabewort). Eigener Look: gerahmt, gedämpft. Eigene Zeile (Block-Wrapper),
+// damit sie NICHT neben der Form-Plakette landet (beide sind sonst inline-block).
+function _uvInstr(t){ return `<div style="margin-bottom:12px;"><span style="display:inline-block;background:#f1f3f7;color:#5a6473;font-weight:700;font-size:.78rem;padding:5px 13px;border-radius:20px;">${t}</span></div>`; }
 // Deutsches Wort (Bedeutung) = die EINZIGE Vorgabe, groß und prominent.
 function _uvWord(de){ return `<div style="font-size:2.1rem;font-weight:800;color:var(--text);letter-spacing:.3px;margin:2px 0 4px;">🇩🇪 ${de}</div>`; }
 // Aufgaben-Zusatz (Buchstabenlücke, falsche Form …) — sekundär unter dem Wort.
