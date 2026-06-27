@@ -191,9 +191,11 @@ export function uvLernstand() {
   let complete = 0, totalLit = 0;
   const rows = map.map((m) => {
     const lit = m.stars.filter((s) => s.lit).length;   // 0..10
+    const pastLit = m.stars.filter((s) => s.which === 'past' && s.lit).length;   // 0..5
+    const ppLit = m.stars.filter((s) => s.which === 'pp' && s.lit).length;       // 0..5
     totalLit += lit;
     if (m.complete) complete++;
-    return { name: m.c.name, cefr: m.c.cefr, count: m.c.verbs.length, lit, total: 2 * SLOTS_PER_FORM, complete: m.complete, unlocked: m.unlocked, words: constellationWords(m.c) };
+    return { idx: m.c.idx, name: m.c.name, cefr: m.c.cefr, count: m.c.verbs.length, lit, pastLit, ppLit, formTotal: SLOTS_PER_FORM, total: 2 * SLOTS_PER_FORM, complete: m.complete, unlocked: m.unlocked, words: constellationWords(m.c) };
   });
   return { total: map.length, complete, totalLit, maxLit: map.length * 2 * SLOTS_PER_FORM, rows };
 }

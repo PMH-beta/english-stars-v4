@@ -1270,20 +1270,41 @@ function _activePresetsBlock(decks, catById) {
 }
 
 // Schülermodus: Unregelmäßige Verben (Schmiede) — Lernstand-Übersicht je Auftrag:
-// fertig / wie viele der 10 Schritte (2 Waffen × 5) geschmiedet sind. Pro Wort der
-// Stand getrennt nach Stahl (⏱ Simple Past) und Gold (✓ Past Participle), wie im Spiel.
+// pro Auftrag die ZWEI Waffen (🔩 Stahl = ⏱ Simple Past, 🥇 Gold = ✓ Past Participle)
+// mit Schmiede-Fortschritt, darunter die angelegten Wörter — je Wort getrennt der
+// %-Stand für Simple Past und Past Participle (beide zusammen = 100% des Wortes).
 function _uvLernstandBlock() {
   const L = uvLernstand();
   const pct = L.maxLit > 0 ? Math.round((L.totalLit / L.maxLit) * 100) : 0;
+  const PAST_COL = '#3a6ea8', PP_COL = '#caa04a';
+
+  // Eine Waffe als Zeile: Name (Material-Gegenstand) + Schmiede-Balken + x/5.
+  const weaponRow = (idx, which, litN, totalN) => {
+    const mt = FORGE_MAT[which], ob = forgeObject(idx, which);
+    const wp = totalN ? Math.round((litN / totalN) * 100) : 0;
+    const color = which === 'past' ? PAST_COL : PP_COL;
+    return `<div class="uv-weapon">
+      <span class="uv-weapon-name">${ob.icon} ${mt.mat}-${ob.name} <span style="color:#aaa;font-weight:700;">${mt.label}</span></span>
+      <div class="uv-weapon-bar"><div class="uv-weapon-fill" style="width:${wp}%;background:${color};"></div></div>
+      <span class="uv-weapon-ct" style="color:${color};">${litN}/${totalN}</span>
+    </div>`;
+  };
 
   const rows = L.rows.map((r, i) => {
     const icon = r.complete ? '🌟' : (r.unlocked ? '⚒️' : '🔒');
     const col = r.complete ? '#2a8a4a' : (r.unlocked ? 'var(--text)' : '#b9b9b9');
-    const chips = (r.words || []).map(w => {
-      const pd = w.past.mastered >= w.past.total, ppd = w.pp.mastered >= w.pp.total;
-      return `<span class="uv-word${(pd && ppd) ? ' done' : ''}"><b>${window.escHtml(w.en)}</b> `
-        + `<span class="fw-p${pd ? ' done' : ''}">⏱ ${w.past.mastered}/${w.past.total}</span> `
-        + `<span class="fw-g${ppd ? ' done' : ''}">✓ ${w.pp.mastered}/${w.pp.total}</span></span>`;
+    // Je angelegtem Wort: linke Hälfte = Simple Past, rechte Hälfte = Past Participle.
+    const wordRows = (r.words || []).map(w => {
+      const pPct = w.past.total ? Math.round((w.past.mastered / w.past.total) * 100) : 0;
+      const gPct = w.pp.total ? Math.round((w.pp.mastered / w.pp.total) * 100) : 0;
+      return `<div class="uvw">
+        <span class="uvw-en">${window.escHtml(w.en)}</span>
+        <div class="uvw-bars">
+          <div class="uvw-half"><div class="uvw-fill" style="width:${pPct}%;background:${PAST_COL};"></div></div>
+          <div class="uvw-half"><div class="uvw-fill" style="width:${gPct}%;background:${PP_COL};"></div></div>
+        </div>
+        <span class="uvw-pct">⏱ ${pPct}% · ✓ ${gPct}%</span>
+      </div>`;
     }).join('');
     // Aktueller Auftrag (frei, aber noch nicht fertig) standardmäßig aufgeklappt.
     const open = (r.unlocked && !r.complete) ? ' open' : '';
@@ -1294,7 +1315,12 @@ function _uvLernstandBlock() {
         <span style="font-size:.7rem;color:#a06a00;font-weight:800;white-space:nowrap;">🔨 ${r.lit}/${r.total}</span>
         <span class="uv-cst-chev">▾</span>
       </summary>
-      <div class="uv-words">${chips}</div>
+      <div class="uv-cst-body">
+        ${weaponRow(r.idx, 'past', r.pastLit, r.formTotal)}
+        ${weaponRow(r.idx, 'pp', r.ppLit, r.formTotal)}
+        <div class="uv-words-head">Angelegte Wörter</div>
+        ${wordRows}
+      </div>
     </details>`;
   }).join('');
 

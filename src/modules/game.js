@@ -252,10 +252,10 @@ function bErkennenFix(item, which, suf){
   const pool=[...formDistractors(item,which), ..._otherForms(item,which,4,target)]
     .filter(d=>d && d.toLowerCase()!==wrong.toLowerCase() && d.toLowerCase()!==target.toLowerCase());
   const distract=[...new Set(pool)].slice(0,3);
-  // KEIN deutsches Wort — die falsche englische Form steht groß oben (durchgestrichen).
+  // KEIN deutsches Wort — die falsche englische Form steht groß oben (rot, kein Durchstreichen).
   const head=_uvBadge(which)
     +_uvInstr('❌ Diese Form ist falsch — welche stimmt?')
-    +`<div style="font-size:2.1rem;font-weight:800;color:#c0392b;text-decoration:line-through;letter-spacing:.3px;margin:2px 0 6px;">${wrong}</div>`;
+    +`<div style="font-size:2.1rem;font-weight:800;color:#c0392b;letter-spacing:.3px;margin:2px 0 6px;">${wrong}</div>`;
   return {type:'mc',badge:'vocab',_presetId:item._presetId||null,
     statKey:statKeyFor(item.de,item.en,suf,item._presetId||null),
     question:head, answer:target, choices:shuffle([target,...distract])};
