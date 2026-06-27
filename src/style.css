@@ -564,7 +564,7 @@ body.in-game .mode-progress{display:block;}
 
 /* Buchstaben-Lücke INLINE im Wort: getippter Buchstabe sitzt direkt an seiner
    Stelle → das Wort steht als Ganzes da. */
-.gap-word{display:inline-flex;align-items:center;justify-content:center;gap:7px;flex-wrap:wrap;margin:8px 0 16px;}
+.gap-word{display:flex;align-items:center;justify-content:center;gap:7px;flex-wrap:wrap;margin:8px 0 16px;}
 .gap-cell{font-family:'Fredoka One',cursive;font-size:2rem;font-weight:800;color:var(--text);min-width:.7em;text-align:center;line-height:1.2;}
 .gap-cell.gap-input{width:1.1em;padding:0 0 2px;border:none;border-bottom:3px solid var(--purple);background:transparent;outline:none;color:var(--purple);caret-color:var(--purple);border-radius:0;}
 .gap-cell.gap-input::placeholder{color:#cdbce8;}

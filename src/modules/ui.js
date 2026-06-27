@@ -542,28 +542,6 @@ function _cstBlock(m, isActive) {
   </div>`;
 }
 
-// Aktives Sternbild: manuell gesetztes (SD.uvActive), sofern noch erreichbar;
-// sonst automatisch das erste freie, noch nicht komplette (bzw. letzte freie).
-function _uvActiveIdx(map) {
-  const stored = window.SD && window.SD.uvActive;
-  if (typeof stored === 'number' && map[stored] && map[stored].unlocked) return stored;
-  const next = map.find(m => m.unlocked && !m.complete);
-  if (next) return next.c.idx;
-  const lastOpen = [...map].reverse().find(m => m.unlocked);
-  return lastOpen ? lastOpen.c.idx : 0;
-}
-
-// Sternbild aktiv setzen (wie aktives Deck). Nur freigespielte zulässig.
-// Persistiert lokal und pusht das Profil (uv_active) in die Cloud — gleicher
-// Weg wie setActiveMode (markDirty('profile') + commitDirty).
-export function setUvActive(idx) {
-  const map = uvMap();
-  if (!map[idx] || !map[idx].unlocked) return;
-  if (window.SD) window.SD.uvActive = idx;
-  persist(window.SD);
-  renderStudentUV();
-  if (window.currentUser) { markDirty('profile'); commitDirty(); }
-}
 
 // Setzt den gesamten UV-Fortschritt zurück (alle Verb-Stats des irregular-Presets):
 // lokal sofort, Cloud per deleteCloudPresetStats (kein Retry — wie resetDeckProgress).
@@ -827,16 +805,11 @@ function _forgeSlider(m) {
 
 // Eine Schmiede-Station (= Gruppe): freigeschaltet → Slider zwischen Stahl-Past
 // und Gold-PP; gesperrt → eine statische Vorschau. Plus Aktiv-Steuerung + Wörter.
-function _forgeStation(m, isActive) {
-  const activeCtrl = !m.unlocked ? ''
-    : (isActive ? '<span class="forge-active-tag">● Aktiv</span>'
-                : `<button class="forge-active-btn" onclick="setUvActive(${m.c.idx})">▶ Aktiv setzen</button>`);
+function _forgeStation(m) {
   const body = m.unlocked ? _forgeSlider(m) : _forgeItem(m, 'past');
-  return `<div class="forge-station${isActive ? ' current' : ''}${m.unlocked ? '' : ' locked'}${m.complete ? ' complete' : ''}">
+  return `<div class="forge-station${m.unlocked ? '' : ' locked'}${m.complete ? ' complete' : ''}">
     <div class="forge-head">
       <span class="forge-title">⚒️ Auftrag ${m.c.idx + 1}${m.complete ? ' 🌟' : ''}</span>
-      <span class="forge-cefr">${m.c.cefr}</span>
-      ${activeCtrl}
     </div>
     ${body}
     ${_forgeWords(m)}
@@ -861,8 +834,7 @@ function renderStudentUV() {
   if (!host) return;
   _uvEnsureInit();                       // beim ersten Mal: UV-Reset + leer starten
   const map = uvMap();
-  const activeIdx = _uvActiveIdx(map);
-  const parts = map.map((m) => _forgeStation(m, m.c.idx === activeIdx));
+  const parts = map.map((m) => _forgeStation(m));
   if (uvAvailableVerbs().length >= CONSTELLATION_SIZE) parts.push(_forgeFillCard());
 
   const L = uvLernstand();
@@ -1297,28 +1269,29 @@ function _activePresetsBlock(decks, catById) {
     </div>`;
 }
 
-// Schülermodus: Unregelmäßige Verben (Gestaltwandler) — Lernstand-Übersicht:
-// Sternbild-Karte (komplett / wie viele Sterne leuchten / gesperrt) + Gesamt-%.
+// Schülermodus: Unregelmäßige Verben (Schmiede) — Lernstand-Übersicht je Auftrag:
+// fertig / wie viele der 10 Schritte (2 Waffen × 5) geschmiedet sind. Pro Wort der
+// Stand getrennt nach Stahl (⏱ Simple Past) und Gold (✓ Past Participle), wie im Spiel.
 function _uvLernstandBlock() {
   const L = uvLernstand();
   const pct = L.maxLit > 0 ? Math.round((L.totalLit / L.maxLit) * 100) : 0;
 
-  const rows = L.rows.map(r => {
-    const icon = r.complete ? '🌟' : (r.unlocked ? '⭐' : '🔒');
+  const rows = L.rows.map((r, i) => {
+    const icon = r.complete ? '🌟' : (r.unlocked ? '⚒️' : '🔒');
     const col = r.complete ? '#2a8a4a' : (r.unlocked ? 'var(--text)' : '#b9b9b9');
-    const stars = '★'.repeat(r.lit) + '☆'.repeat(Math.max(0, r.total - r.lit));
     const chips = (r.words || []).map(w => {
-      const done = w.mastered >= w.total;
-      return `<span class="uv-word${done ? ' done' : ''}">${done ? '✓ ' : ''}${window.escHtml(w.en)} ${w.mastered}/${w.total}</span>`;
+      const pd = w.past.mastered >= w.past.total, ppd = w.pp.mastered >= w.pp.total;
+      return `<span class="uv-word${(pd && ppd) ? ' done' : ''}"><b>${window.escHtml(w.en)}</b> `
+        + `<span class="fw-p${pd ? ' done' : ''}">⏱ ${w.past.mastered}/${w.past.total}</span> `
+        + `<span class="fw-g${ppd ? ' done' : ''}">✓ ${w.pp.mastered}/${w.pp.total}</span></span>`;
     }).join('');
-    // Aktuelles Sternbild (frei, aber noch nicht komplett) standardmäßig aufgeklappt.
+    // Aktueller Auftrag (frei, aber noch nicht fertig) standardmäßig aufgeklappt.
     const open = (r.unlocked && !r.complete) ? ' open' : '';
     return `<details class="uv-cst"${open}>
       <summary style="display:flex;align-items:center;gap:8px;font-size:.78rem;color:${col};">
         <span>${icon}</span>
-        <span style="flex:1;font-weight:700;">${r.name}</span>
-        <span style="font-size:.64rem;color:#999;">${r.cefr}</span>
-        <span style="letter-spacing:1px;color:#f5a623;width:72px;text-align:right;">${stars}</span>
+        <span style="flex:1;font-weight:700;">Auftrag ${i + 1}</span>
+        <span style="font-size:.7rem;color:#a06a00;font-weight:800;white-space:nowrap;">🔨 ${r.lit}/${r.total}</span>
         <span class="uv-cst-chev">▾</span>
       </summary>
       <div class="uv-words">${chips}</div>
@@ -1328,13 +1301,13 @@ function _uvLernstandBlock() {
   const played = L.totalLit > 0;
   return `
     <div style="margin-bottom:16px;">
-      <h3 style="font-family:'Fredoka One',cursive;color:var(--purple);font-size:1rem;margin:0 0 4px;">🔁 Unregelmäßige Verben</h3>
-      <div style="font-size:.74rem;color:#7a3aac;font-weight:700;margin-bottom:8px;">🌟 ${L.complete}/${L.total} Sternbilder komplett · ${pct}%</div>
+      <h3 style="font-family:'Fredoka One',cursive;color:var(--purple);font-size:1rem;margin:0 0 4px;">⚒️ Die Schmiede · unregelmäßige Verben</h3>
+      <div style="font-size:.74rem;color:#7a3aac;font-weight:700;margin-bottom:8px;">⚒️ ${L.complete}/${L.total} Aufträge fertig · 🔨 ${L.totalLit}/${L.maxLit} Schritte · ${pct}%</div>
       <div style="height:12px;background:#eee;border-radius:10px;overflow:hidden;margin-bottom:10px;">
         <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--purple),var(--pink));border-radius:10px;"></div>
       </div>
       ${rows}
-      ${played ? '' : '<div style="font-size:.78rem;color:#999;text-align:center;padding:8px;">Noch nicht geübt — starte oben im UV-Tab beim ersten Sternbild.</div>'}
+      ${played ? '' : '<div style="font-size:.78rem;color:#999;text-align:center;padding:8px;">Noch nicht geübt — leg oben im UV-Tab einen Schmiede-Auftrag an.</div>'}
     </div>`;
 }
 

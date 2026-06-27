@@ -38,14 +38,19 @@ function _seeded(seed) {
 }
 
 // Die 5 Disziplinen-Slots einer Waffe (deterministisch, jede Waffe anders).
-// Erkennen ×2, Schmieden ×2, Verzaubern ×1 — Verzaubern nur in Slot 2–4 (= Teil 3–5).
+// Erkennen ×2, Schmieden ×2, Verzaubern ×1. Feste Regeln: Teil 1 IMMER Erkennen
+// (man erkennt die Form zuerst), Verzaubern nur in Slot 2–4 (= Teil 3–5), der Rest
+// (1× Erkennen, 2× Schmieden) zufällig auf die übrigen Slots.
 export function weaponSlots(cIdx, which) {
   const rnd = _seeded(((cIdx + 1) * 73856093) ^ (which === 'pp' ? 19349663 : 0));
-  const vPos = 2 + Math.floor(rnd() * 3);
-  const rest = ['erkennen', 'erkennen', 'schmieden', 'schmieden'];
+  const slots = new Array(SLOTS_PER_FORM);
+  slots[0] = 'erkennen';                       // Teil 1 immer Erkennen
+  const vPos = 2 + Math.floor(rnd() * 3);      // Verzaubern nur Teil 3–5
+  slots[vPos] = 'verzaubern';
+  const rest = ['erkennen', 'schmieden', 'schmieden'];
   for (let i = rest.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [rest[i], rest[j]] = [rest[j], rest[i]]; }
-  const slots = []; let r = 0;
-  for (let i = 0; i < SLOTS_PER_FORM; i++) slots.push(i === vPos ? 'verzaubern' : rest[r++]);
+  let r = 0;
+  for (let i = 1; i < SLOTS_PER_FORM; i++) if (i !== vPos) slots[i] = rest[r++];
   return slots;
 }
 

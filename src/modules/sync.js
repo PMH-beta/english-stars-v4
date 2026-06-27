@@ -171,7 +171,6 @@ async function _cloudLoadOnce(userId) {
       highscore:    profile.highscore    || 0,
       totalPoints:  profile.total_points || 0,
       activeMode:   profile.active_mode  || 'free',
-      uvActive:     profile.uv_active ?? null,
       uvFills:      Array.isArray(profile.uv_fills) ? profile.uv_fills : null,
       activeDeckId: null,
       decks:        {},
@@ -220,7 +219,6 @@ async function _cloudLoadOnce(userId) {
     highscore:        profile.highscore || 0,
     totalPoints:      profile.total_points || 0,
     activeMode:       profile.active_mode || 'free',
-    uvActive:         profile.uv_active ?? null,
     uvFills:          Array.isArray(profile.uv_fills) ? profile.uv_fills : null,
     activeDeckId,
     decks,
@@ -245,7 +243,6 @@ export async function saveProfile(sd, userId) {
     total_points:   sd.totalPoints || 0,
     active_deck_id: isUUID(sd.activeDeckId) ? sd.activeDeckId : null,
     active_mode:    sd.activeMode || 'free',
-    uv_active:      Number.isInteger(sd.uvActive) ? sd.uvActive : null,
     uv_fills:       Array.isArray(sd.uvFills) ? sd.uvFills : null,
   };
   const { data, error } = await fetchWithRetry(() => supabase
