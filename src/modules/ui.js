@@ -8,7 +8,7 @@ import { signIn, signUp, signOut, resendConfirmation, requestPasswordReset, upda
 import { cloudLoad, cloudReset, saveDeck, saveWordStats, saveExam, markDirty, flushPendingSync, setCloudConfirmed, getPendingCount, setKnownSig, cloudChangedRemotely, deleteCloudPresetStats } from './sync.js';
 import { commitDirty } from './dialog.js';
 import { uvMap, uvLernstand, constellationWords, FORGE_DISC } from './irregular-game.js';
-import { renderAvatarInto, renderCharacter, commitAvatar } from './avatar.js';
+import { renderAvatarInto, renderCharacter, commitAvatar, resetCharacterFeature } from './avatar.js';
 import { IRREGULAR_PRESET_ID, uvAvailableVerbs, CONSTELLATION_SIZE, cefrOf, forgeObject } from './irregular-verbs.js';
 
 const API_KEY_SK = 'es_apikey';
@@ -1118,6 +1118,7 @@ export function showProfile() {
 
 // Charakter-Anpassung öffnen/schließen.
 export function showCharacter() {
+  resetCharacterFeature();
   showScreen('character-screen');
   renderCharacter();
 }

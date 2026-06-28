@@ -7,7 +7,7 @@ import { _trackUrl, _discoverTracks, _playNext, _initAudio, startMusic, startMus
 import { effectivePct, isMastered } from './modules/stats.js';
 import { buildPool, toggleSchnell, syncSchnellForMode, startGame, confirmHome, goHomeSaving, nextQuestion, restartSame, checkMC, submitType, checkOrder, showSelfRateButtons, retryPronounce, evaluateWithClaude, setMicFinalStatus, _sfx, playSfx } from './modules/game.js';
 import { syncMirrorFromActiveDeck, activeDeck, switchDeck, createDeck, deleteDeck, renameDeck, deckProgress, renderDecks, toggleDeck, activateDeck, startGameWithDeck, newDeckPrompt, renameDeckPrompt, confirmDeleteDeck, resetDeckProgress, vmDeleteWord, vmEditWord, vmAddManual, openDeckStats } from './modules/decks.js';
-import { avatarStep } from './modules/avatar.js';
+import { avatarPick, avatarArrow } from './modules/avatar.js';
 import { showScreen, saveName, showMenu, saveApiKey, skipApiKey, showProfile, editPlayerName, showCharacter, closeCharacter, showStats, confirmReset, showFeedback, hideFeedback, exportData, importData, showAuth, authToggleMode, authSubmit, authResend, authLogout, authGoogleSignIn, handleLogin, handleLogout, showPasswordReset, submitPasswordReset, showNewPasswordScreen, submitNewPassword, cancelNewPassword, setActiveMode, renderModeContent, chooseStudentTab, uvFlip, uvSlide, uvSetForm, uvInfo, uvOpenFill, onAppResume, checkForRemoteChange } from './modules/ui.js';
 import { pwaInstall } from './modules/pwa.js';
 import { startConstellationStar, startConstellationForm, uvProgress } from './modules/irregular-game.js';
@@ -126,7 +126,8 @@ window.showProfile = showProfile;
 window.editPlayerName = editPlayerName;
 window.showCharacter = showCharacter;
 window.closeCharacter = closeCharacter;
-window.avatarStep = avatarStep;
+window.avatarPick = avatarPick;
+window.avatarArrow = avatarArrow;
 window.showStats = showStats;
 window.confirmReset = confirmReset;
 window.showFeedback = showFeedback;

@@ -7,15 +7,16 @@ import { persist } from './storage.js';
 import { markDirty } from './sync.js';
 import { commitDirty } from './dialog.js';
 
-// Reihenfolge + Beschriftung der Einstell-Zeilen
+// Reihenfolge + Beschriftung der Einstell-Zeilen; anchor = vertikale Position der
+// Pfeile (% der Ganzkörper-Höhe) am jeweils veränderten Körperteil.
 export const AVATAR_FEATURES = [
-  { key: 'skin',  icon: '🖐️', label: 'Hautfarbe' },
-  { key: 'build', icon: '🧍', label: 'Statur' },
-  { key: 'hair',  icon: '💇', label: 'Haare' },
-  { key: 'eyes',  icon: '👀', label: 'Augen' },
-  { key: 'nose',  icon: '👃', label: 'Nase' },
-  { key: 'mouth', icon: '👄', label: 'Mund' },
-  { key: 'ears',  icon: '👂', label: 'Ohren' },
+  { key: 'hair',  icon: '💇', label: 'Haare',     anchor: 11 },
+  { key: 'eyes',  icon: '👀', label: 'Augen',     anchor: 22 },
+  { key: 'ears',  icon: '👂', label: 'Ohren',     anchor: 24 },
+  { key: 'nose',  icon: '👃', label: 'Nase',      anchor: 25 },
+  { key: 'mouth', icon: '👄', label: 'Mund',      anchor: 30 },
+  { key: 'skin',  icon: '🖐️', label: 'Hautfarbe', anchor: 46 },
+  { key: 'build', icon: '🧍', label: 'Statur',    anchor: 68 },
 ];
 
 const COUNT = 10; // je Merkmal 10 Stufen
@@ -45,7 +46,6 @@ const wrap = (n) => ((n % COUNT) + COUNT) % COUNT;
 //  SVG-TEILE (Kopf fix: cx=100, cy=86, rx=46, ry=50)
 // ────────────────────────────────────────────────
 function earsSVG(i, skin) {
-  // [breite, höhe, y, pointy]
   const S = [
     [9,11,88,0],[7,9,88,0],[10,13,88,0],[12,15,89,0],[8,12,86,0],
     [11,16,90,0],[9,13,87,1],[13,17,90,0],[6,8,88,0],[10,14,86,1],
@@ -68,54 +68,51 @@ function headSVG(skin) {
   return `<ellipse cx="100" cy="86" rx="46" ry="50" fill="${skin}" stroke="#0002" stroke-width="1.5"/>`;
 }
 
-// Haare: {back} hinter Kopf, {front} davor — c = Farbe
-function hairParts(i) {
-  const styles = [
-    // 0 kurz braun
-    { c: '#6B4423', back: e(100, 64, 50, 52), front: bangs('#6B4423') },
-    // 1 schwarz Stachel
-    { c: '#1c1c1c', back: spikes('#1c1c1c'), front: '' },
-    // 2 blond lang
-    { c: '#E3C45A', back: e(100, 92, 58, 64), front: bangs('#E3C45A') },
-    // 3 braun Dutt
-    { c: '#5b3a1e', back: e(100, 70, 49, 46) + `<circle cx="100" cy="34" r="13" fill="#5b3a1e"/>`, front: bangs('#5b3a1e') },
-    // 4 schwarz lockig
-    { c: '#222', back: curls('#222'), front: '' },
-    // 5 Glatze
-    { c: '#000', back: '', front: '' },
-    // 6 rot Seitenscheitel
-    { c: '#C0502A', back: e(100, 70, 50, 47), front: `<path d="M55,62 Q92,30 145,60 Q150,76 100,66 Q70,72 55,76 Z" fill="#C0502A"/>` },
-    // 7 braun Pferdeschwanz
-    { c: '#6B4423', back: e(100, 70, 49, 46) + `<path d="M146,72 q26,6 20,40 q-4,18 -16,16 q10,-30 -8,-52 Z" fill="#6B4423"/>`, front: bangs('#6B4423') },
-    // 8 schwarz Afro
-    { c: '#1a1a1a', back: e(100, 62, 58, 54), front: '' },
-    // 9 blond Bob
-    { c: '#D9B84A', back: e(100, 84, 54, 56), front: `<path d="M54,64 Q100,48 146,64 Q142,76 100,70 Q58,76 54,64 Z" fill="#D9B84A"/>` },
-  ];
-  return styles[i];
+function neckSVG(skin) {
+  return `<rect x="91" y="128" width="18" height="34" rx="6" fill="${skin}" stroke="#0001"/>`;
 }
-function e(cx, cy, rx, ry) { return `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="HAIRCOL"/>`; }
-function bangs(c) { return `<path d="M56,64 Q100,40 144,64 Q140,76 100,70 Q60,76 56,64 Z" fill="${c}"/>`; }
+
+// ── Haare ──────────────────────────────────────
+// Jede Frisur: { c, back, extra } + immer eine solide Kappe (deckt die Stirn ab → kein Loch).
+//  back  = vor dem Kopf-Hintergrund, ABER vor dem Hals gezeichnet (Länge fällt vor die Schultern, Hals bleibt frei)
+//  extra = nach dem Gesicht (Dutt etc.), dann zuletzt die Kappe.
+function vol(c)        { return `<ellipse cx="100" cy="72" rx="52" ry="50" fill="${c}"/>`; }
+function longHair(c, bY) {
+  const w = 18;
+  return vol(c)
+    + `<rect x="42" y="66" width="${w}" height="${bY - 66}" rx="9" fill="${c}"/>`
+    + `<rect x="${200 - 42 - w}" y="66" width="${w}" height="${bY - 66}" rx="9" fill="${c}"/>`;
+}
 function spikes(c) {
   let p = '';
-  for (let k = 0; k <= 6; k++) {
-    const x = 60 + k * 13;
-    p += `<path d="M${x - 7},58 L${x},30 L${x + 7},58 Z" fill="${c}"/>`;
-  }
-  return p + e(100, 70, 49, 44);
+  for (let k = 0; k <= 6; k++) { const x = 60 + k * 13; p += `<path d="M${x - 7},58 L${x},28 L${x + 7},58 Z" fill="${c}"/>`; }
+  return p + `<ellipse cx="100" cy="68" rx="50" ry="44" fill="${c}"/>`;
 }
 function curls(c) {
   let p = '';
-  const pts = [[64,52],[80,40],[100,36],[120,40],[136,52],[140,70],[60,70]];
-  for (const [x, y] of pts) p += `<circle cx="${x}" cy="${y}" r="14" fill="${c}"/>`;
+  for (const [x, y] of [[60,60],[72,42],[90,34],[110,34],[128,42],[140,60],[146,78],[54,78]]) p += `<circle cx="${x}" cy="${y}" r="15" fill="${c}"/>`;
   return p;
 }
-
-function hairSVG(i, which) {
-  const h = hairParts(i);
-  let s = which === 'back' ? h.back : h.front;
-  return s.split('HAIRCOL').join(h.c);
+function afro(c)     { return `<ellipse cx="100" cy="60" rx="60" ry="56" fill="${c}"/>`; }
+function ponytail(c) { return `<path d="M150,72 q30,6 24,48 q-6,20 -20,15 q14,-34 -10,-58 Z" fill="${c}"/>`; }
+function bun(c)      { return `<circle cx="100" cy="30" r="15" fill="${c}"/>`; }
+// Solide Stirn-Kappe (immer, außer Glatze) — Haaransatz bei ~y60, deckt Stirn voll ab.
+function cap(c) {
+  return `<path d="M51,90 C47,32 153,32 149,90 C149,66 132,58 100,58 C68,58 51,66 51,90 Z" fill="${c}"/>`;
 }
+
+const HAIR = [
+  { c: '#6B4423', back: '',                    extra: '' },                  // 0 kurz braun
+  { c: '#1C1C1C', back: spikes('#1C1C1C'),     extra: '' },                  // 1 schwarz Stachel
+  { c: '#E3C45A', back: longHair('#E3C45A',215), extra: '' },               // 2 blond lang (Schulter)
+  { c: '#5B3A1E', back: vol('#5B3A1E'),        extra: bun('#5B3A1E') },      // 3 braun Dutt
+  { c: '#222222', back: curls('#222222'),      extra: '' },                  // 4 schwarz lockig
+  null,                                                                       // 5 Glatze
+  { c: '#C0502A', back: vol('#C0502A'),        extra: '' },                  // 6 rot voll
+  { c: '#6B4423', back: ponytail('#6B4423') + vol('#6B4423'), extra: '' },   // 7 Pferdeschwanz
+  { c: '#1A1A1A', back: afro('#1A1A1A'),       extra: '' },                  // 8 schwarz Afro
+  { c: '#D9B84A', back: longHair('#D9B84A',300), extra: '' },               // 9 blond sehr lang
+];
 
 function eyesSVG(i) {
   const specs = [
@@ -177,9 +174,8 @@ function mouthSVG(i) {
   ][i];
 }
 
-// Körper / Statur — braucht Hautfarbe. Kopf endet bei y≈136, Hals/Schultern darunter.
+// Körper / Statur (ohne Hals — Hals wird separat NACH den Haaren gezeichnet, bleibt sichtbar).
 function bodySVG(i, skin) {
-  // [Schulter-Halbbreite, Taille, Hüfte, Arm-Dicke, Bein-Dicke]
   const B = [
     [30, 20, 24, 9, 13],[33, 22, 27, 9, 14],[36, 24, 30, 10, 15],[39, 27, 33, 11, 16],
     [42, 30, 36, 12, 17],[45, 33, 39, 12, 18],[48, 36, 42, 13, 19],[51, 39, 45, 14, 20],
@@ -187,55 +183,48 @@ function bodySVG(i, skin) {
   ][i];
   const [SH, WA, HI, AR, LG] = B;
   const shirt = '#5B8DEF', pants = '#39405A', shoe = '#4A3422';
-  const sx = 100;
-  const shoulderY = 156, waistY = 244, hipY = 252;
+  const sx = 100, shoulderY = 156, waistY = 244, hipY = 252;
 
-  // Beine (Haut) + Hose + Schuhe
-  const legXs = [sx - HI * 0.5, sx + HI * 0.5];
   let legs = '';
-  for (const lx of legXs) {
+  for (const lx of [sx - HI * 0.5, sx + HI * 0.5]) {
     legs += `<rect x="${lx - LG / 2}" y="250" width="${LG}" height="104" rx="${LG / 2}" fill="${skin}"/>`
       + `<rect x="${lx - LG / 2 - 1}" y="248" width="${LG + 2}" height="60" rx="7" fill="${pants}"/>`
       + `<ellipse cx="${lx}" cy="357" rx="${LG * 0.75}" ry="8" fill="${shoe}"/>`;
   }
-  // Arme (Haut) + kurze Ärmel
   let arms = '';
   for (const ax of [sx - SH, sx + SH]) {
     arms += `<rect x="${ax - AR / 2}" y="158" width="${AR}" height="92" rx="${AR / 2}" fill="${skin}"/>`
       + `<rect x="${ax - AR / 2 - 1}" y="158" width="${AR + 2}" height="26" rx="6" fill="${shirt}"/>`;
   }
-  // Hals
-  const neck = `<rect x="${sx - 9}" y="128" width="18" height="32" rx="6" fill="${skin}"/>`;
-  // Rumpf (Shirt)
   const torso = `<path d="M${sx - SH},${shoulderY} Q${sx},${shoulderY - 10} ${sx + SH},${shoulderY} `
     + `L${sx + WA},${waistY} Q${sx + WA},${hipY + 4} ${sx + HI},${hipY + 6} `
     + `L${sx - HI},${hipY + 6} Q${sx - WA},${hipY + 4} ${sx - WA},${waistY} Z" fill="${shirt}"/>`;
-
-  // Reihenfolge: Beine → Arme → Hals → Rumpf
-  return legs + arms + neck + torso;
+  return legs + arms + torso;
 }
 
 // ────────────────────────────────────────────────
 //  GESAMT-SVG
+//  Reihenfolge (hinten→vorne): Körper · Haar-Hinterteil · Hals · Ohren · Kopf ·
+//  Gesicht · Haar-Extra · Stirn-Kappe.
 // ────────────────────────────────────────────────
 export function avatarSVG(cfg, opts = {}) {
   const headOnly = !!opts.headOnly;
   const skin = SKIN[cfg.skin] || SKIN[0];
-  const body = headOnly ? '' : bodySVG(cfg.build, skin);
+  const h = HAIR[cfg.hair];
   const inner =
-    body +
-    hairSVG(cfg.hair, 'back') +
+    (headOnly ? '' : bodySVG(cfg.build, skin)) +
+    (h ? h.back : '') +
+    neckSVG(skin) +
     earsSVG(cfg.ears, skin) +
     headSVG(skin) +
     eyesSVG(cfg.eyes) +
     noseSVG(cfg.nose) +
     mouthSVG(cfg.mouth) +
-    hairSVG(cfg.hair, 'front');
-  const vb = headOnly ? '26 14 148 150' : '0 0 200 372';
+    (h ? h.extra + cap(h.c) : '');
+  const vb = headOnly ? '32 22 136 136' : '0 0 200 372';
   return `<svg viewBox="${vb}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;display:block;">${inner}</svg>`;
 }
 
-// Rendert den Avatar in ein Element (Kopf oder ganz).
 export function renderAvatarInto(elId, sd, opts = {}) {
   const el = document.getElementById(elId);
   if (!el) return;
@@ -244,41 +233,60 @@ export function renderAvatarInto(elId, sd, opts = {}) {
 
 // ────────────────────────────────────────────────
 //  CHARAKTER-SCREEN (Anpassung)
+//  Großer Charakter + Pfeile links/rechts auf Höhe des veränderten Körperteils.
 // ────────────────────────────────────────────────
+let _activeFeature = 'hair';
+
 export function renderCharacter() {
   const sd = window.SD;
   if (!sd) return;
-  renderAvatarInto('character-canvas', sd, { headOnly: false });
   const cfg = ensureAvatar(sd);
-  const host = document.getElementById('character-controls');
-  if (!host) return;
-  host.innerHTML = AVATAR_FEATURES.map(f => {
-    const extra = f.key === 'skin'
-      ? `<span style="display:inline-block;width:20px;height:20px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #ccc;vertical-align:middle;margin-right:8px;background:${SKIN[cfg.skin]}"></span>`
-      : '';
-    return `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid #f0f0f0;">
-      <div style="font-family:'Fredoka One',cursive;font-size:.92rem;color:var(--text);">${f.icon} ${f.label}</div>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <button onclick="avatarStep('${f.key}',-1)" style="font-family:'Fredoka One',cursive;font-size:1.1rem;width:34px;height:34px;border:none;border-radius:50%;cursor:pointer;background:#f0e6ff;color:var(--purple);">‹</button>
-        <div style="min-width:64px;text-align:center;font-weight:800;font-size:.85rem;color:#666;">${extra}${cfg[f.key] + 1} / ${COUNT}</div>
-        <button onclick="avatarStep('${f.key}',1)" style="font-family:'Fredoka One',cursive;font-size:1.1rem;width:34px;height:34px;border:none;border-radius:50%;cursor:pointer;background:#f0e6ff;color:var(--purple);">›</button>
-      </div>
-    </div>`;
+  renderAvatarInto('character-canvas', sd, { headOnly: false });
+
+  const feat = AVATAR_FEATURES.find(f => f.key === _activeFeature) || AVATAR_FEATURES[0];
+
+  // Pfeile auf Höhe des Körperteils positionieren
+  const aL = document.getElementById('char-arrow-left');
+  const aR = document.getElementById('char-arrow-right');
+  if (aL && aR) { aL.style.top = feat.anchor + '%'; aR.style.top = feat.anchor + '%'; }
+
+  // Merkmal-Chips
+  const chips = document.getElementById('character-feature-chips');
+  if (chips) chips.innerHTML = AVATAR_FEATURES.map(f => {
+    const on = f.key === _activeFeature;
+    return `<button onclick="avatarPick('${f.key}')" style="flex:0 0 auto;font-family:'Fredoka One',cursive;font-size:.8rem;padding:7px 12px;border:none;border-radius:50px;cursor:pointer;white-space:nowrap;${on ? 'background:linear-gradient(135deg,var(--purple),var(--pink));color:#fff;box-shadow:0 3px 0 #7a4ba8;' : 'background:#f0e6ff;color:var(--purple);'}">${f.icon} ${f.label}</button>`;
   }).join('');
+
+  // Beschriftung + Stand
+  const lbl = document.getElementById('character-feature-label');
+  if (lbl) {
+    const swatch = feat.key === 'skin'
+      ? `<span style="display:inline-block;width:18px;height:18px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #ccc;vertical-align:middle;margin-right:6px;background:${SKIN[cfg.skin]}"></span>`
+      : '';
+    lbl.innerHTML = `${feat.icon} <b>${feat.label}</b> &nbsp; ${swatch}<span style="color:var(--purple);font-weight:800;">${cfg[feat.key] + 1} / ${COUNT}</span>`;
+  }
 }
 
-export function avatarStep(feature, dir) {
+// Merkmal auswählen (Chip) → Pfeile springen ans Körperteil.
+export function avatarPick(key) {
+  if (AVATAR_FEATURES.some(f => f.key === key)) _activeFeature = key;
+  renderCharacter();
+}
+
+// Pfeil ‹/› ändert das aktuell gewählte Merkmal.
+export function avatarArrow(dir) {
   const sd = window.SD;
   const cfg = ensureAvatar(sd);
-  if (!(feature in cfg)) return;
-  cfg[feature] = wrap(cfg[feature] + dir);
+  cfg[_activeFeature] = wrap(cfg[_activeFeature] + dir);
   persist(sd);
   if (window.currentUser) markDirty('profile');   // Pending-Flag überlebt auch Hardware-Zurück
   renderCharacter();
-  // Köpfe in Menü/Profil sofort mitziehen
   renderAvatarInto('menu-avatar', sd, { headOnly: true });
   renderAvatarInto('prof-avatar', sd, { headOnly: true });
 }
+
+// Beim Öffnen Standard-Merkmal setzen.
+export function resetCharacterFeature() { _activeFeature = 'hair'; }
 
 // Beim Verlassen des Screens Cloud-Sync anstoßen (gesammelt, nicht pro Klick).
 export function commitAvatar() {
