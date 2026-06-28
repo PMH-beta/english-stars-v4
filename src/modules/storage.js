@@ -70,6 +70,7 @@ export function freshData() {
   return {
     _version: 4,
     playerName: '', highscore: 0, totalPoints: 0,
+    avatar: { skin: 0, build: 4, hair: 0, eyes: 0, nose: 0, mouth: 0, ears: 2 },
     activeMode: 'free',
     presetIntroSeen: false,
     activeDeckId: DEFAULT_DECKS[0].id,

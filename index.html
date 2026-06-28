@@ -188,7 +188,8 @@
   <h1>⭐ English Stars</h1>
   <div class="subtitle">Deutsch → Englisch Lernspiel</div>
   <div class="player-banner" onclick="showProfile()" style="cursor:pointer;">
-    <div>
+    <div id="menu-avatar" style="width:46px;height:46px;flex-shrink:0;"></div>
+    <div style="flex:1;min-width:0;">
       <div class="player-name" id="menu-player-name">Hallo!</div>
       <div class="player-stats">
         <span class="pstat">🏆 <span id="menu-highscore">0</span></span>
@@ -282,13 +283,14 @@
 
   <div class="stats-panel">
     <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;">
-      <div style="font-size:3rem;flex-shrink:0;">👤</div>
+      <div id="prof-avatar" style="width:64px;height:64px;flex-shrink:0;"></div>
       <div style="flex:1;min-width:0;">
         <div id="prof-name" style="font-family:'Fredoka One',cursive;font-size:1.3rem;color:var(--text);"></div>
         <div id="prof-since" style="font-size:.75rem;color:#888;font-weight:700;"></div>
       </div>
       <button onclick="editPlayerName()" style="font-family:'Fredoka One',cursive;font-size:.78rem;padding:6px 12px;background:#f5f5f5;color:#666;border:none;border-radius:50px;cursor:pointer;">✏️</button>
     </div>
+    <button onclick="showCharacter()" class="big-btn purple" style="width:100%;">🎨 Charakter anpassen</button>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
       <div style="background:linear-gradient(135deg,#fff8e0,#fff0c0);padding:12px;border-radius:14px;text-align:center;">
         <div style="font-size:1.6rem;">🏆</div>
@@ -327,6 +329,20 @@
     <input type="file" id="profile-import-file" accept=".json" style="display:none" onchange="importData(event)">
   </div>
 
+</div>
+
+<!-- ═══ CHARACTER SCREEN ═══ -->
+<div id="character-screen" style="display:none;width:100%;max-width:540px;flex-direction:column;align-items:flex-start;">
+  <button class="back-btn sticky" onclick="closeCharacter()">← Zurück</button>
+  <h1 style="width:100%;margin-bottom:14px">🎨 Charakter</h1>
+
+  <div class="stats-panel" style="display:flex;justify-content:center;align-items:center;">
+    <div id="character-canvas" style="width:190px;height:340px;"></div>
+  </div>
+
+  <div class="stats-panel" id="character-controls" style="width:100%;">
+    <!-- gefüllt durch renderCharacter() -->
+  </div>
 </div>
 
 <!-- ═══ STATS SCREEN ═══ -->

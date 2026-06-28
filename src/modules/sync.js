@@ -118,7 +118,7 @@ export async function cloudLoad(userId) {
 
 async function _cloudLoadOnce(userId) {
   const [profileRes, decksRes, wordStatsRes, presetStatsRes, presetCatProgRes] = await Promise.all([
-    fetchWithRetry(() => supabase.from('profiles').select('player_name, highscore, total_points, active_deck_id, active_mode, uv_active, uv_fills, updated_at').eq('id', userId).maybeSingle()),
+    fetchWithRetry(() => supabase.from('profiles').select('player_name, highscore, total_points, active_deck_id, active_mode, uv_active, uv_fills, avatar, updated_at').eq('id', userId).maybeSingle()),
     fetchWithRetry(() => supabase.from('decks').select('*').eq('user_id', userId).order('sort_order').order('created_at')),
     fetchWithRetry(() => supabase.from('word_stats').select('*').eq('user_id', userId)),
     fetchWithRetry(() => supabase.from('preset_stats').select('*').eq('user_id', userId)),
@@ -220,6 +220,7 @@ async function _cloudLoadOnce(userId) {
     totalPoints:      profile.total_points || 0,
     activeMode:       profile.active_mode || 'free',
     uvFills:          Array.isArray(profile.uv_fills) ? profile.uv_fills : null,
+    avatar:           (profile.avatar && typeof profile.avatar === 'object') ? profile.avatar : null,
     activeDeckId,
     decks,
     categoryProgress: { ...EMPTY_CAT },
@@ -244,6 +245,7 @@ export async function saveProfile(sd, userId) {
     active_deck_id: isUUID(sd.activeDeckId) ? sd.activeDeckId : null,
     active_mode:    sd.activeMode || 'free',
     uv_fills:       Array.isArray(sd.uvFills) ? sd.uvFills : null,
+    avatar:         (sd.avatar && typeof sd.avatar === 'object') ? sd.avatar : null,
   };
   const { data, error } = await fetchWithRetry(() => supabase
     .from('profiles')

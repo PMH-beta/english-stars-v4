@@ -12,12 +12,14 @@ CREATE TABLE profiles (
   total_points INTEGER NOT NULL DEFAULT 0,
   active_deck_id UUID,
   active_mode TEXT NOT NULL DEFAULT 'free',
+  avatar JSONB,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- Migration für bestehende DBs (einmalig im Supabase-Dashboard ausführen):
 -- ALTER TABLE profiles ADD COLUMN IF NOT EXISTS active_mode TEXT NOT NULL DEFAULT 'free';
+-- ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar JSONB;  -- {skin,build,hair,eyes,nose,mouth,ears} je 0..9
 
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 

@@ -8,6 +8,7 @@ import { signIn, signUp, signOut, resendConfirmation, requestPasswordReset, upda
 import { cloudLoad, cloudReset, saveDeck, saveWordStats, saveExam, markDirty, flushPendingSync, setCloudConfirmed, getPendingCount, setKnownSig, cloudChangedRemotely, deleteCloudPresetStats } from './sync.js';
 import { commitDirty } from './dialog.js';
 import { uvMap, uvLernstand, constellationWords, FORGE_DISC } from './irregular-game.js';
+import { renderAvatarInto, renderCharacter, commitAvatar } from './avatar.js';
 import { IRREGULAR_PRESET_ID, uvAvailableVerbs, CONSTELLATION_SIZE, cefrOf, forgeObject } from './irregular-verbs.js';
 
 const API_KEY_SK = 'es_apikey';
@@ -29,11 +30,11 @@ export function showScreen(id) {
     try { voskStop(); } catch(e) {}
     try { stopVisualizer(); } catch(e) {}
   }
-  ['loading-screen','apikey-screen','name-screen','menu-screen','game-screen','end-screen','stats-screen','profile-screen','scan-screen','review-screen','auth-screen','email-confirm-screen','password-reset-screen','password-reset-sent-screen','new-password-screen'].forEach(s => {
+  ['loading-screen','apikey-screen','name-screen','menu-screen','game-screen','end-screen','stats-screen','profile-screen','character-screen','scan-screen','review-screen','auth-screen','email-confirm-screen','password-reset-screen','password-reset-sent-screen','new-password-screen'].forEach(s => {
     const el = document.getElementById(s); if (el) el.style.display = 'none';
   });
   const el = document.getElementById(id);
-  el.style.display = ['loading-screen','menu-screen','game-screen','stats-screen','profile-screen','scan-screen','review-screen'].includes(id) ? 'flex' : 'block';
+  el.style.display = ['loading-screen','menu-screen','game-screen','stats-screen','profile-screen','character-screen','scan-screen','review-screen'].includes(id) ? 'flex' : 'block';
   window.scrollTo(0, 0);
   el.scrollTop = 0;
   if (id === 'game-screen') document.body.classList.add('in-game');
@@ -1051,6 +1052,7 @@ export function showMenu() {
   hideFeedback();
   showScreen('menu-screen');
   document.getElementById('menu-player-name').textContent = 'Hallo, ' + window.SD.playerName + '! 👋';
+  renderAvatarInto('menu-avatar', window.SD, { headOnly: true });
   document.getElementById('menu-highscore').textContent = window.SD.highscore;
   document.getElementById('menu-total').textContent = window.SD.totalPoints;
   const ft = document.getElementById('menu-footer'); if (ft) ft.style.display = 'flex';
@@ -1065,6 +1067,7 @@ export function showMenu() {
 export function showProfile() {
   showScreen('profile-screen');
   const SD = window.SD;
+  renderAvatarInto('prof-avatar', SD, { headOnly: true });
   const pn = document.getElementById('prof-name');
   if (pn) pn.textContent = SD.playerName || 'Spieler';
   const ps = document.getElementById('prof-since');
@@ -1111,6 +1114,16 @@ export function showProfile() {
         </div>`;
     }
   }
+}
+
+// Charakter-Anpassung öffnen/schließen.
+export function showCharacter() {
+  showScreen('character-screen');
+  renderCharacter();
+}
+export function closeCharacter() {
+  commitAvatar();   // gesammelte Avatar-Änderungen in die Cloud schreiben
+  showProfile();
 }
 
 export function editPlayerName() {
