@@ -1136,8 +1136,10 @@ export function editPlayerName() {
     window.SD.playerName = trimmed;
     persist(window.SD);
     if (window.currentUser) { markDirty('profile'); await commitDirty(); }
+    const charEl = document.getElementById('character-screen');
     const profEl = document.getElementById('profile-screen');
-    if (profEl && profEl.style.display !== 'none') showProfile();
+    if (charEl && charEl.style.display !== 'none') renderCharacter();
+    else if (profEl && profEl.style.display !== 'none') showProfile();
     else showStats();
   });
 }

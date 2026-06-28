@@ -243,6 +243,9 @@ export function renderCharacter() {
   const cfg = ensureAvatar(sd);
   renderAvatarInto('character-canvas', sd, { headOnly: false });
 
+  const nameEl = document.getElementById('char-player-name');
+  if (nameEl) nameEl.textContent = sd.playerName || 'Spieler';
+
   const feat = AVATAR_FEATURES.find(f => f.key === _activeFeature) || AVATAR_FEATURES[0];
 
   // Pfeile auf Höhe des Körperteils positionieren
