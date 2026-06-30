@@ -288,7 +288,7 @@ export function renderModeContent(mode) {
   if (studentEl) studentEl.style.display = (mode === 'student')  ? '' : 'none';
   if (campEl)    campEl.style.display    = (mode === 'campaign') ? '' : 'none';
   _renderModeToggle(mode);
-  if (mode === 'free') renderDecks('free');
+  if (mode === 'free') { renderProbetestSection(); renderDecks('free'); }
   else if (mode === 'student') renderStudentMode();
   // Schnell-Zustand DIESES Modus spiegeln (isSchnellModus + Dark-Mode + Buttons).
   if (window.syncSchnellForMode) window.syncSchnellForMode(mode);
@@ -343,6 +343,7 @@ export function startProbetest(deckIds) {
     window.esAlert({ icon: '📭', title: 'Keine Wörter', body: 'Die gewählten Sammlungen enthalten keine Vokabeln.' });
     return;
   }
+  window._probetestDecks = ids.map(id => ({ name: SD.decks[id].name, count: (SD.decks[id].vocab || []).length }));
   window.isUV = false;
   window.isProbetest = true;
   SD.activeDeckId = null;   // kein Deck → Prüfung läuft ephemer (kein lastExam/Sync)
@@ -351,6 +352,54 @@ export function startProbetest(deckIds) {
     for (const v of union) window.VOCAB.push(v);
   }
   window.startGame('mixed_vocab');
+}
+
+// Aufklappbare Probetest-Sektion im Vokabeln-Tab: Header (tippen = auf/zu),
+// darunter „Neuer Probetest" + Verlauf der durchgeführten Tests.
+let _probetestExpanded = false;
+export function toggleProbetestHistory() {
+  _probetestExpanded = !_probetestExpanded;
+  renderProbetestSection();
+}
+
+export function renderProbetestSection() {
+  const el = document.getElementById('probetest-section');
+  if (!el) return;
+  const hist = Array.isArray(window.SD?.probetests) ? window.SD.probetests : [];
+  const open = _probetestExpanded;
+  const sub = hist.length
+    ? hist.length + ' Test' + (hist.length === 1 ? '' : 's') + ' · zum Aufklappen tippen'
+    : 'Gemischte Prüfung aus bis zu 2 Sammlungen';
+  let html =
+    '<div onclick="toggleProbetestHistory()" style="display:flex;align-items:center;gap:12px;width:100%;padding:14px 16px;border-radius:16px;cursor:pointer;background:linear-gradient(135deg,#5bc24a,#7ed957);color:#fff;box-shadow:0 4px 0 #3a9b45;">'
+    + '<span style="font-size:1.9rem;flex-shrink:0;">🎲</span>'
+    + '<span style="flex:1;min-width:0;"><span style="font-family:\'Fredoka One\',cursive;font-size:1.05rem;">Probetest</span><br>'
+    + '<span style="font-size:.78rem;opacity:.92;">' + sub + '</span></span>'
+    + '<span style="font-size:1rem;opacity:.9;">' + (open ? '▲' : '▼') + '</span></div>';
+
+  if (open) {
+    html += '<div style="padding:12px 4px 2px;">'
+      + '<button onclick="openProbetestPicker()" class="big-btn green center" style="width:100%;margin-bottom:12px;"><span class="icon-btn">➕</span><span>Neuen Probetest starten</span></button>';
+    if (!hist.length) {
+      html += '<div style="text-align:center;color:#999;font-size:.82rem;padding:10px 0 6px;">Noch keine Tests durchgeführt.</div>';
+    } else {
+      hist.forEach(t => {
+        const names = (t.decks || []).map(d => window.escHtml(d.name || '')).join(' + ') || '—';
+        const dateStr = new Date(t.date || Date.now()).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        const gradeColor = t.grade <= 2 ? '#2a7a35' : (t.grade <= 4 ? '#cc8800' : '#c0392b');
+        html += '<div style="background:#fff;border-radius:14px;padding:12px 14px;margin-bottom:8px;box-shadow:var(--shadow);">'
+          + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">'
+          + '<span style="flex:1;min-width:0;font-family:\'Fredoka One\',cursive;font-size:.95rem;color:#444;">' + names + '</span>'
+          + '<span style="font-family:\'Fredoka One\',cursive;font-size:1.1rem;color:' + gradeColor + ';white-space:nowrap;">Note ' + t.grade + '</span></div>'
+          + '<div style="display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.78rem;color:#777;font-weight:700;">'
+          + '<span>📊 ' + t.percent + '%</span>'
+          + '<span>✅ ' + t.correct + '/' + t.questions + ' richtig</span>'
+          + '<span>📅 ' + dateStr + '</span></div></div>';
+      });
+    }
+    html += '</div>';
+  }
+  el.innerHTML = html;
 }
 
 // Auswahl-Popup: bis zu 2 Sammlungen ankreuzen, dann „Start".

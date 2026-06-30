@@ -117,13 +117,25 @@ export async function cloudLoad(userId) {
 }
 
 async function _cloudLoadOnce(userId) {
-  const [profileRes, decksRes, wordStatsRes, presetStatsRes, presetCatProgRes] = await Promise.all([
+  const [profileRes, decksRes, wordStatsRes, presetStatsRes, presetCatProgRes, probetestsRes] = await Promise.all([
     fetchWithRetry(() => supabase.from('profiles').select('player_name, highscore, total_points, active_deck_id, active_mode, uv_active, uv_fills, avatar, updated_at').eq('id', userId).maybeSingle()),
     fetchWithRetry(() => supabase.from('decks').select('*').eq('user_id', userId).order('sort_order').order('created_at')),
     fetchWithRetry(() => supabase.from('word_stats').select('*').eq('user_id', userId)),
     fetchWithRetry(() => supabase.from('preset_stats').select('*').eq('user_id', userId)),
     fetchWithRetry(() => supabase.from('preset_category_progress').select('*').eq('user_id', userId)),
+    fetchWithRetry(() => supabase.from('probetests').select('*').eq('user_id', userId).order('taken_at', { ascending: false }).limit(50)),
   ]);
+
+  // Probetest-Verlauf (non-fatal: fehlt die Tabelle noch, bleibt der Verlauf leer)
+  if (probetestsRes?.error) console.error('[cloudLoad] probetests:', probetestsRes.error.message);
+  const probetests = (probetestsRes?.data || []).map(r => ({
+    decks:     Array.isArray(r.decks) ? r.decks : [],
+    grade:     Number(r.grade)     || 0,
+    percent:   Number(r.percent)   || 0,
+    questions: Number(r.questions) || 0,
+    correct:   Number(r.correct)   || 0,
+    date:      r.taken_at ? new Date(r.taken_at).getTime() : Date.now(),
+  }));
 
   // profile + decks sind Kern-Daten → Fehler hier ist FATAL (→ Retry/failed),
   // damit ein Netz-/Auth-Fehler NICHT als leeres Profil durchrutscht.
@@ -177,6 +189,7 @@ async function _cloudLoadOnce(userId) {
       categoryProgress: { ...EMPTY_CAT },
       wordStats:    {},
       globalPresetStats,
+      probetests,
     } };
   }
 
@@ -226,6 +239,7 @@ async function _cloudLoadOnce(userId) {
     categoryProgress: { ...EMPTY_CAT },
     wordStats:        {},
     globalPresetStats,
+    probetests,
   } };
 }
 
@@ -405,6 +419,19 @@ export async function saveExam({ deckId, grade, percent }, userId) {
   if (error) throw new Error('[sync] saveExam: ' + error.message);
 }
 
+/** Speichert einen Probetest in der probetests-Tabelle (deck-unabhängig). */
+export async function saveProbetest({ decks, grade, percent, questions, correct }, userId) {
+  const { error } = await fetchWithRetry(() => supabase.from('probetests').insert({
+    user_id:   userId,
+    decks:     Array.isArray(decks) ? decks : [],
+    grade:     Math.round(grade),
+    percent:   Math.round(percent),
+    questions: Math.round(questions) || 0,
+    correct:   Math.round(correct)   || 0,
+  }));
+  if (error) throw new Error('[sync] saveProbetest: ' + error.message);
+}
+
 /** Löscht alle Cloud-Daten eines Users (Decks, word_stats und exams via CASCADE). */
 export async function cloudReset(userId) {
   const { error: decksErr } = await supabase
@@ -417,6 +444,9 @@ export async function cloudReset(userId) {
   const { error: pcpErr } = await supabase
     .from('preset_category_progress').delete().eq('user_id', userId);
   if (pcpErr) console.error('[sync] cloudReset preset_category_progress:', pcpErr.message);
+  const { error: ptErr } = await supabase
+    .from('probetests').delete().eq('user_id', userId);
+  if (ptErr) console.error('[sync] cloudReset probetests:', ptErr.message);
 
   const { error: profErr } = await supabase
     .from('profiles')

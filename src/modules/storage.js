@@ -83,6 +83,7 @@ export function freshData() {
     },
     wordStats: {},
     globalPresetStats: { wordStats: {}, categoryProgress: {} },
+    probetests: [],
   };
 }
 

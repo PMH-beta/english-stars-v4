@@ -223,3 +223,22 @@ SET deck_path = CASE
     THEN 'custom'
   ELSE 'none'
 END;
+
+-- v4.0.241: Probetest-Verlauf (Misch-Test über bis zu 2 Sammlungen, deck-unabhängig
+-- → kein deck_id-FK, hängt nur am User). Speichert die Sammlungs-Namen + Wortzahl.
+CREATE TABLE IF NOT EXISTS probetests (
+  id        UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id   UUID    NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  decks     JSONB   NOT NULL DEFAULT '[]'::jsonb,   -- [{ name, count }]
+  grade     INTEGER NOT NULL CHECK (grade BETWEEN 1 AND 6),
+  percent   INTEGER NOT NULL CHECK (percent BETWEEN 0 AND 100),
+  questions INTEGER NOT NULL DEFAULT 0,
+  correct   INTEGER NOT NULL DEFAULT 0,
+  taken_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+ALTER TABLE probetests ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can read own probetests"  ON probetests FOR SELECT TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own probetests" ON probetests FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can delete own probetests" ON probetests FOR DELETE TO authenticated USING (auth.uid() = user_id);
+CREATE INDEX IF NOT EXISTS idx_probetests_user ON probetests(user_id);
+GRANT ALL ON probetests TO authenticated, anon, service_role;

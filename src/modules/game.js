@@ -5,7 +5,7 @@ import { activeDeck, syncMirrorFromActiveDeck } from './decks.js';
 import { showScreen, showMenu, hideFeedback, showFeedback } from './ui.js';
 import { ensureMicStream, releaseMicStream, voskStop, stopVisualizer, speakWord, speakWordOnce, startVoskRecognition, startRecording, _shouldUseVosk, warmAudio, warmIosMic } from './speech.js';
 import { persist } from './storage.js';
-import { markDirty, saveExam } from './sync.js';
+import { markDirty, saveExam, saveProbetest } from './sync.js';
 import { commitDirty } from './dialog.js';
 import { IRREGULAR_PRESET_ID, formDistractors } from './irregular-verbs.js';
 
@@ -1322,6 +1322,14 @@ function showEnd() {
         markDirty('deck', deck.id);
         commitProgress();   // sichtbarer Commit (läuft während die End-Karte angezeigt wird)
       }
+    } else if(window.isProbetest){
+      // Probetest: kein Deck, aber Verlaufseintrag (Sammlungs-Namen, Note, %, Fragen/richtig).
+      const entry={ decks: window._probetestDecks||[], grade, percent, questions: totalQ, correct: window.totalCorrect, date: Date.now() };
+      if(!Array.isArray(window.SD.probetests)) window.SD.probetests=[];
+      window.SD.probetests.unshift(entry);
+      if(window.SD.probetests.length>50) window.SD.probetests.length=50;
+      persist(window.SD);
+      if(window.currentUser) saveProbetest(entry, window.currentUser.id).catch(()=>{});
     }
     const newHS=window.points>=window.SD.highscore&&window.points>0;
     showScreen('end-screen');
