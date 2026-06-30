@@ -409,7 +409,8 @@ export function openProbetestPicker() {
     .filter(id => deckMode(SD.decks[id]) === 'free' && (SD.decks[id].vocab || []).length > 0)
     .map(id => ({ id, name: SD.decks[id].name, n: SD.decks[id].vocab.length }));
   if (!decks.length) {
-    window.esAlert({ icon: '📚', title: 'Keine Sammlungen', body: 'Lege zuerst eine Vokabelsammlung mit Wörtern an.' });
+    window.esAlert({ icon: '📚', title: 'Noch keine Sammlungen',
+      body: 'Für einen Probetest brauchst du mindestens eine Vokabelsammlung mit Wörtern.\n\nLeg unten unter „Vokabelsammlungen" eine Sammlung an und füge Wörter hinzu — dann kannst du sie hier für einen Test auswählen.' });
     return;
   }
   const overlay = document.createElement('div');

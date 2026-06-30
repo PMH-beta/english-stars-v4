@@ -558,7 +558,10 @@ export async function goHomeSaving() {
 
 export function confirmHome() {
   window._gameConfirmOpen = true;   // Marker: Android-Zurück am Dialog = „Zum Menü"
-  window.esConfirm({ icon:'🏠', title:'Zurück zum Menü?', body:'Der Lernfortschritt dieser Runde wird gespeichert.', ok:'Zum Menü', cancel:'Bleiben' }).then(ok => {
+  const opts = window.isProbetest
+    ? { icon:'⚠️', title:'Probetest abbrechen?', body:'Der Probetest wird beendet. Dein Fortschritt in dieser Runde geht verloren und wird nicht gespeichert.', ok:'Abbrechen', cancel:'Weiter testen', danger:true }
+    : { icon:'🏠', title:'Zurück zum Menü?', body:'Der Lernfortschritt dieser Runde wird gespeichert.', ok:'Zum Menü', cancel:'Bleiben' };
+  window.esConfirm(opts).then(ok => {
     window._gameConfirmOpen = false;
     if(!ok) return;
     goHomeSaving();
@@ -1333,6 +1336,7 @@ function showEnd() {
     }
     const newHS=window.points>=window.SD.highscore&&window.points>0;
     showScreen('end-screen');
+    { const rb=document.getElementById('end-restart-btn'); if(rb) rb.style.display=window.isProbetest?'none':''; }
     document.getElementById('stat-points').textContent=window.points;
     document.getElementById('stat-correct').textContent=window.totalCorrect+'/'+totalQ;
     document.getElementById('stat-streak').textContent=window.bestStreak;
@@ -1358,6 +1362,7 @@ function showEnd() {
     return;
   }
   showScreen('end-screen');
+  { const rb=document.getElementById('end-restart-btn'); if(rb) rb.style.display=''; }
   document.getElementById('stat-points').textContent=window.points;
   document.getElementById('stat-correct').textContent=window.totalCorrect;
   document.getElementById('stat-streak').textContent=window.bestStreak;
