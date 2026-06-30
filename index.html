@@ -221,48 +221,12 @@
     <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
   </div>
 
-  <!-- ─── Schülermodus ─── -->
+  <!-- ─── Unregelmäßige (Die Schmiede) ─── -->
   <div id="mode-student" style="display:none;width:100%;">
-
-    <!-- Leerzustand: Auswahl VS / UV (kommt nach erster Wahl nicht wieder) -->
-    <div id="student-chooser" style="display:none;flex-direction:column;gap:14px;width:100%;padding:8px 0 16px;">
-      <div style="text-align:center;font-size:.9rem;color:#888;font-weight:700;">Womit möchtest du starten?</div>
-      <button onclick="chooseStudentTab('vs')" style="display:flex;align-items:center;gap:14px;padding:22px 18px;border:none;border-radius:18px;cursor:pointer;background:linear-gradient(135deg,#a86cdb,#c084fc);color:#fff;text-align:left;font-family:'Nunito',sans-serif;width:100%;box-shadow:0 5px 0 #7a4ba8;">
-        <span style="font-size:2.4rem;flex-shrink:0;">📚</span>
-        <div>
-          <div style="font-family:'Fredoka One',cursive;font-size:1.15rem;">Vokabelsammlungen</div>
-          <div style="font-size:.8rem;opacity:.9;margin-top:2px;">Eigene Wörter anlegen, scannen und lernen</div>
-        </div>
-      </button>
-      <button onclick="chooseStudentTab('uv')" style="display:flex;align-items:center;gap:14px;padding:22px 18px;border:none;border-radius:18px;cursor:pointer;background:linear-gradient(135deg,#4D96FF,#7ab4ff);color:#fff;text-align:left;font-family:'Nunito',sans-serif;width:100%;box-shadow:0 5px 0 #2c6fd0;">
-        <span style="font-size:2.4rem;flex-shrink:0;">⚒️</span>
-        <div>
-          <div style="font-family:'Fredoka One',cursive;font-size:1.15rem;">Die Schmiede</div>
-          <div style="font-size:.8rem;opacity:.9;margin-top:2px;">Unregelmäßige Verben schmieden: go → went → gone</div>
-        </div>
-      </button>
-    </div>
-
-    <!-- Nach Wahl: Sub-Toggle (VS|UV) + Inhalt -->
-    <div id="student-body" style="display:none;width:100%;">
-      <div style="display:flex;align-items:center;justify-content:space-between;width:100%;margin-bottom:12px;gap:8px;">
-        <div style="display:flex;background:#f0f0f0;border-radius:11px;padding:3px;gap:2px;">
-          <button id="student-tab-vs" onclick="chooseStudentTab('vs')" style="font-family:'Fredoka One',cursive;font-size:.78rem;padding:7px 14px;border:none;border-radius:9px;cursor:pointer;transition:all .15s;background:#fff;color:var(--purple);box-shadow:0 2px 6px rgba(0,0,0,.12);">📚 VS</button>
-          <button id="student-tab-uv" onclick="chooseStudentTab('uv')" style="font-family:'Fredoka One',cursive;font-size:.78rem;padding:7px 14px;border:none;border-radius:9px;cursor:pointer;transition:all .15s;background:transparent;color:#999;">⚒️ UV</button>
-        </div>
-        <button id="student-schnell-toggle" onclick="toggleSchnell()" style="font-family:'Fredoka One',cursive;font-size:.78rem;padding:6px 12px;border:none;border-radius:11px;cursor:pointer;transition:all .2s;background:#eee;color:#888;box-shadow:0 3px 0 #ccc;white-space:nowrap;">⚡ Schnell: AUS</button>
-      </div>
-
-      <!-- VS: Vokabelsammlungen (nur eigene Decks) -->
-      <div id="student-vs" style="display:none;width:100%;">
-        <div id="student-decks-container" style="width:100%;"></div>
-      </div>
-
-      <!-- UV: Die Schmiede (unregelmäßige Verben) — wird von renderStudentUV befüllt -->
-      <div id="student-uv" style="display:none;width:100%;text-align:center;padding:40px 20px;">
-        <div style="font-size:3.2rem;margin-bottom:12px;">⚒️</div>
-        <div style="font-family:'Fredoka One',cursive;font-size:1.3rem;color:var(--purple);margin-bottom:6px;">Die Schmiede</div>
-      </div>
+    <!-- Die Schmiede (unregelmäßige Verben) — wird von renderStudentUV befüllt -->
+    <div id="student-uv" style="width:100%;text-align:center;padding:40px 20px;">
+      <div style="font-size:3.2rem;margin-bottom:12px;">⚒️</div>
+      <div style="font-family:'Fredoka One',cursive;font-size:1.3rem;color:var(--purple);margin-bottom:6px;">Die Schmiede</div>
     </div>
   </div>
 

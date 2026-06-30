@@ -316,53 +316,11 @@ export async function setActiveMode(mode) {
   if (window.currentUser) { markDirty('profile'); await commitDirty(); }
 }
 
-// ── Schülermodus: UV/VS-Sub-Toggle + Leerzustand-Chooser ──
-// Die Wahl (vs|uv) liegt in localStorage (überlebt Cloud-Load 1:1, der window.SD
-// ersetzt) → die Start-Abfrage kommt nach einmaliger Wahl nicht wieder.
-const STUDENT_SUBTAB_KEY = 'es_student_subtab';
-function _getStudentSubTab() {
-  try { return localStorage.getItem(STUDENT_SUBTAB_KEY); } catch (e) { return null; }
-}
-
-// Die VS/UV-Wahl liegt nur lokal → auf einem neuen Gerät fehlt sie, obwohl der
-// Fortschritt aus der Cloud schon da ist. Dann KEINE Erstauswahl mehr zeigen,
-// sondern den bereits bespielten Pfad ableiten (UV-Verbstats bzw. Schüler-Decks).
-function _inferStudentSubTab() {
-  const sd = window.SD || {};
-  const ws = sd.globalPresetStats?.wordStats || {};
-  const uvPlayed = Object.entries(ws).some(([k, s]) => k.includes('|' + IRREGULAR_PRESET_ID) && s && s.asked > 0);
-  if (uvPlayed) return 'uv';
-  const vsPlayed = Object.values(sd.decks || {}).some(d => (d.mode || 'free') === 'student' && d.wordStats && Object.keys(d.wordStats).length > 0);
-  if (vsPlayed) return 'vs';
-  return null;
-}
-
+// ── Unregelmäßige: nur noch die Schmiede (Gestaltwandler) ──
 function renderStudentMode() {
-  let sub = _getStudentSubTab();
-  if (!sub) {
-    const inferred = _inferStudentSubTab();
-    if (inferred) { try { localStorage.setItem(STUDENT_SUBTAB_KEY, inferred); } catch (e) {} sub = inferred; }
-  }
-  const chooser = document.getElementById('student-chooser');
-  const body = document.getElementById('student-body');
-  if (!sub) {
-    // Noch nichts gewählt → zwei große Kacheln zur Auswahl, Body aus.
-    if (chooser) chooser.style.display = 'flex';
-    if (body) body.style.display = 'none';
-    return;
-  }
-  if (chooser) chooser.style.display = 'none';
-  if (body) body.style.display = 'block';
-  _renderStudentSubToggle(sub);
-  const vs = document.getElementById('student-vs');
   const uv = document.getElementById('student-uv');
-  if (vs) vs.style.display = (sub === 'vs') ? 'block' : 'none';
-  if (uv) uv.style.display = (sub === 'uv') ? 'block' : 'none';
-  // Schnell-Button nur in VS (UV zählt immer echt, kein Schnell-Modus).
-  const schnellBtn = document.getElementById('student-schnell-toggle');
-  if (schnellBtn) schnellBtn.style.display = (sub === 'vs') ? '' : 'none';
-  if (sub === 'vs') renderDecks('student');
-  if (sub === 'uv') renderStudentUV();
+  if (uv) uv.style.display = 'block';
+  renderStudentUV();
 }
 
 // UV-Tab (Gestaltwandler): Sternenpfad. Ein nach unten scrollbarer Nachthimmel;
@@ -1020,23 +978,6 @@ function initUvSliders() {
       window.startConstellationStar(ci, si);
     });
   });
-}
-
-function _renderStudentSubToggle(sub) {
-  ['vs', 'uv'].forEach(t => {
-    const btn = document.getElementById('student-tab-' + t);
-    if (!btn) return;
-    const on = (t === sub);
-    btn.style.background = on ? '#fff' : 'transparent';
-    btn.style.color      = on ? 'var(--purple)' : '#999';
-    btn.style.boxShadow  = on ? '0 2px 6px rgba(0,0,0,.12)' : 'none';
-  });
-}
-
-export function chooseStudentTab(tab) {
-  if (tab !== 'vs' && tab !== 'uv') return;
-  try { localStorage.setItem(STUDENT_SUBTAB_KEY, tab); } catch (e) {}
-  renderStudentMode();
 }
 
 // ────────────────────────────────────────────────
