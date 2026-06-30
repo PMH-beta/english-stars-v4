@@ -1,7 +1,7 @@
 // src/modules/ui.js
 import { persist, freshData, clearStorage } from './storage.js';
 import { effectivePct, isStatMastered, statKeyFor } from './stats.js';
-import { syncMirrorFromActiveDeck, deckProgress, presetProgressPct, renderDecks, migrateStatKeys, deckMode, activeDeckIdForMode } from './decks.js';
+import { syncMirrorFromActiveDeck, deckProgress, presetProgressPct, renderDecks, migrateStatKeys, migrateDeckModes, deckMode, activeDeckIdForMode } from './decks.js';
 import { getPresetCategories } from './vocab.js';
 import { releaseMicStream, stopVisualizer, voskStop, speakWord } from './speech.js';
 import { signIn, signUp, signOut, resendConfirmation, requestPasswordReset, updatePassword, signInWithGoogle } from './auth.js';
@@ -1828,6 +1828,9 @@ function adoptCloudState(state, signature) {
   window.SD = state;
   setCloudConfirmed(true);
   setKnownSig(signature);   // bekannte Cloud-Signatur merken (für Minuten-Check)
+  // Einmalige Migration: Schüler-Vokabelsammlungen → „Vokabeln" (Freier Modus).
+  // Geänderte Decks zurück in die Cloud schreiben, sonst kippt's beim Hard-Load.
+  if (migrateDeckModes() && window.currentUser) commitDirty();
   persist(window.SD);
   syncMirrorFromActiveDeck();
 }

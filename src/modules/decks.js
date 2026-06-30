@@ -710,6 +710,23 @@ export function migrateStatKeys(sd) {
   return changed;
 }
 
+// Einmalige Migration: ehemalige Schüler-Vokabelsammlungen (mode 'student')
+// wandern in „Vokabeln" (Freier Modus) und werden wie selbst angelegte Decks
+// behandelt. Flippt mode 'student' → 'free' und markiert die Decks für den
+// Cloud-Write. Idempotent (greift nur, solange noch 'student'-Decks da sind).
+export function migrateDeckModes(sd) {
+  sd = sd || window.SD;
+  let changed = false;
+  for (const deck of Object.values(sd.decks || {})) {
+    if (deck.mode === 'student') {
+      deck.mode = 'free';
+      if (window.currentUser) markDirty('deck', deck.id);
+      changed = true;
+    }
+  }
+  return changed;
+}
+
 export function vmAddManual() {
   const de = (document.getElementById('vm-add-de')?.value || '').trim();
   const en = (document.getElementById('vm-add-en')?.value || '').trim();
