@@ -206,8 +206,16 @@
     <button id="mode-btn-student" onclick="setActiveMode('student')" style="flex:1;font-family:'Fredoka One',cursive;font-size:.78rem;padding:8px 4px;border:none;border-radius:11px;cursor:pointer;transition:all .15s;background:transparent;color:#999;">⚒️ Unregelmäßige</button>
   </div>
 
-  <!-- ─── Freier Modus ─── -->
+  <!-- ─── Vokabeln ─── -->
   <div id="mode-free">
+    <!-- Probetest: eigene Sektion über den Sammlungen (bis zu 2 Decks, ephemer) -->
+    <button onclick="openProbetestPicker()" style="display:flex;align-items:center;gap:12px;width:100%;padding:14px 16px;margin-bottom:16px;border:none;border-radius:16px;cursor:pointer;background:linear-gradient(135deg,#5bc24a,#7ed957);color:#fff;text-align:left;font-family:'Nunito',sans-serif;box-shadow:0 4px 0 #3a9b45;">
+      <span style="font-size:1.9rem;flex-shrink:0;">🎲</span>
+      <span style="flex:1;min-width:0;">
+        <span style="font-family:'Fredoka One',cursive;font-size:1.05rem;">Probetest</span><br>
+        <span style="font-size:.78rem;opacity:.92;">Gemischte Prüfung aus bis zu 2 Sammlungen</span>
+      </span>
+    </button>
     <div style="display:flex;align-items:center;justify-content:space-between;width:100%;margin-bottom:8px;">
       <div class="section-title" style="margin:0">📚 Vokabelsammlungen</div>
       <button id="schnell-toggle" onclick="toggleSchnell()" style="

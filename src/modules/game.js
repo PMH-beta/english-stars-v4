@@ -30,6 +30,7 @@ window._progressSaved = false;
 window._pronounceAttempts = 0;
 window._lastModePct = 0;
 window.isExamMode = false;
+window.isProbetest = false;                // ephemerer Misch-Test (bis 2 Decks), kein Deck/kein Speichern
 window.isUV = false;                       // Gestaltwandler-Modus (Verben), kein Deck
 
 // ── Pool Utilities ──
@@ -1265,6 +1266,7 @@ function saveProgress() {
   }
   const deck = activeDeck();
   if(window.isExamMode){
+    if(window.isProbetest) return;   // Probetest: ephemer — kein Score, kein Sync, kein lastExam
     if(window.questionIndex > 0) _updateGlobalPresetCategoryProgress(deck);
     window.SD.totalPoints+=window.points;
     if(window.points>window.SD.highscore) window.SD.highscore=window.points;

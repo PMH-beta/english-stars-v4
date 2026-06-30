@@ -233,10 +233,6 @@ export function renderDecks(mode) {
             <span class="icon-btn">🎙️</span>
             <div><span>Aussprache</span><span class="btn-sub">${renderModeSubBy(p.perMode.pronounce)}</span></div>
           </button>
-          ${window.SD?.activeMode !== 'free' ? `<button class="big-btn green" onclick="startGameWithDeck('${id}','mixed_vocab')">
-            <span class="icon-btn">🎲</span>
-            <div><span>Alle gemischt</span><span class="btn-sub">${deck.lastExam ? '📊 Note ' + deck.lastExam.grade + ' · ' + new Date(deck.lastExam.date).toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'}) : '📊 Noch keine Prüfung'}</span></div>
-          </button>` : ''}
           ${deck.deckPath !== 'preset' ? `<button class="big-btn teal" onclick="openVocabManager('${id}')">
             <span class="icon-btn">📷</span>
             <div><span>Vokabeln verwalten</span><span class="btn-sub">Hinzufügen, scannen, löschen</span></div>

@@ -323,6 +323,117 @@ function renderStudentMode() {
   renderStudentUV();
 }
 
+// ── Probetest: ephemerer Misch-Test über bis zu 2 Vokabelsammlungen ──
+// Baut window.VOCAB aus der Vereinigung der gewählten Decks, ohne aktives Deck
+// (→ kein lastExam/Sync), und startet eine Prüfungsrunde (mixed_vocab).
+export function startProbetest(deckIds) {
+  const SD = window.SD;
+  const ids = (deckIds || []).filter(id => SD.decks[id]).slice(0, 2);
+  if (!ids.length) return;
+  const seen = new Set();
+  const union = [];
+  for (const id of ids) {
+    for (const v of (SD.decks[id].vocab || [])) {
+      const k = (v.de || '').trim().toLowerCase() + '|' + (v.en || '').trim().toLowerCase();
+      if (seen.has(k)) continue;
+      seen.add(k); union.push(v);
+    }
+  }
+  if (!union.length) {
+    window.esAlert({ icon: '📭', title: 'Keine Wörter', body: 'Die gewählten Sammlungen enthalten keine Vokabeln.' });
+    return;
+  }
+  window.isUV = false;
+  window.isProbetest = true;
+  SD.activeDeckId = null;   // kein Deck → Prüfung läuft ephemer (kein lastExam/Sync)
+  if (typeof window.VOCAB !== 'undefined') {
+    window.VOCAB.length = 0;
+    for (const v of union) window.VOCAB.push(v);
+  }
+  window.startGame('mixed_vocab');
+}
+
+// Auswahl-Popup: bis zu 2 Sammlungen ankreuzen, dann „Start".
+export function openProbetestPicker() {
+  const SD = window.SD;
+  const decks = Object.keys(SD.decks || {})
+    .filter(id => deckMode(SD.decks[id]) === 'free' && (SD.decks[id].vocab || []).length > 0)
+    .map(id => ({ id, name: SD.decks[id].name, n: SD.decks[id].vocab.length }));
+  if (!decks.length) {
+    window.esAlert({ icon: '📚', title: 'Keine Sammlungen', body: 'Lege zuerst eine Vokabelsammlung mit Wörtern an.' });
+    return;
+  }
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
+  const card = document.createElement('div');
+  card.style.cssText = "background:#fff;border-radius:20px;padding:24px 20px;max-width:360px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,.2);max-height:85vh;display:flex;flex-direction:column;";
+  card.innerHTML =
+    '<div style="font-size:2.2rem;text-align:center;margin-bottom:4px;">🎲</div>'
+    + '<div style="font-family:\'Fredoka One\',cursive;font-size:1.2rem;color:var(--purple);text-align:center;margin-bottom:6px;">Probetest</div>'
+    + '<p style="font-size:.85rem;color:#777;text-align:center;margin:0 0 14px;line-height:1.5;">Bis zu 2 Sammlungen wählen — gemischte Prüfung, ohne Speichern.</p>';
+  const list = document.createElement('div');
+  list.style.cssText = 'overflow-y:auto;display:flex;flex-direction:column;gap:8px;margin-bottom:16px;';
+  const selected = new Set();
+
+  const startBtn = document.createElement('button');
+  startBtn.style.cssText = "font-family:'Fredoka One',cursive;font-size:1rem;padding:12px 22px;border:none;border-radius:50px;cursor:pointer;background:linear-gradient(135deg,#5bc24a,#7ed957);color:#fff;box-shadow:0 4px 0 #3a9b45;";
+  startBtn.textContent = 'Start';
+
+  function refresh() {
+    list.querySelectorAll('button').forEach(r => {
+      const on = selected.has(r._deckId);
+      const dim = !on && selected.size >= 2;
+      r.style.borderColor = on ? 'var(--purple)' : '#eee';
+      r.style.background  = on ? '#f6efff' : '#fafafa';
+      r.style.opacity     = dim ? '.45' : '1';
+      const ck = r.querySelector('.pt-check');
+      ck.style.background  = on ? 'var(--purple)' : '#fff';
+      ck.style.borderColor = on ? 'var(--purple)' : '#ccc';
+      ck.textContent = on ? '✓' : '';
+    });
+    const none = selected.size === 0;
+    startBtn.disabled = none;
+    startBtn.style.opacity = none ? '.5' : '1';
+    startBtn.style.cursor  = none ? 'default' : 'pointer';
+  }
+
+  decks.forEach(d => {
+    const row = document.createElement('button');
+    row.type = 'button';
+    row._deckId = d.id;
+    row.style.cssText = "display:flex;align-items:center;gap:11px;padding:12px 14px;border:2px solid #eee;border-radius:12px;background:#fafafa;cursor:pointer;font-family:'Nunito',sans-serif;text-align:left;transition:all .12s;";
+    row.innerHTML =
+      '<span class="pt-check" style="width:22px;height:22px;border-radius:6px;border:2px solid #ccc;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.85rem;color:#fff;"></span>'
+      + '<span style="flex:1;min-width:0;"><span style="font-weight:700;color:#444;">' + window.escHtml(d.name) + '</span><br>'
+      + '<span style="font-size:.75rem;color:#999;">📝 ' + d.n + ' Wörter</span></span>';
+    row.addEventListener('click', () => {
+      if (selected.has(d.id)) selected.delete(d.id);
+      else { if (selected.size >= 2) return; selected.add(d.id); }
+      refresh();
+    });
+    list.appendChild(row);
+  });
+  card.appendChild(list);
+
+  const btnRow = document.createElement('div');
+  btnRow.style.cssText = 'display:flex;gap:10px;justify-content:center;';
+  const cancel = document.createElement('button');
+  cancel.style.cssText = "font-family:'Fredoka One',cursive;font-size:1rem;padding:12px 22px;border:none;border-radius:50px;cursor:pointer;background:#eee;color:#333;";
+  cancel.textContent = 'Abbrechen';
+  cancel.addEventListener('click', () => overlay.remove());
+  startBtn.addEventListener('click', () => {
+    if (!selected.size) return;
+    overlay.remove();
+    startProbetest([...selected]);
+  });
+  btnRow.appendChild(cancel);
+  btnRow.appendChild(startBtn);
+  card.appendChild(btnRow);
+  overlay.appendChild(card);
+  (document.body || document.documentElement).appendChild(overlay);
+  refresh();
+}
+
 // UV-Tab (Gestaltwandler): Sternenpfad. Ein nach unten scrollbarer Nachthimmel;
 // jedes Sternbild = gezeichnetes 6-Punkt-Muster (5 spielbare Disziplin-Sterne +
 // 1 Komplett-Leuchtstern). Sterne leuchten golden auf, wenn gemeistert; der nächste
@@ -990,6 +1101,7 @@ export function showMenu() {
   try { releaseMicStream(); } catch (e) {}
   try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) {}
   window.isUV = false;   // UV-Runde verlassen → window.VOCAB wird gleich neu gespiegelt
+  window.isProbetest = false;   // Probetest beendet → wieder normale Wertung
   hideFeedback();
   showScreen('menu-screen');
   document.getElementById('menu-player-name').textContent = 'Hallo, ' + window.SD.playerName + '! 👋';
