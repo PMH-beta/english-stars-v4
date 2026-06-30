@@ -75,6 +75,7 @@ function _renderVmTabsForMode() {
       tabsEl.innerHTML = `
         <button class="vm-tab" data-tab="add" onclick="vmTab('add')">➕ Hinzufügen</button>
         <button class="vm-tab" data-tab="paste" onclick="vmTab('paste')">📝 Text</button>
+        <button class="vm-tab" data-tab="scan" onclick="vmTab('scan')">📷 Scan</button>
         <button class="vm-tab" data-tab="list" onclick="vmTab('list')">📋 Liste <span id="vm-count" class="vm-count">0</span></button>
       `;
       vmTab('add');
