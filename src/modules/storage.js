@@ -1,8 +1,6 @@
 // src/modules/storage.js
 // Alle LocalStorage-Operationen zentral. Später wird hier auch das Backend (Supabase) eingebunden.
 
-import { DEFAULT_DECKS } from './default-decks.js';
-
 const SK = 'english_stars_v3';
 const SK_OLD = 'english_stars_v2';
 
@@ -46,35 +44,16 @@ export function load() {
  * @returns {object}
  */
 export function freshData() {
-  const decks = {};
-  DEFAULT_DECKS.forEach((def, idx) => {
-    decks[def.id] = {
-      id: def.id,
-      name: def.name,
-      createdAt: Date.now(),
-      vocab: def.vocab.slice(),
-      wordStats: {},
-      categoryProgress: {
-        vocab:       { played: 0, correct: 0, bestStreak: 0 },
-        spelling:    { played: 0, correct: 0, bestStreak: 0 },
-        pronounce:   { played: 0, correct: 0, bestStreak: 0 },
-        mixed_vocab: { played: 0, correct: 0, bestStreak: 0 },
-      },
-      presetCategories: [],
-      presetsLocked: false,
-      deckPath: 'none',
-      sortOrder: (idx + 1) * 10,
-      lastExam: null,
-    };
-  });
+  // Neue Konten starten OHNE Decks → der Vokabeln-Tab zeigt den Auswahl-
+  // Leerzustand (Vorlage auswählen / eigene Sammlung anlegen).
   return {
     _version: 4,
     playerName: '', highscore: 0, totalPoints: 0,
     avatar: { skin: 0, build: 4, hair: 0, eyes: 0, nose: 0, mouth: 0, ears: 2 },
     activeMode: 'free',
     presetIntroSeen: false,
-    activeDeckId: DEFAULT_DECKS[0].id,
-    decks,
+    activeDeckId: null,
+    decks: {},
     categoryProgress: {
       vocab:       { played: 0, correct: 0, bestStreak: 0 },
       spelling:    { played: 0, correct: 0, bestStreak: 0 },

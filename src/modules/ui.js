@@ -366,6 +366,10 @@ export function renderProbetestSection() {
   const el = document.getElementById('probetest-section');
   if (!el) return;
   const hist = Array.isArray(window.SD?.probetests) ? window.SD.probetests : [];
+  // Leerzustand (neues Konto: keine Sammlung, kein Verlauf) → Sektion ausblenden,
+  // damit im Vokabeln-Tab nur die Start-Auswahl steht.
+  const hasFreeDecks = Object.values(window.SD?.decks || {}).some(d => deckMode(d) === 'free');
+  if (!hasFreeDecks && !hist.length) { el.innerHTML = ''; return; }
   const open = _probetestExpanded;
   const sub = hist.length
     ? hist.length + ' Test' + (hist.length === 1 ? '' : 's') + ' · zum Aufklappen tippen'

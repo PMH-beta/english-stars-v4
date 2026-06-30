@@ -177,6 +177,33 @@ function renderModeSubBy(p) {
          '<span class="btn-progress"><span class="btn-progress-fill" style="width:' + pct + '%"></span></span>';
 }
 
+// Leerzustand im Vokabeln-Tab (keine Sammlung vorhanden): zwei große Kacheln —
+// Vorlage auswählen oder eigene Sammlung anlegen. Startet direkt den jeweiligen Weg.
+function _renderEmptyChooser(c) {
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'display:flex;flex-direction:column;gap:14px;width:100%;padding:6px 0 4px;';
+  wrap.innerHTML = `
+    <div style="text-align:center;font-size:.9rem;color:#888;font-weight:700;margin-bottom:2px;">Wie möchtest du starten?</div>
+    <button id="empty-preset" style="display:flex;align-items:center;gap:14px;padding:20px 18px;border:none;border-radius:18px;cursor:pointer;background:linear-gradient(135deg,#a86cdb,#c084fc);color:#fff;text-align:left;font-family:'Nunito',sans-serif;width:100%;box-shadow:0 5px 0 #7a4ba8;">
+      <span style="font-size:2.2rem;flex-shrink:0;">📦</span>
+      <div>
+        <div style="font-family:'Fredoka One',cursive;font-size:1.1rem;">Vorlage auswählen</div>
+        <div style="font-size:.8rem;opacity:.9;margin-top:2px;">Fertige Wortgruppen nehmen und sofort starten</div>
+      </div>
+    </button>
+    <button id="empty-custom" style="display:flex;align-items:center;gap:14px;padding:20px 18px;border:none;border-radius:18px;cursor:pointer;background:linear-gradient(135deg,#4D96FF,#7ab4ff);color:#fff;text-align:left;font-family:'Nunito',sans-serif;width:100%;box-shadow:0 5px 0 #2c6fd0;">
+      <span style="font-size:2.2rem;flex-shrink:0;">✏️</span>
+      <div>
+        <div style="font-family:'Fredoka One',cursive;font-size:1.1rem;">Eigene Sammlung anlegen</div>
+        <div style="font-size:.8rem;opacity:.9;margin-top:2px;">Wörter selbst eingeben, einfügen oder scannen</div>
+      </div>
+    </button>
+  `;
+  c.appendChild(wrap);
+  wrap.querySelector('#empty-preset').addEventListener('click', () => { if (window.newDeckPreset) window.newDeckPreset(); });
+  wrap.querySelector('#empty-custom').addEventListener('click', () => { if (window.newDeckCustom) window.newDeckCustom(); });
+}
+
 export function renderDecks(mode) {
   _ensureDocListeners();
   const SD = window.SD;
@@ -184,6 +211,10 @@ export function renderDecks(mode) {
   const c = document.getElementById(mode === 'student' ? 'student-decks-container' : 'decks-container');
   if (!c) return;
   c.innerHTML = '';
+
+  const ids = _getSortedDeckIds(mode);
+  // Neu/leer (Vokabeln): nur die Auswahl Vorlage / eigene Sammlung zeigen.
+  if (mode === 'free' && ids.length === 0) { _renderEmptyChooser(c); return; }
 
   // «+ Neue Sammlung» — immer erstes Element, nicht verschiebbar
   const newBtn = document.createElement('button');
@@ -193,7 +224,7 @@ export function renderDecks(mode) {
   newBtn.addEventListener('click', () => window.newDeckFlow(mode));
   c.appendChild(newBtn);
 
-  _getSortedDeckIds(mode).forEach(id => {
+  ids.forEach(id => {
     const deck = SD.decks[id];
     const p = deckProgress(deck);
     const isActive = id === SD.activeDeckId;

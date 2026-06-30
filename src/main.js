@@ -11,7 +11,7 @@ import { avatarPick, avatarArrow } from './modules/avatar.js';
 import { showScreen, saveName, showMenu, saveApiKey, skipApiKey, showProfile, editPlayerName, showCharacter, closeCharacter, showStats, confirmReset, showFeedback, hideFeedback, exportData, importData, showAuth, authToggleMode, authSubmit, authResend, authLogout, authGoogleSignIn, handleLogin, handleLogout, showPasswordReset, submitPasswordReset, showNewPasswordScreen, submitNewPassword, cancelNewPassword, setActiveMode, renderModeContent, openProbetestPicker, toggleProbetestHistory, uvFlip, uvSlide, uvSetForm, uvInfo, uvOpenFill, onAppResume, checkForRemoteChange } from './modules/ui.js';
 import { pwaInstall } from './modules/pwa.js';
 import { startConstellationStar, startConstellationForm, uvProgress } from './modules/irregular-game.js';
-import { openVocabManager, openPresetDeckStats, vmTab, renderVocabList, parsePastedText, onScanFile, showReview, renderReviewList, removeReviewItem, addReviewItem, confirmAddVocab, renderPresetsTab, togglePresetCategory, vmBack, vmRenameActiveDeck, newDeckFlow, confirmAbortDraft } from './modules/vocab.js';
+import { openVocabManager, openPresetDeckStats, vmTab, renderVocabList, parsePastedText, onScanFile, showReview, renderReviewList, removeReviewItem, addReviewItem, confirmAddVocab, renderPresetsTab, togglePresetCategory, vmBack, vmRenameActiveDeck, newDeckFlow, newDeckPreset, newDeckCustom, confirmAbortDraft } from './modules/vocab.js';
 import './modules/dialog.js'; // registriert window.esAlert/esConfirm/esPrompt (App-Overlays statt nativer Dialoge)
 import { startupSequence, finishStartup } from './modules/startup.js';
 import { supabase, testConnection } from './modules/supabase.js';
@@ -179,6 +179,8 @@ window.vmBack = vmBack;
 window.vmRenameActiveDeck = vmRenameActiveDeck;
 window.confirmAbortDraft = confirmAbortDraft;
 window.newDeckFlow = newDeckFlow;
+window.newDeckPreset = newDeckPreset;
+window.newDeckCustom = newDeckCustom;
 
 // Musik via window für Legacy-Code
 window._trackUrl = _trackUrl;

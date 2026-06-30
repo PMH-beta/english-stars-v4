@@ -864,6 +864,19 @@ export function newDeckFlow(mode = 'free') {
   _showNewDeckPathDialog();
 }
 
+// Direkter Einstieg in die zwei Sammlungs-Wege (genutzt vom Pfad-Dialog UND vom
+// Auswahl-Leerzustand im Vokabeln-Tab).
+export function newDeckPreset() {
+  window._draftDeck = { id: '_draft', name: 'Neue Sammlung', vocab: [], presetCategories: [], deckPath: 'preset', presetsLocked: false, mode: 'free' };
+  window.VOCAB = window._draftDeck.vocab;
+  openVocabManager();
+}
+export function newDeckCustom() {
+  window._draftDeck = { id: '_draft', name: 'Neue Sammlung', vocab: [], presetCategories: [], deckPath: 'custom', presetsLocked: false, mode: 'free' };
+  window.VOCAB = window._draftDeck.vocab;
+  openVocabManager();
+}
+
 function _showNewDeckPathDialog() {
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
@@ -894,18 +907,8 @@ function _showNewDeckPathDialog() {
     </div>
   `;
   document.body.appendChild(overlay);
-  overlay.querySelector('#_ndp-preset').addEventListener('click', () => {
-    overlay.remove();
-    window._draftDeck = { id: '_draft', name: 'Neue Sammlung', vocab: [], presetCategories: [], deckPath: 'preset', presetsLocked: false, mode: 'free' };
-    window.VOCAB = window._draftDeck.vocab;
-    openVocabManager();
-  });
-  overlay.querySelector('#_ndp-custom').addEventListener('click', () => {
-    overlay.remove();
-    window._draftDeck = { id: '_draft', name: 'Neue Sammlung', vocab: [], presetCategories: [], deckPath: 'custom', presetsLocked: false, mode: 'free' };
-    window.VOCAB = window._draftDeck.vocab;
-    openVocabManager();
-  });
+  overlay.querySelector('#_ndp-preset').addEventListener('click', () => { overlay.remove(); newDeckPreset(); });
+  overlay.querySelector('#_ndp-custom').addEventListener('click', () => { overlay.remove(); newDeckCustom(); });
   overlay.querySelector('#_ndp-cancel').addEventListener('click', () => overlay.remove());
 }
 
