@@ -114,16 +114,12 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-  -- Google OAuth liefert full_name in raw_user_meta_data — als Startwert übernehmen.
-  -- Passwort-User haben kein full_name → COALESCE gibt '' zurück.
+  -- player_name bleibt IMMER leer — auch bei Google-OAuth wird full_name NICHT
+  -- übernommen. So durchläuft jedes NEUE Konto (E-Mail wie Google) die Namens-
+  -- abfrage + Charakter-Anpassung im Onboarding.
   -- ON CONFLICT: idempotent, kein zweiter Row bei Identity-Linking.
   INSERT INTO public.profiles (id, player_name, highscore, total_points)
-  VALUES (
-    NEW.id,
-    COALESCE(NEW.raw_user_meta_data->>'full_name', ''),
-    0,
-    0
-  )
+  VALUES (NEW.id, '', 0, 0)
   ON CONFLICT (id) DO NOTHING;
   RETURN NEW;
 END;
@@ -242,3 +238,20 @@ CREATE POLICY "Users can insert own probetests" ON probetests FOR INSERT TO auth
 CREATE POLICY "Users can delete own probetests" ON probetests FOR DELETE TO authenticated USING (auth.uid() = user_id);
 CREATE INDEX IF NOT EXISTS idx_probetests_user ON probetests(user_id);
 GRANT ALL ON probetests TO authenticated, anon, service_role;
+
+-- v4.0.249: Onboarding auch für Google — Signup-Trigger übernimmt full_name NICHT
+-- mehr, player_name startet immer leer. Wirkt nur für NEUE Signups; bestehende
+-- Konten bleiben unberührt. Einmalig im Supabase-Dashboard ausführen:
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  INSERT INTO public.profiles (id, player_name, highscore, total_points)
+  VALUES (NEW.id, '', 0, 0)
+  ON CONFLICT (id) DO NOTHING;
+  RETURN NEW;
+END;
+$$;
