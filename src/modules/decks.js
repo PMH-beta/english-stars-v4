@@ -181,21 +181,21 @@ function renderModeSubBy(p) {
 // Vorlage auswählen oder eigene Sammlung anlegen. Startet direkt den jeweiligen Weg.
 function _renderEmptyChooser(c) {
   const wrap = document.createElement('div');
-  wrap.style.cssText = 'display:flex;flex-direction:column;gap:14px;width:100%;padding:6px 0 4px;';
+  wrap.style.cssText = 'display:flex;flex-direction:column;gap:16px;width:100%;padding:18px 0 8px;';
   wrap.innerHTML = `
-    <div style="text-align:center;font-size:.9rem;color:#888;font-weight:700;margin-bottom:2px;">Wie möchtest du starten?</div>
-    <button id="empty-preset" style="display:flex;align-items:center;gap:14px;padding:20px 18px;border:none;border-radius:18px;cursor:pointer;background:linear-gradient(135deg,#a86cdb,#c084fc);color:#fff;text-align:left;font-family:'Nunito',sans-serif;width:100%;box-shadow:0 5px 0 #7a4ba8;">
-      <span style="font-size:2.2rem;flex-shrink:0;">📦</span>
+    <div style="text-align:center;font-family:'Fredoka One',cursive;font-size:1.25rem;color:var(--purple);margin-bottom:4px;">Womit möchtest du starten?</div>
+    <button id="empty-preset" style="display:flex;align-items:center;gap:16px;padding:26px 20px;border:none;border-radius:20px;cursor:pointer;background:linear-gradient(135deg,#a86cdb,#c084fc);color:#fff;text-align:left;font-family:'Nunito',sans-serif;width:100%;box-shadow:0 6px 0 #7a4ba8;">
+      <span style="font-size:2.8rem;flex-shrink:0;">📦</span>
       <div>
-        <div style="font-family:'Fredoka One',cursive;font-size:1.1rem;">Vorlage auswählen</div>
-        <div style="font-size:.8rem;opacity:.9;margin-top:2px;">Fertige Wortgruppen nehmen und sofort starten</div>
+        <div style="font-family:'Fredoka One',cursive;font-size:1.25rem;">Vorlage auswählen</div>
+        <div style="font-size:.85rem;opacity:.92;margin-top:3px;">Fertige Wortgruppen nehmen und sofort starten</div>
       </div>
     </button>
-    <button id="empty-custom" style="display:flex;align-items:center;gap:14px;padding:20px 18px;border:none;border-radius:18px;cursor:pointer;background:linear-gradient(135deg,#4D96FF,#7ab4ff);color:#fff;text-align:left;font-family:'Nunito',sans-serif;width:100%;box-shadow:0 5px 0 #2c6fd0;">
-      <span style="font-size:2.2rem;flex-shrink:0;">✏️</span>
+    <button id="empty-custom" style="display:flex;align-items:center;gap:16px;padding:26px 20px;border:none;border-radius:20px;cursor:pointer;background:linear-gradient(135deg,#4D96FF,#7ab4ff);color:#fff;text-align:left;font-family:'Nunito',sans-serif;width:100%;box-shadow:0 6px 0 #2c6fd0;">
+      <span style="font-size:2.8rem;flex-shrink:0;">✏️</span>
       <div>
-        <div style="font-family:'Fredoka One',cursive;font-size:1.1rem;">Eigene Sammlung anlegen</div>
-        <div style="font-size:.8rem;opacity:.9;margin-top:2px;">Wörter selbst eingeben, einfügen oder scannen</div>
+        <div style="font-family:'Fredoka One',cursive;font-size:1.25rem;">Eigene Sammlung anlegen</div>
+        <div style="font-size:.85rem;opacity:.92;margin-top:3px;">Wörter selbst eingeben, einfügen oder scannen</div>
       </div>
     </button>
   `;
@@ -213,6 +213,11 @@ export function renderDecks(mode) {
   c.innerHTML = '';
 
   const ids = _getSortedDeckIds(mode);
+  // Kopfzeile (Überschrift + Schnell-Toggle) nur zeigen, wenn Sammlungen da sind.
+  if (mode === 'free') {
+    const hdr = document.getElementById('free-decks-header');
+    if (hdr) hdr.style.display = (ids.length === 0) ? 'none' : '';
+  }
   // Neu/leer (Vokabeln): nur die Auswahl Vorlage / eigene Sammlung zeigen.
   if (mode === 'free' && ids.length === 0) { _renderEmptyChooser(c); return; }
 
