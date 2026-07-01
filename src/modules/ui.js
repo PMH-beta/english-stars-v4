@@ -39,6 +39,9 @@ export function showScreen(id) {
   el.scrollTop = 0;
   if (id === 'game-screen') document.body.classList.add('in-game');
   else document.body.classList.remove('in-game');
+  // Schnell-Dark-Mode nur auf Menü/Deck-nahen Screens — Profil & Fortschritt bleiben hell.
+  const _noDark = id === 'profile-screen' || id === 'stats-screen';
+  document.body.classList.toggle('schnell-active', !!window.isSchnellModus && !_noDark);
   const ft = document.getElementById('menu-footer');
   if (ft) ft.style.display = (id === 'menu-screen') ? 'flex' : 'none';
   const installBtn = document.getElementById('pwa-install-btn');
@@ -244,7 +247,8 @@ export async function saveName() {
   window.SD.playerName = v;
   persist(window.SD);
   if (window.currentUser) { markDirty('profile'); await commitDirty(); }
-  showMenu();
+  // Erst-Login: direkt in die Charakter-Anpassung (Onboarding-Variante).
+  showCharacterOnboarding();
 }
 
 // ────────────────────────────────────────────────
@@ -1240,10 +1244,30 @@ export function showProfile() {
 }
 
 // Charakter-Anpassung öffnen/schließen.
+function _setCharOnboarding(on) {
+  const ids = { 'char-back-btn': !on, 'char-heading': !on, 'char-name-row': !on, 'char-onboard-done': on };
+  for (const [id, show] of Object.entries(ids)) {
+    const el = document.getElementById(id);
+    if (el) el.style.display = show ? '' : 'none';
+  }
+}
 export function showCharacter() {
+  _setCharOnboarding(false);   // normaler Weg: Überschrift, Name, Zurück
   resetCharacterFeature();
   showScreen('character-screen');
   renderCharacter();
+}
+// Erst-Login: Charakter-Anpassung ohne Überschrift/Name/Zurück, mit „Los geht's".
+export function showCharacterOnboarding() {
+  _setCharOnboarding(true);
+  resetCharacterFeature();
+  showScreen('character-screen');
+  renderCharacter();
+}
+export function finishCharacterOnboarding() {
+  commitAvatar();   // gesammelte Avatar-Änderungen in die Cloud schreiben
+  _setCharOnboarding(false);
+  showMenu();
 }
 export function closeCharacter() {
   commitAvatar();   // gesammelte Avatar-Änderungen in die Cloud schreiben
@@ -2020,6 +2044,8 @@ export async function checkForRemoteChange() {
 // Baustein 4: Nach Relaunch näher am letzten Ort landen. Menü immer als Basis
 // initialisieren (Back-Navigation), dann ggf. Profil/Fortschritt darüberlegen.
 function restoreLastScreen() {
+  // App-Öffnen landet immer auf dem Vokabeln-Tab (nicht dem zuletzt aktiven Modus).
+  if (window.SD) window.SD.activeMode = 'free';
   showMenu();
   let last = null;
   try { last = localStorage.getItem('es_last_screen'); } catch(e) {}

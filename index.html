@@ -254,7 +254,6 @@
         <div id="prof-name" style="font-family:'Fredoka One',cursive;font-size:1.3rem;color:var(--text);"></div>
         <div id="prof-since" style="font-size:.75rem;color:#888;font-weight:700;"></div>
       </div>
-      <button onclick="editPlayerName()" style="font-family:'Fredoka One',cursive;font-size:.78rem;padding:6px 12px;background:#f5f5f5;color:#666;border:none;border-radius:50px;cursor:pointer;">✏️</button>
     </div>
     <button onclick="showCharacter()" class="big-btn purple" style="width:100%;">🎨 Charakter anpassen</button>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
@@ -285,25 +284,16 @@
     <!-- gefüllt durch showProfile() -->
   </div>
 
-  <div class="stats-panel">
-    <h3 style="color:var(--blue);margin-top:0">💾 Daten</h3>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;">
-      <button onclick="exportData()" class="big-btn blue" style="flex:1;min-width:140px;">💾 Exportieren</button>
-      <button onclick="document.getElementById('profile-import-file').click()" class="big-btn purple" style="flex:1;min-width:140px;">📂 Importieren</button>
-    </div>
-    <p style="font-size:.72rem;color:#aaa;margin:10px 0 0;font-weight:700;text-align:center;">Fortschritt als JSON sichern oder wiederherstellen</p>
-    <input type="file" id="profile-import-file" accept=".json" style="display:none" onchange="importData(event)">
-  </div>
 
 </div>
 
 <!-- ═══ CHARACTER SCREEN ═══ -->
 <div id="character-screen" style="display:none;width:100%;max-width:540px;flex-direction:column;align-items:center;">
-  <button class="back-btn sticky" onclick="closeCharacter()" style="align-self:flex-start;">← Zurück</button>
-  <h1 style="width:100%;margin-bottom:8px">🎨 Charakter</h1>
+  <button id="char-back-btn" class="back-btn sticky" onclick="closeCharacter()" style="align-self:flex-start;">← Zurück</button>
+  <h1 id="char-heading" style="width:100%;margin-bottom:8px">🎨 Charakter</h1>
 
-  <!-- Name -->
-  <div style="display:flex;align-items:center;justify-content:center;gap:10px;width:100%;margin-bottom:10px;">
+  <!-- Name (im Onboarding ausgeblendet) -->
+  <div id="char-name-row" style="display:flex;align-items:center;justify-content:center;gap:10px;width:100%;margin-bottom:10px;">
     <div id="char-player-name" style="font-family:'Fredoka One',cursive;font-size:1.2rem;color:var(--text);"></div>
     <button onclick="editPlayerName()" style="font-family:'Fredoka One',cursive;font-size:.78rem;padding:6px 12px;background:#f5f5f5;color:#666;border:none;border-radius:50px;cursor:pointer;">✏️ Name</button>
   </div>
@@ -321,6 +311,9 @@
   </div>
 
   <div id="character-feature-label" style="text-align:center;font-family:'Nunito',sans-serif;font-size:1rem;color:var(--text);margin-top:6px;padding-bottom:20px;"></div>
+
+  <!-- Nur im Onboarding: Avatar bestätigen und ins Menü -->
+  <button id="char-onboard-done" class="big-btn blue center" onclick="finishCharacterOnboarding()" style="display:none;">Los geht's! 🚀</button>
 </div>
 
 <!-- ═══ STATS SCREEN ═══ -->

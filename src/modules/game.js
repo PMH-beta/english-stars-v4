@@ -472,9 +472,9 @@ export function toggleSchnell() {
     syncMirrorFromActiveDeck();
     _setSchnellBtn(btnId, true);
     document.body.classList.add('schnell-active');
+    showMenu();   // Menü + Haupt-Toggle sofort im Dark-Mode, schon während der Popup offen ist
     window.esAlert({ icon:'⚡', title:'Wiederholungsmodus an',
-      body:'Nur zum schnellen Üben — zählt NICHT in die Statistik. Eine richtige Antwort genügt für ein Wort, falsche zählen nicht. Beim Beenden wird dieser Fortschritt wieder verworfen.' })
-      .then(()=>showMenu());
+      body:'Nur zum schnellen Üben — zählt NICHT in die Statistik. Eine richtige Antwort genügt für ein Wort, falsche zählen nicht. Beim Beenden wird dieser Fortschritt wieder verworfen.' });
   } else {
     // → AUS (nur dieser Modus): abbrechbare Warnung; bei „Beenden" echten Stand zurück.
     window.esConfirm({ icon:'⚠️', title:'Wiederholungsmodus beenden?',
