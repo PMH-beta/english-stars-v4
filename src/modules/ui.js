@@ -1296,26 +1296,24 @@ export async function showStats() {
   const host = document.getElementById('profile-decks-summary');
   if (!host) return;
   const allDecks = Object.values(SD.decks || {});
-  const freeDecks    = allDecks.filter(d => deckMode(d) === 'free');
-  const studentDecks = allDecks.filter(d => deckMode(d) === 'student');
+  const freeDecks = allDecks.filter(d => deckMode(d) === 'free');
 
   host.innerHTML = '<div style="font-size:.82rem;color:#999;text-align:center;padding:10px;">Lade Fortschritt…</div>';
 
-  // Vorlagen-Namen (async) — nur für die „Aktive Vorlagen"-Kacheln des Freien Modus.
+  // Vorlagen-Namen (async) — für die „Aktive Vorlagen"-Kacheln der Vokabeln.
   const categories = await getPresetCategories();
   const catById = Object.fromEntries((categories || []).map(c => [c.id, c]));
 
-  // Reihenfolge wie im Hauptmenü-Toggle: Kampagne · Freier Modus · Schülermodus.
+  // Reihenfolge wie im Hauptmenü-Toggle: Kampagne · Vokabeln · Unregelmäßige.
   const campSection = _statSection('🗺️ Kampagne',
     '<div style="font-size:.82rem;color:#999;text-align:center;padding:14px;">Kommt bald!</div>');
 
-  const freeSection = _statSection('🎮 Freier Modus',
+  const vokabelnSection = _statSection('📚 Vokabeln',
     _activePresetsBlock(freeDecks, catById) + _customWordsBlock(freeDecks));
 
-  const studentSection = _statSection('🎒 Schülermodus',
-    _studentDecksBlock(studentDecks) + _customWordsBlock(studentDecks) + _uvLernstandBlock());
+  const unregelmSection = _statSection('⚒️ Unregelmäßige', _uvLernstandBlock());
 
-  host.innerHTML = campSection + freeSection + studentSection;
+  host.innerHTML = campSection + vokabelnSection + unregelmSection;
 }
 
 // Abschnitts-Rahmen mit Überschrift (Modus-Gliederung der Fortschritt-Seite).
@@ -1456,35 +1454,7 @@ function _uvLernstandBlock() {
         <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--purple),var(--pink));border-radius:10px;"></div>
       </div>
       ${rows}
-      ${played ? '' : '<div style="font-size:.78rem;color:#999;text-align:center;padding:8px;">Noch nicht geübt — leg oben im UV-Tab einen Schmiede-Auftrag an.</div>'}
-    </div>`;
-}
-
-// Schülermodus: angelegte Sammlungen als Kacheln mit Gesamt-% (analog Aktive Vorlagen).
-function _studentDecksBlock(decks) {
-  const tiles = decks.map(d => {
-    const pct = deckProgress(d).overallPct;
-    const done = pct === 100;
-    const bg = done
-      ? 'background:linear-gradient(to right,rgba(58,170,92,.18) 100%,#fff 100%);box-shadow:inset 0 0 0 2px #3aaa5c;'
-      : 'background:linear-gradient(to right,rgba(168,108,219,.15) ' + pct + '%,#f7f7f7 ' + pct + '%);';
-    const right = done
-      ? '<span style="font-size:.72rem;font-weight:700;color:#2a8a4a;background:rgba(58,170,92,.15);padding:3px 9px;border-radius:20px;white-space:nowrap;">✓ erledigt</span>'
-      : '<span style="font-family:\'Fredoka One\',cursive;font-size:.95rem;color:#7a3aac;">' + pct + '%</span>';
-    return `<div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:12px;margin-bottom:6px;${bg}">
-      <div style="flex:1;min-width:0;">
-        <div style="font-weight:700;color:var(--text);font-size:.86rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${window.escHtml(d.name)}</div>
-        <div style="font-size:.68rem;color:#888;">${(d.vocab || []).length} Wörter</div>
-      </div>
-      ${right}
-    </div>`;
-  }).join('');
-  return `
-    <div style="margin-bottom:16px;">
-      <h3 style="font-family:'Fredoka One',cursive;color:var(--purple);font-size:1rem;margin:0 0 8px;">📚 Vokabelsammlungen</h3>
-      ${decks.length === 0
-        ? '<div style="font-size:.82rem;color:#999;text-align:center;padding:10px;">Noch keine Sammlungen angelegt.</div>'
-        : tiles}
+      ${played ? '' : '<div style="font-size:.78rem;color:#999;text-align:center;padding:8px;">Noch nicht geübt — leg im Tab „Unregelmäßige" einen Schmiede-Auftrag an.</div>'}
     </div>`;
 }
 
