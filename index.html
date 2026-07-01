@@ -534,45 +534,12 @@ function loadData(){
 }
 
 function freshData(){
-  const _defs=[
-    {id:'deck_tiere',name:'Tiere',vocab:[
-      {de:'Hund',en:'dog'},{de:'Katze',en:'cat'},{de:'Maus',en:'mouse'},
-      {de:'Pferd',en:'horse'},{de:'Kuh',en:'cow'},{de:'Schwein',en:'pig'},
-      {de:'Vogel',en:'bird'},{de:'Fisch',en:'fish'},{de:'Hase',en:'rabbit'},
-      {de:'Bär',en:'bear'},
-    ]},
-    {id:'deck_farben',name:'Farben',vocab:[
-      {de:'rot',en:'red'},{de:'blau',en:'blue'},{de:'grün',en:'green'},
-      {de:'gelb',en:'yellow'},{de:'schwarz',en:'black'},{de:'weiß',en:'white'},
-      {de:'orange',en:'orange'},{de:'rosa',en:'pink'},{de:'lila',en:'purple'},
-      {de:'braun',en:'brown'},
-    ]},
-    {id:'deck_zahlen',name:'Zahlen 1-10',vocab:[
-      {de:'eins',en:'one'},{de:'zwei',en:'two'},{de:'drei',en:'three'},
-      {de:'vier',en:'four'},{de:'fünf',en:'five'},{de:'sechs',en:'six'},
-      {de:'sieben',en:'seven'},{de:'acht',en:'eight'},{de:'neun',en:'nine'},
-      {de:'zehn',en:'ten'},
-    ]},
-  ];
-  const decks={};
-  _defs.forEach(def=>{
-    decks[def.id]={
-      id:def.id,name:def.name,createdAt:Date.now(),
-      vocab:def.vocab.slice(),wordStats:{},
-      categoryProgress:{
-        vocab:{played:0,correct:0,bestStreak:0},
-        spelling:{played:0,correct:0,bestStreak:0},
-        pronounce:{played:0,correct:0,bestStreak:0},
-        mixed_vocab:{played:0,correct:0,bestStreak:0},
-      },
-      deckPath:'none',
-      lastExam:null,
-    };
-  });
+  // Neue Konten starten OHNE Decks → Vokabeln-Tab zeigt den Auswahl-Leerzustand
+  // (Vorlage auswählen / eigene Sammlung). Muss mit storage.js:freshData() konsistent bleiben.
   return{_version:4,
     playerName:'',highscore:0,totalPoints:0,
-    activeDeckId:'deck_tiere',
-    decks,
+    activeDeckId:null,
+    decks:{},
     categoryProgress:{
       vocab:{played:0,correct:0,bestStreak:0},
       spelling:{played:0,correct:0,bestStreak:0},
@@ -604,15 +571,16 @@ function migrateData(old){
       }
     });
   } else {
-    // Altes Format → ins Default-Deck migrieren
+    // Altes Format (pre-Deck) → in ein Default-Deck migrieren. Neue Konten haben
+    // kein Default-Deck mehr (defId=null) → dieser Legacy-Pfad wird übersprungen.
     const defId=d.activeDeckId;
-    if(old.categoryProgress){
+    if(defId && d.decks[defId] && old.categoryProgress){
       ['vocab','spelling','pronounce','mixed_vocab'].forEach(c=>{
         if(old.categoryProgress[c])
           d.decks[defId].categoryProgress[c]={...d.decks[defId].categoryProgress[c],...old.categoryProgress[c]};
       });
     }
-    if(old.wordStats){
+    if(defId && d.decks[defId] && old.wordStats){
       Object.keys(old.wordStats).forEach(k=>{
         const s=old.wordStats[k];
         d.decks[defId].wordStats[k]={
