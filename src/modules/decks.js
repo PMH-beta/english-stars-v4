@@ -216,7 +216,7 @@ export function renderDecks(mode) {
   // Kopfzeile (Überschrift + Schnell-Toggle) nur zeigen, wenn Sammlungen da sind.
   if (mode === 'free') {
     const hdr = document.getElementById('free-decks-header');
-    if (hdr) hdr.style.display = (ids.length === 0) ? 'none' : '';
+    if (hdr) hdr.style.display = (ids.length === 0) ? 'none' : 'flex';
   }
   // Neu/leer (Vokabeln): nur die Auswahl Vorlage / eigene Sammlung zeigen.
   if (mode === 'free' && ids.length === 0) { _renderEmptyChooser(c); return; }
