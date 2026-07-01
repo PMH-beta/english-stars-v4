@@ -368,6 +368,28 @@ export function toggleProbetestHistory() {
   renderProbetestSection();
 }
 
+// Ein Verlaufseintrag als Karte (geteilt: Vokabeln-Tab + Fortschritt-Seite).
+function _probetestEntryHtml(t) {
+  const names = (t.decks || []).map(d => window.escHtml(d.name || '')).join(' + ') || '—';
+  const dateStr = new Date(t.date || Date.now()).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const gradeColor = t.grade <= 2 ? '#2a7a35' : (t.grade <= 4 ? '#cc8800' : '#c0392b');
+  return '<div style="background:#fff;border-radius:14px;padding:12px 14px;margin-bottom:8px;box-shadow:var(--shadow);">'
+    + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">'
+    + '<span style="flex:1;min-width:0;font-family:\'Fredoka One\',cursive;font-size:.95rem;color:#444;">' + names + '</span>'
+    + '<span style="font-family:\'Fredoka One\',cursive;font-size:1.1rem;color:' + gradeColor + ';white-space:nowrap;">Note ' + t.grade + '</span></div>'
+    + '<div style="display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.78rem;color:#777;font-weight:700;">'
+    + '<span>📊 ' + t.percent + '%</span>'
+    + '<span>✅ ' + t.correct + '/' + t.questions + ' richtig</span>'
+    + '<span>📅 ' + dateStr + '</span></div></div>';
+}
+
+// Probetest-Verlauf für die Fortschritt-Seite (nur Anzeige, kein Start-Button).
+function _probetestBlock() {
+  const hist = Array.isArray(window.SD?.probetests) ? window.SD.probetests : [];
+  if (!hist.length) return '<div style="font-size:.82rem;color:#999;text-align:center;padding:12px;">Noch keine Probetests durchgeführt.</div>';
+  return hist.map(_probetestEntryHtml).join('');
+}
+
 export function renderProbetestSection() {
   const el = document.getElementById('probetest-section');
   if (!el) return;
@@ -393,19 +415,7 @@ export function renderProbetestSection() {
     if (!hist.length) {
       html += '<div style="text-align:center;color:#999;font-size:.82rem;padding:10px 0 6px;">Noch keine Tests durchgeführt.</div>';
     } else {
-      hist.forEach(t => {
-        const names = (t.decks || []).map(d => window.escHtml(d.name || '')).join(' + ') || '—';
-        const dateStr = new Date(t.date || Date.now()).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
-        const gradeColor = t.grade <= 2 ? '#2a7a35' : (t.grade <= 4 ? '#cc8800' : '#c0392b');
-        html += '<div style="background:#fff;border-radius:14px;padding:12px 14px;margin-bottom:8px;box-shadow:var(--shadow);">'
-          + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">'
-          + '<span style="flex:1;min-width:0;font-family:\'Fredoka One\',cursive;font-size:.95rem;color:#444;">' + names + '</span>'
-          + '<span style="font-family:\'Fredoka One\',cursive;font-size:1.1rem;color:' + gradeColor + ';white-space:nowrap;">Note ' + t.grade + '</span></div>'
-          + '<div style="display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.78rem;color:#777;font-weight:700;">'
-          + '<span>📊 ' + t.percent + '%</span>'
-          + '<span>✅ ' + t.correct + '/' + t.questions + ' richtig</span>'
-          + '<span>📅 ' + dateStr + '</span></div></div>';
-      });
+      html += hist.map(_probetestEntryHtml).join('');
     }
     html += '</div>';
   }
@@ -1317,9 +1327,11 @@ export async function showStats() {
   const vokabelnSection = _statSection('📚 Vokabeln',
     _activePresetsBlock(freeDecks, catById) + _customWordsBlock(freeDecks));
 
+  const probetestSection = _statSection('🎲 Probetest', _probetestBlock());
+
   const unregelmSection = _statSection('⚒️ Unregelmäßige', _uvLernstandBlock());
 
-  host.innerHTML = campSection + vokabelnSection + unregelmSection;
+  host.innerHTML = campSection + vokabelnSection + probetestSection + unregelmSection;
 }
 
 // Abschnitts-Rahmen mit Überschrift (Modus-Gliederung der Fortschritt-Seite).
