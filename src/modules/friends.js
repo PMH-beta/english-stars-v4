@@ -103,14 +103,17 @@ export async function subscribeFriendRealtime() {
   if (!uid) return;
   unsubscribeFriendRealtime();
   // WICHTIG: Realtime muss den User-JWT kennen, sonst greift die RLS-Policy nicht und
-  // es kommen gar keine Events an. Token aus der aktuellen Session an Realtime geben.
+  // es kommen gar keine Events an. setAuth ist async → awaiten, sonst kann der Token
+  // erst nach subscribe() ankommen und alle Events werden weggefiltert.
   try {
     const { data: { session } } = await supabase.auth.getSession();
-    if (session?.access_token) supabase.realtime.setAuth(session.access_token);
-  } catch (e) {}
+    if (session?.access_token) await supabase.realtime.setAuth(session.access_token);
+    console.log('[friends] realtime token gesetzt:', !!session?.access_token);
+  } catch (e) { console.warn('[friends] setAuth:', e?.message); }
+  // Kein Filter nötig: die RLS-Policy liefert mir ohnehin nur meine eigenen Paar-Zeilen,
+  // und refreshFriendsLive lädt sowieso alles neu. Eine Bindung = robuster.
   _rtChannel = supabase.channel('friendships-rt')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'friendships', filter: `addressee_id=eq.${uid}` }, _scheduleLiveRefresh)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'friendships', filter: `requester_id=eq.${uid}` }, _scheduleLiveRefresh)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'friendships' }, _scheduleLiveRefresh)
     .subscribe((status, err) => {
       console.log('[friends] realtime status:', status, 'uid:', uid, err?.message || '');
     });
