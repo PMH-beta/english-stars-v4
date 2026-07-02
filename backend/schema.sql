@@ -280,6 +280,18 @@ DROP POLICY IF EXISTS "read own friendships" ON friendships;
 CREATE POLICY "read own friendships" ON friendships FOR SELECT TO authenticated
   USING (auth.uid() IN (requester_id, addressee_id));
 
+-- REALTIME: Anfragen/Änderungen sollen dem Gegenüber sofort per WebSocket zugestellt
+-- werden (kein Polling). Realtime prüft die SELECT-Policy oben, jeder bekommt also nur
+-- seine eigenen Paar-Zeilen. REPLICA IDENTITY FULL ist nötig, damit auch DELETE-Events
+-- (Freund entfernen / Anfrage zurückziehen) die alten Spalten mitschicken → RLS greift
+-- und der Client aktualisiert live. Einmal im Dashboard ausführen.
+ALTER TABLE friendships REPLICA IDENTITY FULL;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables
+    WHERE pubname='supabase_realtime' AND schemaname='public' AND tablename='friendships')
+  THEN ALTER PUBLICATION supabase_realtime ADD TABLE friendships; END IF;
+END $$;
+
 -- Suche: Namensteil ab 1 Zeichen, alphabetisch, max 20, mit Beziehungsstatus zu mir.
 -- Rückgabe als jsonb-Array (Client bekommt direkt ein Array von Objekten).
 CREATE OR REPLACE FUNCTION public.search_users(q text)

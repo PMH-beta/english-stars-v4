@@ -73,6 +73,47 @@ export async function refreshFriendBadge() {
   else el.style.display = 'none';
 }
 
+// ── REALTIME ──
+// Statt Polling hält eine WebSocket-Subscription pro eingeloggtem User die eigenen
+// friendships-Zeilen live: eingehende Anfragen (addressee = ich) und Statuswechsel
+// meiner gesendeten Anfragen (requester = ich). Die DB pusht nur bei echter Änderung
+// → im Leerlauf keine Abfragen. RLS-gefiltert (s. schema.sql). Idempotent.
+let _rtChannel = null;
+let _liveTimer = null;
+
+// Mehrere Events (z.B. Annehmen = ein UPDATE) zu einem Refresh bündeln.
+function _scheduleLiveRefresh() {
+  clearTimeout(_liveTimer);
+  _liveTimer = setTimeout(() => { refreshFriendsLive().catch(() => {}); }, 400);
+}
+
+// Badge immer, offene Listen nur wenn die Freunde-Sektion sichtbar ist und gerade
+// nicht gesucht wird (dann sind die Listen ohnehin ausgeblendet).
+export async function refreshFriendsLive() {
+  refreshFriendBadge();
+  if (!document.getElementById('friend-list')) return;
+  const inp = document.getElementById('friend-search');
+  if (inp && inp.value.trim()) return;
+  await Promise.all([_loadRequests(), _loadFriends(), _loadOutgoing()]);
+}
+
+export function subscribeFriendRealtime() {
+  const uid = window.currentUser?.id;
+  if (!uid) return;
+  unsubscribeFriendRealtime();
+  _rtChannel = supabase.channel('friendships-rt')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'friendships', filter: `addressee_id=eq.${uid}` }, _scheduleLiveRefresh)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'friendships', filter: `requester_id=eq.${uid}` }, _scheduleLiveRefresh)
+    .subscribe();
+}
+
+export function unsubscribeFriendRealtime() {
+  if (!_rtChannel) return;
+  supabase.removeChannel(_rtChannel);
+  _rtChannel = null;
+  clearTimeout(_liveTimer);
+}
+
 // ── FREUNDE-Sektion auf der Profilseite ──
 export async function renderFriendsSection() {
   const host = document.getElementById('prof-friends-section');

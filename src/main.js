@@ -12,7 +12,7 @@ import { showScreen, saveName, showMenu, saveApiKey, skipApiKey, showProfile, ed
 import { pwaInstall } from './modules/pwa.js';
 import { startConstellationStar, startConstellationForm, uvProgress } from './modules/irregular-game.js';
 import { openVocabManager, openPresetDeckStats, vmTab, renderVocabList, parsePastedText, onScanFile, showReview, renderReviewList, removeReviewItem, addReviewItem, confirmAddVocab, renderPresetsTab, togglePresetCategory, vmBack, vmRenameActiveDeck, newDeckFlow, newDeckPreset, newDeckCustom, confirmAbortDraft } from './modules/vocab.js';
-import { onFriendSearchInput, sendFriendRequest, respondFriendRequest, cancelFriendRequest, confirmRemoveFriend, openFriendStats, refreshFriendBadge } from './modules/friends.js';
+import { onFriendSearchInput, sendFriendRequest, respondFriendRequest, cancelFriendRequest, confirmRemoveFriend, openFriendStats, refreshFriendBadge, refreshFriendsLive } from './modules/friends.js';
 import './modules/dialog.js'; // registriert window.esAlert/esConfirm/esPrompt (App-Overlays statt nativer Dialoge)
 import { startupSequence, finishStartup } from './modules/startup.js';
 import { supabase, testConnection } from './modules/supabase.js';
@@ -222,6 +222,9 @@ document.addEventListener('visibilitychange', () => {
     return;
   }
   if (document.visibilityState === 'visible' && window.currentUser) {
+    // Sicherheitsnetz: war die WebSocket im Hintergrund getrennt, könnten Anfragen
+    // verpasst worden sein → einmalig nachladen (ein Fetch, kein Dauer-Poll).
+    refreshFriendsLive().catch(() => {});
     if (_hiddenAt && (Date.now() - _hiddenAt) > RESUME_RELOAD_MS) {
       onAppResume().catch(() => {});
     }
@@ -231,9 +234,6 @@ document.addEventListener('visibilitychange', () => {
 // Minuten-Check: hat ein anderes Gerät die Cloud geändert? → Reload-Hinweis (ui.js).
 // Begrenzt den „last-write-wins"-Worst-Case auf ~1 Min. Läuft nur im Menü/sichtbar.
 setInterval(() => { checkForRemoteChange().catch(() => {}); }, 60 * 1000);
-
-// Anfrage-Zähler (Badge) regelmäßig aktualisieren — Polling wie beim Cloud-Minuten-Check.
-setInterval(() => { if (window.currentUser && !document.hidden) refreshFriendBadge().catch(() => {}); }, 60 * 1000);
 
 // Supabase-Verbindung testen (kann später raus)
 testConnection();

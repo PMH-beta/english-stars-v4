@@ -10,7 +10,7 @@ import { commitDirty } from './dialog.js';
 import { uvMap, uvLernstand, constellationWords, FORGE_DISC } from './irregular-game.js';
 import { renderAvatarInto, renderCharacter, commitAvatar, resetCharacterFeature } from './avatar.js';
 import { IRREGULAR_PRESET_ID, uvAvailableVerbs, CONSTELLATION_SIZE, cefrOf, forgeObject } from './irregular-verbs.js';
-import { renderFriendsSection, refreshFriendBadge, friendProgress } from './friends.js';
+import { renderFriendsSection, refreshFriendBadge, friendProgress, subscribeFriendRealtime, unsubscribeFriendRealtime } from './friends.js';
 
 const API_KEY_SK = 'es_apikey';
 
@@ -2013,6 +2013,7 @@ function adoptCloudState(state, signature) {
 function _finishLoginUI() {
   if (migrateStatKeys()) persist(window.SD);
   console.log('[handleLogin] SD bereit:', window.SD?.playerName, window.SD?.highscore);
+  subscribeFriendRealtime();   // Freundschaftsanfragen live empfangen (WebSocket statt Polling)
   if (!window.SD?.playerName) showScreen('name-screen');
   else restoreLastScreen();
 }
@@ -2110,6 +2111,7 @@ function restoreLastScreen() {
 }
 
 export function handleLogout() {
+  unsubscribeFriendRealtime();   // WebSocket schließen
   window.currentUser = null;
   // Schnell-Zustand zurücksetzen (SPA bleibt geladen) → kein Dark-Mode/AN nach Relogin.
   window.schnellByMode = { free: false, student: false, campaign: false };
