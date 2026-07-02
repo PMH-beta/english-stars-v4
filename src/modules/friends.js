@@ -82,8 +82,7 @@ let _rtChannel = null;
 let _liveTimer = null;
 
 // Mehrere Events (z.B. Annehmen = ein UPDATE) zu einem Refresh bündeln.
-function _scheduleLiveRefresh(payload) {
-  console.log('[friends] realtime EVENT:', payload?.eventType, payload?.new || payload?.old);
+function _scheduleLiveRefresh() {
   clearTimeout(_liveTimer);
   _liveTimer = setTimeout(() => { refreshFriendsLive().catch(() => {}); }, 400);
 }
@@ -108,14 +107,13 @@ export async function subscribeFriendRealtime() {
   try {
     const { data: { session } } = await supabase.auth.getSession();
     if (session?.access_token) await supabase.realtime.setAuth(session.access_token);
-    console.log('[friends] realtime token gesetzt:', !!session?.access_token);
   } catch (e) { console.warn('[friends] setAuth:', e?.message); }
   // Kein Filter nötig: die RLS-Policy liefert mir ohnehin nur meine eigenen Paar-Zeilen,
   // und refreshFriendsLive lädt sowieso alles neu. Eine Bindung = robuster.
   _rtChannel = supabase.channel('friendships-rt')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'friendships' }, _scheduleLiveRefresh)
     .subscribe((status, err) => {
-      console.log('[friends] realtime status:', status, 'uid:', uid, err?.message || '');
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') console.warn('[friends] realtime', status, err?.message || '');
     });
 }
 
