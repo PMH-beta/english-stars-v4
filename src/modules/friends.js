@@ -82,7 +82,8 @@ let _rtChannel = null;
 let _liveTimer = null;
 
 // Mehrere Events (z.B. Annehmen = ein UPDATE) zu einem Refresh bündeln.
-function _scheduleLiveRefresh() {
+function _scheduleLiveRefresh(payload) {
+  console.log('[friends] realtime EVENT:', payload?.eventType, payload?.new || payload?.old);
   clearTimeout(_liveTimer);
   _liveTimer = setTimeout(() => { refreshFriendsLive().catch(() => {}); }, 400);
 }
@@ -111,8 +112,7 @@ export async function subscribeFriendRealtime() {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'friendships', filter: `addressee_id=eq.${uid}` }, _scheduleLiveRefresh)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'friendships', filter: `requester_id=eq.${uid}` }, _scheduleLiveRefresh)
     .subscribe((status, err) => {
-      if (status === 'SUBSCRIBED') console.log('[friends] realtime aktiv');
-      else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') console.warn('[friends] realtime', status, err?.message || '');
+      console.log('[friends] realtime status:', status, 'uid:', uid, err?.message || '');
     });
 }
 
@@ -134,13 +134,13 @@ export async function renderFriendsSection() {
   }
   host.innerHTML = `
     <h3 style="color:var(--purple);margin-top:0">👥 Freunde</h3>
-    <div id="friend-requests" style="margin-bottom:12px;display:none;"></div>
     <input id="friend-search" type="text" placeholder="🔍 Nach Namen suchen…" maxlength="20"
       oninput="onFriendSearchInput(this.value)" autocomplete="off"
       onkeydown="if(event.key==='Enter'){event.preventDefault();onFriendSearchEnter();}"
       style="width:100%;padding:10px 14px;border:2px solid #eee;border-radius:11px;font-size:.9rem;font-family:'Nunito',sans-serif;margin-bottom:10px;">
     <div id="friend-search-results" style="display:none;"></div>
     <div id="friend-list"></div>
+    <div id="friend-requests" style="margin-top:14px;display:none;"></div>
     <div id="friend-outgoing" style="margin-top:14px;display:none;"></div>`;
   await Promise.all([_loadRequests(), _loadFriends(), _loadOutgoing()]);
   refreshFriendBadge();
@@ -195,6 +195,7 @@ async function _loadOutgoing() {
 export function onFriendSearchInput(val) {
   const q = (val || '').trim();
   const list = document.getElementById('friend-list');
+  const requests = document.getElementById('friend-requests');
   const outgoing = document.getElementById('friend-outgoing');
   const results = document.getElementById('friend-search-results');
   if (!results) return;
@@ -202,10 +203,12 @@ export function onFriendSearchInput(val) {
     results.style.display = 'none';
     results.innerHTML = '';
     if (list) list.style.display = '';
+    if (requests && requests.innerHTML) requests.style.display = '';
     if (outgoing && outgoing.innerHTML) outgoing.style.display = '';
     return;
   }
   if (list) list.style.display = 'none';
+  if (requests) requests.style.display = 'none';
   if (outgoing) outgoing.style.display = 'none';
   results.style.display = '';
   results.innerHTML = '<div style="font-size:.8rem;color:#999;text-align:center;padding:10px;">Suche…</div>';
