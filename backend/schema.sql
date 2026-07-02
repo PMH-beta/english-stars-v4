@@ -325,6 +325,19 @@ LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
   WHERE f.addressee_id=auth.uid() AND f.status='pending';
 $$;
 
+-- Von mir GESENDETE, noch offene Anfragen (Gegenstück zu list_friend_requests).
+CREATE OR REPLACE FUNCTION public.list_outgoing_requests()
+RETURNS jsonb
+LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+  SELECT COALESCE(jsonb_agg(jsonb_build_object(
+    'friendship_id', f.id, 'addressee_id', f.addressee_id,
+    'player_name', p.player_name, 'avatar', p.avatar, 'created_at', f.created_at
+  ) ORDER BY f.created_at DESC), '[]'::jsonb)
+  FROM friendships f
+  JOIN profiles p ON p.id=f.addressee_id
+  WHERE f.requester_id=auth.uid() AND f.status='pending';
+$$;
+
 CREATE OR REPLACE FUNCTION public.friend_request_count()
 RETURNS int LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
   SELECT count(*)::int FROM friendships WHERE addressee_id=auth.uid() AND status='pending';

@@ -28,6 +28,11 @@ async function listRequests() {
   if (error) { console.warn('[friends] list_requests:', error.message); return []; }
   return data || [];
 }
+async function listOutgoing() {
+  const { data, error } = await supabase.rpc('list_outgoing_requests');
+  if (error) { console.warn('[friends] list_outgoing:', error.message); return []; }
+  return data || [];
+}
 export async function friendRequestCount() {
   const { data, error } = await supabase.rpc('friend_request_count');
   if (error) return 0;
@@ -84,8 +89,9 @@ export async function renderFriendsSection() {
       oninput="onFriendSearchInput(this.value)" autocomplete="off"
       style="width:100%;padding:10px 14px;border:2px solid #eee;border-radius:11px;font-size:.9rem;font-family:'Nunito',sans-serif;margin-bottom:10px;">
     <div id="friend-search-results" style="display:none;"></div>
-    <div id="friend-list"></div>`;
-  await Promise.all([_loadRequests(), _loadFriends()]);
+    <div id="friend-list"></div>
+    <div id="friend-outgoing" style="margin-top:14px;display:none;"></div>`;
+  await Promise.all([_loadRequests(), _loadFriends(), _loadOutgoing()]);
   refreshFriendBadge();
 }
 
@@ -118,19 +124,38 @@ async function _loadFriends() {
   friends.forEach(f => _drawAvatar('fl', f.id, f.avatar));
 }
 
+// Von mir gesendete, noch offene Anfragen. Eigene Liste, nicht klickbar (kein Profil einsehbar
+// bevor angenommen). Zurückziehen löscht die Paar-Zeile (remove_friend, gilt auch für pending).
+async function _loadOutgoing() {
+  const box = document.getElementById('friend-outgoing');
+  if (!box) return;
+  const reqs = await listOutgoing();
+  if (!reqs.length) { box.innerHTML = ''; box.style.display = 'none'; return; }
+  box.style.display = '';
+  box.innerHTML = `<div style="font-family:'Fredoka One',cursive;font-size:.9rem;color:var(--text);margin-bottom:6px;">Gesendet (${reqs.length})</div>`
+    + reqs.map(r => _person('out', r.addressee_id, r.player_name,
+        `<span style="${_tag('#999')}">⏳ Angefragt</span>
+         <button onclick="cancelFriendRequest('${r.addressee_id}')" title="Anfrage zurückziehen" style="${_btn('#f0f0f0','#c0392b')}">✕</button>`,
+        false)).join('');
+  reqs.forEach(r => _drawAvatar('out', r.addressee_id, r.avatar));
+}
+
 // Suche: ab 1 Zeichen; Freundesliste wird währenddessen ausgeblendet (nicht überladen).
 export function onFriendSearchInput(val) {
   const q = (val || '').trim();
   const list = document.getElementById('friend-list');
+  const outgoing = document.getElementById('friend-outgoing');
   const results = document.getElementById('friend-search-results');
   if (!results) return;
   if (!q) {
     results.style.display = 'none';
     results.innerHTML = '';
     if (list) list.style.display = '';
+    if (outgoing && outgoing.innerHTML) outgoing.style.display = '';
     return;
   }
   if (list) list.style.display = 'none';
+  if (outgoing) outgoing.style.display = 'none';
   results.style.display = '';
   results.innerHTML = '<div style="font-size:.8rem;color:#999;text-align:center;padding:10px;">Suche…</div>';
   clearTimeout(_searchTimer);
@@ -165,8 +190,18 @@ export async function sendFriendRequest(id) {
   const inp = document.getElementById('friend-search');
   const q = inp && inp.value.trim();
   if (q) { const rows = await searchUsers(q); _renderSearchResults(rows, q); }
-  await Promise.all([_loadRequests(), _loadFriends()]);
+  await Promise.all([_loadRequests(), _loadFriends(), _loadOutgoing()]);
   refreshFriendBadge();
+}
+
+// Gesendete Anfrage zurückziehen (löscht die pending-Zeile beidseitig).
+export async function cancelFriendRequest(id) {
+  const { error } = await supabase.rpc('remove_friend', { other: id });
+  if (error) { window.esAlert?.({ icon: '⚠️', title: 'Fehler', body: 'Konnte nicht zurückgezogen werden.' }); return; }
+  const inp = document.getElementById('friend-search');
+  const q = inp && inp.value.trim();
+  if (q) { const rows = await searchUsers(q); _renderSearchResults(rows, q); }
+  await _loadOutgoing();
 }
 
 export async function respondFriendRequest(fid, accept) {
