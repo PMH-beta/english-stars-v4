@@ -12,7 +12,7 @@ import { showScreen, saveName, showMenu, saveApiKey, skipApiKey, showProfile, ed
 import { pwaInstall } from './modules/pwa.js';
 import { startConstellationStar, startConstellationForm, uvProgress } from './modules/irregular-game.js';
 import { openVocabManager, openPresetDeckStats, vmTab, renderVocabList, parsePastedText, onScanFile, showReview, renderReviewList, removeReviewItem, addReviewItem, confirmAddVocab, renderPresetsTab, togglePresetCategory, vmBack, vmRenameActiveDeck, newDeckFlow, newDeckPreset, newDeckCustom, confirmAbortDraft } from './modules/vocab.js';
-import { onFriendSearchInput, sendFriendRequest, respondFriendRequest, cancelFriendRequest, confirmRemoveFriend, openFriendStats, refreshFriendBadge, refreshFriendsLive } from './modules/friends.js';
+import { onFriendSearchInput, onFriendSearchEnter, sendFriendRequest, respondFriendRequest, cancelFriendRequest, confirmRemoveFriend, openFriendStats, refreshFriendBadge, refreshFriendsLive } from './modules/friends.js';
 import './modules/dialog.js'; // registriert window.esAlert/esConfirm/esPrompt (App-Overlays statt nativer Dialoge)
 import { startupSequence, finishStartup } from './modules/startup.js';
 import { supabase, testConnection } from './modules/supabase.js';
@@ -132,6 +132,7 @@ window.closeCharacter = closeCharacter;
 window.showFriendStats = showFriendStats;
 window.closeFriendStats = closeFriendStats;
 window.onFriendSearchInput = onFriendSearchInput;
+window.onFriendSearchEnter = onFriendSearchEnter;
 window.sendFriendRequest = sendFriendRequest;
 window.respondFriendRequest = respondFriendRequest;
 window.cancelFriendRequest = cancelFriendRequest;

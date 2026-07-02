@@ -97,14 +97,23 @@ export async function refreshFriendsLive() {
   await Promise.all([_loadRequests(), _loadFriends(), _loadOutgoing()]);
 }
 
-export function subscribeFriendRealtime() {
+export async function subscribeFriendRealtime() {
   const uid = window.currentUser?.id;
   if (!uid) return;
   unsubscribeFriendRealtime();
+  // WICHTIG: Realtime muss den User-JWT kennen, sonst greift die RLS-Policy nicht und
+  // es kommen gar keine Events an. Token aus der aktuellen Session an Realtime geben.
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) supabase.realtime.setAuth(session.access_token);
+  } catch (e) {}
   _rtChannel = supabase.channel('friendships-rt')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'friendships', filter: `addressee_id=eq.${uid}` }, _scheduleLiveRefresh)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'friendships', filter: `requester_id=eq.${uid}` }, _scheduleLiveRefresh)
-    .subscribe();
+    .subscribe((status, err) => {
+      if (status === 'SUBSCRIBED') console.log('[friends] realtime aktiv');
+      else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') console.warn('[friends] realtime', status, err?.message || '');
+    });
 }
 
 export function unsubscribeFriendRealtime() {
@@ -128,6 +137,7 @@ export async function renderFriendsSection() {
     <div id="friend-requests" style="margin-bottom:12px;display:none;"></div>
     <input id="friend-search" type="text" placeholder="🔍 Nach Namen suchen…" maxlength="20"
       oninput="onFriendSearchInput(this.value)" autocomplete="off"
+      onkeydown="if(event.key==='Enter'){event.preventDefault();onFriendSearchEnter();}"
       style="width:100%;padding:10px 14px;border:2px solid #eee;border-radius:11px;font-size:.9rem;font-family:'Nunito',sans-serif;margin-bottom:10px;">
     <div id="friend-search-results" style="display:none;"></div>
     <div id="friend-list"></div>
@@ -206,6 +216,18 @@ export function onFriendSearchInput(val) {
   }, 250);
 }
 
+// Suchfeld leeren und zurück zur Listenansicht (nach Anfrage/Annehmen/Enter).
+function _clearFriendSearch() {
+  const inp = document.getElementById('friend-search');
+  if (inp) inp.value = '';
+  onFriendSearchInput('');
+}
+export function onFriendSearchEnter() {
+  _clearFriendSearch();
+  const inp = document.getElementById('friend-search');
+  if (inp) inp.blur();
+}
+
 function _renderSearchResults(rows, q) {
   const results = document.getElementById('friend-search-results');
   if (!results) return;
@@ -228,9 +250,7 @@ function _renderSearchResults(rows, q) {
 export async function sendFriendRequest(id) {
   const { error } = await supabase.rpc('send_friend_request', { target: id });
   if (error) { window.esAlert?.({ icon: '⚠️', title: 'Fehler', body: 'Anfrage konnte nicht gesendet werden.' }); return; }
-  const inp = document.getElementById('friend-search');
-  const q = inp && inp.value.trim();
-  if (q) { const rows = await searchUsers(q); _renderSearchResults(rows, q); }
+  _clearFriendSearch();   // nach Anfrage/Annehmen Suchleiste zurücksetzen
   await Promise.all([_loadRequests(), _loadFriends(), _loadOutgoing()]);
   refreshFriendBadge();
 }
