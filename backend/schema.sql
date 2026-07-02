@@ -255,3 +255,124 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+
+-- ─────────────────────────────────────────────
+-- v4.0.251: FREUNDE (Suche, Anfragen, Liste, Fortschritt eines Freundes)
+-- Eine Freundschaft = EINE Zeile (das Paar) → gegenseitig. Schreiben nur über die
+-- SECURITY-DEFINER-RPCs; direktes Lesen der eigenen Zeilen per RLS. Alles einmal im
+-- Supabase-Dashboard ausführen.
+-- ─────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS friendships (
+  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  requester_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  addressee_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  status       text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','accepted','declined')),
+  created_at   timestamptz NOT NULL DEFAULT now(),
+  updated_at   timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT no_self CHECK (requester_id <> addressee_id),
+  UNIQUE (requester_id, addressee_id)
+);
+CREATE INDEX IF NOT EXISTS idx_friendships_addr ON friendships(addressee_id, status);
+CREATE INDEX IF NOT EXISTS idx_friendships_req  ON friendships(requester_id, status);
+
+ALTER TABLE friendships ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "read own friendships" ON friendships;
+CREATE POLICY "read own friendships" ON friendships FOR SELECT TO authenticated
+  USING (auth.uid() IN (requester_id, addressee_id));
+
+-- Suche: Namensteil ab 1 Zeichen, alphabetisch, max 20, mit Beziehungsstatus zu mir.
+CREATE OR REPLACE FUNCTION public.search_users(q text)
+RETURNS TABLE (id uuid, player_name text, avatar jsonb, status text)
+LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+  SELECT p.id, p.player_name, p.avatar,
+    CASE WHEN f.status='accepted' THEN 'friends'
+         WHEN f.status='pending' AND f.requester_id=auth.uid() THEN 'outgoing'
+         WHEN f.status='pending' AND f.addressee_id=auth.uid() THEN 'incoming'
+         ELSE 'none' END AS status
+  FROM profiles p
+  LEFT JOIN friendships f
+    ON ((f.requester_id=auth.uid() AND f.addressee_id=p.id)
+     OR (f.addressee_id=auth.uid() AND f.requester_id=p.id)) AND f.status<>'declined'
+  WHERE p.id<>auth.uid() AND btrim(q)<>'' AND p.player_name ILIKE btrim(q)||'%'
+  ORDER BY p.player_name LIMIT 20;
+$$;
+
+CREATE OR REPLACE FUNCTION public.list_friends()
+RETURNS TABLE (id uuid, player_name text, avatar jsonb)
+LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+  SELECT p.id, p.player_name, p.avatar FROM friendships f
+  JOIN profiles p ON p.id = CASE WHEN f.requester_id=auth.uid() THEN f.addressee_id ELSE f.requester_id END
+  WHERE f.status='accepted' AND auth.uid() IN (f.requester_id,f.addressee_id)
+  ORDER BY p.player_name;
+$$;
+
+CREATE OR REPLACE FUNCTION public.list_friend_requests()
+RETURNS TABLE (friendship_id uuid, requester_id uuid, player_name text, avatar jsonb, created_at timestamptz)
+LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+  SELECT f.id, f.requester_id, p.player_name, p.avatar, f.created_at FROM friendships f
+  JOIN profiles p ON p.id=f.requester_id
+  WHERE f.addressee_id=auth.uid() AND f.status='pending' ORDER BY f.created_at DESC;
+$$;
+
+CREATE OR REPLACE FUNCTION public.friend_request_count()
+RETURNS int LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+  SELECT count(*)::int FROM friendships WHERE addressee_id=auth.uid() AND status='pending';
+$$;
+
+-- Anfrage senden: Gegenanfrage vorhanden → automatisch Freunde; früher abgelehnt → neu.
+CREATE OR REPLACE FUNCTION public.send_friend_request(target uuid)
+RETURNS text LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  IF target=auth.uid() THEN RAISE EXCEPTION 'self'; END IF;
+  UPDATE friendships SET status='accepted', updated_at=now()
+   WHERE requester_id=target AND addressee_id=auth.uid() AND status='pending';
+  IF FOUND THEN RETURN 'accepted'; END IF;
+  INSERT INTO friendships (requester_id,addressee_id,status) VALUES (auth.uid(),target,'pending')
+  ON CONFLICT (requester_id,addressee_id) DO UPDATE SET status='pending', updated_at=now()
+    WHERE friendships.status='declined';
+  RETURN 'pending';
+END; $$;
+
+CREATE OR REPLACE FUNCTION public.respond_friend_request(fid uuid, accept boolean)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  UPDATE friendships SET status=CASE WHEN accept THEN 'accepted' ELSE 'declined' END, updated_at=now()
+   WHERE id=fid AND addressee_id=auth.uid() AND status='pending';
+  IF NOT FOUND THEN RAISE EXCEPTION 'not found'; END IF;
+END; $$;
+
+-- Freund entfernen / Anfrage zurückziehen — löscht die Paar-Zeile (beidseitig).
+CREATE OR REPLACE FUNCTION public.remove_friend(other uuid)
+RETURNS void LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+  DELETE FROM friendships WHERE auth.uid() IN (requester_id,addressee_id)
+    AND other IN (requester_id,addressee_id);
+$$;
+
+-- Fortschritt eines Freundes (nur bei akzeptierter Freundschaft) — Form wie cloudLoad,
+-- damit die vorhandene Fortschritt-Seite ihn 1:1 rendern kann.
+CREATE OR REPLACE FUNCTION public.get_friend_progress(friend uuid)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE result jsonb;
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM friendships WHERE status='accepted'
+      AND friend IN (requester_id,addressee_id) AND auth.uid() IN (requester_id,addressee_id))
+  THEN RAISE EXCEPTION 'not friends'; END IF;
+  SELECT jsonb_build_object(
+    'playerName',p.player_name,'avatar',p.avatar,'highscore',p.highscore,
+    'totalPoints',p.total_points,'uvFills',p.uv_fills,
+    'decks',COALESCE((SELECT jsonb_object_agg(d.id::text, jsonb_build_object(
+        'id',d.id,'name',d.name,'vocab',d.vocab,'categoryProgress',d.category_progress,
+        'presetCategories',d.preset_categories,'deckPath',d.deck_path,'mode',d.mode,
+        'wordStats',COALESCE((SELECT jsonb_object_agg(ws.stat_key,jsonb_build_object(
+            'asked',ws.asked,'correct',ws.correct,'wrong',ws.wrong,'recent',ws.recent))
+          FROM word_stats ws WHERE ws.deck_id=d.id),'{}'::jsonb)))
+      FROM decks d WHERE d.user_id=friend),'{}'::jsonb),
+    'globalPresetStats',jsonb_build_object('wordStats',COALESCE((SELECT jsonb_object_agg(ps.stat_key,
+        jsonb_build_object('asked',ps.asked,'correct',ps.correct,'wrong',ps.wrong,'recent',ps.recent))
+      FROM preset_stats ps WHERE ps.user_id=friend),'{}'::jsonb),'categoryProgress','{}'::jsonb),
+    'probetests',COALESCE((SELECT jsonb_agg(jsonb_build_object('decks',pt.decks,'grade',pt.grade,
+        'percent',pt.percent,'questions',pt.questions,'correct',pt.correct,'date',pt.taken_at)
+        ORDER BY pt.taken_at DESC) FROM probetests pt WHERE pt.user_id=friend),'[]'::jsonb))
+  INTO result FROM profiles p WHERE p.id=friend;
+  RETURN result;
+END; $$;

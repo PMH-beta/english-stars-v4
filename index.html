@@ -188,7 +188,10 @@
   <h1>⭐ English Stars</h1>
   <div class="subtitle">Deutsch → Englisch Lernspiel</div>
   <div class="player-banner" onclick="showProfile()" style="cursor:pointer;">
-    <div id="menu-avatar" style="width:46px;height:46px;flex-shrink:0;"></div>
+    <div style="position:relative;flex-shrink:0;">
+      <div id="menu-avatar" style="width:46px;height:46px;"></div>
+      <div id="friend-badge" style="display:none;position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;padding:0 4px;box-sizing:border-box;background:#e03131;color:#fff;border-radius:10px;font-family:'Fredoka One',cursive;font-size:.66rem;line-height:18px;text-align:center;box-shadow:0 0 0 2px #fff;"></div>
+    </div>
     <div style="flex:1;min-width:0;">
       <div class="player-name" id="menu-player-name">Hallo!</div>
       <div class="player-stats">
@@ -280,6 +283,9 @@
     </div>
   </div>
 
+  <!-- FREUNDE (über Cloud-Konto) — gefüllt durch renderFriendsSection() -->
+  <div class="stats-panel" id="prof-friends-section"></div>
+
   <div class="stats-panel" id="prof-cloud-section">
     <!-- gefüllt durch showProfile() -->
   </div>
@@ -318,8 +324,8 @@
 
 <!-- ═══ STATS SCREEN ═══ -->
 <div id="stats-screen" style="display:none;width:100%;max-width:540px;flex-direction:column;align-items:flex-start;">
-  <button class="back-btn sticky" onclick="showMenu()">← Zurück</button>
-  <h1 style="width:100%;margin-bottom:14px">📊 Fortschritt</h1>
+  <button id="stats-back-btn" class="back-btn sticky" onclick="showMenu()">← Zurück</button>
+  <h1 id="stats-heading" style="width:100%;margin-bottom:14px">📊 Fortschritt</h1>
 
   <!-- Profil-Panel -->
   <div class="stats-panel">

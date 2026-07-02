@@ -10,6 +10,7 @@ import { commitDirty } from './dialog.js';
 import { uvMap, uvLernstand, constellationWords, FORGE_DISC } from './irregular-game.js';
 import { renderAvatarInto, renderCharacter, commitAvatar, resetCharacterFeature } from './avatar.js';
 import { IRREGULAR_PRESET_ID, uvAvailableVerbs, CONSTELLATION_SIZE, cefrOf, forgeObject } from './irregular-verbs.js';
+import { renderFriendsSection, refreshFriendBadge, friendProgress } from './friends.js';
 
 const API_KEY_SK = 'es_apikey';
 
@@ -25,6 +26,13 @@ let _loginInFlight = false;
 //  SCREEN ROUTING
 // ────────────────────────────────────────────────
 export function showScreen(id) {
+  // Freund-Fortschritt zeigt fremde Daten über einen temporären window.SD-Tausch.
+  // Verlässt man die Fortschritt-Seite auf IRGENDEINEM Weg (auch Hardware-Zurück),
+  // hier den eigenen Stand zurückholen — sonst rendert/persistiert das Menü fremde Daten.
+  if (_statsFriendMode && id !== 'stats-screen') {
+    _statsFriendMode = false;
+    if (_friendSDBackup) { window.SD = _friendSDBackup; _friendSDBackup = null; try { syncMirrorFromActiveDeck(); } catch (e) {} }
+  }
   // Mic/Audio-Session freigeben wenn Spieler den Game-Screen verlässt (z.B. ← Zurück)
   if (id !== 'game-screen' && document.body.classList.contains('in-game')) {
     try { voskStop(); } catch(e) {}
@@ -88,6 +96,9 @@ export function showScreen(id) {
 // erzwingen wir nicht (Plattformgrenze, s. TWA-To-do).
 let _currentScreen = 'loading-screen';
 let _navActive = false;
+// Freund-Fortschritt: window.SD wird temporär durch den Stand des Freundes ersetzt.
+let _statsFriendMode = false;
+let _friendSDBackup = null;
 let _inPopstate = false;    // true während _onBackNavPop läuft → unterdrückt Screen-Push in showScreen
 
 // Pre-Login/Transient-Screens: hier führt „zurück" NICHT ins Menü (kein Login),
@@ -1186,6 +1197,7 @@ export function showMenu() {
   const mode = window.SD.activeMode || 'free';
   _applyModeActiveDeck(mode);   // aktives Deck des Modus sicherstellen (nach Cloud-Load 1:1)
   renderModeContent(mode);      // rendert die Decks des aktiven Modus
+  refreshFriendBadge();         // roter Anfrage-Zähler über dem Profilkopf
 }
 
 // ────────────────────────────────────────────────
@@ -1193,6 +1205,7 @@ export function showMenu() {
 // ────────────────────────────────────────────────
 export function showProfile() {
   showScreen('profile-screen');
+  renderFriendsSection();   // FREUNDE-Sektion (Suche, Anfragen, Liste) füllen
   const SD = window.SD;
   renderAvatarInto('prof-avatar', SD, { headOnly: true });
   const pn = document.getElementById('prof-name');
@@ -1325,9 +1338,52 @@ export function wrongDots(stat) {
     '</span>';
 }
 
+// Fortschritt eines Freundes (schreibgeschützt): fremden Stand temporär als window.SD
+// setzen und die normale Fortschritt-Seite rendern. showScreen holt den eigenen Stand
+// beim Verlassen zurück (auch bei Hardware-Zurück). Zurück-Button → Profil.
+export async function showFriendStats(friendId) {
+  const state = await friendProgress(friendId);
+  if (!state) { window.esAlert({ icon: '⚠️', title: 'Nicht verfügbar', body: 'Der Fortschritt konnte nicht geladen werden.' }); return; }
+  _friendSDBackup = window.SD;
+  _statsFriendMode = true;
+  window.SD = _friendState(state);
+  await showStats();
+}
+export function closeFriendStats() {
+  // Rückgabe des eigenen Stands übernimmt showScreen (via _statsFriendMode-Guard).
+  showProfile();
+}
+function _friendState(s) {
+  return {
+    _version: 4,
+    playerName: s.playerName || 'Freund',
+    highscore: s.highscore || 0,
+    totalPoints: s.totalPoints || 0,
+    avatar: s.avatar || null,
+    activeMode: 'free',
+    activeDeckId: null,
+    decks: s.decks || {},
+    uvFills: Array.isArray(s.uvFills) ? s.uvFills : null,
+    categoryProgress: {
+      vocab:       { played: 0, correct: 0, bestStreak: 0 },
+      spelling:    { played: 0, correct: 0, bestStreak: 0 },
+      pronounce:   { played: 0, correct: 0, bestStreak: 0 },
+      mixed_vocab: { played: 0, correct: 0, bestStreak: 0 },
+    },
+    wordStats: {},
+    globalPresetStats: (s.globalPresetStats && typeof s.globalPresetStats === 'object') ? s.globalPresetStats : { wordStats: {}, categoryProgress: {} },
+    probetests: Array.isArray(s.probetests) ? s.probetests : [],
+  };
+}
+
 export async function showStats() {
   showScreen('stats-screen');
   const SD = window.SD;
+  // Zurück-Ziel + Titel je nach eigenem/Freund-Fortschritt.
+  const backBtn = document.getElementById('stats-back-btn');
+  const heading = document.getElementById('stats-heading');
+  if (backBtn) backBtn.setAttribute('onclick', _statsFriendMode ? 'closeFriendStats()' : 'showMenu()');
+  if (heading) heading.textContent = _statsFriendMode ? ('📊 ' + (SD.playerName || 'Freund')) : '📊 Fortschritt';
   const pn = document.getElementById('profile-name');
   const pm = document.getElementById('profile-meta');
   if (pn) pn.textContent = SD.playerName || 'Spieler';

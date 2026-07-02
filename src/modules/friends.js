@@ -1,0 +1,194 @@
+// src/modules/friends.js
+// Freunde-System: Suche, Anfragen (annehmen/ablehnen), Freundesliste, Entfernen.
+// Backend läuft komplett über Supabase-RPCs (SECURITY DEFINER, s. backend/schema.sql),
+// da die profiles-RLS nur das eigene Profil freigibt. Eine Freundschaft = EINE Zeile
+// (das Paar) → gegenseitig: wer addet/annimmt, steht bei beiden in der Liste; Entfernen
+// löscht die Zeile → verschwindet bei beiden.
+
+import { supabase } from './supabase.js';
+import { renderAvatarInto } from './avatar.js';
+
+const esc = (s) => (window.escHtml ? window.escHtml(s) : (s || ''));
+let _searchTimer = null;
+let _friendsCache = [];
+
+// ── RPC-Wrapper ──
+export async function searchUsers(q) {
+  const { data, error } = await supabase.rpc('search_users', { q });
+  if (error) { console.warn('[friends] search:', error.message); return []; }
+  return data || [];
+}
+async function listFriends() {
+  const { data, error } = await supabase.rpc('list_friends');
+  if (error) { console.warn('[friends] list_friends:', error.message); return []; }
+  return data || [];
+}
+async function listRequests() {
+  const { data, error } = await supabase.rpc('list_friend_requests');
+  if (error) { console.warn('[friends] list_requests:', error.message); return []; }
+  return data || [];
+}
+export async function friendRequestCount() {
+  const { data, error } = await supabase.rpc('friend_request_count');
+  if (error) return 0;
+  return Number(data) || 0;
+}
+export async function friendProgress(friendId) {
+  const { data, error } = await supabase.rpc('get_friend_progress', { friend: friendId });
+  if (error) { console.warn('[friends] progress:', error.message); return null; }
+  return data || null;
+}
+
+// ── Style-Helfer ──
+function _btn(bg, color = '#fff') {
+  return `font-family:'Fredoka One',cursive;font-size:.72rem;padding:6px 10px;border:none;border-radius:50px;cursor:pointer;background:${bg};color:${color};white-space:nowrap;flex-shrink:0;`;
+}
+function _tag(color) {
+  return `font-size:.72rem;font-weight:700;color:${color};background:rgba(0,0,0,.05);padding:5px 10px;border-radius:50px;white-space:nowrap;flex-shrink:0;`;
+}
+function _person(prefix, id, name, rightHtml, clickable) {
+  const nameClick = clickable ? ` onclick="openFriendStats('${id}')" style="cursor:pointer;` : ' style="';
+  return `<div style="display:flex;align-items:center;gap:10px;padding:8px 6px;border-bottom:1px solid #f0f0f0;">
+    <div id="${prefix}-av-${id}" ${clickable ? `onclick="openFriendStats('${id}')" style="cursor:pointer;` : 'style="'}width:40px;height:40px;flex-shrink:0;"></div>
+    <div${nameClick}flex:1;min-width:0;font-family:'Fredoka One',cursive;color:var(--text);font-size:.92rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(name)}</div>
+    ${rightHtml}
+  </div>`;
+}
+function _drawAvatar(prefix, id, avatar) {
+  renderAvatarInto(`${prefix}-av-${id}`, { avatar }, { headOnly: true });
+}
+
+// ── Badge über dem Profilkopf (Startseite) ──
+export async function refreshFriendBadge() {
+  const el = document.getElementById('friend-badge');
+  if (!el) return;
+  if (!window.currentUser) { el.style.display = 'none'; return; }
+  const n = await friendRequestCount();
+  if (n > 0) { el.textContent = n > 99 ? '99+' : String(n); el.style.display = ''; }
+  else el.style.display = 'none';
+}
+
+// ── FREUNDE-Sektion auf der Profilseite ──
+export async function renderFriendsSection() {
+  const host = document.getElementById('prof-friends-section');
+  if (!host) return;
+  if (!window.currentUser) {
+    host.innerHTML = `<h3 style="color:var(--purple);margin-top:0">👥 Freunde</h3>
+      <div style="font-size:.8rem;color:#999;font-weight:700;">Melde dich an, um Freunde hinzuzufügen.</div>`;
+    return;
+  }
+  host.innerHTML = `
+    <h3 style="color:var(--purple);margin-top:0">👥 Freunde</h3>
+    <div id="friend-requests" style="margin-bottom:12px;display:none;"></div>
+    <input id="friend-search" type="text" placeholder="🔍 Nach Namen suchen…" maxlength="20"
+      oninput="onFriendSearchInput(this.value)" autocomplete="off"
+      style="width:100%;padding:10px 14px;border:2px solid #eee;border-radius:11px;font-size:.9rem;font-family:'Nunito',sans-serif;margin-bottom:10px;">
+    <div id="friend-search-results" style="display:none;"></div>
+    <div id="friend-list"></div>`;
+  await Promise.all([_loadRequests(), _loadFriends()]);
+  refreshFriendBadge();
+}
+
+async function _loadRequests() {
+  const box = document.getElementById('friend-requests');
+  if (!box) return;
+  const reqs = await listRequests();
+  if (!reqs.length) { box.innerHTML = ''; box.style.display = 'none'; return; }
+  box.style.display = '';
+  box.innerHTML = `<div style="font-family:'Fredoka One',cursive;font-size:.9rem;color:var(--text);margin-bottom:6px;">Anfragen (${reqs.length})</div>`
+    + reqs.map(r => _person('req', r.requester_id, r.player_name,
+        `<button onclick="respondFriendRequest('${r.friendship_id}',true)" style="${_btn('#2a8a4a')}">✓ Annehmen</button>
+         <button onclick="respondFriendRequest('${r.friendship_id}',false)" style="${_btn('#f0f0f0','#c0392b')}">✕</button>`,
+        false)).join('');
+  reqs.forEach(r => _drawAvatar('req', r.requester_id, r.avatar));
+}
+
+async function _loadFriends() {
+  const box = document.getElementById('friend-list');
+  if (!box) return;
+  const friends = await listFriends();
+  _friendsCache = friends;
+  if (!friends.length) {
+    box.innerHTML = `<div style="font-size:.82rem;color:#999;font-weight:700;text-align:center;padding:14px;">Noch keine Freunde — such oben jemanden und schick eine Anfrage!</div>`;
+    return;
+  }
+  box.innerHTML = friends.map(f => _person('fl', f.id, f.player_name,
+    `<button onclick="confirmRemoveFriend('${f.id}')" title="Freund entfernen" style="${_btn('#f0f0f0', '#c0392b')}">🗑️</button>`,
+    true)).join('');
+  friends.forEach(f => _drawAvatar('fl', f.id, f.avatar));
+}
+
+// Suche: ab 1 Zeichen; Freundesliste wird währenddessen ausgeblendet (nicht überladen).
+export function onFriendSearchInput(val) {
+  const q = (val || '').trim();
+  const list = document.getElementById('friend-list');
+  const results = document.getElementById('friend-search-results');
+  if (!results) return;
+  if (!q) {
+    results.style.display = 'none';
+    results.innerHTML = '';
+    if (list) list.style.display = '';
+    return;
+  }
+  if (list) list.style.display = 'none';
+  results.style.display = '';
+  results.innerHTML = '<div style="font-size:.8rem;color:#999;text-align:center;padding:10px;">Suche…</div>';
+  clearTimeout(_searchTimer);
+  _searchTimer = setTimeout(async () => {
+    const rows = await searchUsers(q);
+    _renderSearchResults(rows, q);
+  }, 250);
+}
+
+function _renderSearchResults(rows, q) {
+  const results = document.getElementById('friend-search-results');
+  if (!results) return;
+  if (!rows.length) {
+    results.innerHTML = `<div style="font-size:.82rem;color:#999;text-align:center;padding:12px;">Niemand mit „${esc(q)}" gefunden.</div>`;
+    return;
+  }
+  results.innerHTML = rows.map(r => {
+    let right;
+    if (r.status === 'friends')       right = `<span style="${_tag('#2a8a4a')}">✓ Freunde</span>`;
+    else if (r.status === 'outgoing') right = `<span style="${_tag('#999')}">⏳ Angefragt</span>`;
+    else if (r.status === 'incoming') right = `<button onclick="sendFriendRequest('${r.id}')" style="${_btn('#2a8a4a')}">✓ Annehmen</button>`;
+    else                              right = `<button onclick="sendFriendRequest('${r.id}')" style="${_btn('var(--purple)')}">➕ Anfrage</button>`;
+    return _person('res', r.id, r.player_name, right, false);
+  }).join('');
+  rows.forEach(r => _drawAvatar('res', r.id, r.avatar));
+}
+
+// ── Aktionen ──
+export async function sendFriendRequest(id) {
+  const { error } = await supabase.rpc('send_friend_request', { target: id });
+  if (error) { window.esAlert?.({ icon: '⚠️', title: 'Fehler', body: 'Anfrage konnte nicht gesendet werden.' }); return; }
+  const inp = document.getElementById('friend-search');
+  const q = inp && inp.value.trim();
+  if (q) { const rows = await searchUsers(q); _renderSearchResults(rows, q); }
+  await Promise.all([_loadRequests(), _loadFriends()]);
+  refreshFriendBadge();
+}
+
+export async function respondFriendRequest(fid, accept) {
+  const { error } = await supabase.rpc('respond_friend_request', { fid, accept });
+  if (error) { window.esAlert?.({ icon: '⚠️', title: 'Fehler', body: 'Aktion fehlgeschlagen.' }); return; }
+  await Promise.all([_loadRequests(), _loadFriends()]);
+  refreshFriendBadge();
+}
+
+export async function confirmRemoveFriend(id) {
+  const name = (_friendsCache.find(f => f.id === id) || {}).player_name || 'Freund';
+  const ok = await window.esConfirm({
+    icon: '🗑️', title: 'Freund entfernen?',
+    body: `„${name}" wird bei euch beiden aus der Freundesliste entfernt.`,
+    ok: 'Entfernen', cancel: 'Abbrechen', danger: true,
+  });
+  if (!ok) return;
+  const { error } = await supabase.rpc('remove_friend', { other: id });
+  if (error) { window.esAlert?.({ icon: '⚠️', title: 'Fehler', body: 'Konnte nicht entfernt werden.' }); return; }
+  await _loadFriends();
+}
+
+export function openFriendStats(id) {
+  if (window.showFriendStats) window.showFriendStats(id);
+}
