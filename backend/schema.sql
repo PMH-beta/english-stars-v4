@@ -281,37 +281,48 @@ CREATE POLICY "read own friendships" ON friendships FOR SELECT TO authenticated
   USING (auth.uid() IN (requester_id, addressee_id));
 
 -- Suche: Namensteil ab 1 Zeichen, alphabetisch, max 20, mit Beziehungsstatus zu mir.
+-- Rückgabe als jsonb-Array (Client bekommt direkt ein Array von Objekten).
 CREATE OR REPLACE FUNCTION public.search_users(q text)
-RETURNS TABLE (id uuid, player_name text, avatar jsonb, status text)
+RETURNS jsonb
 LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
-  SELECT p.id, p.player_name, p.avatar,
-    CASE WHEN f.status='accepted' THEN 'friends'
-         WHEN f.status='pending' AND f.requester_id=auth.uid() THEN 'outgoing'
-         WHEN f.status='pending' AND f.addressee_id=auth.uid() THEN 'incoming'
-         ELSE 'none' END AS status
-  FROM profiles p
-  LEFT JOIN friendships f
-    ON ((f.requester_id=auth.uid() AND f.addressee_id=p.id)
-     OR (f.addressee_id=auth.uid() AND f.requester_id=p.id)) AND f.status<>'declined'
-  WHERE p.id<>auth.uid() AND btrim(q)<>'' AND p.player_name ILIKE btrim(q)||'%'
-  ORDER BY p.player_name LIMIT 20;
+  SELECT COALESCE(jsonb_agg(obj ORDER BY nm), '[]'::jsonb) FROM (
+    SELECT p.player_name AS nm, jsonb_build_object(
+      'id', p.id, 'player_name', p.player_name, 'avatar', p.avatar,
+      'status', CASE WHEN f.status='accepted' THEN 'friends'
+                     WHEN f.status='pending' AND f.requester_id=auth.uid() THEN 'outgoing'
+                     WHEN f.status='pending' AND f.addressee_id=auth.uid() THEN 'incoming'
+                     ELSE 'none' END) AS obj
+    FROM profiles p
+    LEFT JOIN friendships f
+      ON ((f.requester_id=auth.uid() AND f.addressee_id=p.id)
+       OR (f.addressee_id=auth.uid() AND f.requester_id=p.id)) AND f.status<>'declined'
+    WHERE p.id<>auth.uid() AND btrim(q)<>'' AND p.player_name ILIKE btrim(q)||'%'
+    ORDER BY p.player_name LIMIT 20
+  ) s;
 $$;
 
 CREATE OR REPLACE FUNCTION public.list_friends()
-RETURNS TABLE (id uuid, player_name text, avatar jsonb)
+RETURNS jsonb
 LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
-  SELECT p.id, p.player_name, p.avatar FROM friendships f
-  JOIN profiles p ON p.id = CASE WHEN f.requester_id=auth.uid() THEN f.addressee_id ELSE f.requester_id END
-  WHERE f.status='accepted' AND auth.uid() IN (f.requester_id,f.addressee_id)
-  ORDER BY p.player_name;
+  SELECT COALESCE(jsonb_agg(jsonb_build_object('id', fid, 'player_name', nm, 'avatar', av) ORDER BY nm), '[]'::jsonb)
+  FROM (
+    SELECT p.id AS fid, p.player_name AS nm, p.avatar AS av
+    FROM friendships f
+    JOIN profiles p ON p.id = CASE WHEN f.requester_id=auth.uid() THEN f.addressee_id ELSE f.requester_id END
+    WHERE f.status='accepted' AND auth.uid() IN (f.requester_id,f.addressee_id)
+  ) s;
 $$;
 
 CREATE OR REPLACE FUNCTION public.list_friend_requests()
-RETURNS TABLE (friendship_id uuid, requester_id uuid, player_name text, avatar jsonb, created_at timestamptz)
+RETURNS jsonb
 LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
-  SELECT f.id, f.requester_id, p.player_name, p.avatar, f.created_at FROM friendships f
+  SELECT COALESCE(jsonb_agg(jsonb_build_object(
+    'friendship_id', f.id, 'requester_id', f.requester_id,
+    'player_name', p.player_name, 'avatar', p.avatar, 'created_at', f.created_at
+  ) ORDER BY f.created_at DESC), '[]'::jsonb)
+  FROM friendships f
   JOIN profiles p ON p.id=f.requester_id
-  WHERE f.addressee_id=auth.uid() AND f.status='pending' ORDER BY f.created_at DESC;
+  WHERE f.addressee_id=auth.uid() AND f.status='pending';
 $$;
 
 CREATE OR REPLACE FUNCTION public.friend_request_count()
