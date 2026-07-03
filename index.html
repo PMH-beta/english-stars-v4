@@ -197,6 +197,7 @@
       <div class="player-stats">
         <span class="pstat">🏆 <span id="menu-highscore">0</span></span>
         <span class="pstat">⭐ <span id="menu-total">0</span> Pkt</span>
+        <span class="pstat">🪙 <span id="menu-taler">0</span></span>
       </div>
     </div>
     <button class="back-btn" style="margin:0" onclick="event.stopPropagation();showStats()">📊 Fortschritt</button>
@@ -235,12 +236,8 @@
     </div>
   </div>
 
-  <!-- ─── Kampagne Platzhalter ─── -->
-  <div id="mode-campaign" style="display:none;width:100%;text-align:center;padding:48px 20px;">
-    <div style="font-size:3.5rem;margin-bottom:14px;">🗺️</div>
-    <div style="font-family:'Fredoka One',cursive;font-size:1.4rem;color:var(--purple);margin-bottom:8px;">Kampagne</div>
-    <div style="font-size:.9rem;color:#aaa;font-weight:700;">Kommt bald!</div>
-  </div>
+  <!-- ─── Kampagne (Karte) — befüllt von renderCampaign() ─── -->
+  <div id="mode-campaign" style="display:none;width:100%;"></div>
 
 </div>
 

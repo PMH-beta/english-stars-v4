@@ -13,6 +13,7 @@ CREATE TABLE profiles (
   active_deck_id UUID,
   active_mode TEXT NOT NULL DEFAULT 'free',
   avatar JSONB,
+  campaign JSONB,   -- Kampagne: { claimed:[catId], talerSpent:int, run:{…}|null }
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -20,6 +21,7 @@ CREATE TABLE profiles (
 -- Migration für bestehende DBs (einmalig im Supabase-Dashboard ausführen):
 -- ALTER TABLE profiles ADD COLUMN IF NOT EXISTS active_mode TEXT NOT NULL DEFAULT 'free';
 -- ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar JSONB;  -- {skin,build,hair,eyes,nose,mouth,ears} je 0..9
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS campaign JSONB;  -- Kampagne (Taler + Kartenlauf)
 
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 

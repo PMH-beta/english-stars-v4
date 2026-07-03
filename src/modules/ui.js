@@ -11,6 +11,7 @@ import { uvMap, uvLernstand, constellationWords, FORGE_DISC } from './irregular-
 import { renderAvatarInto, renderCharacter, commitAvatar, resetCharacterFeature } from './avatar.js';
 import { IRREGULAR_PRESET_ID, uvAvailableVerbs, CONSTELLATION_SIZE, cefrOf, forgeObject } from './irregular-verbs.js';
 import { renderFriendsSection, refreshFriendBadge, friendProgress, subscribeFriendRealtime, unsubscribeFriendRealtime } from './friends.js';
+import { renderCampaign, updateTalerBadge, refreshClaimedTaler } from './campaign.js';
 
 const API_KEY_SK = 'es_apikey';
 
@@ -311,6 +312,7 @@ export function renderModeContent(mode) {
   _renderModeToggle(mode);
   if (mode === 'free') { renderProbetestSection(); renderDecks('free'); }
   else if (mode === 'student') renderStudentMode();
+  else if (mode === 'campaign') renderCampaign();
   // Schnell-Zustand DIESES Modus spiegeln (isSchnellModus + Dark-Mode + Buttons).
   if (window.syncSchnellForMode) window.syncSchnellForMode(mode);
 }
@@ -1193,6 +1195,8 @@ export function showMenu() {
   renderAvatarInto('menu-avatar', window.SD, { headOnly: true });
   document.getElementById('menu-highscore').textContent = window.SD.highscore;
   document.getElementById('menu-total').textContent = window.SD.totalPoints;
+  updateTalerBadge();                          // Taler sofort aus lokalem Stand
+  refreshClaimedTaler().catch(() => {});       // 100%-Teilabschnitte nachzählen (retroaktiv)
   const ft = document.getElementById('menu-footer'); if (ft) ft.style.display = 'flex';
   const mode = window.SD.activeMode || 'free';
   _applyModeActiveDeck(mode);   // aktives Deck des Modus sicherstellen (nach Cloud-Load 1:1)
@@ -2062,6 +2066,7 @@ function showMenuSkeleton() {
   const nm = document.getElementById('menu-player-name'); if (nm) nm.textContent = 'Lädt…';
   const hs = document.getElementById('menu-highscore');   if (hs) hs.textContent = '·';
   const tp = document.getElementById('menu-total');       if (tp) tp.textContent = '·';
+  const tl = document.getElementById('menu-taler');       if (tl) tl.textContent = '·';
   const ft = document.getElementById('menu-footer');      if (ft) ft.style.display = 'flex';
   const c = document.getElementById('decks-container');
   if (c) c.innerHTML =

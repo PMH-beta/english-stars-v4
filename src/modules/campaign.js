@@ -1,0 +1,302 @@
+// src/modules/campaign.js
+// Kampagne — Slay-the-Spire-artige Karte.
+// ERSTER SCHRITT: Taler-Ökonomie + prozedurale Karte mit mehreren Pfaden + HP-Leiste
+// + Navigation. Die eigentlichen Kämpfe an den Knoten sind noch Platzhalter
+// (Spielkonzept folgt später). Persistenz: SD.campaign (reitet als profiles.campaign
+// jsonb im Sync mit, analog uv_fills).
+//
+// Taler-Regel: Pro Teilabschnitt (Preset-Kategorie) auf 100 % gibt es 1 Taler. Einmal
+// verdient = dauerhaft „claimed" (kein Zurückfallen durch EMA-Schwankung). Freischalten
+// ab 2 erledigten Teilabschnitten; Start kostet 2 Taler Einsatz; Tod (HP=0) → Einsatz weg.
+
+import { effectivePct, statKeyFor } from './stats.js';
+import { getPresetCategories } from './vocab.js';
+import { persist } from './storage.js';
+import { markDirty } from './sync.js';
+import { commitDirty } from './dialog.js';
+
+const ROWS = 13;            // Reihe 0 = Start (unten), Reihe ROWS-1 = Boss (oben)
+const COLS = 5;
+const PATHS = 6;            // Anzahl generierter Pfade von unten nach oben
+const HP_MAX = 60;
+export const STAKE_COST = 2;
+const UNLOCK_NEED = 2;      // so viele 100%-Teilabschnitte zum Freischalten
+
+const NODE = {
+  fight:     { icon: '⚔️', label: 'Übung' },
+  irregular: { icon: '🌀', label: 'Unregelmäßige' },
+  rest:      { icon: '🔥', label: 'Rastplatz' },
+  treasure:  { icon: '💎', label: 'Schatz' },
+  boss:      { icon: '👑', label: 'Boss' },
+};
+
+const _rand = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+const _pick = (arr) => arr[_rand(0, arr.length - 1)];
+
+// ── SD-Zugriff (mit Default-Reparatur) ──
+function _camp() {
+  const SD = window.SD;
+  if (!SD.campaign || typeof SD.campaign !== 'object') SD.campaign = { claimed: [], talerSpent: 0, run: null };
+  if (!Array.isArray(SD.campaign.claimed)) SD.campaign.claimed = [];
+  if (typeof SD.campaign.talerSpent !== 'number') SD.campaign.talerSpent = 0;
+  return SD.campaign;
+}
+function _saveCampaign() {
+  persist(window.SD);
+  if (window.currentUser) { markDirty('profile'); commitDirty(); }
+}
+
+export function talerAvailable() {
+  const c = _camp();
+  return Math.max(0, c.claimed.length - c.talerSpent);
+}
+
+// ── Taler verdienen: 100%-Teilabschnitte einsammeln (retroaktiv) ──
+// Gleiche Punkte-Formel wie die Vorlagen-Fortschrittsanzeige (_claimedBarPct in vocab.js).
+function _categoryPct(cat) {
+  const words = Array.isArray(cat.words) ? cat.words : [];
+  if (!words.length) return 0;
+  const ws = window.SD?.globalPresetStats?.wordStats || {};
+  let totalScore = 0;
+  for (const suf of ['_mc', '_sp', '_pr']) {
+    let score = 0;
+    for (const v of words) {
+      const s = ws[statKeyFor(v.de, v.en, suf, cat.id)];
+      if (!s || !s.asked) continue;
+      const asked = s.asked, pct = effectivePct(s);
+      if (Math.floor(asked) >= 3 && pct >= 0.9) score += 1;
+      else if (asked >= 1) score += Math.max(0, (pct - 0.5) * 2) * Math.min(asked / 3, 1) * 0.85;
+    }
+    totalScore += score;
+  }
+  return Math.min(100, Math.round((totalScore / 3 / words.length) * 100));
+}
+
+// Prüft alle Kategorien und schreibt neu-fertige in claimed. Idempotent → zählt auch
+// bestehende Profile rückwirkend (beim ersten Menü-Aufruf mit dieser Version).
+export async function refreshClaimedTaler() {
+  const c = _camp();
+  let cats = [];
+  try { cats = await getPresetCategories(); } catch (e) { cats = []; }
+  let changed = false;
+  for (const cat of (cats || [])) {
+    if (!cat?.id || c.claimed.includes(cat.id)) continue;
+    if (_categoryPct(cat) >= 100) { c.claimed.push(cat.id); changed = true; }
+  }
+  if (changed) _saveCampaign();
+  updateTalerBadge();
+  return talerAvailable();
+}
+
+export function updateTalerBadge() {
+  const el = document.getElementById('menu-taler');
+  if (el) el.textContent = talerAvailable();
+}
+
+// ── Kartengenerierung (prozedural, DAG von unten nach oben) ──
+function generateMap() {
+  const grid = Array.from({ length: ROWS }, () => ({}));   // grid[row][col] = node
+  const ensure = (r, col) => {
+    if (!grid[r][col]) grid[r][col] = { id: r + '_' + col, row: r, col, type: 'fight', next: [] };
+    return grid[r][col];
+  };
+  const link = (a, b) => { if (!a.next.includes(b.id)) a.next.push(b.id); };
+
+  for (let p = 0; p < PATHS; p++) {
+    let col = _rand(0, COLS - 1);
+    for (let r = 0; r < ROWS - 2; r++) {
+      const cur = ensure(r, col);
+      let cands = [col - 1, col, col + 1].filter(c => c >= 0 && c < COLS);
+      // Kreuzungs-Schutz: diagonale Kante nur, wenn der seitliche Nachbar nicht
+      // gegengleich diagonal in unsere Spalte läuft.
+      cands = cands.filter(nc => {
+        if (nc === col) return true;
+        const sib = grid[r][nc];
+        return !sib || !sib.next.includes((r + 1) + '_' + col);
+      });
+      const nc = _pick(cands.length ? cands : [col]);
+      link(cur, ensure(r + 1, nc));
+      col = nc;
+    }
+  }
+
+  // Boss oben, alle Knoten der vorletzten Reihe zeigen darauf.
+  const boss = ensure(ROWS - 1, Math.floor(COLS / 2));
+  boss.type = 'boss';
+  for (const col in grid[ROWS - 2]) link(grid[ROWS - 2][col], boss);
+
+  const nodes = {};
+  for (let r = 0; r < ROWS; r++) {
+    for (const col in grid[r]) {
+      const n = grid[r][col];
+      if (n.type !== 'boss') n.type = _typeForRow(r);
+      nodes[n.id] = n;
+    }
+  }
+  return { nodes, rows: ROWS, cols: COLS, bossId: boss.id };
+}
+
+function _typeForRow(r) {
+  if (r <= 1) return 'fight';                       // erste Reihen sanft (nur Übung)
+  const roll = Math.random();
+  const restW = r >= ROWS - 4 ? 0.22 : 0.12;        // Rast häufiger kurz vor dem Boss
+  if (roll < 0.50) return 'fight';
+  if (roll < 0.72) return 'irregular';
+  if (roll < 0.72 + restW) return 'rest';
+  return 'treasure';
+}
+
+// ── Run-Lifecycle ──
+function _isReachable(run, node) {
+  if (run.pos == null) return node.row === 0;
+  const cur = run.map.nodes[run.pos];
+  return !!cur && cur.next.includes(node.id);
+}
+
+export function startCampaignRun() {
+  const c = _camp();
+  if (c.run) { renderCampaign(); return; }
+  if (talerAvailable() < STAKE_COST) return;
+  c.talerSpent += STAKE_COST;                        // Einsatz sofort gesetzt
+  c.run = { map: generateMap(), pos: null, visited: [], hp: HP_MAX, hpMax: HP_MAX };
+  _saveCampaign();
+  updateTalerBadge();
+  renderCampaign();
+}
+
+export function campaignNode(id) {
+  const c = _camp();
+  const run = c.run;
+  if (!run) return;
+  const node = run.map.nodes[id];
+  if (!node || !_isReachable(run, node)) return;
+  run.pos = id;
+  if (!run.visited.includes(id)) run.visited.push(id);
+  if (node.type === 'boss') {
+    // Platzhalter-Sieg (Kämpfe folgen später) → Run beenden.
+    c.run = null;
+    _saveCampaign();
+    renderCampaign();
+    window.esAlert?.({ icon: '👑', title: 'Boss geschafft!', body: 'Du hast dich bis zum Boss durchgekämpft! Die echten Kämpfe kommen später.' });
+    return;
+  }
+  _saveCampaign();
+  renderCampaign();
+  // Platzhalter-Hinweis am Knoten (statt Kampf).
+  window.esToast?.(NODE[node.type].icon + ' ' + NODE[node.type].label + ' — Kampf kommt später');
+}
+
+export function campaignGiveUp() {
+  const c = _camp();
+  if (!c.run) return;
+  const finish = () => { c.run = null; _saveCampaign(); renderCampaign(); };
+  if (window.esConfirm) {
+    window.esConfirm({
+      icon: '🏳️', title: 'Aufgeben?',
+      body: 'Dein Einsatz (2 🪙) ist schon gesetzt und kommt nicht zurück.',
+      ok: 'Aufgeben', cancel: 'Weiter', danger: true,
+    }).then(ok => { if (ok) finish(); });
+  } else finish();
+}
+
+// ── Rendering ──
+export function renderCampaign() {
+  const host = document.getElementById('mode-campaign');
+  if (!host) return;
+  const c = _camp();
+  updateTalerBadge();
+  if (!c.run) { host.innerHTML = _startScreenHtml(); return; }
+  host.innerHTML = _mapHtml(c.run);
+  _drawEdges(c.run);
+  // Frischer Lauf: zum Startbereich (unten) scrollen, damit die Startknoten sichtbar sind.
+  if (c.run.pos == null) {
+    const m = document.getElementById('camp-map');
+    if (m) m.scrollIntoView({ block: 'end', behavior: 'smooth' });
+  }
+}
+
+function _startScreenHtml() {
+  const c = _camp();
+  const claimed = c.claimed.length;
+  const avail = talerAvailable();
+  const box = (inner) => `<div style="padding:34px 20px;text-align:center;">
+    <div style="font-size:3.4rem;margin-bottom:12px;">🗺️</div>
+    <div style="font-family:'Fredoka One',cursive;font-size:1.4rem;color:var(--purple);margin-bottom:12px;">Kampagne</div>
+    ${inner}</div>`;
+  if (claimed < UNLOCK_NEED) {
+    return box(`<div style="font-size:.9rem;color:#888;font-weight:700;line-height:1.55;max-width:320px;margin:0 auto;">
+      Schließe erst <b>${UNLOCK_NEED} Teilabschnitte</b> mit <b>100 %</b> ab, um die Kampagne freizuschalten.<br><br>
+      Freigeschaltet: <b>${claimed} / ${UNLOCK_NEED}</b> 🪙</div>`);
+  }
+  const canStart = avail >= STAKE_COST;
+  return box(`
+    <div style="font-size:.9rem;color:#666;font-weight:700;line-height:1.55;max-width:340px;margin:0 auto 16px;">
+      Setze <b>${STAKE_COST} 🪙</b> ein und kämpf dich über die Karte zum Boss.
+      <span style="color:#c0392b;">Fällst du (HP = 0), ist der Einsatz verloren.</span>
+    </div>
+    <div style="font-size:.95rem;font-weight:800;color:var(--text);margin-bottom:16px;">Deine Taler: ${avail} 🪙</div>
+    <button onclick="startCampaignRun()" ${canStart ? '' : 'disabled'}
+      style="font-family:'Fredoka One',cursive;font-size:1rem;padding:14px 26px;border:none;border-radius:14px;cursor:${canStart ? 'pointer' : 'not-allowed'};background:${canStart ? 'linear-gradient(135deg,#a86cdb,#c084fc)' : '#ddd'};color:#fff;box-shadow:${canStart ? '0 4px 0 #7d4bb0' : 'none'};">
+      ▶️ Kampagne starten (${STAKE_COST} 🪙)</button>
+    ${canStart ? '' : `<div style="font-size:.82rem;color:#999;font-weight:700;margin-top:12px;">Nicht genug Taler — bring weitere Teilabschnitte auf 100 %.</div>`}`);
+}
+
+const _MAP_H = ROWS * 78;   // px Gesamthöhe der Karte
+
+function _mapHtml(run) {
+  const hpPct = Math.max(0, Math.round(run.hp / run.hpMax * 100));
+  let nodesHtml = '';
+  for (const id in run.map.nodes) {
+    const n = run.map.nodes[id];
+    const x = (n.col + 0.5) / COLS * 100;
+    const y = (ROWS - 1 - n.row + 0.5) / ROWS * 100;
+    const reachable = _isReachable(run, n);
+    const isCur = run.pos === id;
+    const visited = run.visited.includes(id);
+    const meta = NODE[n.type];
+    const bg = isCur ? '#fff3b0' : visited ? '#e9e2f5' : reachable ? '#fff' : '#f6f6f6';
+    const ring = isCur ? '3px solid #f0a500' : reachable ? '3px solid var(--purple)' : '2px solid #e5e5e5';
+    const opacity = (reachable || visited || isCur) ? '1' : '.45';
+    const click = reachable ? `onclick="campaignNode('${id}')"` : '';
+    nodesHtml += `<button ${click} title="${meta.label}"
+      style="position:absolute;left:${x}%;top:${y}%;transform:translate(-50%,-50%);
+      width:44px;height:44px;border-radius:50%;border:${ring};background:${bg};opacity:${opacity};
+      cursor:${reachable ? 'pointer' : 'default'};font-size:1.3rem;line-height:1;display:flex;
+      align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.12);z-index:2;padding:0;">${meta.icon}</button>`;
+  }
+  return `
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+    <div style="flex:1;min-width:0;">
+      <div style="font-family:'Fredoka One',cursive;font-size:.8rem;color:var(--text);margin-bottom:3px;">❤️ ${run.hp} / ${run.hpMax}</div>
+      <div style="height:12px;background:#eee;border-radius:8px;overflow:hidden;"><div style="height:100%;width:${hpPct}%;background:linear-gradient(90deg,#ff6b6b,#e03131);"></div></div>
+    </div>
+    <button onclick="campaignGiveUp()" style="font-family:'Fredoka One',cursive;font-size:.72rem;padding:8px 12px;border:none;border-radius:50px;cursor:pointer;background:#f0f0f0;color:#c0392b;flex-shrink:0;">🏳️ Aufgeben</button>
+  </div>
+  <div style="font-size:.8rem;color:#999;font-weight:700;text-align:center;margin-bottom:6px;">${run.pos == null ? 'Wähle unten deinen Startpunkt ⬇️' : 'Wähle den nächsten Knoten'}</div>
+  <div id="camp-map" style="position:relative;width:100%;height:${_MAP_H}px;">
+    <svg id="camp-edges" style="position:absolute;inset:0;width:100%;height:100%;z-index:1;" viewBox="0 0 100 ${_MAP_H}" preserveAspectRatio="none"></svg>
+    ${nodesHtml}
+  </div>`;
+}
+
+function _drawEdges(run) {
+  const svg = document.getElementById('camp-edges');
+  if (!svg) return;
+  const coord = (n) => ({
+    x: (n.col + 0.5) / COLS * 100,
+    y: (ROWS - 1 - n.row + 0.5) / ROWS * _MAP_H,
+  });
+  let lines = '';
+  for (const id in run.map.nodes) {
+    const a = run.map.nodes[id];
+    const pa = coord(a);
+    for (const bid of a.next) {
+      const b = run.map.nodes[bid];
+      if (!b) continue;
+      const pb = coord(b);
+      const done = run.visited.includes(id) && run.visited.includes(bid);
+      lines += `<line x1="${pa.x}" y1="${pa.y}" x2="${pb.x}" y2="${pb.y}" stroke="${done ? '#a86cdb' : '#dcdcdc'}" stroke-width="2" stroke-linecap="round" vector-effect="non-scaling-stroke"/>`;
+    }
+  }
+  svg.innerHTML = lines;
+}

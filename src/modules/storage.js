@@ -63,6 +63,7 @@ export function freshData() {
     wordStats: {},
     globalPresetStats: { wordStats: {}, categoryProgress: {} },
     probetests: [],
+    campaign: { claimed: [], talerSpent: 0, run: null },
   };
 }
 

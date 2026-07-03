@@ -190,6 +190,7 @@ async function _cloudLoadOnce(userId) {
       wordStats:    {},
       globalPresetStats,
       probetests,
+      campaign:     _campaignFrom(profile),
     } };
   }
 
@@ -240,7 +241,21 @@ async function _cloudLoadOnce(userId) {
     wordStats:        {},
     globalPresetStats,
     probetests,
+    campaign:         _campaignFrom(profile),
   } };
+}
+
+// campaign jsonb → SD.campaign (mit Default-Reparatur), analog uv_fills.
+function _campaignFrom(profile) {
+  const c = profile.campaign;
+  if (c && typeof c === 'object' && !Array.isArray(c)) {
+    return {
+      claimed:    Array.isArray(c.claimed) ? c.claimed : [],
+      talerSpent: Number(c.talerSpent) || 0,
+      run:        (c.run && typeof c.run === 'object') ? c.run : null,
+    };
+  }
+  return { claimed: [], talerSpent: 0, run: null };
 }
 
 
@@ -260,6 +275,7 @@ export async function saveProfile(sd, userId) {
     active_mode:    sd.activeMode || 'free',
     uv_fills:       Array.isArray(sd.uvFills) ? sd.uvFills : null,
     avatar:         (sd.avatar && typeof sd.avatar === 'object') ? sd.avatar : null,
+    campaign:       (sd.campaign && typeof sd.campaign === 'object') ? sd.campaign : null,
   };
   const { data, error } = await fetchWithRetry(() => supabase
     .from('profiles')
