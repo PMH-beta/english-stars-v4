@@ -200,13 +200,36 @@ export function campaignGiveUp() {
 }
 
 // ── Rendering ──
+// Vorschau-Karte: eine stabile Beispiel-Karte für die Startansicht (nicht spielbar),
+// damit man die Karte auch ohne genug Taler sieht. Pro Session einmal erzeugt.
+let _previewMap = null;
+function _preview() {
+  if (!_previewMap) _previewMap = generateMap();
+  return { map: _previewMap, pos: null, visited: [] };
+}
+
 export function renderCampaign() {
   const host = document.getElementById('mode-campaign');
   if (!host) return;
+  _renderCampaignNow(host);
+  // Bestehende 100%-Teilabschnitte (auch aus früherem Fortschritt) nachzählen; wenn dadurch
+  // neue Taler dazukommen und keine Runde läuft, die Startansicht neu rendern.
+  const before = _camp().claimed.length;
+  refreshClaimedTaler().then(() => {
+    if (!_camp().run && _camp().claimed.length !== before) _renderCampaignNow(host);
+  }).catch(() => {});
+}
+
+function _renderCampaignNow(host) {
   const c = _camp();
   updateTalerBadge();
-  if (!c.run) { host.innerHTML = _startScreenHtml(); return; }
-  host.innerHTML = _mapHtml(c.run);
+  if (!c.run) {
+    // Startansicht (gesperrt / Einsatz) + darunter die Karte als Vorschau.
+    host.innerHTML = _startScreenHtml() + _mapHtml(_preview(), true);
+    _drawEdges(_preview());
+    return;
+  }
+  host.innerHTML = _mapHtml(c.run, false);
   _drawEdges(c.run);
   // Frischer Lauf: zum Startbereich (unten) scrollen, damit die Startknoten sichtbar sind.
   if (c.run.pos == null) {
@@ -243,28 +266,38 @@ function _startScreenHtml() {
 
 const _MAP_H = ROWS * 78;   // px Gesamthöhe der Karte
 
-function _mapHtml(run) {
-  const hpPct = Math.max(0, Math.round(run.hp / run.hpMax * 100));
+function _mapHtml(run, preview) {
   let nodesHtml = '';
   for (const id in run.map.nodes) {
     const n = run.map.nodes[id];
     const x = (n.col + 0.5) / COLS * 100;
     const y = (ROWS - 1 - n.row + 0.5) / ROWS * 100;
-    const reachable = _isReachable(run, n);
-    const isCur = run.pos === id;
-    const visited = run.visited.includes(id);
     const meta = NODE[n.type];
-    const bg = isCur ? '#fff3b0' : visited ? '#e9e2f5' : reachable ? '#fff' : '#f6f6f6';
-    const ring = isCur ? '3px solid #f0a500' : reachable ? '3px solid var(--purple)' : '2px solid #e5e5e5';
-    const opacity = (reachable || visited || isCur) ? '1' : '.45';
-    const click = reachable ? `onclick="campaignNode('${id}')"` : '';
+    let bg, ring, opacity, click, cursor;
+    if (preview) {
+      bg = '#fff'; ring = '2px solid #e5e5e5'; opacity = '.9'; click = ''; cursor = 'default';
+    } else {
+      const reachable = _isReachable(run, n);
+      const isCur = run.pos === id;
+      const visited = run.visited.includes(id);
+      bg = isCur ? '#fff3b0' : visited ? '#e9e2f5' : reachable ? '#fff' : '#f6f6f6';
+      ring = isCur ? '3px solid #f0a500' : reachable ? '3px solid var(--purple)' : '2px solid #e5e5e5';
+      opacity = (reachable || visited || isCur) ? '1' : '.45';
+      click = reachable ? `onclick="campaignNode('${id}')"` : '';
+      cursor = reachable ? 'pointer' : 'default';
+    }
     nodesHtml += `<button ${click} title="${meta.label}"
       style="position:absolute;left:${x}%;top:${y}%;transform:translate(-50%,-50%);
       width:44px;height:44px;border-radius:50%;border:${ring};background:${bg};opacity:${opacity};
-      cursor:${reachable ? 'pointer' : 'default'};font-size:1.3rem;line-height:1;display:flex;
+      cursor:${cursor};font-size:1.3rem;line-height:1;display:flex;
       align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.12);z-index:2;padding:0;">${meta.icon}</button>`;
   }
-  return `
+  let header;
+  if (preview) {
+    header = `<div style="font-size:.8rem;color:#999;font-weight:700;text-align:center;margin:4px 0 6px;">🔍 So sieht eine Karte aus — mit ${STAKE_COST} 🪙 geht's los</div>`;
+  } else {
+    const hpPct = Math.max(0, Math.round(run.hp / run.hpMax * 100));
+    header = `
   <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
     <div style="flex:1;min-width:0;">
       <div style="font-family:'Fredoka One',cursive;font-size:.8rem;color:var(--text);margin-bottom:3px;">❤️ ${run.hp} / ${run.hpMax}</div>
@@ -272,7 +305,9 @@ function _mapHtml(run) {
     </div>
     <button onclick="campaignGiveUp()" style="font-family:'Fredoka One',cursive;font-size:.72rem;padding:8px 12px;border:none;border-radius:50px;cursor:pointer;background:#f0f0f0;color:#c0392b;flex-shrink:0;">🏳️ Aufgeben</button>
   </div>
-  <div style="font-size:.8rem;color:#999;font-weight:700;text-align:center;margin-bottom:6px;">${run.pos == null ? 'Wähle unten deinen Startpunkt ⬇️' : 'Wähle den nächsten Knoten'}</div>
+  <div style="font-size:.8rem;color:#999;font-weight:700;text-align:center;margin-bottom:6px;">${run.pos == null ? 'Wähle unten deinen Startpunkt ⬇️' : 'Wähle den nächsten Knoten'}</div>`;
+  }
+  return `${header}
   <div id="camp-map" style="position:relative;width:100%;height:${_MAP_H}px;">
     <svg id="camp-edges" style="position:absolute;inset:0;width:100%;height:100%;z-index:1;" viewBox="0 0 100 ${_MAP_H}" preserveAspectRatio="none"></svg>
     ${nodesHtml}
