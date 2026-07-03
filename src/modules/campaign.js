@@ -9,8 +9,7 @@
 // verdient = dauerhaft „claimed" (kein Zurückfallen durch EMA-Schwankung). Freischalten
 // ab 2 erledigten Teilabschnitten; Start kostet 2 Taler Einsatz; Tod (HP=0) → Einsatz weg.
 
-import { effectivePct, statKeyFor } from './stats.js';
-import { getPresetCategories } from './vocab.js';
+import { deckProgress } from './decks.js';
 import { persist } from './storage.js';
 import { markDirty } from './sync.js';
 import { commitDirty } from './dialog.js';
@@ -20,7 +19,7 @@ const COLS = 5;
 const PATHS = 6;            // Anzahl generierter Pfade von unten nach oben
 const HP_MAX = 60;
 export const STAKE_COST = 2;
-const UNLOCK_NEED = 2;      // so viele 100%-Teilabschnitte zum Freischalten
+const UNLOCK_NEED = 2;      // so viele 100%-Deck-Modi (Taler) zum Freischalten
 
 const NODE = {
   fight:     { icon: '⚔️', label: 'Übung' },
@@ -52,36 +51,39 @@ export function talerAvailable() {
 }
 
 // ── Taler verdienen: 100%-Teilabschnitte einsammeln (retroaktiv) ──
-// Gleiche Punkte-Formel wie die Vorlagen-Fortschrittsanzeige (_claimedBarPct in vocab.js).
-function _categoryPct(cat) {
-  const words = Array.isArray(cat.words) ? cat.words : [];
-  if (!words.length) return 0;
-  const ws = window.SD?.globalPresetStats?.wordStats || {};
-  let totalScore = 0;
-  for (const suf of ['_mc', '_sp', '_pr']) {
-    let score = 0;
-    for (const v of words) {
-      const s = ws[statKeyFor(v.de, v.en, suf, cat.id)];
-      if (!s || !s.asked) continue;
-      const asked = s.asked, pct = effectivePct(s);
-      if (Math.floor(asked) >= 3 && pct >= 0.9) score += 1;
-      else if (asked >= 1) score += Math.max(0, (pct - 0.5) * 2) * Math.min(asked / 3, 1) * 0.85;
-    }
-    totalScore += score;
-  }
-  return Math.min(100, Math.round((totalScore / 3 / words.length) * 100));
+// Taler-Regel: pro Deck (Vokabeln-Modus) und pro Übungsart (MC/Schreiben/Sprechen)
+// gibt es 1 Taler, sobald diese Art im Deck 100 % (alle Wörter gemeistert) ist.
+// claimed-Key = deckId|mc|sp|pr. Einmal verdient = dauerhaft (kein Zurückfallen).
+export const TALER_MODES = [
+  { key: 'mc', label: 'MC',            prog: (pm) => pm.vocab },
+  { key: 'sp', label: 'Rechtschreibung', prog: (pm) => pm.spelling },
+  { key: 'pr', label: 'Aussprache',    prog: (pm) => pm.pronounce },
+];
+
+// Ist diese Übungsart in diesem Deck fertig (alle Wörter gemeistert)?
+export function isModeComplete(prog) {
+  return !!prog && prog.total > 0 && prog.mastered === prog.total;
 }
 
-// Prüft alle Kategorien und schreibt neu-fertige in claimed. Idempotent → zählt auch
-// bestehende Profile rückwirkend (beim ersten Menü-Aufruf mit dieser Version).
+// Prüft alle Vokabeln-Decks × 3 Arten und schreibt neu-fertige in claimed. Idempotent →
+// zählt auch bestehenden Fortschritt rückwirkend. Räumt alte (Kategorie-)Claims weg.
 export async function refreshClaimedTaler() {
   const c = _camp();
-  let cats = [];
-  try { cats = await getPresetCategories(); } catch (e) { cats = []; }
-  let changed = false;
-  for (const cat of (cats || [])) {
-    if (!cat?.id || c.claimed.includes(cat.id)) continue;
-    if (_categoryPct(cat) >= 100) { c.claimed.push(cat.id); changed = true; }
+  // Migration: frühere claimed-Einträge waren Preset-Kategorie-IDs (ohne |mode-Suffix).
+  const cleaned = c.claimed.filter(k => /\|(mc|sp|pr)$/.test(k));
+  let changed = cleaned.length !== c.claimed.length;
+  c.claimed = cleaned;
+
+  const decks = window.SD?.decks || {};
+  for (const id in decks) {
+    const deck = decks[id];
+    if (!deck?.vocab?.length || (deck.mode || 'free') !== 'free') continue;
+    const pm = deckProgress(deck).perMode;
+    for (const m of TALER_MODES) {
+      if (!isModeComplete(m.prog(pm))) continue;
+      const key = id + '|' + m.key;
+      if (!c.claimed.includes(key)) { c.claimed.push(key); changed = true; }
+    }
   }
   if (changed) _saveCampaign();
   updateTalerBadge();
@@ -247,8 +249,8 @@ function _startScreenHtml() {
     <div style="font-family:'Fredoka One',cursive;font-size:1.4rem;color:var(--purple);margin-bottom:12px;">Kampagne</div>
     ${inner}</div>`;
   if (claimed < UNLOCK_NEED) {
-    return box(`<div style="font-size:.9rem;color:#888;font-weight:700;line-height:1.55;max-width:320px;margin:0 auto;">
-      Schließe erst <b>${UNLOCK_NEED} Teilabschnitte</b> mit <b>100 %</b> ab, um die Kampagne freizuschalten.<br><br>
+    return box(`<div style="font-size:.9rem;color:#888;font-weight:700;line-height:1.55;max-width:330px;margin:0 auto;">
+      Bring erst <b>${UNLOCK_NEED} Übungsarten</b> (z. B. MC) in deinen Decks auf <b>100 %</b>, um die Kampagne freizuschalten.<br><br>
       Freigeschaltet: <b>${claimed} / ${UNLOCK_NEED}</b> 🪙</div>`);
   }
   const canStart = avail >= STAKE_COST;
@@ -261,7 +263,7 @@ function _startScreenHtml() {
     <button onclick="startCampaignRun()" ${canStart ? '' : 'disabled'}
       style="font-family:'Fredoka One',cursive;font-size:1rem;padding:14px 26px;border:none;border-radius:14px;cursor:${canStart ? 'pointer' : 'not-allowed'};background:${canStart ? 'linear-gradient(135deg,#a86cdb,#c084fc)' : '#ddd'};color:#fff;box-shadow:${canStart ? '0 4px 0 #7d4bb0' : 'none'};">
       ▶️ Kampagne starten (${STAKE_COST} 🪙)</button>
-    ${canStart ? '' : `<div style="font-size:.82rem;color:#999;font-weight:700;margin-top:12px;">Nicht genug Taler — bring weitere Teilabschnitte auf 100 %.</div>`}`);
+    ${canStart ? '' : `<div style="font-size:.82rem;color:#999;font-weight:700;margin-top:12px;">Nicht genug Taler — bring weitere Übungsarten auf 100 %.</div>`}`);
 }
 
 const _MAP_H = ROWS * 78;   // px Gesamthöhe der Karte

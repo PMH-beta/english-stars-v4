@@ -173,7 +173,12 @@ export function presetProgressPct(deck, presetId) {
 function renderModeSubBy(p) {
   const total = p.total || 0;
   const pct = total > 0 ? Math.min(100, Math.round((p.score / total) * 100)) : 0;
-  return '<span class="btn-progress-text">' + pct + '% · ' + p.mastered + '/' + total + ' gemeistert</span>' +
+  // Taler-Marker: 100 % (alle gemeistert) = Taler freigespielt, sonst Hinweis zum Freischalten.
+  const earned = total > 0 && p.mastered === total;
+  const coin = earned
+    ? '<span style="color:#c99700;font-weight:800;">🪙 Taler!</span>'
+    : '<span style="color:#aaa;font-weight:700;">🪙 bei 100 %</span>';
+  return '<span class="btn-progress-text">' + pct + '% · ' + p.mastered + '/' + total + ' gemeistert &nbsp;·&nbsp; ' + coin + '</span>' +
          '<span class="btn-progress"><span class="btn-progress-fill" style="width:' + pct + '%"></span></span>';
 }
 
@@ -232,6 +237,9 @@ export function renderDecks(mode) {
   ids.forEach(id => {
     const deck = SD.decks[id];
     const p = deckProgress(deck);
+    // Freigespielte Taler dieses Decks (MC/Schreiben/Sprechen je 100 %).
+    const talerEarned = [p.perMode.vocab, p.perMode.spelling, p.perMode.pronounce]
+      .filter(m => m.total > 0 && m.mastered === m.total).length;
     const isActive = id === SD.activeDeckId;
     const isExpanded = id === _expandedDeckId;
     const dt = new Date(deck.createdAt);
@@ -249,6 +257,7 @@ export function renderDecks(mode) {
             <span>📅 ${dateStr}</span>
             <span>📝 ${deck.vocab.length} Wörter</span>
             ${deck.deckPath === 'preset' ? '<span style="font-size:.70rem;font-weight:700;background:rgba(168,108,219,.12);color:#8a4dcc;padding:2px 7px;border-radius:20px;">📦 Vorlage</span>' : deck.deckPath === 'custom' ? '<span style="font-size:.70rem;font-weight:700;background:rgba(77,150,255,.12);color:#2c7aec;padding:2px 7px;border-radius:20px;">✏️ Eigene</span>' : ''}
+            <span title="Freigespielte Taler (MC / Rechtschreibung / Aussprache je 100 %)" style="font-size:.70rem;font-weight:800;background:rgba(201,151,0,.14);color:#a67c00;padding:2px 7px;border-radius:20px;">🪙 ${talerEarned}/3</span>
           </div>
           <div class="deck-progress-mini"><div class="deck-progress-mini-fill" style="width:${p.overallPct}%"></div></div>
         </div>
