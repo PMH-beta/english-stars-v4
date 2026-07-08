@@ -1,8 +1,9 @@
 // src/modules/campaign.js
 // Kampagne — Slay-the-Spire-artige Karte.
 // Schritt 1: Taler-Ökonomie + prozedurale Karte + HP-Leiste + Navigation.
-// Schritt 2 (Phase 1 Kampfsystem): ⚔️- und 👑-Knoten starten echte Kämpfe
-// (campaign-fight.js, Minispiel Buchstabensturm); 🌀/🔥/💎 sind noch Platzhalter.
+// Schritt 2 (Kampfsystem Phase 1+2): ⚔️/👑/🌀 starten echte Kämpfe (campaign-fight.js;
+// Minispiele Buchstabensturm/Meteoriten/Echo-Fang, 🌀 = Verbform-Wellen), 🔥 heilt;
+// 💎 ist noch Platzhalter (Phase 3: Drops/Ausrüstung).
 // Persistenz: SD.campaign (reitet als profiles.campaign jsonb im Sync mit, analog
 // uv_fills), inkl. run.fight (Kampf-Zwischenstand, Reload-sicher).
 //
@@ -14,8 +15,8 @@ import { deckProgress } from './decks.js';
 import { persist } from './storage.js';
 import { markDirty } from './sync.js';
 import { commitDirty } from './dialog.js';
-import { HP_MAX } from './campaign-balance.js';
-import { openFight, fightPoolReady } from './campaign-fight.js';
+import { HP_MAX, REST_HEAL } from './campaign-balance.js';
+import { openFight, fightPoolReady, verbsReady } from './campaign-fight.js';
 
 const ROWS = 13;            // Reihe 0 = Start (unten), Reihe ROWS-1 = Boss (oben)
 const COLS = 5;
@@ -129,23 +130,26 @@ function generateMap() {
   boss.type = 'boss';
   for (const col in grid[ROWS - 2]) link(grid[ROWS - 2][col], boss);
 
+  // 🌀-Knoten nur, wenn das Kind Sternbild-Verben befüllt hat (SD.uvFills) —
+  // sonst gäbe es Verb-Kämpfe ohne Wortmaterial.
+  const hasVerbs = verbsReady();
   const nodes = {};
   for (let r = 0; r < ROWS; r++) {
     for (const col in grid[r]) {
       const n = grid[r][col];
-      if (n.type !== 'boss') n.type = _typeForRow(r);
+      if (n.type !== 'boss') n.type = _typeForRow(r, hasVerbs);
       nodes[n.id] = n;
     }
   }
   return { nodes, rows: ROWS, cols: COLS, bossId: boss.id };
 }
 
-function _typeForRow(r) {
+function _typeForRow(r, hasVerbs) {
   if (r <= 1) return 'fight';                       // erste Reihen sanft (nur Übung)
   const roll = Math.random();
   const restW = r >= ROWS - 4 ? 0.22 : 0.12;        // Rast häufiger kurz vor dem Boss
   if (roll < 0.50) return 'fight';
-  if (roll < 0.72) return 'irregular';
+  if (roll < 0.72) return hasVerbs ? 'irregular' : 'fight';
   if (roll < 0.72 + restW) return 'rest';
   return 'treasure';
 }
@@ -175,7 +179,7 @@ export function campaignNode(id) {
   if (run.fight) { resumeCampaignFight(); return; }   // offener Kampf geht vor
   const node = run.map.nodes[id];
   if (!node || !_isReachable(run, node)) return;
-  if (node.type === 'fight' || node.type === 'boss') {
+  if (node.type === 'fight' || node.type === 'boss' || node.type === 'irregular') {
     if (!fightPoolReady()) { window.esToast?.('📭 Keine Vokabeln in deinen Decks — der Kampf braucht Wörter'); return; }
     run.pos = id;
     if (!run.visited.includes(id)) run.visited.push(id);
@@ -185,9 +189,18 @@ export function campaignNode(id) {
   }
   run.pos = id;
   if (!run.visited.includes(id)) run.visited.push(id);
+  if (node.type === 'rest') {
+    // 🔥 Rastplatz: heilen (Phase 3 ergänzt die Wahl „Ausrüstung wechseln").
+    const before = run.hp;
+    run.hp = Math.min(run.hpMax, run.hp + REST_HEAL);
+    _saveCampaign();
+    renderCampaign();
+    window.esToast?.('🔥 Ausgeruht: +' + (run.hp - before) + ' HP');
+    return;
+  }
   _saveCampaign();
   renderCampaign();
-  // 🌀/🔥/💎 folgen in Phase 2/3 — bis dahin freier Durchgang.
+  // 💎 Schatz folgt in Phase 3 — bis dahin freier Durchgang.
   window.esToast?.(NODE[node.type].icon + ' ' + NODE[node.type].label + ' — kommt bald');
 }
 

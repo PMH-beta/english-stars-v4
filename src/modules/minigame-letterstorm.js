@@ -18,8 +18,9 @@ export function stormTarget(en) {
   return (en || '').split('/')[0].trim().toLowerCase().replace(/^to /, '');
 }
 
+// Style wird auch von Echo-Fang genutzt (cfDrift-Keyframes) → exportiert.
 let _styleDone = false;
-function _ensureStyle() {
+export function ensureStormStyle() {
   if (_styleDone) return;
   _styleDone = true;
   const st = document.createElement('style');
@@ -37,8 +38,10 @@ function _ensureStyle() {
   document.head.appendChild(st);
 }
 
-export function startLetterstorm({ host, de, en, timeLimitMs, onResult }) {
-  _ensureStyle();
+// prompt (optional): eigener Kopf statt „🇩🇪 de" — für Verbform-Wellen
+// („go → Simple Past?"); sub (optional): kleine Zusatzzeile darunter.
+export function startLetterstorm({ host, de, en, prompt, sub, timeLimitMs, onResult }) {
+  ensureStormStyle();
   const target = stormTarget(en);
   const chars = target.split('');
   let done = false, timer = null;
@@ -51,10 +54,11 @@ export function startLetterstorm({ host, de, en, timeLimitMs, onResult }) {
     : `<span class="cf-slot" data-i="${i}" style="min-width:22px;border-bottom:3px solid rgba(255,255,255,.7);font-family:'Fredoka One',cursive;font-size:1.3rem;color:#fff;text-align:center;padding:0 2px;">&nbsp;</span>`).join('');
 
   host.innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:8px;">
-      <div style="font-size:1.5rem;font-weight:800;color:#fff;">🇩🇪 ${de}</div>
+    <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:${sub ? 2 : 8}px;">
+      <div style="font-size:1.5rem;font-weight:800;color:#fff;">${prompt || `🇩🇪 ${de}`}</div>
       <button id="cf-speak" title="Wort anhören" style="border:none;background:rgba(255,255,255,.18);border-radius:50%;width:38px;height:38px;font-size:1.1rem;cursor:pointer;">🔊</button>
     </div>
+    ${sub ? `<div style="text-align:center;font-size:.85rem;font-weight:700;color:rgba(255,255,255,.65);margin-bottom:8px;">${sub}</div>` : ''}
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
       <div style="flex:1;height:10px;background:rgba(255,255,255,.2);border-radius:6px;overflow:hidden;">
         <div id="cf-timebar" style="height:100%;width:100%;background:linear-gradient(90deg,#ffd43b,#f0a500);border-radius:6px;"></div>
