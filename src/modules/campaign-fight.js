@@ -16,11 +16,11 @@
 // (reitet im profiles.campaign-jsonb mit) → Reload mitten im Kampf verliert nichts;
 // nur das aktuelle Wort der Welle wird neu gezogen.
 
-import { ENEMY, FORM_BONUS, TALISMAN_MULT, STORM_BASE_MS, STORM_PER_LETTER_MS, WEAK_TIME_BONUS, WEAK_EMA, METEOR_FALL_MS, METEOR_COUNT, ECHO_TIME_MS, ECHO_CHOICES } from './campaign-balance.js';
+import { ENEMY, FORM_BONUS, TALISMAN_MULT, STORM_BASE_MS, STORM_PER_LETTER_MS, WEAK_TIME_BONUS, WEAK_EMA, METEOR_FALL_MS, METEOR_COUNT, ECHO_TIME_MS, ECHO_CHOICES, PERK_SPEER_BOSS, PERK_AXT_ELITE, PERK_HAMMER_MULT, POTION_HEAL, POTION_POWER, POTION_TIME_MS, POTION_TIME_WAVES } from './campaign-balance.js';
 import { startLetterstorm, stormTarget } from './minigame-letterstorm.js';
 import { startMeteors } from './minigame-meteors.js';
 import { startEcho } from './minigame-echo.js';
-import { equippedWeapon, equipEffects } from './campaign-equipment.js';
+import { equippedWeapon, equipEffects, POTIONS } from './campaign-equipment.js';
 import { weightedPickUnique, playSfx } from './game.js';
 import { effectivePct, statKeyFor } from './stats.js';
 import { getConstellations } from './irregular-verbs.js';
@@ -115,12 +115,42 @@ let _ctx = null;   // { run, node, enemy, weapon, save, onEnd, mg, lastEn }
 export function openFight({ run, node, save, onEnd }) {
   const enemy = ENEMY[node.type] || ENEMY.fight;
   if (!run.fight || run.fight.nodeId !== node.id) {
-    run.fight = { nodeId: node.id, type: node.type, enemyHp: enemy.hp, enemyHpMax: enemy.hp, wave: 1, headUsed: false, companionUsed: false };
+    // headUsed/guardsUsed = Zähler; shield/power/timeBoost = aktive Trank-Effekte.
+    run.fight = { nodeId: node.id, type: node.type, enemyHp: enemy.hp, enemyHpMax: enemy.hp, wave: 1, headUsed: 0, guardsUsed: 0, shield: false, power: 0, timeBoost: 0 };
     save();
   }
   _ctx = { run, node, enemy, weapon: equippedWeapon(), eff: equipEffects(), save, onEnd, mg: null, lastEn: null };
   _renderOverlay();
   _startWave();
+}
+
+// ── Tränke im Kampf ──────────────────────────────────────────────────────────
+function _renderPotions() {
+  const el = _el('cf-potions');
+  if (!el || !_ctx) return;
+  const potions = _ctx.run.potions || [];
+  el.innerHTML = potions.map((k, i) => POTIONS[k]
+    ? `<button class="cf-potion" data-pi="${i}" title="${POTIONS[k].name}: ${POTIONS[k].desc}">${POTIONS[k].icon}</button>`
+    : '').join('');
+  el.querySelectorAll('[data-pi]').forEach(btn => { btn.onclick = () => _usePotion(+btn.dataset.pi); });
+}
+
+function _usePotion(i) {
+  if (!_ctx) return;
+  const { run, save } = _ctx;
+  const f = run.fight;
+  const key = (run.potions || [])[i];
+  const p = POTIONS[key];
+  if (!key || !p || !f) return;
+  run.potions.splice(i, 1);
+  if (key === 'heal') { run.hp = Math.min(run.hpMax, run.hp + POTION_HEAL); _setBars(); }
+  else if (key === 'shield') f.shield = true;
+  else if (key === 'power') f.power = (f.power || 0) + POTION_POWER;
+  else if (key === 'time') f.timeBoost = (f.timeBoost || 0) + POTION_TIME_WAVES;
+  _feedback(`${p.icon} ${p.name}!`);
+  try { playSfx('streak'); } catch (e) {}
+  save();
+  _renderPotions();
 }
 
 function _el(id) { return document.getElementById(id); }
@@ -146,6 +176,7 @@ function _renderOverlay() {
         <div style="height:10px;background:rgba(255,255,255,.15);border-radius:6px;overflow:hidden;"><div id="cf-ehpbar" style="height:100%;width:${f.enemyHp / f.enemyHpMax * 100}%;background:linear-gradient(90deg,#845ef7,#5f3dc4);transition:width .4s;"></div></div>
       </div>
     </div>
+    <div id="cf-potions" style="display:flex;gap:8px;justify-content:center;margin-bottom:8px;min-height:8px;"></div>
     <div id="cf-stage" style="flex:1;"></div>
     <div style="display:flex;align-items:center;gap:10px;margin-top:12px;">
       <div style="flex:1;min-width:0;">
@@ -156,6 +187,7 @@ function _renderOverlay() {
     </div>`;
   document.body.appendChild(ov);
   _el('cf-flee').onclick = () => _close(null);
+  _renderPotions();
 }
 
 function _setBars() {
@@ -210,12 +242,15 @@ function _startWave() {
   const host = _el('cf-stage');
   _ctx.waveForm = null;
 
-  // Ausrüstungs-Effekte: 🧤 Zeitbonus auf jedes Minispiel (Meteoriten fallen
-  // langsamer), 🐾 Gefährte fängt 1 Fehlgriff pro KAMPF im Buchstabensturm.
+  // Ausrüstungs-Effekte: 🧤/🪄 Zeitbonus auf jedes Minispiel (Meteoriten fallen
+  // langsamer), ⏳ Zeittrank für begrenzte Wellen, 🐾 Gefährte fängt Fehlgriffe
+  // pro KAMPF im Buchstabensturm.
   const eff = _ctx.eff;
-  const tBonus = eff.timeBonusMs || 0;
-  const guards = eff.companion && !run.fight.companionUsed ? 1 : 0;
-  const onGuardUsed = () => { run.fight.companionUsed = true; _ctx.save(); };
+  const f = run.fight;
+  let tBonus = eff.timeBonusMs || 0;
+  if (f.timeBoost > 0) { tBonus += POTION_TIME_MS; f.timeBoost--; }
+  const guards = Math.max(0, (eff.companionGuards || 0) - (f.guardsUsed || 0));
+  const onGuardUsed = () => { f.guardsUsed = (f.guardsUsed || 0) + 1; _ctx.save(); };
 
   if (type === 'verbstorm') {
     // Verbform zusammensetzen: „go → Simple Past?" → w-e-n-t. Formen-Welle →
@@ -255,24 +290,34 @@ function _onWave(success) {
   const f = run.fight;
   if (!f) return;
   if (success) {
-    // Formen-Welle + passende Waffe (Stahl=past / Gold=pp) → Bonus-Schaden;
+    // Schaden: Waffe + Formen-Bonus (Stahl=past / Gold=pp) + Typ-Vorteil
+    // (Speer vs Boss, Axt vs Elite, Hammer verdoppelt Welle 1) + 💪 Krafttrank;
     // 🧿 Talisman: ×1.5 an 🌀-Knoten.
     const bonus = _ctx.waveForm && weapon.which === _ctx.waveForm ? FORM_BONUS : 0;
-    let dmg = weapon.dmg + bonus;
+    let dmg = weapon.dmg + bonus + (f.power || 0);
+    if (weapon.type === 'speer' && node.type === 'boss') dmg += PERK_SPEER_BOSS;
+    if (weapon.type === 'axt' && node.type === 'irregular') dmg += PERK_AXT_ELITE;
+    const hammer = weapon.type === 'hammer' && f.wave === 1;
+    if (hammer) dmg *= PERK_HAMMER_MULT;
     const tali = node.type === 'irregular' && eff.talisman;
     if (tali) dmg = Math.round(dmg * TALISMAN_MULT);
     f.enemyHp = Math.max(0, f.enemyHp - dmg);
     _setBars();
-    _feedback('💥 Treffer! −' + dmg + (bonus ? ' ✨' : '') + (tali ? ' 🧿' : ''));
+    _feedback('💥 Treffer! −' + dmg + (bonus ? ' ✨' : '') + (hammer ? ' 🔨' : '') + (tali ? ' 🧿' : ''));
     try { playSfx('correct'); } catch (e) {}
     if (f.enemyHp <= 0) { run.fight = null; save(); _endScreen(true); return; }
+  } else if (f.shield) {
+    // 🛡️ Schildtrank: wehrt genau eine verlorene Welle ab.
+    f.shield = false;
+    _feedback('🛡️ Schild hält!');
+    try { playSfx('click'); } catch (e) {}
   } else if (eff.dodge && Math.random() < eff.dodge) {
-    // 🥾 Stiefel: der verlorenen Welle ausgewichen — kein HP-Verlust.
+    // 🥾 Stiefel / 🗡️ Dolch: der verlorenen Welle ausgewichen — kein HP-Verlust.
     _feedback('🍃 Ausgewichen!');
     try { playSfx('click'); } catch (e) {}
-  } else if (eff.headGuard && !f.headUsed) {
-    // 🪖 Helm: wehrt die erste verlorene Welle des Kampfs ab.
-    f.headUsed = true;
+  } else if ((f.headUsed || 0) < (eff.headGuards || 0)) {
+    // 🪖 Helm: wehrt verlorene Wellen ab (Anzahl je Stufe).
+    f.headUsed = (f.headUsed || 0) + 1;
     _feedback('🪖 Der Helm hält!');
     try { playSfx('click'); } catch (e) {}
   } else {

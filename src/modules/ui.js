@@ -9,7 +9,8 @@ import { cloudLoad, cloudReset, saveDeck, saveWordStats, saveExam, markDirty, fl
 import { commitDirty } from './dialog.js';
 import { uvMap, uvLernstand, constellationWords, FORGE_DISC } from './irregular-game.js';
 import { renderAvatarInto, renderCharacter, commitAvatar, resetCharacterFeature } from './avatar.js';
-import { IRREGULAR_PRESET_ID, uvAvailableVerbs, CONSTELLATION_SIZE, cefrOf, forgeObject } from './irregular-verbs.js';
+import { IRREGULAR_PRESET_ID, uvAvailableVerbs, CONSTELLATION_SIZE, cefrOf, forgeObject, FORGE_OBJECTS } from './irregular-verbs.js';
+import { objectPerkText } from './campaign-equipment.js';
 import { renderFriendsSection, refreshFriendBadge, friendProgress, subscribeFriendRealtime, unsubscribeFriendRealtime } from './friends.js';
 import { renderCampaign, updateTalerBadge, refreshClaimedTaler } from './campaign.js';
 
@@ -726,11 +727,13 @@ function _uvEnsureInit() {
   if (window.currentUser) { markDirty('profile'); commitDirty(); }
 }
 
-// Ein Sternbild mit den gewählten Wörtern (en-Liste) befüllen + speichern/syncen.
-function _uvFill(ens) {
+// Ein Sternbild mit den gewählten Wörtern befüllen + speichern/syncen.
+// Neuer Eintrag = {ens:[…], obj:'helm'} (Objekt-Wahl); alte Einträge (reine
+// Arrays) bleiben gültig und behalten ihre Legacy-Waffen.
+function _uvFill(ens, obj) {
   if (!window.SD || !Array.isArray(ens) || ens.length !== CONSTELLATION_SIZE) return;
   if (!Array.isArray(window.SD.uvFills)) window.SD.uvFills = [];
-  window.SD.uvFills.push(ens.slice());
+  window.SD.uvFills.push(obj ? { ens: ens.slice(), obj } : ens.slice());
   persist(window.SD);
   if (window.currentUser) { markDirty('profile'); commitDirty(); }
   renderStudentUV();
@@ -747,56 +750,87 @@ function _cstFillCard() {
   </div>`;
 }
 
-// Popup: aus allen noch freien Wörtern (nach Stufe sortiert) GENAU 10 wählen.
-// Kein Doppeltwählen (vergebene Wörter sind gar nicht in der Liste); max 10.
+// Popup „Neuer Auftrag" in ZWEI Schritten:
+// 1) Objekt wählen (Waffe ODER Rüstungsteil, mit Vorteil-Info für die Kampagne)
+// 2) genau 10 Wörter wählen — mit Zurück-Knopf zur Objekt-Wahl (Auswahl bleibt).
 export function uvOpenFill() {
   const avail = uvAvailableVerbs();
   if (avail.length < CONSTELLATION_SIZE) return;
   const N = CONSTELLATION_SIZE;
   const overlay = document.createElement('div');
   overlay.className = 'uv-fill-overlay';
-  overlay.innerHTML = `<div class="uv-fill-card">
-    <div class="uv-fill-head">
-      <div class="uv-fill-title">✨ Sternbild befüllen</div>
-      <div class="uv-fill-hint">Wähle genau ${N} Wörter, die du üben willst.</div>
-      <div class="uv-fill-count"><span id="uv-fill-n">0</span>/${N}</div>
-    </div>
-    <div class="uv-fill-list">
-      ${avail.map((v) => `<label class="uv-fill-row" data-en="${window.escHtml(v.en)}">
-        <input type="checkbox" class="uv-fill-cb"/>
-        <span class="uv-fill-de">${window.escHtml(v.de)}</span>
-        <span class="uv-fill-en">${window.escHtml(v.en)}</span>
-        <span class="uv-fill-cefr">${cefrOf(v)}</span>
-      </label>`).join('')}
-    </div>
-    <div class="uv-fill-foot">
-      <button class="uv-fill-cancel" id="uv-fill-cancel">Abbrechen</button>
-      <button class="uv-fill-ok" id="uv-fill-ok" disabled>Fertig</button>
-    </div>
-  </div>`;
   document.body.appendChild(overlay);
-  const sel = new Set();
-  const nEl = overlay.querySelector('#uv-fill-n');
-  const okBtn = overlay.querySelector('#uv-fill-ok');
   const close = () => overlay.remove();
-  overlay.querySelector('#uv-fill-cancel').addEventListener('click', close);
   overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
-  overlay.querySelectorAll('.uv-fill-row').forEach((row) => {
-    const cb = row.querySelector('.uv-fill-cb');
-    const en = row.getAttribute('data-en');
-    cb.addEventListener('change', () => {
-      if (cb.checked && sel.size >= N) { cb.checked = false; return; }   // max N
-      if (cb.checked) { sel.add(en); row.classList.add('sel'); }
-      else { sel.delete(en); row.classList.remove('sel'); }
-      nEl.textContent = String(sel.size);
-      okBtn.disabled = sel.size !== N;
+  let chosenObj = null;
+  const sel = new Set();
+
+  function showObjectStep() {
+    overlay.innerHTML = `<div class="uv-fill-card">
+      <div class="uv-fill-head">
+        <div class="uv-fill-title">⚒️ Was willst du schmieden?</div>
+        <div class="uv-fill-hint">Entsteht in 🔩 Stahl & 🥇 Gold und hilft dir in der 🗺️ Kampagne.</div>
+      </div>
+      <div class="uv-fill-list">
+        ${FORGE_OBJECTS.map((o) => `<button class="uv-obj-row${chosenObj === o.type ? ' sel' : ''}" data-obj="${o.type}">
+          <span class="uv-obj-ic">${o.icon}</span>
+          <span class="uv-obj-tx"><b>${o.name}</b><span class="uv-obj-perk">${objectPerkText(o)}</span></span>
+          <span class="uv-obj-go">›</span>
+        </button>`).join('')}
+      </div>
+      <div class="uv-fill-foot">
+        <button class="uv-fill-cancel" id="uv-obj-cancel">Abbrechen</button>
+      </div>
+    </div>`;
+    overlay.querySelector('#uv-obj-cancel').addEventListener('click', close);
+    overlay.querySelectorAll('[data-obj]').forEach((btn) => {
+      btn.addEventListener('click', () => { chosenObj = btn.dataset.obj; showWordStep(); });
     });
-  });
-  okBtn.addEventListener('click', () => {
-    if (sel.size !== N) return;
-    close();
-    _uvFill([...sel]);
-  });
+  }
+
+  function showWordStep() {
+    const ob = FORGE_OBJECTS.find((o) => o.type === chosenObj);
+    overlay.innerHTML = `<div class="uv-fill-card">
+      <div class="uv-fill-head">
+        <div class="uv-fill-title">${ob ? ob.icon + ' ' + ob.name : '✨ Auftrag'} befüllen</div>
+        <div class="uv-fill-hint">Wähle genau ${N} Wörter, die du üben willst.</div>
+        <div class="uv-fill-count"><span id="uv-fill-n">${sel.size}</span>/${N}</div>
+      </div>
+      <div class="uv-fill-list">
+        ${avail.map((v) => `<label class="uv-fill-row${sel.has(v.en) ? ' sel' : ''}" data-en="${window.escHtml(v.en)}">
+          <input type="checkbox" class="uv-fill-cb"${sel.has(v.en) ? ' checked' : ''}/>
+          <span class="uv-fill-de">${window.escHtml(v.de)}</span>
+          <span class="uv-fill-en">${window.escHtml(v.en)}</span>
+          <span class="uv-fill-cefr">${cefrOf(v)}</span>
+        </label>`).join('')}
+      </div>
+      <div class="uv-fill-foot">
+        <button class="uv-fill-cancel" id="uv-fill-back">← Objekt</button>
+        <button class="uv-fill-ok" id="uv-fill-ok"${sel.size === N ? '' : ' disabled'}>Fertig</button>
+      </div>
+    </div>`;
+    const nEl = overlay.querySelector('#uv-fill-n');
+    const okBtn = overlay.querySelector('#uv-fill-ok');
+    overlay.querySelector('#uv-fill-back').addEventListener('click', showObjectStep);
+    overlay.querySelectorAll('.uv-fill-row').forEach((row) => {
+      const cb = row.querySelector('.uv-fill-cb');
+      const en = row.getAttribute('data-en');
+      cb.addEventListener('change', () => {
+        if (cb.checked && sel.size >= N) { cb.checked = false; return; }   // max N
+        if (cb.checked) { sel.add(en); row.classList.add('sel'); }
+        else { sel.delete(en); row.classList.remove('sel'); }
+        nEl.textContent = String(sel.size);
+        okBtn.disabled = sel.size !== N;
+      });
+    });
+    okBtn.addEventListener('click', () => {
+      if (sel.size !== N) return;
+      close();
+      _uvFill([...sel], chosenObj);
+    });
+  }
+
+  showObjectStep();
 }
 
 // ── Schmiede (Gestaltwandler): ersetzt den Sternenpfad ──────────────────────
@@ -874,6 +908,63 @@ const WEAPON_PARTS = {
     'M42 36 H58 L54 46 H46 Z',
     'M50 6 L63 24 L50 42 L37 24 Z',
   ] },
+  // ── Rüstungsteile (Kampagnen-Ausrüstung) — Platzhalter-Silhouetten ──
+  // Helm: Rand · linke Schale · rechte Schale · Visierschlitz · Kamm
+  helm: { vb: '22 20 56 76', parts: [
+    'M28 84 H72 V92 H28 Z',
+    'M28 84 Q28 40 50 36 L50 84 Z',
+    'M72 84 Q72 40 50 36 L50 84 Z',
+    'M34 66 H66 V72 H34 Z',
+    'M45 36 Q50 22 55 36 L55 42 H45 Z',
+  ] },
+  // Rüstung: Bauchplatte · linke Brust · rechte Brust · Schultern · Emblem
+  ruestung: { vb: '20 32 60 72', parts: [
+    'M34 84 H66 L62 100 H38 Z',
+    'M30 48 L50 44 V84 H32 Z',
+    'M70 48 L50 44 V84 H68 Z',
+    'M24 46 L36 38 H64 L76 46 L70 54 H30 Z',
+    'M50 56 L58 66 L50 78 L42 66 Z',
+  ] },
+  // Handschuhe: linke Stulpe · linke Hand · rechte Stulpe · rechte Hand · Knöchel
+  handschuhe: { vb: '20 46 60 50', parts: [
+    'M26 78 H44 V90 H26 Z',
+    'M26 52 H44 V78 H26 Z',
+    'M56 78 H74 V90 H56 Z',
+    'M56 52 H74 V78 H56 Z',
+    'M30 60 H40 V66 H30 Z M60 60 H70 V66 H60 Z',
+  ] },
+  // Stiefel: linker Fuß · linker Schaft · rechter Fuß · rechter Schaft · Borten
+  stiefel: { vb: '18 36 64 62', parts: [
+    'M24 80 H48 V92 H24 Z',
+    'M28 42 H44 V80 H28 Z',
+    'M52 80 H76 V92 H52 Z',
+    'M56 42 H72 V80 H56 Z',
+    'M28 42 H44 V48 H28 Z M56 42 H72 V48 H56 Z',
+  ] },
+  // Talisman: Kordel links · Kordel rechts · Fassung · Medaillon · Kernstein
+  talisman: { vb: '26 14 48 86', parts: [
+    'M50 18 Q30 26 34 50 L38 50 Q36 30 52 22 Z',
+    'M50 18 Q70 26 66 50 L62 50 Q64 30 48 22 Z',
+    'M44 50 H56 V58 H44 Z',
+    'M50 56 L68 76 L50 96 L32 76 Z',
+    'M50 66 L58 76 L50 86 L42 76 Z',
+  ] },
+  // Ring: Bandbogen unten · Band links · Band rechts · Fassung · Edelstein
+  ring: { vb: '24 20 52 80', parts: [
+    'M32 72 Q50 96 68 72 L62 68 Q50 84 38 68 Z',
+    'M32 72 Q28 56 38 46 L44 52 Q36 60 38 68 Z',
+    'M68 72 Q72 56 62 46 L56 52 Q64 60 62 68 Z',
+    'M44 40 H56 L60 48 H40 Z',
+    'M50 24 L60 38 L50 48 L40 38 Z',
+  ] },
+  // Gefährte: Körper · Kopf · Ohren · Schwanz · Augen
+  gefaehrte: { vb: '20 22 62 68', parts: [
+    'M34 62 Q50 50 66 62 Q70 82 50 86 Q30 82 34 62 Z',
+    'M38 46 Q50 32 62 46 Q64 58 50 60 Q36 58 38 46 Z',
+    'M40 40 L36 26 L48 36 Z M60 40 L64 26 L52 36 Z',
+    'M66 70 Q80 66 78 52 L72 52 Q74 62 64 66 Z',
+    'M44 48 h4 v4 h-4 Z M52 48 h4 v4 h-4 Z',
+  ] },
 };
 WEAPON_PARTS._default = WEAPON_PARTS.schwert;
 
@@ -906,7 +997,7 @@ function _forgeItem(m, which) {
   const tap = open ? ` data-forge="${m.c.idx}:${which}"` : '';
   // Balken bezieht sich auf das aktuelle Teil: Disziplin-Name + % gemeisterter Verben.
   let label, pct, showPct = true;
-  if (done) { label = '✓ Waffe fertig'; pct = 100; showPct = false; }
+  if (done) { label = `✓ ${ob.name} fertig`; pct = 100; showPct = false; }
   else if (nextI >= 0) {
     const s = steps[nextI], fs = FORGE_DISC[s.discipline] || { icon: '•', name: s.discipline };
     pct = s.prog && s.prog.total ? Math.min(100, Math.round((s.prog.score / s.prog.total) * 100)) : 0;

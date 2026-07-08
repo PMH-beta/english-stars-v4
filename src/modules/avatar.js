@@ -96,9 +96,11 @@ function curls(c) {
 function afro(c)     { return `<ellipse cx="100" cy="60" rx="60" ry="56" fill="${c}"/>`; }
 function ponytail(c) { return `<path d="M150,72 q30,6 24,48 q-6,20 -20,15 q14,-34 -10,-58 Z" fill="${c}"/>`; }
 function bun(c)      { return `<circle cx="100" cy="30" r="15" fill="${c}"/>`; }
-// Solide Stirn-Kappe (immer, außer Glatze) — Haaransatz bei ~y60, deckt Stirn voll ab.
+// Solide Stirn-Kappe (immer, außer Glatze) — Haaransatz bei ~y58, deckt Stirn voll ab.
+// Außenbogen-Kontrollpunkte bei y=12 → Scheitel ≈ y31, sicher ÜBER der Kopfoberkante
+// (Ellipse: cy=86, ry=50 → y=36). Vorher lag er darunter → Haut-„Loch" am Oberkopf.
 function cap(c) {
-  return `<path d="M51,90 C47,32 153,32 149,90 C149,66 132,58 100,58 C68,58 51,66 51,90 Z" fill="${c}"/>`;
+  return `<path d="M51,90 C47,12 153,12 149,90 C149,66 132,58 100,58 C68,58 51,66 51,90 Z" fill="${c}"/>`;
 }
 
 const HAIR = [

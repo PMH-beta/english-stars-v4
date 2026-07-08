@@ -1073,3 +1073,168 @@ body.in-game .mode-progress{display:block;}
 .fw-bar-fill{height:100%;border-radius:50px;transition:width .5s ease;}
 .fw-bar-fill.past{background:linear-gradient(90deg,#7aa0c8,#4d96ff);}
 .fw-bar-fill.pp{background:linear-gradient(90deg,#f0c64f,#e6a52a);}
+
+/* ═══════════════════════════════════════════════════════════════════
+   ABENTEUER-DESIGN (Kampagne · Kampf · Ausrüstung · Schmiede · Popups)
+   Ein gemeinsames System: dunkles Lila-Panel, weiße Karten-Chips,
+   Gold-Akzente. Menü/Lern-Screens bleiben hell, nutzen aber dieselben
+   Radien/Buttons → einheitliches Gesamtbild.
+   ═══════════════════════════════════════════════════════════════════ */
+:root{
+  --adv-bg1:#2b2350;--adv-bg2:#1a1533;
+  --adv-card:rgba(255,255,255,.08);--adv-line:rgba(255,255,255,.14);
+  --adv-text:#f1edfb;--adv-dim:rgba(255,255,255,.62);
+  --adv-gold:#ffd43b;--adv-accent:#c084fc;
+  --r-lg:20px;--r-md:14px;--r-sm:10px;
+}
+
+/* Vollbild-Screens (Kampf, Ausrüstung) */
+.adv-screen{
+  position:fixed;inset:0;z-index:8000;overflow-y:auto;
+  background:linear-gradient(180deg,var(--adv-bg1),var(--adv-bg2));
+  padding:max(14px,env(safe-area-inset-top)) 14px max(20px,env(safe-area-inset-bottom));
+  -webkit-overflow-scrolling:touch;
+}
+.adv-head{display:flex;align-items:center;gap:10px;margin:0 auto 12px;max-width:580px;}
+.adv-head-title{font-family:'Fredoka One',cursive;color:var(--adv-text);font-size:1.1rem;flex:1;}
+.adv-x{
+  border:none;background:rgba(255,255,255,.15);color:#fff;border-radius:50%;
+  width:38px;height:38px;font-size:1rem;cursor:pointer;flex-shrink:0;transition:background .15s;
+}
+.adv-x:hover{background:rgba(255,255,255,.25);}
+.adv-hint{font-size:.76rem;font-weight:700;color:var(--adv-dim);text-align:center;line-height:1.55;max-width:420px;margin:14px auto 0;}
+
+/* Modal-Karten auf dunklem Backdrop (Trank-Wahl u. ä.) */
+.adv-backdrop{
+  position:fixed;inset:0;z-index:9998;display:flex;align-items:center;justify-content:center;
+  padding:20px;box-sizing:border-box;background:rgba(15,10,30,.62);backdrop-filter:blur(3px);
+}
+.adv-card{
+  background:linear-gradient(180deg,var(--adv-bg1),var(--adv-bg2));
+  border:1px solid var(--adv-line);border-radius:var(--r-lg);
+  padding:22px 18px;max-width:360px;width:100%;text-align:center;
+  box-shadow:0 12px 40px rgba(0,0,0,.5);max-height:86vh;overflow-y:auto;
+}
+.adv-card-icon{font-size:2.8rem;margin-bottom:8px;}
+.adv-card-title{font-family:'Fredoka One',cursive;font-size:1.25rem;color:var(--adv-text);margin-bottom:6px;}
+.adv-card-sub{font-size:.85rem;font-weight:700;color:var(--adv-dim);margin-bottom:16px;}
+.adv-choice{
+  display:flex;align-items:center;gap:12px;width:100%;text-align:left;
+  background:var(--adv-card);border:2px solid var(--adv-line);border-radius:var(--r-md);
+  padding:12px 14px;margin-bottom:8px;cursor:pointer;transition:border-color .15s,background .15s;
+}
+.adv-choice:hover{border-color:var(--adv-gold);background:rgba(255,255,255,.13);}
+.adv-choice-icon{font-size:1.8rem;flex-shrink:0;}
+.adv-choice-txt{color:var(--adv-text);font-weight:700;font-size:.85rem;line-height:1.4;}
+.adv-choice-txt b{font-family:'Fredoka One',cursive;font-weight:400;font-size:.95rem;}
+.adv-choice-txt span{color:var(--adv-dim);font-size:.78rem;}
+
+/* ── Ausrüstung (ce-*) ── */
+.ce-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:580px;margin:0 auto;}
+.ce-slot{
+  border:2px solid var(--adv-line);background:var(--adv-card);border-radius:var(--r-md);
+  padding:10px 6px;cursor:pointer;text-align:center;transition:border-color .15s;
+}
+.ce-slot.open{border-color:var(--adv-gold);}
+.ce-slot-ic{font-size:1.6rem;line-height:1.2;}
+.ce-slot-nm{font-family:'Fredoka One',cursive;font-size:.7rem;color:var(--adv-text);margin:3px 0 2px;}
+.ce-slot-it{font-size:.68rem;font-weight:700;color:var(--adv-dim);}
+.ce-picker{background:var(--adv-card);border-radius:var(--r-md);padding:10px;max-width:580px;margin:8px auto 0;}
+.ce-picker-head{font-size:.76rem;font-weight:800;color:var(--adv-gold);margin-bottom:7px;}
+.ce-pick{
+  display:block;width:100%;text-align:left;border:none;cursor:pointer;
+  background:rgba(255,255,255,.08);color:var(--adv-text);font-weight:700;font-size:.82rem;
+  padding:10px 12px;border-radius:var(--r-sm);margin-bottom:4px;transition:background .15s;
+}
+.ce-pick:hover{background:rgba(255,255,255,.16);}
+.ce-pick.sel{background:rgba(255,212,59,.22);}
+.ce-effects{
+  font-size:.78rem;font-weight:700;color:rgba(255,255,255,.78);text-align:center;
+  max-width:580px;margin:14px auto 0;line-height:1.7;
+}
+
+/* ── Tränke im Kampf ── */
+.cf-potion{
+  border:2px solid var(--adv-line);background:var(--adv-card);border-radius:var(--r-md);
+  width:46px;height:46px;font-size:1.4rem;cursor:pointer;transition:border-color .15s,transform .1s;
+}
+.cf-potion:hover{border-color:var(--adv-gold);}
+.cf-potion:active{transform:scale(.92);}
+
+/* ── Objekt-Wahl im Befüllen-Popup ── */
+.uv-obj-row{
+  display:flex;align-items:center;gap:12px;width:100%;text-align:left;border:2px solid transparent;
+  background:#f7f4fc;border-radius:12px;padding:10px 12px;margin-bottom:6px;cursor:pointer;
+  transition:border-color .15s,background .15s;font-family:'Nunito',sans-serif;
+}
+.uv-obj-row:hover{background:#f0e9fa;}
+.uv-obj-row.sel{border-color:var(--purple);background:rgba(168,108,219,.12);}
+.uv-obj-ic{font-size:1.7rem;flex-shrink:0;width:34px;text-align:center;}
+.uv-obj-tx{flex:1;min-width:0;color:var(--text);}
+.uv-obj-tx b{font-family:'Fredoka One',cursive;font-weight:400;font-size:.95rem;display:block;}
+.uv-obj-perk{display:block;font-size:.74rem;font-weight:700;color:#8b6ab5;margin-top:1px;}
+.uv-obj-go{color:#c4b3de;font-size:1.2rem;flex-shrink:0;}
+
+/* ── Schmiede im Abenteuer-Look (dunkles Panel im hellen Menü) ── */
+.forge{
+  background:linear-gradient(180deg,var(--adv-bg1),var(--adv-bg2));
+  border-radius:var(--r-lg);padding:18px 10px 26px;box-shadow:0 8px 24px rgba(28,18,58,.35);
+}
+.forge-h1{color:var(--adv-text);}
+.forge-stand{color:var(--adv-gold);}
+.forge-info{border-color:rgba(255,255,255,.35);background:rgba(255,255,255,.1);color:#d9ccff;}
+.forge-station{background:var(--adv-card);border:1px solid var(--adv-line);box-shadow:none;}
+.forge-station.current{border-color:rgba(192,132,252,.65);box-shadow:0 0 0 2px rgba(192,132,252,.3);}
+.forge-station.complete{border-color:rgba(255,212,94,.55);}
+.forge-station.locked{opacity:.55;}
+.forge-title{color:var(--adv-text);}
+.forge-cefr{color:#d9b8ff;background:rgba(192,132,252,.16);}
+.fw-name{color:#d8d0ee;}
+.fw-step-top{color:#cfc6e6;}
+.fw-step-pct{color:var(--adv-gold);}
+.fw-bar{background:rgba(255,255,255,.14);}
+.fw-step.done .fw-step-name{color:var(--adv-gold);}
+.fw-step.locked .fw-step-name{color:var(--adv-dim);}
+.forge .wp.ghost{fill:rgba(255,255,255,.04);stroke:rgba(255,255,255,.30);}
+.forge .cst-arrow{color:#bda5ff;}
+.forge .cst-form-now.past{color:#ffb155;}
+.forge .cst-form-now.pp{color:#6fdc9b;}
+.forge .uv-dot{background:rgba(255,255,255,.25);}
+.forge .uv-dot.active{background:#cdbcff;}
+.forge .cst-page-foot{color:#c3b8e2;}
+.forge-words summary{background:rgba(255,255,255,.08);border-color:var(--adv-line);color:#d9ccff;}
+.forge-word{background:rgba(255,255,255,.07);border-color:var(--adv-line);color:#c3b8e2;}
+.forge-word b{color:#e7deff;}
+.fw-p{color:#8fb8e8;}
+.fw-g{color:#ffd45e;}
+.fw-p.done,.fw-g.done{color:#6fdc9b;}
+.forge-fill{border-color:rgba(192,132,252,.5);background:rgba(192,132,252,.08);}
+.forge-fill-title{color:#e7deff;}
+.forge-fill-sub{color:#a99fc7;}
+.forge-fill-sub b{color:#cdbcff;}
+.forge-item.past{background:rgba(174,188,205,.14);border-color:rgba(174,188,205,.35);}
+.forge-item.pp{background:rgba(240,198,79,.12);border-color:rgba(240,198,79,.35);}
+.fi-title{color:#e8e2f8;}
+.forge-step{background:rgba(255,255,255,.06);border-color:var(--adv-line);color:#b4abce;}
+.forge-step.open{background:rgba(192,132,252,.14);border-color:rgba(192,132,252,.5);color:#d9b8ff;}
+.forge-step.done{background:rgba(255,212,94,.12);border-color:rgba(255,212,94,.45);color:#ffd45e;}
+
+/* ── Kampagnen-Tab als Abenteuer-Panel ── */
+#mode-campaign{
+  background:linear-gradient(180deg,var(--adv-bg1),var(--adv-bg2));
+  border-radius:var(--r-lg);padding:16px 12px 22px;
+  box-shadow:0 8px 24px rgba(28,18,58,.35);
+}
+
+/* ── Popups/Overlays: sanfter Blur hinter allen Modal-Karten ── */
+.uv-fill-overlay{background:rgba(15,10,30,.55);backdrop-filter:blur(3px);}
+
+/* ── Responsive-Feinschliff ── */
+@media(max-width:420px){
+  h1{font-size:1.9rem;}
+  .screen{padding:22px 16px;}
+  .ce-grid{gap:6px;}
+  .ce-slot-ic{font-size:1.4rem;}
+  .game-card{padding:18px 14px;}
+  .player-banner{padding:10px 14px;}
+}

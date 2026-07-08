@@ -246,22 +246,18 @@ async function _cloudLoadOnce(userId) {
 }
 
 // campaign jsonb → SD.campaign (mit Default-Reparatur), analog uv_fills.
-// Enthält auch die Ausrüstung (equipment/inventory/blueprints/ore, Phase 3).
+// equipment = angelegte Schmiede-Items (Item-Ids); Tränke reiten im run mit.
 function _campaignFrom(profile) {
   const c = profile.campaign;
   if (c && typeof c === 'object' && !Array.isArray(c)) {
     return {
-      claimed:         Array.isArray(c.claimed) ? c.claimed : [],
-      talerSpent:      Number(c.talerSpent) || 0,
-      run:             (c.run && typeof c.run === 'object') ? c.run : null,
-      equipment:       (c.equipment && typeof c.equipment === 'object') ? c.equipment : {},
-      inventory:       Array.isArray(c.inventory) ? c.inventory : [],
-      blueprints:      Array.isArray(c.blueprints) ? c.blueprints : [],
-      ore:             Number(c.ore) || 0,
-      activeBlueprint: c.activeBlueprint || null,
+      claimed:    Array.isArray(c.claimed) ? c.claimed : [],
+      talerSpent: Number(c.talerSpent) || 0,
+      run:        (c.run && typeof c.run === 'object') ? c.run : null,
+      equipment:  (c.equipment && typeof c.equipment === 'object') ? c.equipment : {},
     };
   }
-  return { claimed: [], talerSpent: 0, run: null, equipment: {}, inventory: [], blueprints: [], ore: 0, activeBlueprint: null };
+  return { claimed: [], talerSpent: 0, run: null, equipment: {} };
 }
 
 

@@ -199,20 +199,39 @@ export const CONSTELLATION_NAMES = [
 // lassen (Griff→Kopf/Klinge), damit jede Waffe Teil für Teil geschmiedet werden
 // kann. Die Teil-Geometrie (SVG) liegt in ui.js (WEAPON_PARTS, je type). icon =
 // Fallback. Mehr Typen jederzeit ergänzbar (type + 5 Pfade in WEAPON_PARTS).
+// slot = Ausrüstungs-Slot in der Kampagne ('weapon' | 'head' | 'body' | 'arms' |
+// 'legs' | 'talisman' | 'ring' | 'companion'). Waffen haben zusätzlich einen
+// Typ-Vorteil (campaign-balance.js WEAPON_PERK).
 export const FORGE_OBJECTS = [
-  { type: 'schwert', name: 'Schwert',      icon: '⚔️' },
-  { type: 'dolch',   name: 'Dolch',        icon: '🗡️' },
-  { type: 'speer',   name: 'Speer',        icon: '🔱' },
-  { type: 'axt',     name: 'Streitaxt',    icon: '🪓' },
-  { type: 'hammer',  name: 'Streithammer', icon: '🔨' },
-  { type: 'stab',    name: 'Zauberstab',   icon: '🪄' },
+  { type: 'schwert',    name: 'Schwert',      icon: '⚔️', slot: 'weapon' },
+  { type: 'dolch',      name: 'Dolch',        icon: '🗡️', slot: 'weapon' },
+  { type: 'speer',      name: 'Speer',        icon: '🔱', slot: 'weapon' },
+  { type: 'axt',        name: 'Streitaxt',    icon: '🪓', slot: 'weapon' },
+  { type: 'hammer',     name: 'Streithammer', icon: '🔨', slot: 'weapon' },
+  { type: 'stab',       name: 'Zauberstab',   icon: '🪄', slot: 'weapon' },
+  { type: 'helm',       name: 'Helm',         icon: '🪖', slot: 'head' },
+  { type: 'ruestung',   name: 'Rüstung',      icon: '🛡️', slot: 'body' },
+  { type: 'handschuhe', name: 'Handschuhe',   icon: '🧤', slot: 'arms' },
+  { type: 'stiefel',    name: 'Stiefel',      icon: '🥾', slot: 'legs' },
+  { type: 'talisman',   name: 'Talisman',     icon: '🧿', slot: 'talisman' },
+  { type: 'ring',       name: 'Ring',         icon: '💍', slot: 'ring' },
+  { type: 'gefaehrte',  name: 'Gefährte',     icon: '🐾', slot: 'companion' },
 ];
-// Zwei verschiedene Gegenstände je Station: Stahl-Waffe (Past) = gerader Index,
-// Gold-Waffe (PP) = der nächste. Zyklisch.
+const _FORGE_WEAPONS = FORGE_OBJECTS.filter((o) => o.slot === 'weapon');
+
+// Objekt einer Station: hat das Kind bei der Befüllung eines gewählt (entry.obj),
+// gilt es für BEIDE Formen (Stahl-Past & Gold-PP = zwei Materialien desselben
+// Objekts). Legacy-Stationen (ohne Wahl) behalten ihre alte zyklische Zuteilung
+// über die 6 Waffen (gerader Index = Past, nächster = PP).
 export function forgeObject(idx, which) {
-  const n = FORGE_OBJECTS.length;
+  const t = _fillObj(_fills()[idx]);
+  if (t) {
+    const ob = FORGE_OBJECTS.find((o) => o.type === t);
+    if (ob) return ob;
+  }
+  const n = _FORGE_WEAPONS.length;
   const i = which === 'pp' ? (idx * 2 + 1) : (idx * 2);
-  return FORGE_OBJECTS[((i % n) + n) % n];
+  return _FORGE_WEAPONS[((i % n) + n) % n];
 }
 
 const _byEn = new Map(IRREGULAR_VERBS.map((v) => [v.en, v]));
@@ -223,11 +242,20 @@ function _fills() {
   const f = window.SD && window.SD.uvFills;
   return Array.isArray(f) ? f : [];
 }
+// Ein Fill-Eintrag ist entweder eine en-Liste (legacy) oder {ens:[…], obj:'helm'}
+// (seit der Objekt-Wahl). Beide Formen bleiben dauerhaft gültig.
+function _fillEns(entry) {
+  if (Array.isArray(entry)) return entry;
+  return (entry && Array.isArray(entry.ens)) ? entry.ens : [];
+}
+function _fillObj(entry) {
+  return (entry && !Array.isArray(entry) && entry.obj) ? entry.obj : null;
+}
 
 // Sternbild-Liste aus den Befüllungen aufbauen (KEIN Cache — hängt am Spielstand).
 export function getConstellations() {
-  return _fills().map((ens, idx) => {
-    const verbs = (Array.isArray(ens) ? ens : []).map((en) => _byEn.get(en)).filter(Boolean);
+  return _fills().map((entry, idx) => {
+    const verbs = _fillEns(entry).map((en) => _byEn.get(en)).filter(Boolean);
     const tiers = verbs.map((v) => v.tier);
     const lo = tiers.length ? Math.min(...tiers) : 1;
     const hi = tiers.length ? Math.max(...tiers) : 1;
@@ -237,13 +265,14 @@ export function getConstellations() {
       tier: lo,
       cefr: lo === hi ? (TIER_CEFR[lo] || '') : `${TIER_CEFR[lo]}–${TIER_CEFR[hi]}`,
       verbs,
+      obj: _fillObj(entry),
     };
   });
 }
 
 // Noch nicht vergebene Verben, nach Wichtigkeit/Stufe sortiert (häufigste zuerst).
 export function uvAvailableVerbs() {
-  const used = new Set(_fills().flat());
+  const used = new Set(_fills().flatMap(_fillEns));
   return IRREGULAR_VERBS
     .map((v, i) => [v, i])
     .filter(([v]) => !used.has(v.en))

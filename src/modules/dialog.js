@@ -7,12 +7,12 @@ import { flushPendingSync } from './sync.js';
 // zurück; Abbrechen oder Schließen löst KEINE Speicheraktion aus (resolve false/
 // null bzw. der .then-Callback läuft nicht) — exakt wie das native Pendant.
 
-const BACKDROP = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
-const CARD     = "background:#fff;border-radius:20px;padding:28px 22px;max-width:340px;width:100%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.2);";
+const BACKDROP = 'position:fixed;inset:0;background:rgba(15,10,30,.55);backdrop-filter:blur(3px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
+const CARD     = "background:#fff;border-radius:22px;padding:28px 22px;max-width:340px;width:100%;text-align:center;box-shadow:0 14px 44px rgba(20,10,50,.35);max-height:86vh;overflow-y:auto;";
 const TITLE    = "font-family:'Fredoka One',cursive;font-size:1.25rem;margin-bottom:12px;";
 const BODY     = "font-size:.9rem;color:#555;line-height:1.6;margin:0 0 20px;white-space:pre-line;";
 const BTN      = "font-family:'Fredoka One',cursive;font-size:1rem;padding:12px 22px;border:none;border-radius:50px;cursor:pointer;";
-const BTN_CANCEL = BTN + 'background:#eee;color:#333;';
+const BTN_CANCEL = BTN + 'background:#f0edf7;color:#555;';
 const BTN_OK     = BTN + 'background:linear-gradient(135deg,#a86cdb,#c084fc);color:#fff;box-shadow:0 4px 0 #7a4ba8;';
 const BTN_DANGER = BTN + 'background:linear-gradient(135deg,#e53935,#f44336);color:#fff;box-shadow:0 4px 0 #b71c1c;';
 const INPUT  = "width:100%;box-sizing:border-box;font-family:'Nunito',sans-serif;font-size:1rem;padding:12px 14px;border:2px solid #e0d4f0;border-radius:12px;margin:0 0 18px;outline:none;";

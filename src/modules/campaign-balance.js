@@ -41,24 +41,38 @@ export const METEOR_COUNT = 4;             // 1 richtig + 3 falsch
 export const ECHO_TIME_MS = 15000;
 export const ECHO_CHOICES = 5;             // 1 richtig + 4 falsch
 
-// ── Ausrüstung (Phase 3) ──
+// ── Ausrüstung (alles wird in der Schmiede gebaut) ──
+// Rüstungs-Stufe: Stahl (Past-Form) / Gold (PP-Form); „Verzaubert" = alle 5 Teile
+// fertig (inkl. Verzaubern-Slot). Effekte pro Stufe:
 export const EQUIP_EFFECT = {
+  head: { stahl: 1, gold: 1, verzaubert: 2 },            // abgewehrte Wellen pro Kampf
   body: { stahl: 5, gold: 10, verzaubert: 15 },          // max. HP
   arms: { stahl: 2000, gold: 3000, verzaubert: 5000 },   // Zeitbonus je Minispiel (ms)
   legs: { stahl: 0.10, gold: 0.20, verzaubert: 0.30 },   // Ausweich-Chance
 };
 export const TALISMAN_MULT = 1.5;          // Waffenschaden ×1.5 an 🌀-Knoten
-export const RING_ORE_BONUS = 0.15;        // Erz-Drop-Chance je Ring; ✨-Ring hebt
-                                           // zusätzlich Bauplan-Drops um 1 Stufe
+export const RING_POTION_BONUS = 1;        // 💍 je Ring: +1 Trank-Auswahl am 💎 (3→4→5)
+export const COMPANION_GUARDS = 1;         // 🐾 gefangene Fehlgriffe pro Kampf
 
-// 💎 Schatz & Boss-Drops.
-export const TREASURE_ORE_CHANCE = 0.30;   // sonst Bauplan
-export const TREASURE_ORE_AMOUNT = 2;
-export const BOSS_ORE_AMOUNT = 2;          // Boss droppt Erz + Bauplan (1 Stufe besser)
-export const BP_TIER_GOLD = 0.30;          // Bauplan-Seltenheit: 60 % Stahl / 30 / 10
-export const BP_TIER_ENCH = 0.10;
+// Waffen-Typ-Vorteile (Objekt-Wahl in der Schmiede zeigt den Text an).
+export const WEAPON_PERK = {
+  schwert: { text: '+1 Schaden' },
+  dolch:   { text: '+10 % Ausweichen' },
+  speer:   { text: '+2 Schaden gegen Bosse' },
+  axt:     { text: '+2 Schaden gegen 🌀-Elite' },
+  hammer:  { text: 'Erste Welle: doppelter Schaden' },
+  stab:    { text: '+3 s Zeit pro Minispiel' },
+};
+export const PERK_SCHWERT_DMG = 1;
+export const PERK_DOLCH_DODGE = 0.10;
+export const PERK_SPEER_BOSS = 2;
+export const PERK_AXT_ELITE = 2;
+export const PERK_HAMMER_MULT = 2;
+export const PERK_STAB_MS = 3000;
 
-// Baupläne: 5 Teile; +1 Teil je abgeschlossener Schmiede-Runde ab dieser Quote,
-// oder 1 Erz = 1 Teil sofort.
-export const BP_PARTS = 5;
-export const BP_ROUND_PCT = 0.8;
+// ── Tränke (💎 Schatz: 3 zufällige zur Wahl, run-gebunden, im Kampf spielbar) ──
+export const POTION_CHOICES = 3;
+export const POTION_HEAL = 20;             // ❤️ sofort
+export const POTION_POWER = 3;             // 💪 +Schaden für den Rest des Kampfes
+export const POTION_TIME_MS = 5000;        // ⏳ Zeitbonus …
+export const POTION_TIME_WAVES = 3;        // … für so viele Wellen

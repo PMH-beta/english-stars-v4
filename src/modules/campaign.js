@@ -17,7 +17,7 @@ import { markDirty } from './sync.js';
 import { commitDirty } from './dialog.js';
 import { HP_MAX, REST_HEAL } from './campaign-balance.js';
 import { openFight, fightPoolReady, verbsReady } from './campaign-fight.js';
-import { openEquipment, equipEffects, rollTreasure, rollBossDrop } from './campaign-equipment.js';
+import { openEquipment, equipEffects, openPotionChoice, POTIONS } from './campaign-equipment.js';
 
 const ROWS = 13;            // Reihe 0 = Start (unten), Reihe ROWS-1 = Boss (oben)
 const COLS = 5;
@@ -168,7 +168,7 @@ export function startCampaignRun() {
   if (talerAvailable() < STAKE_COST) return;
   c.talerSpent += STAKE_COST;                        // Einsatz sofort gesetzt
   const hpMax = HP_MAX + equipEffects().hpBonus;     // 🛡️ Rüstung: mehr HP
-  c.run = { map: generateMap(), pos: null, visited: [], hp: hpMax, hpMax };
+  c.run = { map: generateMap(), pos: null, visited: [], hp: hpMax, hpMax, potions: [] };
   _saveCampaign();
   updateTalerBadge();
   renderCampaign();
@@ -231,11 +231,18 @@ export function campaignNode(id) {
     return;
   }
   if (node.type === 'treasure') {
-    // 💎 Schatz: kein Kampf — Bauplan (70 %) oder Erz (30 %, Ringe erhöhen das).
-    const drop = rollTreasure();
+    // 💎 Schatz: kein Kampf — Wahl aus 3 Tränken (💍 Ringe geben mehr Auswahl).
+    // Tränke gehören zum Run und sind im Kampf spielbar.
     _saveCampaign();
     renderCampaign();
-    window.esAlert?.({ icon: drop.icon, title: drop.title, body: drop.body });
+    openPotionChoice({
+      onPick: (key) => {
+        if (!Array.isArray(run.potions)) run.potions = [];
+        run.potions.push(key);
+        _saveCampaign();
+        window.esToast?.(`${POTIONS[key].icon} ${POTIONS[key].name} eingesteckt!`);
+      },
+    });
     return;
   }
   _saveCampaign();
@@ -253,11 +260,8 @@ function _startFight(node) {
     onEnd: (result) => {
       const bossWin = result === 'victory' && node.type === 'boss';
       if (bossWin || result === 'death') c.run = null;
-      let drop = null;
-      if (bossWin) drop = rollBossDrop();   // 👑 Boss: Bauplan (1 Stufe besser) + Erz
       _saveCampaign();
       renderCampaign();
-      if (drop) window.esAlert?.({ icon: '👑', title: 'Boss besiegt!', body: 'Der Lauf ist geschafft!<br><br>' + drop.body });
     },
   });
 }
@@ -331,29 +335,29 @@ function _startScreenHtml() {
   const c = _camp();
   const claimed = c.claimed.length;
   const avail = talerAvailable();
-  const box = (inner) => `<div style="padding:34px 20px;text-align:center;">
+  const box = (inner) => `<div style="padding:26px 16px;text-align:center;">
     <div style="font-size:3.4rem;margin-bottom:12px;">🗺️</div>
-    <div style="font-family:'Fredoka One',cursive;font-size:1.4rem;color:var(--purple);margin-bottom:12px;">Kampagne</div>
+    <div style="font-family:'Fredoka One',cursive;font-size:1.4rem;color:var(--adv-text,#f1edfb);margin-bottom:12px;">Kampagne</div>
     ${inner}</div>`;
   if (claimed < UNLOCK_NEED) {
-    return box(`<div style="font-size:.9rem;color:#888;font-weight:700;line-height:1.55;max-width:330px;margin:0 auto;">
+    return box(`<div style="font-size:.9rem;color:rgba(255,255,255,.68);font-weight:700;line-height:1.55;max-width:330px;margin:0 auto;">
       Bring erst <b>${UNLOCK_NEED} Übungsarten</b> (z. B. MC) in deinen Decks auf <b>100 %</b>, um die Kampagne freizuschalten.<br><br>
-      Freigeschaltet: <b>${claimed} / ${UNLOCK_NEED}</b> 🪙</div>`);
+      Freigeschaltet: <b style="color:#ffd43b;">${claimed} / ${UNLOCK_NEED}</b> 🪙</div>`);
   }
   const canStart = avail >= STAKE_COST;
   return box(`
-    <div style="font-size:.9rem;color:#666;font-weight:700;line-height:1.55;max-width:340px;margin:0 auto 16px;">
+    <div style="font-size:.9rem;color:rgba(255,255,255,.72);font-weight:700;line-height:1.55;max-width:340px;margin:0 auto 16px;">
       Setze <b>${STAKE_COST} 🪙</b> ein und kämpf dich über die Karte zum Boss.
-      <span style="color:#c0392b;">Fällst du (HP = 0), ist der Einsatz verloren.</span>
+      <span style="color:#ff8787;">Fällst du (HP = 0), ist der Einsatz verloren.</span>
     </div>
-    <div style="font-size:.95rem;font-weight:800;color:var(--text);margin-bottom:16px;">Deine Taler: ${avail} 🪙</div>
+    <div style="font-size:.95rem;font-weight:800;color:#fff;margin-bottom:16px;">Deine Taler: <span style="color:#ffd43b;">${avail} 🪙</span></div>
     <button onclick="startCampaignRun()" ${canStart ? '' : 'disabled'}
-      style="font-family:'Fredoka One',cursive;font-size:1rem;padding:14px 26px;border:none;border-radius:14px;cursor:${canStart ? 'pointer' : 'not-allowed'};background:${canStart ? 'linear-gradient(135deg,#a86cdb,#c084fc)' : '#ddd'};color:#fff;box-shadow:${canStart ? '0 4px 0 #7d4bb0' : 'none'};">
+      style="font-family:'Fredoka One',cursive;font-size:1rem;padding:14px 26px;border:none;border-radius:14px;cursor:${canStart ? 'pointer' : 'not-allowed'};background:${canStart ? 'linear-gradient(135deg,#a86cdb,#c084fc)' : 'rgba(255,255,255,.16)'};color:${canStart ? '#fff' : 'rgba(255,255,255,.5)'};box-shadow:${canStart ? '0 4px 0 #7d4bb0' : 'none'};">
       ▶️ Kampagne starten (${STAKE_COST} 🪙)</button>
     <div style="margin-top:12px;">
-      <button onclick="openCampaignEquipment()" style="font-family:'Fredoka One',cursive;font-size:.85rem;padding:10px 20px;border:none;border-radius:50px;cursor:pointer;background:#f0f0f0;color:var(--purple);">🎒 Ausrüstung</button>
+      <button onclick="openCampaignEquipment()" style="font-family:'Fredoka One',cursive;font-size:.85rem;padding:10px 20px;border:none;border-radius:50px;cursor:pointer;background:rgba(255,255,255,.14);color:#e7deff;">🎒 Ausrüstung</button>
     </div>
-    ${canStart ? '' : `<div style="font-size:.82rem;color:#999;font-weight:700;margin-top:12px;">Nicht genug Taler — bring weitere Übungsarten auf 100 %.</div>`}`);
+    ${canStart ? '' : `<div style="font-size:.82rem;color:rgba(255,255,255,.55);font-weight:700;margin-top:12px;">Nicht genug Taler — bring weitere Übungsarten auf 100 %.</div>`}`);
 }
 
 const _MAP_H = ROWS * 78;   // px Gesamthöhe der Karte
@@ -386,22 +390,22 @@ function _mapHtml(run, preview) {
   }
   let header;
   if (preview) {
-    header = `<div style="font-size:.8rem;color:#999;font-weight:700;text-align:center;margin:4px 0 6px;">🔍 So sieht eine Karte aus — mit ${STAKE_COST} 🪙 geht's los</div>`;
+    header = `<div style="font-size:.8rem;color:rgba(255,255,255,.6);font-weight:700;text-align:center;margin:4px 0 6px;">🔍 So sieht eine Karte aus — mit ${STAKE_COST} 🪙 geht's los</div>`;
   } else {
     const hpPct = Math.max(0, Math.round(run.hp / run.hpMax * 100));
     header = `
   <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
     <div style="flex:1;min-width:0;">
-      <div style="font-family:'Fredoka One',cursive;font-size:.8rem;color:var(--text);margin-bottom:3px;">❤️ ${run.hp} / ${run.hpMax}</div>
-      <div style="height:12px;background:#eee;border-radius:8px;overflow:hidden;"><div style="height:100%;width:${hpPct}%;background:linear-gradient(90deg,#ff6b6b,#e03131);"></div></div>
+      <div style="font-family:'Fredoka One',cursive;font-size:.8rem;color:#f1edfb;margin-bottom:3px;">❤️ ${run.hp} / ${run.hpMax}</div>
+      <div style="height:12px;background:rgba(255,255,255,.18);border-radius:8px;overflow:hidden;"><div style="height:100%;width:${hpPct}%;background:linear-gradient(90deg,#ff6b6b,#e03131);"></div></div>
     </div>
-    <button onclick="openCampaignEquipment()" style="font-family:'Fredoka One',cursive;font-size:.72rem;padding:8px 12px;border:none;border-radius:50px;cursor:pointer;background:#f0f0f0;color:var(--purple);flex-shrink:0;">🎒</button>
-    <button onclick="campaignGiveUp()" style="font-family:'Fredoka One',cursive;font-size:.72rem;padding:8px 12px;border:none;border-radius:50px;cursor:pointer;background:#f0f0f0;color:#c0392b;flex-shrink:0;">🏳️ Aufgeben</button>
+    <button onclick="openCampaignEquipment()" style="font-family:'Fredoka One',cursive;font-size:.72rem;padding:8px 12px;border:none;border-radius:50px;cursor:pointer;background:rgba(255,255,255,.14);color:#e7deff;flex-shrink:0;">🎒</button>
+    <button onclick="campaignGiveUp()" style="font-family:'Fredoka One',cursive;font-size:.72rem;padding:8px 12px;border:none;border-radius:50px;cursor:pointer;background:rgba(255,255,255,.14);color:#ff8787;flex-shrink:0;">🏳️ Aufgeben</button>
   </div>
   ${run.fight ? `<div style="text-align:center;margin-bottom:8px;">
     <button onclick="resumeCampaignFight()" style="font-family:'Fredoka One',cursive;font-size:.85rem;padding:10px 20px;border:none;border-radius:50px;cursor:pointer;background:linear-gradient(135deg,#a86cdb,#c084fc);color:#fff;box-shadow:0 3px 0 #7d4bb0;">⚔️ Kampf fortsetzen</button>
   </div>` : ''}
-  <div style="font-size:.8rem;color:#999;font-weight:700;text-align:center;margin-bottom:6px;">${run.fight ? 'Ein Kampf wartet auf dich ⬆️' : run.pos == null ? 'Wähle unten deinen Startpunkt ⬇️' : 'Wähle den nächsten Knoten'}</div>`;
+  <div style="font-size:.8rem;color:rgba(255,255,255,.6);font-weight:700;text-align:center;margin-bottom:6px;">${run.fight ? 'Ein Kampf wartet auf dich ⬆️' : run.pos == null ? 'Wähle unten deinen Startpunkt ⬇️' : 'Wähle den nächsten Knoten'}</div>`;
   }
   return `${header}
   <div id="camp-map" style="position:relative;width:100%;height:${_MAP_H}px;">
@@ -426,7 +430,7 @@ function _drawEdges(run) {
       if (!b) continue;
       const pb = coord(b);
       const done = run.visited.includes(id) && run.visited.includes(bid);
-      lines += `<line x1="${pa.x}" y1="${pa.y}" x2="${pb.x}" y2="${pb.y}" stroke="${done ? '#a86cdb' : '#dcdcdc'}" stroke-width="2" stroke-linecap="round" vector-effect="non-scaling-stroke"/>`;
+      lines += `<line x1="${pa.x}" y1="${pa.y}" x2="${pb.x}" y2="${pb.y}" stroke="${done ? '#c9a8ff' : 'rgba(255,255,255,.30)'}" stroke-width="2" stroke-linecap="round" vector-effect="non-scaling-stroke"/>`;
     }
   }
   svg.innerHTML = lines;
