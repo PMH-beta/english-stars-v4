@@ -42,7 +42,7 @@ function shuffle(a) {
 
 function pick(a, n) { return shuffle(a).slice(0,n); }
 
-function weightedPickUnique(items, getStatFn, n) {
+export function weightedPickUnique(items, getStatFn, n) {
   const scored=items.map(item=>{
     const s=getStatFn(item);
     let w;

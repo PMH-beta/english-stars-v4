@@ -1,9 +1,10 @@
 // src/modules/campaign.js
 // Kampagne — Slay-the-Spire-artige Karte.
-// ERSTER SCHRITT: Taler-Ökonomie + prozedurale Karte mit mehreren Pfaden + HP-Leiste
-// + Navigation. Die eigentlichen Kämpfe an den Knoten sind noch Platzhalter
-// (Spielkonzept folgt später). Persistenz: SD.campaign (reitet als profiles.campaign
-// jsonb im Sync mit, analog uv_fills).
+// Schritt 1: Taler-Ökonomie + prozedurale Karte + HP-Leiste + Navigation.
+// Schritt 2 (Phase 1 Kampfsystem): ⚔️- und 👑-Knoten starten echte Kämpfe
+// (campaign-fight.js, Minispiel Buchstabensturm); 🌀/🔥/💎 sind noch Platzhalter.
+// Persistenz: SD.campaign (reitet als profiles.campaign jsonb im Sync mit, analog
+// uv_fills), inkl. run.fight (Kampf-Zwischenstand, Reload-sicher).
 //
 // Taler-Regel: Pro Teilabschnitt (Preset-Kategorie) auf 100 % gibt es 1 Taler. Einmal
 // verdient = dauerhaft „claimed" (kein Zurückfallen durch EMA-Schwankung). Freischalten
@@ -13,11 +14,12 @@ import { deckProgress } from './decks.js';
 import { persist } from './storage.js';
 import { markDirty } from './sync.js';
 import { commitDirty } from './dialog.js';
+import { HP_MAX } from './campaign-balance.js';
+import { openFight, fightPoolReady } from './campaign-fight.js';
 
 const ROWS = 13;            // Reihe 0 = Start (unten), Reihe ROWS-1 = Boss (oben)
 const COLS = 5;
 const PATHS = 6;            // Anzahl generierter Pfade von unten nach oben
-const HP_MAX = 60;
 export const STAKE_COST = 2;
 const UNLOCK_NEED = 2;      // so viele 100%-Deck-Modi (Taler) zum Freischalten
 
@@ -170,22 +172,49 @@ export function campaignNode(id) {
   const c = _camp();
   const run = c.run;
   if (!run) return;
+  if (run.fight) { resumeCampaignFight(); return; }   // offener Kampf geht vor
   const node = run.map.nodes[id];
   if (!node || !_isReachable(run, node)) return;
-  run.pos = id;
-  if (!run.visited.includes(id)) run.visited.push(id);
-  if (node.type === 'boss') {
-    // Platzhalter-Sieg (Kämpfe folgen später) → Run beenden.
-    c.run = null;
+  if (node.type === 'fight' || node.type === 'boss') {
+    if (!fightPoolReady()) { window.esToast?.('📭 Keine Vokabeln in deinen Decks — der Kampf braucht Wörter'); return; }
+    run.pos = id;
+    if (!run.visited.includes(id)) run.visited.push(id);
     _saveCampaign();
-    renderCampaign();
-    window.esAlert?.({ icon: '👑', title: 'Boss geschafft!', body: 'Du hast dich bis zum Boss durchgekämpft! Die echten Kämpfe kommen später.' });
+    _startFight(node);
     return;
   }
+  run.pos = id;
+  if (!run.visited.includes(id)) run.visited.push(id);
   _saveCampaign();
   renderCampaign();
-  // Platzhalter-Hinweis am Knoten (statt Kampf).
-  window.esToast?.(NODE[node.type].icon + ' ' + NODE[node.type].label + ' — Kampf kommt später');
+  // 🌀/🔥/💎 folgen in Phase 2/3 — bis dahin freier Durchgang.
+  window.esToast?.(NODE[node.type].icon + ' ' + NODE[node.type].label + ' — kommt bald');
+}
+
+// Kampf am Knoten öffnen. onEnd regelt die Run-Folgen: Boss-Sieg oder Tod beendet
+// den Run; „Kampf verlassen" (null) lässt run.fight stehen → Fortsetzen-Button.
+function _startFight(node) {
+  const c = _camp();
+  openFight({
+    run: c.run,
+    node,
+    save: _saveCampaign,
+    onEnd: (result) => {
+      if ((result === 'victory' && node.type === 'boss') || result === 'death') c.run = null;
+      _saveCampaign();
+      renderCampaign();
+    },
+  });
+}
+
+// Offenen Kampf (run.fight) wieder öffnen — nach Reload oder „Kampf verlassen".
+export function resumeCampaignFight() {
+  const c = _camp();
+  const f = c.run?.fight;
+  if (!f) return;
+  const node = c.run.map.nodes[f.nodeId];
+  if (!node) { c.run.fight = null; _saveCampaign(); renderCampaign(); return; }
+  _startFight(node);
 }
 
 export function campaignGiveUp() {
@@ -224,6 +253,9 @@ export function renderCampaign() {
 
 function _renderCampaignNow(host) {
   const c = _camp();
+  // Sicherheitsnetz: Run mit 0 HP (z. B. Reload genau zwischen Tod und Aufräumen)
+  // gilt als beendet — Einsatz ist weg, Startansicht zeigen.
+  if (c.run && c.run.hp <= 0) { c.run = null; _saveCampaign(); }
   updateTalerBadge();
   if (!c.run) {
     // Startansicht (gesperrt / Einsatz) + darunter die Karte als Vorschau.
@@ -307,7 +339,10 @@ function _mapHtml(run, preview) {
     </div>
     <button onclick="campaignGiveUp()" style="font-family:'Fredoka One',cursive;font-size:.72rem;padding:8px 12px;border:none;border-radius:50px;cursor:pointer;background:#f0f0f0;color:#c0392b;flex-shrink:0;">🏳️ Aufgeben</button>
   </div>
-  <div style="font-size:.8rem;color:#999;font-weight:700;text-align:center;margin-bottom:6px;">${run.pos == null ? 'Wähle unten deinen Startpunkt ⬇️' : 'Wähle den nächsten Knoten'}</div>`;
+  ${run.fight ? `<div style="text-align:center;margin-bottom:8px;">
+    <button onclick="resumeCampaignFight()" style="font-family:'Fredoka One',cursive;font-size:.85rem;padding:10px 20px;border:none;border-radius:50px;cursor:pointer;background:linear-gradient(135deg,#a86cdb,#c084fc);color:#fff;box-shadow:0 3px 0 #7d4bb0;">⚔️ Kampf fortsetzen</button>
+  </div>` : ''}
+  <div style="font-size:.8rem;color:#999;font-weight:700;text-align:center;margin-bottom:6px;">${run.fight ? 'Ein Kampf wartet auf dich ⬆️' : run.pos == null ? 'Wähle unten deinen Startpunkt ⬇️' : 'Wähle den nächsten Knoten'}</div>`;
   }
   return `${header}
   <div id="camp-map" style="position:relative;width:100%;height:${_MAP_H}px;">
