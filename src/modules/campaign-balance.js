@@ -40,3 +40,25 @@ export const METEOR_COUNT = 4;             // 1 richtig + 3 falsch
 // Echo-Fang (Minispiel).
 export const ECHO_TIME_MS = 15000;
 export const ECHO_CHOICES = 5;             // 1 richtig + 4 falsch
+
+// ── Ausrüstung (Phase 3) ──
+export const EQUIP_EFFECT = {
+  body: { stahl: 5, gold: 10, verzaubert: 15 },          // max. HP
+  arms: { stahl: 2000, gold: 3000, verzaubert: 5000 },   // Zeitbonus je Minispiel (ms)
+  legs: { stahl: 0.10, gold: 0.20, verzaubert: 0.30 },   // Ausweich-Chance
+};
+export const TALISMAN_MULT = 1.5;          // Waffenschaden ×1.5 an 🌀-Knoten
+export const RING_ORE_BONUS = 0.15;        // Erz-Drop-Chance je Ring; ✨-Ring hebt
+                                           // zusätzlich Bauplan-Drops um 1 Stufe
+
+// 💎 Schatz & Boss-Drops.
+export const TREASURE_ORE_CHANCE = 0.30;   // sonst Bauplan
+export const TREASURE_ORE_AMOUNT = 2;
+export const BOSS_ORE_AMOUNT = 2;          // Boss droppt Erz + Bauplan (1 Stufe besser)
+export const BP_TIER_GOLD = 0.30;          // Bauplan-Seltenheit: 60 % Stahl / 30 / 10
+export const BP_TIER_ENCH = 0.10;
+
+// Baupläne: 5 Teile; +1 Teil je abgeschlossener Schmiede-Runde ab dieser Quote,
+// oder 1 Erz = 1 Teil sofort.
+export const BP_PARTS = 5;
+export const BP_ROUND_PCT = 0.8;

@@ -1307,6 +1307,12 @@ function commitProgress() {
 
 function showEnd() {
   hideFeedback();saveProgress();
+  // Kampagne (Phase 3): jede ABGESCHLOSSENE Schmiede-Runde (UV) mit guter Quote
+  // härtet den aktiven Bauplan um 1 Teil (campaign-equipment.js, via main.js).
+  if(window.isUV && !window.isSchnellModus && window._campaignForgeRound){
+    const q=Math.max(1,window.questionPool.length);
+    try{ window._campaignForgeRound(window.totalCorrect/q); }catch(e){}
+  }
   if(window.isExamMode){
     const totalQ=window.questionPool.length;
     const pct=window.totalCorrect/Math.max(1,totalQ);

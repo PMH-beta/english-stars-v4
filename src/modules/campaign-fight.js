@@ -16,14 +16,14 @@
 // (reitet im profiles.campaign-jsonb mit) → Reload mitten im Kampf verliert nichts;
 // nur das aktuelle Wort der Welle wird neu gezogen.
 
-import { ENEMY, FIST_DMG, WEAPON_BASE_DMG, FORM_BONUS, STORM_BASE_MS, STORM_PER_LETTER_MS, WEAK_TIME_BONUS, WEAK_EMA, METEOR_FALL_MS, METEOR_COUNT, ECHO_TIME_MS, ECHO_CHOICES } from './campaign-balance.js';
+import { ENEMY, FORM_BONUS, TALISMAN_MULT, STORM_BASE_MS, STORM_PER_LETTER_MS, WEAK_TIME_BONUS, WEAK_EMA, METEOR_FALL_MS, METEOR_COUNT, ECHO_TIME_MS, ECHO_CHOICES } from './campaign-balance.js';
 import { startLetterstorm, stormTarget } from './minigame-letterstorm.js';
 import { startMeteors } from './minigame-meteors.js';
 import { startEcho } from './minigame-echo.js';
+import { equippedWeapon, equipEffects } from './campaign-equipment.js';
 import { weightedPickUnique, playSfx } from './game.js';
 import { effectivePct, statKeyFor } from './stats.js';
-import { getConstellations, forgeObject } from './irregular-verbs.js';
-import { starLit, SLOTS_PER_FORM } from './irregular-game.js';
+import { getConstellations } from './irregular-verbs.js';
 
 const _TITLE = {
   fight:     '⚔️ Übung',
@@ -31,26 +31,8 @@ const _TITLE = {
   boss:      '👑 Boss',
 };
 
-// ── Waffe aus der Schmiede ableiten ──────────────────────────────────────────
-// Beste Waffe über alle Stationen × Formen: Schaden = WEAPON_BASE_DMG + fertige
-// Teile (starLit je Slot-Suffix _past_s0…_pp_s4). Ausrüstbar ab 1 fertigem Teil;
-// ohne Schmiede-Fortschritt kämpft die Faust. (Phase 3: echtes Ausrüsten im Profil.)
-export function bestWeapon() {
-  let best = { dmg: FIST_DMG, icon: '👊', name: 'Faust', which: null };
-  for (const c of getConstellations()) {
-    for (const which of ['past', 'pp']) {
-      let lit = 0;
-      for (let i = 0; i < SLOTS_PER_FORM; i++) if (starLit(c.verbs, `_${which}_s${i}`)) lit++;
-      if (!lit) continue;
-      const dmg = WEAPON_BASE_DMG + lit;
-      if (dmg > best.dmg) {
-        const ob = forgeObject(c.idx, which);
-        best = { dmg, icon: ob.icon, name: ob.name, which };   // which: Stahl=past, Gold=pp
-      }
-    }
-  }
-  return best;
-}
+// Waffen-/Ausrüstungslogik lebt in campaign-equipment.js (equippedWeapon,
+// equipEffects) — der Kampf liest sie nur.
 
 // ── Verb-Pool: die selbst befüllten Sternbild-Verben (SD.uvFills) ────────────
 function _verbPool() {
@@ -133,10 +115,10 @@ let _ctx = null;   // { run, node, enemy, weapon, save, onEnd, mg, lastEn }
 export function openFight({ run, node, save, onEnd }) {
   const enemy = ENEMY[node.type] || ENEMY.fight;
   if (!run.fight || run.fight.nodeId !== node.id) {
-    run.fight = { nodeId: node.id, type: node.type, enemyHp: enemy.hp, enemyHpMax: enemy.hp, wave: 1 };
+    run.fight = { nodeId: node.id, type: node.type, enemyHp: enemy.hp, enemyHpMax: enemy.hp, wave: 1, headUsed: false, companionUsed: false };
     save();
   }
-  _ctx = { run, node, enemy, weapon: bestWeapon(), save, onEnd, mg: null, lastEn: null };
+  _ctx = { run, node, enemy, weapon: equippedWeapon(), eff: equipEffects(), save, onEnd, mg: null, lastEn: null };
   _renderOverlay();
   _startWave();
 }
@@ -228,6 +210,13 @@ function _startWave() {
   const host = _el('cf-stage');
   _ctx.waveForm = null;
 
+  // Ausrüstungs-Effekte: 🧤 Zeitbonus auf jedes Minispiel (Meteoriten fallen
+  // langsamer), 🐾 Gefährte fängt 1 Fehlgriff pro KAMPF im Buchstabensturm.
+  const eff = _ctx.eff;
+  const tBonus = eff.timeBonusMs || 0;
+  const guards = eff.companion && !run.fight.companionUsed ? 1 : 0;
+  const onGuardUsed = () => { run.fight.companionUsed = true; _ctx.save(); };
+
   if (type === 'verbstorm') {
     // Verbform zusammensetzen: „go → Simple Past?" → w-e-n-t. Formen-Welle →
     // passende Waffe (Stahl=past / Gold=pp) bekommt FORM_BONUS.
@@ -240,39 +229,52 @@ function _startWave() {
       host, de: v.de, en: target,
       prompt: `🌀 ${v.en} → <span style="color:#ffd43b;">${label}</span>?`,
       sub: `(${v.de})`,
-      timeLimitMs: _lettersMs(target),
+      timeLimitMs: _lettersMs(target) + tBonus,
+      guards, onGuardUsed,
       onResult: _onWave,
     });
   } else if (type === 'meteors') {
     const item = _pickItem(pool);
     const answer = _displayEn(item.en);
     const choices = _shuffle([answer, ..._distractors(pool, answer, METEOR_COUNT - 1)]);
-    _ctx.mg = startMeteors({ host, de: item.de, answer, choices, fallMs: METEOR_FALL_MS, onResult: _onWave });
+    _ctx.mg = startMeteors({ host, de: item.de, answer, choices, fallMs: METEOR_FALL_MS + tBonus, onResult: _onWave });
   } else if (type === 'echo') {
     const item = _pickItem(pool);
     const answer = _displayEn(item.en);
     const choices = _shuffle([answer, ..._distractors(pool, answer, ECHO_CHOICES - 1)]);
-    _ctx.mg = startEcho({ host, answer, speakText: answer, choices, timeLimitMs: ECHO_TIME_MS, onResult: _onWave });
+    _ctx.mg = startEcho({ host, answer, speakText: answer, choices, timeLimitMs: ECHO_TIME_MS + tBonus, onResult: _onWave });
   } else {
     const item = _pickItem(pool);
-    _ctx.mg = startLetterstorm({ host, de: item.de, en: item.en, timeLimitMs: _timeLimit(item), onResult: _onWave });
+    _ctx.mg = startLetterstorm({ host, de: item.de, en: item.en, timeLimitMs: _timeLimit(item) + tBonus, guards, onGuardUsed, onResult: _onWave });
   }
 }
 
 function _onWave(success) {
   if (!_ctx) return;
-  const { run, enemy, weapon, save } = _ctx;
+  const { run, node, enemy, weapon, eff, save } = _ctx;
   const f = run.fight;
   if (!f) return;
   if (success) {
-    // Formen-Welle + passende Waffe (Stahl=past / Gold=pp) → Bonus-Schaden.
+    // Formen-Welle + passende Waffe (Stahl=past / Gold=pp) → Bonus-Schaden;
+    // 🧿 Talisman: ×1.5 an 🌀-Knoten.
     const bonus = _ctx.waveForm && weapon.which === _ctx.waveForm ? FORM_BONUS : 0;
-    const dmg = weapon.dmg + bonus;
+    let dmg = weapon.dmg + bonus;
+    const tali = node.type === 'irregular' && eff.talisman;
+    if (tali) dmg = Math.round(dmg * TALISMAN_MULT);
     f.enemyHp = Math.max(0, f.enemyHp - dmg);
     _setBars();
-    _feedback('💥 Treffer! −' + dmg + (bonus ? ' ✨' : ''));
+    _feedback('💥 Treffer! −' + dmg + (bonus ? ' ✨' : '') + (tali ? ' 🧿' : ''));
     try { playSfx('correct'); } catch (e) {}
     if (f.enemyHp <= 0) { run.fight = null; save(); _endScreen(true); return; }
+  } else if (eff.dodge && Math.random() < eff.dodge) {
+    // 🥾 Stiefel: der verlorenen Welle ausgewichen — kein HP-Verlust.
+    _feedback('🍃 Ausgewichen!');
+    try { playSfx('click'); } catch (e) {}
+  } else if (eff.headGuard && !f.headUsed) {
+    // 🪖 Helm: wehrt die erste verlorene Welle des Kampfs ab.
+    f.headUsed = true;
+    _feedback('🪖 Der Helm hält!');
+    try { playSfx('click'); } catch (e) {}
   } else {
     run.hp = Math.max(0, run.hp - enemy.dmg);
     _setBars();

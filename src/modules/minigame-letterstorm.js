@@ -40,7 +40,9 @@ export function ensureStormStyle() {
 
 // prompt (optional): eigener Kopf statt „🇩🇪 de" — für Verbform-Wellen
 // („go → Simple Past?"); sub (optional): kleine Zusatzzeile darunter.
-export function startLetterstorm({ host, de, en, prompt, sub, timeLimitMs, onResult }) {
+// guards (optional): so viele Fehlgriffe fängt der 🐾 Gefährte ab (keine Strafe);
+// onGuardUsed wird je verbrauchtem Guard gerufen (Kampf merkt sich das pro Kampf).
+export function startLetterstorm({ host, de, en, prompt, sub, timeLimitMs, guards = 0, onGuardUsed, onResult }) {
   ensureStormStyle();
   const target = stormTarget(en);
   const chars = target.split('');
@@ -111,6 +113,16 @@ export function startLetterstorm({ host, de, en, prompt, sub, timeLimitMs, onRes
         advance();
         try { playSfx('click'); } catch (e) {}
         if (nextIdx >= chars.length) _finish(true);
+      } else if (guards > 0) {
+        // 🐾 Gefährte fängt den Fehlgriff ab — kein Fehler, keine Zeitstrafe.
+        guards--;
+        if (onGuardUsed) try { onGuardUsed(); } catch (e) {}
+        try { playSfx('click'); } catch (e) {}
+        const note = document.createElement('div');
+        note.textContent = '🐾 Gefährte hilft!';
+        note.style.cssText = 'position:absolute;left:50%;top:8px;transform:translateX(-50%);font-family:\'Fredoka One\',cursive;font-size:.85rem;color:#69db7c;z-index:3;';
+        field.appendChild(note);
+        setTimeout(() => note.remove(), 1000);
       } else {
         try { playSfx('wrong'); } catch (e) {}
         btn.classList.add('cf-shake');

@@ -17,6 +17,7 @@ import { markDirty } from './sync.js';
 import { commitDirty } from './dialog.js';
 import { HP_MAX, REST_HEAL } from './campaign-balance.js';
 import { openFight, fightPoolReady, verbsReady } from './campaign-fight.js';
+import { openEquipment, equipEffects, rollTreasure, rollBossDrop } from './campaign-equipment.js';
 
 const ROWS = 13;            // Reihe 0 = Start (unten), Reihe ROWS-1 = Boss (oben)
 const COLS = 5;
@@ -166,10 +167,30 @@ export function startCampaignRun() {
   if (c.run) { renderCampaign(); return; }
   if (talerAvailable() < STAKE_COST) return;
   c.talerSpent += STAKE_COST;                        // Einsatz sofort gesetzt
-  c.run = { map: generateMap(), pos: null, visited: [], hp: HP_MAX, hpMax: HP_MAX };
+  const hpMax = HP_MAX + equipEffects().hpBonus;     // 🛡️ Rüstung: mehr HP
+  c.run = { map: generateMap(), pos: null, visited: [], hp: hpMax, hpMax };
   _saveCampaign();
   updateTalerBadge();
   renderCampaign();
+}
+
+// Ausrüstung öffnen (Startansicht, Run-Kopf, Rastplatz). Nach dem Schließen die
+// max. HP eines laufenden Runs an die 🛡️-Rüstung anpassen (hp bleibt, gedeckelt).
+export function openCampaignEquipment() {
+  openEquipment({
+    onClose: () => {
+      const c = _camp();
+      if (c.run) {
+        const hpMax = HP_MAX + equipEffects().hpBonus;
+        if (hpMax !== c.run.hpMax) {
+          c.run.hpMax = hpMax;
+          c.run.hp = Math.min(c.run.hp, hpMax);
+          _saveCampaign();
+        }
+      }
+      renderCampaign();
+    },
+  });
 }
 
 export function campaignNode(id) {
@@ -190,18 +211,35 @@ export function campaignNode(id) {
   run.pos = id;
   if (!run.visited.includes(id)) run.visited.push(id);
   if (node.type === 'rest') {
-    // 🔥 Rastplatz: heilen (Phase 3 ergänzt die Wahl „Ausrüstung wechseln").
-    const before = run.hp;
-    run.hp = Math.min(run.hpMax, run.hp + REST_HEAL);
+    // 🔥 Rastplatz: heilen ODER Ausrüstung wechseln (eins von beiden).
+    const heal = () => {
+      const before = run.hp;
+      run.hp = Math.min(run.hpMax, run.hp + REST_HEAL);
+      _saveCampaign();
+      renderCampaign();
+      window.esToast?.('🔥 Ausgeruht: +' + (run.hp - before) + ' HP');
+    };
     _saveCampaign();
     renderCampaign();
-    window.esToast?.('🔥 Ausgeruht: +' + (run.hp - before) + ' HP');
+    if (window.esConfirm) {
+      window.esConfirm({
+        icon: '🔥', title: 'Rastplatz',
+        body: `Ausruhen (<b>+${REST_HEAL} HP</b>) oder die Ausrüstung wechseln?`,
+        ok: '❤️ Ausruhen', cancel: '🎒 Ausrüstung',
+      }).then(ok => { if (ok) heal(); else openCampaignEquipment(); });
+    } else heal();
+    return;
+  }
+  if (node.type === 'treasure') {
+    // 💎 Schatz: kein Kampf — Bauplan (70 %) oder Erz (30 %, Ringe erhöhen das).
+    const drop = rollTreasure();
+    _saveCampaign();
+    renderCampaign();
+    window.esAlert?.({ icon: drop.icon, title: drop.title, body: drop.body });
     return;
   }
   _saveCampaign();
   renderCampaign();
-  // 💎 Schatz folgt in Phase 3 — bis dahin freier Durchgang.
-  window.esToast?.(NODE[node.type].icon + ' ' + NODE[node.type].label + ' — kommt bald');
 }
 
 // Kampf am Knoten öffnen. onEnd regelt die Run-Folgen: Boss-Sieg oder Tod beendet
@@ -213,9 +251,13 @@ function _startFight(node) {
     node,
     save: _saveCampaign,
     onEnd: (result) => {
-      if ((result === 'victory' && node.type === 'boss') || result === 'death') c.run = null;
+      const bossWin = result === 'victory' && node.type === 'boss';
+      if (bossWin || result === 'death') c.run = null;
+      let drop = null;
+      if (bossWin) drop = rollBossDrop();   // 👑 Boss: Bauplan (1 Stufe besser) + Erz
       _saveCampaign();
       renderCampaign();
+      if (drop) window.esAlert?.({ icon: '👑', title: 'Boss besiegt!', body: 'Der Lauf ist geschafft!<br><br>' + drop.body });
     },
   });
 }
@@ -308,6 +350,9 @@ function _startScreenHtml() {
     <button onclick="startCampaignRun()" ${canStart ? '' : 'disabled'}
       style="font-family:'Fredoka One',cursive;font-size:1rem;padding:14px 26px;border:none;border-radius:14px;cursor:${canStart ? 'pointer' : 'not-allowed'};background:${canStart ? 'linear-gradient(135deg,#a86cdb,#c084fc)' : '#ddd'};color:#fff;box-shadow:${canStart ? '0 4px 0 #7d4bb0' : 'none'};">
       ▶️ Kampagne starten (${STAKE_COST} 🪙)</button>
+    <div style="margin-top:12px;">
+      <button onclick="openCampaignEquipment()" style="font-family:'Fredoka One',cursive;font-size:.85rem;padding:10px 20px;border:none;border-radius:50px;cursor:pointer;background:#f0f0f0;color:var(--purple);">🎒 Ausrüstung</button>
+    </div>
     ${canStart ? '' : `<div style="font-size:.82rem;color:#999;font-weight:700;margin-top:12px;">Nicht genug Taler — bring weitere Übungsarten auf 100 %.</div>`}`);
 }
 
@@ -350,6 +395,7 @@ function _mapHtml(run, preview) {
       <div style="font-family:'Fredoka One',cursive;font-size:.8rem;color:var(--text);margin-bottom:3px;">❤️ ${run.hp} / ${run.hpMax}</div>
       <div style="height:12px;background:#eee;border-radius:8px;overflow:hidden;"><div style="height:100%;width:${hpPct}%;background:linear-gradient(90deg,#ff6b6b,#e03131);"></div></div>
     </div>
+    <button onclick="openCampaignEquipment()" style="font-family:'Fredoka One',cursive;font-size:.72rem;padding:8px 12px;border:none;border-radius:50px;cursor:pointer;background:#f0f0f0;color:var(--purple);flex-shrink:0;">🎒</button>
     <button onclick="campaignGiveUp()" style="font-family:'Fredoka One',cursive;font-size:.72rem;padding:8px 12px;border:none;border-radius:50px;cursor:pointer;background:#f0f0f0;color:#c0392b;flex-shrink:0;">🏳️ Aufgeben</button>
   </div>
   ${run.fight ? `<div style="text-align:center;margin-bottom:8px;">

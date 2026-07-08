@@ -13,7 +13,8 @@ import { pwaInstall } from './modules/pwa.js';
 import { startConstellationStar, startConstellationForm, uvProgress } from './modules/irregular-game.js';
 import { openVocabManager, openPresetDeckStats, vmTab, renderVocabList, parsePastedText, onScanFile, showReview, renderReviewList, removeReviewItem, addReviewItem, confirmAddVocab, renderPresetsTab, togglePresetCategory, vmBack, vmRenameActiveDeck, newDeckFlow, newDeckPreset, newDeckCustom, confirmAbortDraft } from './modules/vocab.js';
 import { onFriendSearchInput, onFriendSearchEnter, sendFriendRequest, respondFriendRequest, cancelFriendRequest, confirmRemoveFriend, openFriendStats, refreshFriendBadge, refreshFriendsLive } from './modules/friends.js';
-import { startCampaignRun, campaignNode, campaignGiveUp, resumeCampaignFight } from './modules/campaign.js';
+import { startCampaignRun, campaignNode, campaignGiveUp, resumeCampaignFight, openCampaignEquipment } from './modules/campaign.js';
+import { forgeRoundCredit } from './modules/campaign-equipment.js';
 import './modules/dialog.js'; // registriert window.esAlert/esConfirm/esPrompt (App-Overlays statt nativer Dialoge)
 import { startupSequence, finishStartup } from './modules/startup.js';
 import { supabase, testConnection } from './modules/supabase.js';
@@ -142,6 +143,8 @@ window.startCampaignRun = startCampaignRun;
 window.campaignNode = campaignNode;
 window.campaignGiveUp = campaignGiveUp;
 window.resumeCampaignFight = resumeCampaignFight;
+window.openCampaignEquipment = openCampaignEquipment;
+window._campaignForgeRound = forgeRoundCredit;   // Hook: game.js showEnd (UV-Runden)
 window.openFriendStats = openFriendStats;
 window.refreshFriendBadge = refreshFriendBadge;
 window.avatarPick = avatarPick;
