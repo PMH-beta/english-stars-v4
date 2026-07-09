@@ -168,11 +168,11 @@ function _arenaScene() {
   s += px(102, 4, 6, 1, '#c4c4c4') + px(101, 5, 8, 1, '#c4c4c4') + px(100, 6, 10, 6, '#c4c4c4')
     + px(101, 12, 8, 1, '#c4c4c4') + px(102, 13, 6, 1, '#c4c4c4')
     + px(103, 7, 2, 2, '#9a9a9a') + px(106, 10, 1, 1, '#9a9a9a') + px(102, 10, 1, 2, '#9a9a9a');
-  const far = [30, 26, 32, 24, 28, 34, 27, 31, 25, 33, 29, 26, 31, 28, 24, 30];
-  far.forEach((t, i) => { s += px(i * 8, t, 8, 48 - t, '#221e33'); });
-  const near = [40, 36, 42, 38, 35, 41, 37, 39];
-  near.forEach((t, i) => { s += px(i * 16, t, 16, 48 - t, '#2a2540'); });
-  return `<svg viewBox="0 0 128 48" preserveAspectRatio="xMidYMax slice" shape-rendering="crispEdges" style="width:100%;height:100%;display:block;image-rendering:pixelated;" aria-hidden="true">${s}</svg>`;
+  const far = [54, 50, 56, 48, 52, 58, 51, 55, 49, 57, 53, 50, 55, 52, 48, 54];
+  far.forEach((t, i) => { s += px(i * 8, t, 8, 72 - t, '#221e33'); });
+  const near = [64, 60, 66, 62, 59, 65, 61, 63];
+  near.forEach((t, i) => { s += px(i * 16, t, 16, 72 - t, '#2a2540'); });
+  return `<svg viewBox="0 0 128 72" preserveAspectRatio="xMidYMax slice" shape-rendering="crispEdges" style="width:100%;height:100%;display:block;image-rendering:pixelated;" aria-hidden="true">${s}</svg>`;
 }
 
 // Kampf-Szene wie die ursprüngliche Kampagnen-Version: dunkler Violett-Verlauf,
@@ -238,8 +238,43 @@ function _hitFlash(id) {
   el.classList.add('hit');
   setTimeout(() => el.classList.remove('hit'), 200);
 }
-function _enemyHit() { _hitFlash('cf-enemy'); }
-function _playerHit() { _hitFlash('cf-hero'); }
+// Kurze Kampf-Animation (attack = Ausfallschritt, shake = Wackeln) — Klasse
+// neu triggern über Reflow, damit sie auch direkt hintereinander feuert.
+function _anim(id, cls) {
+  const el = _el(id);
+  if (!el) return;
+  el.classList.remove(cls);
+  void el.offsetWidth;
+  el.classList.add(cls);
+  setTimeout(() => el.classList.remove(cls), 500);
+}
+
+// Schadenszahl, die über dem Getroffenen aufsteigt und verblasst.
+function _damagePop(overId, text, color) {
+  const arena = document.querySelector('.cf-arena');
+  const over = _el(overId);
+  if (!arena || !over) return;
+  const a = arena.getBoundingClientRect(), o = over.getBoundingClientRect();
+  const s = document.createElement('span');
+  s.className = 'cf-dmg';
+  s.textContent = text;
+  s.style.color = color;
+  s.style.left = (o.left - a.left + o.width / 2) + 'px';
+  s.style.top = (o.top - a.top - 6) + 'px';
+  arena.appendChild(s);
+  setTimeout(() => s.remove(), 800);
+}
+
+// Schlag-Sequenz: Angreifer macht den Ausfallschritt, kurz darauf blinkt/wackelt
+// das Ziel und die Schadenszahl steigt auf.
+function _strike(attackerId, targetId, dmgText, color) {
+  _anim(attackerId, 'attack');
+  setTimeout(() => {
+    _hitFlash(targetId);
+    _anim(targetId, 'shake');
+    _damagePop(targetId, dmgText, color);
+  }, 160);
+}
 
 function _feedback(t) { const el = _el('cf-feedback'); if (el) el.textContent = t; }
 
@@ -342,7 +377,7 @@ function _onWave(success) {
     if (tali) dmg = Math.round(dmg * TALISMAN_MULT);
     f.enemyHp = Math.max(0, f.enemyHp - dmg);
     _setBars();
-    _enemyHit();
+    _strike('cf-hero', 'cf-enemy', '−' + dmg, '#c084fc');
     _feedback('💥 Treffer! −' + dmg + (bonus ? ' ✨' : '') + (hammer ? ' 🔨' : '') + (tali ? ' 🧿' : ''));
     try { playSfx('correct'); } catch (e) {}
     if (f.enemyHp <= 0) { run.fight = null; save(); _endScreen(true); return; }
@@ -363,7 +398,7 @@ function _onWave(success) {
   } else {
     run.hp = Math.max(0, run.hp - enemy.dmg);
     _setBars();
-    _playerHit();
+    _strike('cf-enemy', 'cf-hero', '−' + enemy.dmg, '#ff8787');
     _feedback('💔 Daneben! −' + enemy.dmg + ' HP');
     try { playSfx('wrong'); } catch (e) {}
     if (run.hp <= 0) { save(); _endScreen(false); return; }

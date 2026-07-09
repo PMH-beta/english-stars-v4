@@ -789,6 +789,35 @@ export async function uvDeleteStation(idx) {
   renderEquipmentPanel();
 }
 
+// Debug-Helfer (nur Konsole, kein UI): legt n zufällige, KOMPLETT fertige
+// Schmiede-Aufträge an (alle 5 Teile × Stahl/Gold gemeistert = „verzaubert")
+// und synct Profil + Stats in die Cloud. Aufruf in DevTools: uvTestForge(4)
+export function uvTestForge(n = 4) {
+  const SD = window.SD;
+  if (!SD) return [];
+  if (!Array.isArray(SD.uvFills)) SD.uvFills = [];
+  const used = new Set(usedForgeObjects());
+  const objs = FORGE_OBJECTS.map((o) => o.type).filter((t) => !used.has(t))
+    .sort(() => Math.random() - 0.5).slice(0, n);
+  const gps = SD.globalPresetStats = SD.globalPresetStats || {};
+  const ws = gps.wordStats = gps.wordStats || {};
+  const done = [];
+  for (const obj of objs) {
+    const ten = uvAvailableVerbs().slice(0, CONSTELLATION_SIZE);
+    if (ten.length < CONSTELLATION_SIZE) break;
+    SD.uvFills.push({ ens: ten.map((v) => v.en), obj });
+    for (const v of ten) for (const w of ['past', 'pp']) for (let i = 0; i < SLOTS_PER_FORM; i++) {
+      ws[statKeyFor(v.de, v.en, `_${w}_s${i}`, IRREGULAR_PRESET_ID)] = { asked: 5, correct: 5, wrong: 0, recent: '11111' };
+    }
+    done.push(obj);
+  }
+  persist(SD);
+  if (window.currentUser) { markDirty('profile'); markDirty('global_preset'); commitDirty(); }
+  renderStudentUV();
+  console.log('[uvTestForge] fertig geschmiedet:', done.join(', ') || 'nichts (keine freien Objekte/Verben)');
+  return done;
+}
+
 // Befüllen-Karte für das nächste, noch leere Sternbild.
 function _cstFillCard() {
   const remaining = uvAvailableVerbs().length;

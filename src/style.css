@@ -1264,22 +1264,37 @@ body.in-game .mode-progress{display:block;}
 .cf-arena{
   position:relative;display:flex;align-items:flex-end;justify-content:space-between;
   background:#1a1533;border:2px solid rgba(255,255,255,.14);border-radius:14px;
-  padding:16px 20px 14px;margin-bottom:10px;min-height:130px;overflow:hidden;
+  padding:24px 26px 18px;margin-bottom:10px;min-height:clamp(200px,32vh,300px);overflow:hidden;
 }
-.cf-scenery{position:absolute;inset:0 0 12px 0;overflow:hidden;}
+.cf-scenery{position:absolute;inset:0 0 14px 0;overflow:hidden;}
 .cf-ground{
-  position:absolute;left:0;right:0;bottom:0;height:14px;background:#26223a;
+  position:absolute;left:0;right:0;bottom:0;height:16px;background:#26223a;
   border-top:2px solid #1a1826;
   background-image:repeating-linear-gradient(90deg,rgba(232,232,232,.07) 0 4px,transparent 4px 8px);
 }
-.cf-hero{width:56px;height:84px;position:relative;z-index:1;}
+.cf-hero{width:80px;height:120px;position:relative;z-index:1;}
 .cf-hero svg{animation:enemyBob 1.8s steps(1,end) infinite;}
 .cf-hero.hit svg{animation:none;filter:brightness(2.2);}
-.cf-enemy{width:88px;height:88px;flex:none;position:relative;z-index:1;}
-.cf-enemy.boss{width:120px;height:120px;}
+.cf-enemy{width:124px;height:124px;flex:none;position:relative;z-index:1;}
+.cf-enemy.boss{width:170px;height:170px;}
 .cf-enemy svg{animation:enemyBob 1.4s steps(1,end) infinite;}
 @keyframes enemyBob{0%,100%{transform:translateY(0);}50%{transform:translateY(-3px);}}
 .cf-enemy.hit svg{animation:none;filter:brightness(2.2);}
+
+/* Kampf-Animationen: Ausfallschritt des Angreifers, Wackeln des Getroffenen,
+   aufsteigende Schadenszahl — alles hart gesteppt (Pixel-Stil, kein Easing). */
+.cf-hero.attack{animation:cfLungeR .35s steps(3,end);}
+.cf-enemy.attack{animation:cfLungeL .35s steps(3,end);}
+@keyframes cfLungeR{0%{transform:translateX(0);}40%{transform:translateX(22px);}100%{transform:translateX(0);}}
+@keyframes cfLungeL{0%{transform:translateX(0);}40%{transform:translateX(-22px);}100%{transform:translateX(0);}}
+.cf-hero.shake,.cf-enemy.shake{animation:cfShake .32s steps(4,end);}
+@keyframes cfShake{0%,100%{transform:translateX(0);}25%{transform:translateX(-5px);}50%{transform:translateX(4px);}75%{transform:translateX(-3px);}}
+.cf-dmg{
+  position:absolute;transform:translateX(-50%);z-index:2;pointer-events:none;
+  font-family:'Fredoka One',cursive;font-size:1.15rem;text-shadow:0 2px 0 rgba(0,0,0,.5);
+  animation:cfDmg .75s steps(5,end) forwards;
+}
+@keyframes cfDmg{0%{opacity:1;margin-top:0;}100%{opacity:0;margin-top:-30px;}}
 
 /* Tränke im Kampf */
 .cf-potion{
