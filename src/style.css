@@ -1300,19 +1300,35 @@ body.in-game .mode-progress{display:block;}
 .seg-bar i.on{background:#2c2c2c;}
 .seg-bar.hp i.on{background:#6e6e6e;}
 
-/* Gegner: Idle-Wackeln in 2 Frames, hartes Aufblinken bei Treffer */
-.cf-enemyrow{display:flex;gap:12px;align-items:center;margin-bottom:6px;}
-.cf-enemy{width:88px;height:88px;flex:none;}
+/* Kampfort: dunkle Arena im Fenster — Spieler links, Gegner rechts, beide auf
+   dem Pixel-Boden. Idle-Wackeln in 2 Frames, hartes Aufblinken bei Treffer. */
+.cf-arena{
+  position:relative;display:flex;align-items:flex-end;justify-content:space-between;
+  background:#1a1826;border:2px solid #2c2c2c;padding:16px 20px 14px;
+  margin-bottom:8px;min-height:130px;overflow:hidden;
+}
+.cf-ground{
+  position:absolute;left:0;right:0;bottom:0;height:14px;background:#26223a;
+  border-top:2px solid #2c2c2c;
+  background-image:repeating-linear-gradient(90deg,rgba(232,232,232,.07) 0 4px,transparent 4px 8px);
+}
+.cf-hero{width:56px;height:84px;position:relative;z-index:1;}
+.cf-hero svg{animation:enemyBob 1.8s steps(1,end) infinite;}
+.cf-hero.hit svg{animation:none;filter:brightness(2.2);}
+.cf-enemy{width:88px;height:88px;flex:none;position:relative;z-index:1;}
 .cf-enemy.boss{width:120px;height:120px;}
 .cf-enemy svg{animation:enemyBob 1.4s steps(1,end) infinite;}
 @keyframes enemyBob{0%,100%{transform:translateY(0);}50%{transform:translateY(-3px);}}
 .cf-enemy.hit svg{animation:none;filter:brightness(2.2);}
-.cf-enemyinfo{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px;}
 
-/* Minispiel-„Monitor" im Fenster + Spielerzeile */
+/* HP-Balken beider Kämpfer nebeneinander + Waffen-/Wellen-Zeile */
+.cf-bars{display:flex;gap:12px;margin-bottom:6px;}
+.cf-bar{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;}
+.cf-bar.right .rw-label,.cf-bar.right .rw-dim{text-align:right;}
+.cf-meta{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
+
+/* Minispiel-„Monitor" im Fenster */
 .cf-stage{background:#1a1826;border:2px solid #2c2c2c;padding:10px;margin:8px 0;}
-.cf-playerrow{display:flex;align-items:center;gap:8px;}
-.cf-playerbars{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;}
 
 /* Tränke im Kampf (Retro-Kacheln) */
 .cf-potions{display:flex;gap:6px;justify-content:center;margin:4px 0;min-height:4px;}
@@ -1336,6 +1352,8 @@ body.in-game .mode-progress{display:block;}
 .uv-obj-tx b{font-family:'Fredoka One',cursive;font-weight:400;font-size:.95rem;display:block;}
 .uv-obj-perk{display:block;font-size:.74rem;font-weight:700;color:#8b6ab5;margin-top:1px;}
 .uv-obj-go{color:#c4b3de;font-size:1.2rem;flex-shrink:0;}
+.uv-obj-row.taken{opacity:.45;cursor:default;}
+.uv-obj-row.taken:hover{background:#f7f4fc;}
 
 /* ── Schmiede & Kampagne: HELL, wie der Rest der App (ein Guss). ──
    Die Schmiede nutzt ihre hellen Basis-Styles (.forge-station weiß usw.),

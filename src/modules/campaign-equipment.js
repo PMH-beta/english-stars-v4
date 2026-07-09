@@ -10,7 +10,7 @@
 // Tränke (💎 Schatz): 3 zufällige zur Wahl, run-gebunden (run.potions), im
 // Kampf spielbar — Definitionen hier, Kampf-Logik in campaign-fight.js.
 
-import { FIST_DMG, WEAPON_BASE_DMG, EQUIP_EFFECT, RING_POTION_BONUS, COMPANION_GUARDS, WEAPON_PERK, PERK_SCHWERT_DMG, PERK_DOLCH_DODGE, PERK_STAB_MS, POTION_CHOICES, POTION_HEAL, POTION_POWER, POTION_TIME_MS, POTION_TIME_WAVES } from './campaign-balance.js';
+import { FIST_DMG, WEAPON_BASE_DMG, EQUIP_EFFECT, RING_POTION_BONUS, COMPANION_GUARDS, WEAPON_PERK, PERK_SCHWERT_DMG, PERK_DOLCH_DODGE, PERK_STAB_MS, PERK_KOLBEN_GUARD, POTION_CHOICES, POTION_HEAL, POTION_POWER, POTION_TIME_MS, POTION_TIME_WAVES } from './campaign-balance.js';
 import { getConstellations, forgeObject } from './irregular-verbs.js';
 import { starLit, SLOTS_PER_FORM } from './irregular-game.js';
 import { avatarSVG, ensureAvatar, itemSpriteSVG } from './avatar.js';
@@ -112,10 +112,11 @@ export function equipEffects() {
   if (get('companion')) eff.companionGuards = COMPANION_GUARDS;
   if (get('ring1')) eff.potionBonus += RING_POTION_BONUS;
   if (get('ring2')) eff.potionBonus += RING_POTION_BONUS;
-  // Waffen-Typ-Vorteile, die wie Ausrüstung wirken (Dolch/Stab).
+  // Waffen-Typ-Vorteile, die wie Ausrüstung wirken (Dolch/Stab/Streitkolben).
   const w = equippedWeapon();
   if (w.type === 'dolch') eff.dodge += PERK_DOLCH_DODGE;
   if (w.type === 'stab') eff.timeBonusMs += PERK_STAB_MS;
+  if (w.type === 'streitkolben') eff.headGuards += PERK_KOLBEN_GUARD;
   return eff;
 }
 
@@ -178,6 +179,9 @@ function _gearMap(c) {
   if (w.type) g.weapon = w;
   return g;
 }
+
+// Angelegte Ausrüstung als gear-Map von außen (Kampf-Szene: Spieler-Sprite).
+export function equippedGearMap() { return _gearMap(_eq()); }
 
 function _slotTile(c, key) {
   const meta = SLOTS[key];

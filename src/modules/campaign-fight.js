@@ -16,13 +16,13 @@
 // (reitet im profiles.campaign-jsonb mit) → Reload mitten im Kampf verliert nichts;
 // nur das aktuelle Wort der Welle wird neu gezogen.
 
-import { ENEMY, FORM_BONUS, TALISMAN_MULT, STORM_BASE_MS, STORM_PER_LETTER_MS, WEAK_TIME_BONUS, WEAK_EMA, METEOR_FALL_MS, METEOR_COUNT, ECHO_TIME_MS, ECHO_CHOICES, PERK_SPEER_BOSS, PERK_AXT_ELITE, PERK_HAMMER_MULT, POTION_HEAL, POTION_POWER, POTION_TIME_MS, POTION_TIME_WAVES } from './campaign-balance.js';
+import { ENEMY, FORM_BONUS, TALISMAN_MULT, STORM_BASE_MS, STORM_PER_LETTER_MS, WEAK_TIME_BONUS, WEAK_EMA, METEOR_FALL_MS, METEOR_COUNT, ECHO_TIME_MS, ECHO_CHOICES, PERK_SPEER_BOSS, PERK_AXT_ELITE, PERK_HAMMER_MULT, PERK_BOGEN_FIGHT, POTION_HEAL, POTION_POWER, POTION_TIME_MS, POTION_TIME_WAVES } from './campaign-balance.js';
 import { startLetterstorm, stormTarget } from './minigame-letterstorm.js';
 import { startMeteors } from './minigame-meteors.js';
 import { startEcho } from './minigame-echo.js';
-import { equippedWeapon, equipEffects, POTIONS } from './campaign-equipment.js';
+import { equippedWeapon, equipEffects, equippedGearMap, POTIONS } from './campaign-equipment.js';
 import { enemySpriteSVG } from './pixel-enemies.js';
-import { itemSpriteSVG } from './avatar.js';
+import { itemSpriteSVG, avatarSVG, ensureAvatar } from './avatar.js';
 import { weightedPickUnique, playSfx } from './game.js';
 import { effectivePct, statKeyFor } from './stats.js';
 import { getConstellations } from './irregular-verbs.js';
@@ -177,25 +177,30 @@ function _renderOverlay() {
       <button class="rw-btn" id="cf-flee" title="Kampf verlassen (geht später weiter)">×</button>
     </div>
     <div class="rw-body">
-      <div class="cf-enemyrow">
+      <div class="cf-arena">
+        <div class="cf-hero" id="cf-hero">${avatarSVG(ensureAvatar(window.SD), { gear: equippedGearMap() })}</div>
         <div class="cf-enemy${node.type === 'boss' ? ' boss' : ''}" id="cf-enemy">${enemySpriteSVG(node.type)}</div>
-        <div class="cf-enemyinfo">
-          <div class="rw-label">${enemy.name} <span class="rw-dim" id="cf-wave">Welle ${f.wave}</span></div>
+        <div class="cf-ground"></div>
+      </div>
+      <div class="cf-bars">
+        <div class="cf-bar">
+          <div class="rw-label">DU</div>
+          <div class="seg-bar hp" id="cf-phpseg"></div>
+          <div class="rw-dim" id="cf-phptxt"></div>
+        </div>
+        <div class="cf-bar right">
+          <div class="rw-label">${enemy.name}</div>
           <div class="seg-bar" id="cf-ehpseg"></div>
           <div class="rw-dim" id="cf-ehptxt"></div>
         </div>
       </div>
+      <div class="cf-meta">
+        <span class="rw-chip" title="${weapon.name} — ${weapon.dmg} Schaden">${wIcon}<b>${weapon.dmg}</b></span>
+        <span class="rw-dim" id="cf-wave">Welle ${f.wave}</span>
+      </div>
       <div id="cf-feedback" class="rw-feedback"></div>
       <div id="cf-potions" class="cf-potions"></div>
       <div id="cf-stage" class="cf-stage"></div>
-      <div class="cf-playerrow">
-        <span class="rw-label">DU</span>
-        <div class="cf-playerbars">
-          <div class="seg-bar hp" id="cf-phpseg"></div>
-          <div class="rw-dim" id="cf-phptxt"></div>
-        </div>
-        <span class="rw-chip" title="${weapon.name} — ${weapon.dmg} Schaden">${wIcon}<b>${weapon.dmg}</b></span>
-      </div>
     </div>
   </div>`;
   document.body.appendChild(ov);
@@ -225,13 +230,15 @@ function _setBars() {
   if (pt) pt.textContent = `${run.hp}/${run.hpMax} HP`;
 }
 
-// Gegner blinkt hart auf, wenn er Schaden nimmt (kein Glow, nur Helligkeit).
-function _enemyHit() {
-  const el = _el('cf-enemy');
+// Gegner/Spieler blinken hart auf, wenn sie Schaden nehmen (kein Glow, nur Helligkeit).
+function _hitFlash(id) {
+  const el = _el(id);
   if (!el) return;
   el.classList.add('hit');
   setTimeout(() => el.classList.remove('hit'), 200);
 }
+function _enemyHit() { _hitFlash('cf-enemy'); }
+function _playerHit() { _hitFlash('cf-hero'); }
 
 function _feedback(t) { const el = _el('cf-feedback'); if (el) el.textContent = t; }
 
@@ -327,6 +334,7 @@ function _onWave(success) {
     let dmg = weapon.dmg + bonus + (f.power || 0);
     if (weapon.type === 'speer' && node.type === 'boss') dmg += PERK_SPEER_BOSS;
     if (weapon.type === 'axt' && node.type === 'irregular') dmg += PERK_AXT_ELITE;
+    if (weapon.type === 'bogen' && node.type === 'fight') dmg += PERK_BOGEN_FIGHT;
     const hammer = weapon.type === 'hammer' && f.wave === 1;
     if (hammer) dmg *= PERK_HAMMER_MULT;
     const tali = node.type === 'irregular' && eff.talisman;
@@ -354,6 +362,7 @@ function _onWave(success) {
   } else {
     run.hp = Math.max(0, run.hp - enemy.dmg);
     _setBars();
+    _playerHit();
     _feedback('💔 Daneben! −' + enemy.dmg + ' HP');
     try { playSfx('wrong'); } catch (e) {}
     if (run.hp <= 0) { save(); _endScreen(false); return; }

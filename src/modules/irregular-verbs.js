@@ -209,6 +209,8 @@ export const FORGE_OBJECTS = [
   { type: 'axt',        name: 'Streitaxt',    icon: '🪓', slot: 'weapon' },
   { type: 'hammer',     name: 'Streithammer', icon: '🔨', slot: 'weapon' },
   { type: 'stab',       name: 'Zauberstab',   icon: '🪄', slot: 'weapon' },
+  { type: 'bogen',      name: 'Bogen',        icon: '🏹', slot: 'weapon' },
+  { type: 'streitkolben', name: 'Streitkolben', icon: '🏏', slot: 'weapon' },
   { type: 'helm',       name: 'Helm',         icon: '🪖', slot: 'head' },
   { type: 'ruestung',   name: 'Rüstung',      icon: '🛡️', slot: 'body' },
   { type: 'handschuhe', name: 'Handschuhe',   icon: '🧤', slot: 'arms' },
@@ -217,7 +219,9 @@ export const FORGE_OBJECTS = [
   { type: 'ring',       name: 'Ring',         icon: '💍', slot: 'ring' },
   { type: 'gefaehrte',  name: 'Gefährte',     icon: '🐾', slot: 'companion' },
 ];
-const _FORGE_WEAPONS = FORGE_OBJECTS.filter((o) => o.slot === 'weapon');
+// Legacy-Zyklus bleibt auf die 6 Ur-Waffen eingefroren — neue Objekte (Bogen,
+// Streitkolben) dürfen die Zuteilung alter Stationen ohne Objekt-Wahl nicht ändern.
+const _FORGE_WEAPONS = FORGE_OBJECTS.filter((o) => o.slot === 'weapon').slice(0, 6);
 
 // Objekt einer Station: hat das Kind bei der Befüllung eines gewählt (entry.obj),
 // gilt es für BEIDE Formen (Stahl-Past & Gold-PP = zwei Materialien desselben
@@ -250,6 +254,12 @@ function _fillEns(entry) {
 }
 function _fillObj(entry) {
   return (entry && !Array.isArray(entry) && entry.obj) ? entry.obj : null;
+}
+
+// Bereits gewählte Objekt-Typen (Einmal-Wahl: jedes Objekt nur für EINE Station).
+// Legacy-Stationen ohne Objekt-Wahl zählen nicht mit.
+export function usedForgeObjects() {
+  return _fills().map(_fillObj).filter(Boolean);
 }
 
 // Sternbild-Liste aus den Befüllungen aufbauen (KEIN Cache — hängt am Spielstand).

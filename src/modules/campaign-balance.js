@@ -62,6 +62,8 @@ export const WEAPON_PERK = {
   axt:     { text: '+2 Schaden gegen 🌀-Elite' },
   hammer:  { text: 'Erste Welle: doppelter Schaden' },
   stab:    { text: '+3 s Zeit pro Minispiel' },
+  bogen:        { text: '+2 Schaden gegen 👾 Wortgeister' },
+  streitkolben: { text: 'wehrt 1 verlorene Welle pro Kampf ab' },
 };
 export const PERK_SCHWERT_DMG = 1;
 export const PERK_DOLCH_DODGE = 0.10;
@@ -69,6 +71,8 @@ export const PERK_SPEER_BOSS = 2;
 export const PERK_AXT_ELITE = 2;
 export const PERK_HAMMER_MULT = 2;
 export const PERK_STAB_MS = 3000;
+export const PERK_BOGEN_FIGHT = 2;
+export const PERK_KOLBEN_GUARD = 1;
 
 // ── Tränke (💎 Schatz: 3 zufällige zur Wahl, run-gebunden, im Kampf spielbar) ──
 export const POTION_CHOICES = 3;

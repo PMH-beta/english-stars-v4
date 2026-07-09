@@ -299,6 +299,8 @@ function weaponSVG(w, wx) {
     case 'axt':     s = px(wx, 16, 1, 17, G[4]) + px(wx - 3, 16, 3, 4, c) + px(wx - 4, 17, 1, 2, c); break;
     case 'hammer':  s = px(wx, 16, 1, 17, G[4]) + px(wx - 2, 15, 4, 4, c); break;
     case 'stab':    s = px(wx, 15, 1, 18, G[4]) + px(wx - 1, 12, 3, 3, c) + px(wx, 13, 1, 1, '#ffffff'); break;
+    case 'bogen':   s = grip + px(wx, 16, 1, 14, c) + px(wx - 1, 16, 2, 1, c) + px(wx - 1, 29, 2, 1, c) + px(wx - 1, 17, 1, 12, d); break;
+    case 'streitkolben': s = px(wx, 16, 1, 17, G[4]) + px(wx - 2, 12, 4, 4, c) + px(wx - 3, 13, 1, 2, c) + px(wx + 2, 13, 1, 2, c) + px(wx - 1, 11, 2, 1, c); break;
     default: return '';
   }
   if (w.tier === 'verzaubert') s += px(wx + 1, 14, 1, 1, '#ffffff');
@@ -318,6 +320,8 @@ export function itemSpriteSVG(type, tier) {
     case 'axt':        s = px(8, 2, 2, 12, G[4]) + px(3, 2, 5, 5, c) + px(2, 3, 1, 3, c); break;
     case 'hammer':     s = px(7, 4, 2, 10, G[4]) + px(4, 1, 8, 4, c); break;
     case 'stab':       s = px(7, 4, 2, 11, G[4]) + px(6, 1, 4, 4, c) + px(7, 2, 2, 2, '#ffffff'); break;
+    case 'bogen':      s = px(5, 1, 2, 2, c) + px(4, 3, 2, 10, c) + px(5, 13, 2, 2, c) + px(9, 2, 1, 12, d) + px(5, 7, 5, 2, G[4]) + px(10, 6, 2, 4, c); break;
+    case 'streitkolben': s = px(7, 7, 2, 8, G[4]) + px(5, 2, 6, 5, c) + px(7, 0, 2, 2, c) + px(3, 3, 2, 3, c) + px(11, 3, 2, 3, c); break;
     case 'helm':       s = soft(3, 4, 10, 6, c) + px(3, 10, 10, 1, d) + px(5, 7, 6, 1, shade(c, 0.8)); break;
     case 'ruestung':   s = soft(3, 3, 10, 9, c) + px(6, 3, 4, 1, d) + px(3, 11, 10, 1, d) + dith(9, 8, 3, 3, shade(c, 0.8)); break;
     case 'handschuhe': s = px(2, 5, 4, 6, c) + px(2, 5, 4, 1, d) + px(10, 5, 4, 6, c) + px(10, 5, 4, 1, d); break;

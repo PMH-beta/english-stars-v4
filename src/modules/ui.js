@@ -9,7 +9,7 @@ import { cloudLoad, cloudReset, saveDeck, saveWordStats, saveExam, markDirty, fl
 import { commitDirty } from './dialog.js';
 import { uvMap, uvLernstand, constellationWords, FORGE_DISC } from './irregular-game.js';
 import { renderAvatarInto, renderCharacter, commitAvatar, resetCharacterFeature } from './avatar.js';
-import { IRREGULAR_PRESET_ID, uvAvailableVerbs, CONSTELLATION_SIZE, cefrOf, forgeObject, FORGE_OBJECTS } from './irregular-verbs.js';
+import { IRREGULAR_PRESET_ID, uvAvailableVerbs, CONSTELLATION_SIZE, cefrOf, forgeObject, FORGE_OBJECTS, usedForgeObjects } from './irregular-verbs.js';
 import { objectPerkText, renderEquipmentPanel } from './campaign-equipment.js';
 import { renderFriendsSection, refreshFriendBadge, friendProgress, subscribeFriendRealtime, unsubscribeFriendRealtime } from './friends.js';
 import { renderCampaign, updateTalerBadge, refreshClaimedTaler } from './campaign.js';
@@ -767,17 +767,22 @@ export function uvOpenFill() {
   const sel = new Set();
 
   function showObjectStep() {
+    // Einmal-Wahl: jedes Objekt kann nur für EINE Station geschmiedet werden.
+    const used = new Set(usedForgeObjects());
     overlay.innerHTML = `<div class="uv-fill-card">
       <div class="uv-fill-head">
         <div class="uv-fill-title">⚒️ Was willst du schmieden?</div>
-        <div class="uv-fill-hint">Entsteht in 🔩 Stahl & 🥇 Gold und hilft dir in der 🗺️ Kampagne.</div>
+        <div class="uv-fill-hint">Entsteht in 🔩 Stahl & 🥇 Gold und hilft dir in der 🗺️ Kampagne. Jedes Objekt gibt es nur einmal.</div>
       </div>
       <div class="uv-fill-list">
-        ${FORGE_OBJECTS.map((o) => `<button class="uv-obj-row${chosenObj === o.type ? ' sel' : ''}" data-obj="${o.type}">
+        ${FORGE_OBJECTS.map((o) => {
+          const taken = used.has(o.type);
+          return `<button class="uv-obj-row${chosenObj === o.type ? ' sel' : ''}${taken ? ' taken' : ''}" data-obj="${o.type}"${taken ? ' disabled' : ''}>
           <span class="uv-obj-ic">${o.icon}</span>
-          <span class="uv-obj-tx"><b>${o.name}</b><span class="uv-obj-perk">${objectPerkText(o)}</span></span>
-          <span class="uv-obj-go">›</span>
-        </button>`).join('')}
+          <span class="uv-obj-tx"><b>${o.name}</b><span class="uv-obj-perk">${taken ? '✔ schon geschmiedet' : objectPerkText(o)}</span></span>
+          <span class="uv-obj-go">${taken ? '✔' : '›'}</span>
+        </button>`;
+        }).join('')}
       </div>
       <div class="uv-fill-foot">
         <button class="uv-fill-cancel" id="uv-obj-cancel">Abbrechen</button>
@@ -867,6 +872,10 @@ const PIXEL_PARTS = {
   axt:        [[[7, 18, 2, 5]], [[7, 12, 2, 6]], [[7, 7, 2, 5]], [[4, 5, 6, 5]], [[1, 4, 3, 7], [0, 5, 1, 5]]],
   hammer:     [[[7, 18, 2, 5]], [[7, 12, 2, 6]], [[7, 7, 2, 5]], [[4, 4, 8, 5]], [[2, 5, 2, 4], [12, 5, 2, 4]]],
   stab:       [[[7, 18, 2, 5]], [[7, 12, 2, 6]], [[7, 7, 2, 5]], [[6, 5, 4, 2]], [[6, 1, 4, 4], [7, 0, 2, 1]]],
+  // unterer Wurfarm · Griff · oberer Wurfarm · Sehne · Pfeil
+  bogen:      [[[5, 14, 2, 4], [6, 18, 2, 3], [8, 20, 2, 2]], [[4, 10, 3, 4]], [[5, 6, 2, 4], [6, 3, 2, 3], [8, 2, 2, 2]], [[10, 4, 1, 16]], [[3, 11, 8, 2], [11, 10, 2, 4], [13, 11, 1, 2]]],
+  // Knauf · Griff · Schaft · Kopf · Stacheln
+  streitkolben: [[[6, 21, 4, 2]], [[7, 17, 2, 4]], [[7, 10, 2, 7]], [[5, 4, 6, 6]], [[7, 1, 2, 3], [2, 5, 3, 2], [11, 5, 3, 2], [4, 2, 2, 2], [10, 2, 2, 2]]],
   // Rand · linke Schale · rechte Schale · Kuppel · Kamm
   helm:       [[[3, 18, 10, 2]], [[3, 10, 4, 8]], [[9, 10, 4, 8]], [[4, 7, 8, 3], [5, 5, 6, 2]], [[7, 2, 2, 4]]],
   // Bauch · Brust links · Brust rechts · Schultern · Emblem
