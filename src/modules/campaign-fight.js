@@ -22,7 +22,7 @@ import { startMeteors } from './minigame-meteors.js';
 import { startEcho } from './minigame-echo.js';
 import { equippedWeapon, equipEffects, equippedGearMap, POTIONS } from './campaign-equipment.js';
 import { enemySpriteSVG } from './pixel-enemies.js';
-import { itemSpriteSVG, avatarSVG, ensureAvatar } from './avatar.js';
+import { avatarSVG, ensureAvatar } from './avatar.js';
 import { weightedPickUnique, playSfx } from './game.js';
 import { effectivePct, statKeyFor } from './stats.js';
 import { getConstellations } from './irregular-verbs.js';
@@ -175,78 +175,60 @@ function _arenaScene() {
   return `<svg viewBox="0 0 128 48" preserveAspectRatio="xMidYMax slice" shape-rendering="crispEdges" style="width:100%;height:100%;display:block;image-rendering:pixelated;" aria-hidden="true">${s}</svg>`;
 }
 
-// Kampf-Szene im Retro-OS-Look (Art-Direction): dunkler Raum mit harten
-// vertikalen Licht-Streifen, darin EIN Fenster mit Titelleiste + [–][×]
-// (× = Kampf verlassen), Pixel-Font, segmentierte HP-Balken (Batterie-Stil).
-// Oben die Landschafts-Arena (Spieler vs. Gegner), das Minispiel läuft im
-// dunklen „Monitor"-Bereich des Fensters.
+// Kampf-Szene wie die ursprüngliche Kampagnen-Version: dunkler Violett-Verlauf,
+// runder ✕-Knopf, Fredoka-Schrift, weiche Verlaufs-HP-Balken. NUR der Show-Teil
+// oben ist Pixel-Art: die Landschafts-Arena mit Spieler (links) und Gegner (rechts).
 function _renderOverlay() {
   _removeOverlay();
   const { run, node, enemy, weapon } = _ctx;
   const f = run.fight;
   const ov = document.createElement('div');
   ov.id = 'cf-overlay';
-  ov.className = 'cf-scene';
-  const wIcon = weapon.type ? itemSpriteSVG(weapon.type, weapon.tier) : '👊';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:8000;background:linear-gradient(180deg,#2b2350,#1a1533);display:flex;flex-direction:column;padding:14px;overflow-y:auto;';
   ov.innerHTML = `
-  <div class="rw cf-window">
-    <div class="rw-title">
-      <span class="rw-title-txt">${enemy.name}.EXE — ${_TITLE[node.type] || _TITLE.fight}</span>
-      <button class="rw-btn" id="cf-min" title="Minimieren">–</button>
-      <button class="rw-btn" id="cf-flee" title="Kampf verlassen (geht später weiter)">×</button>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+      <button id="cf-flee" title="Kampf verlassen (geht später weiter)" style="border:none;background:rgba(255,255,255,.15);color:#fff;border-radius:50%;width:36px;height:36px;font-size:1rem;cursor:pointer;flex-shrink:0;">✕</button>
+      <div style="font-family:'Fredoka One',cursive;color:#fff;font-size:1rem;flex:1;">${_TITLE[node.type] || _TITLE.fight}</div>
+      <div id="cf-wave" style="font-family:'Fredoka One',cursive;color:#ffd43b;font-size:.85rem;">Welle ${f.wave}</div>
     </div>
-    <div class="rw-body">
-      <div class="cf-arena">
-        <div class="cf-scenery">${_arenaScene()}</div>
-        <div class="cf-hero" id="cf-hero">${avatarSVG(ensureAvatar(window.SD), { gear: equippedGearMap() })}</div>
-        <div class="cf-enemy${node.type === 'boss' ? ' boss' : ''}" id="cf-enemy">${enemySpriteSVG(node.type)}</div>
-        <div class="cf-ground"></div>
-      </div>
-      <div class="cf-enemyrow">
-        <div class="cf-enemyinfo">
-          <div class="rw-label">${enemy.name} <span class="rw-dim" id="cf-wave">Welle ${f.wave}</span></div>
-          <div class="seg-bar" id="cf-ehpseg"></div>
-          <div class="rw-dim" id="cf-ehptxt"></div>
-        </div>
-      </div>
-      <div id="cf-feedback" class="rw-feedback"></div>
-      <div id="cf-potions" class="cf-potions"></div>
-      <div id="cf-stage" class="cf-stage"></div>
-      <div class="cf-playerrow">
-        <span class="rw-label">DU</span>
-        <div class="cf-playerbars">
-          <div class="seg-bar hp" id="cf-phpseg"></div>
-          <div class="rw-dim" id="cf-phptxt"></div>
-        </div>
-        <span class="rw-chip" title="${weapon.name} — ${weapon.dmg} Schaden">${wIcon}<b>${weapon.dmg}</b></span>
+    <div class="cf-arena">
+      <div class="cf-scenery">${_arenaScene()}</div>
+      <div class="cf-hero" id="cf-hero">${avatarSVG(ensureAvatar(window.SD), { gear: equippedGearMap() })}</div>
+      <div class="cf-enemy${node.type === 'boss' ? ' boss' : ''}" id="cf-enemy">${enemySpriteSVG(node.type)}</div>
+      <div class="cf-ground"></div>
+    </div>
+    <div style="text-align:center;margin-bottom:10px;">
+      <div id="cf-feedback" style="height:24px;font-family:'Fredoka One',cursive;font-size:1rem;color:#ffd43b;"></div>
+      <div style="max-width:280px;margin:2px auto 0;">
+        <div style="font-size:.75rem;font-weight:800;color:#d0bfff;margin-bottom:2px;">${enemy.name}: <span id="cf-ehp">${f.enemyHp}</span> / ${f.enemyHpMax}</div>
+        <div style="height:10px;background:rgba(255,255,255,.15);border-radius:6px;overflow:hidden;"><div id="cf-ehpbar" style="height:100%;width:${f.enemyHp / f.enemyHpMax * 100}%;background:linear-gradient(90deg,#845ef7,#5f3dc4);transition:width .4s;"></div></div>
       </div>
     </div>
-  </div>`;
+    <div id="cf-potions" style="display:flex;gap:8px;justify-content:center;margin-bottom:8px;min-height:8px;"></div>
+    <div id="cf-stage" style="flex:1;"></div>
+    <div style="display:flex;align-items:center;gap:10px;margin-top:12px;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:.75rem;font-weight:800;color:#ffc9c9;margin-bottom:2px;">❤️ <span id="cf-php">${run.hp}</span> / ${run.hpMax}</div>
+        <div style="height:10px;background:rgba(255,255,255,.15);border-radius:6px;overflow:hidden;"><div id="cf-phpbar" style="height:100%;width:${run.hp / run.hpMax * 100}%;background:linear-gradient(90deg,#ff6b6b,#e03131);transition:width .4s;"></div></div>
+      </div>
+      <div title="${weapon.name}" style="font-family:'Fredoka One',cursive;color:#fff;font-size:.85rem;background:rgba(255,255,255,.12);padding:8px 12px;border-radius:12px;flex-shrink:0;">${weapon.icon} ${weapon.dmg}</div>
+    </div>`;
   document.body.appendChild(ov);
   _el('cf-flee').onclick = () => _close(null);
-  _el('cf-min').onclick = () => window.esToast?.('Netter Versuch — das Fenster bleibt offen 😄');
-  _setBars();
   _renderPotions();
-}
-
-// Segment-Balken (Batterie-Stil): n Zellen, gefüllt nach Anteil.
-function _segBar(el, cur, max, n = 10) {
-  if (!el) return;
-  const on = Math.ceil((Math.max(0, cur) / Math.max(1, max)) * n);
-  el.innerHTML = Array.from({ length: n }, (_, i) => `<i class="${i < on ? 'on' : ''}"></i>`).join('');
 }
 
 function _setBars() {
   const { run } = _ctx;
   const f = run.fight;
   if (f) {
-    _segBar(_el('cf-ehpseg'), f.enemyHp, f.enemyHpMax);
-    const et = _el('cf-ehptxt');
-    if (et) et.textContent = `${f.enemyHp}/${f.enemyHpMax} HP`;
+    const e = _el('cf-ehp'), eb = _el('cf-ehpbar');
+    if (e) e.textContent = f.enemyHp;
+    if (eb) eb.style.width = (f.enemyHp / f.enemyHpMax * 100) + '%';
   }
-  _segBar(_el('cf-phpseg'), run.hp, run.hpMax);
-  const pt = _el('cf-phptxt');
-  if (pt) pt.textContent = `${run.hp}/${run.hpMax} HP`;
+  const p = _el('cf-php'), pb = _el('cf-phpbar');
+  if (p) p.textContent = run.hp;
+  if (pb) pb.style.width = (run.hp / run.hpMax * 100) + '%';
 }
 
 // Gegner/Spieler blinken hart auf, wenn sie Schaden nehmen (kein Glow, nur Helligkeit).
