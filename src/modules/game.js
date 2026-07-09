@@ -433,8 +433,9 @@ function _persistSchnellBackup(){
 function _setSchnellBtn(id, on){
   const btn=document.getElementById(id);
   if(!btn) return;
-  if(on){ btn.textContent='⚡ Schnell: AN';btn.style.background='var(--orange)';btn.style.color='white';btn.style.boxShadow='0 3px 0 #cc4a1a'; }
-  else { btn.textContent='⚡ Schnell: AUS';btn.style.background='#eee';btn.style.color='#888';btn.style.boxShadow='0 3px 0 #ccc'; }
+  btn.textContent = on ? '⚡ Schnell: AN' : '⚡ Schnell: AUS';
+  btn.classList.add('schnell-btn');           // Optik in style.css
+  btn.classList.toggle('on', on);
 }
 
 // Beim Anzeigen eines Modus: isSchnellModus + Dark-Mode spiegeln DIESEN Modus,

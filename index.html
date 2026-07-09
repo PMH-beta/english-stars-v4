@@ -81,22 +81,15 @@
   <input id="auth-password-confirm" type="password" class="es-input" placeholder="Passwort wiederholen" autocomplete="new-password"
     style="display:none;" onkeydown="if(event.key==='Enter')authSubmit()">
   <div id="auth-error" class="es-error" style="display:none;"></div>
-  <button id="auth-submit-btn" onclick="authSubmit()" class="big-btn blue center" style="max-width:300px;width:100%;">Anmelden</button>
-  <button id="auth-toggle-btn" onclick="authToggleMode()"
-    style="margin-top:14px;background:none;border:none;color:var(--purple);font-family:'Fredoka One',cursive;font-size:.88rem;cursor:pointer;text-decoration:underline;">
+  <button id="auth-submit-btn" onclick="authSubmit()" class="big-btn brand center" style="max-width:300px;width:100%;">Anmelden</button>
+  <button id="auth-toggle-btn" onclick="authToggleMode()" class="link-btn accent">
     Noch kein Konto? Registrieren
   </button>
-  <button id="auth-forgot-btn" onclick="showPasswordReset()"
-    style="margin-top:8px;background:none;border:none;color:#aaa;font-family:'Fredoka One',cursive;font-size:.82rem;cursor:pointer;text-decoration:underline;">
+  <button id="auth-forgot-btn" onclick="showPasswordReset()" class="link-btn">
     Passwort vergessen?
   </button>
-  <div style="display:flex;align-items:center;gap:10px;max-width:300px;width:100%;margin-top:18px;">
-    <div style="flex:1;height:1px;background:#e0e0e0;"></div>
-    <span style="font-size:.75rem;color:#bbb;font-weight:700;white-space:nowrap;">oder</span>
-    <div style="flex:1;height:1px;background:#e0e0e0;"></div>
-  </div>
-  <button id="auth-google-btn" onclick="authGoogleSignIn()"
-    style="margin-top:12px;max-width:300px;width:100%;padding:11px 16px;background:#fff;color:#3c4043;border:2px solid #dadce0;border-radius:12px;font-family:'Fredoka One',cursive;font-size:.95rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 2px 0 #e0e0e0;transition:background .15s;">
+  <div class="auth-divider"><span>oder</span></div>
+  <button id="auth-google-btn" onclick="authGoogleSignIn()" class="google-btn">
     <svg width="18" height="18" viewBox="0 0 48 48" style="flex-shrink:0"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.04 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-3.54-13.46-8.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
     Mit Google anmelden
   </button>
@@ -110,11 +103,8 @@
   <input id="pw-reset-email" type="email" class="es-input" placeholder="E-Mail-Adresse" autocomplete="email"
     onkeydown="if(event.key==='Enter')submitPasswordReset()">
   <div id="pw-reset-error" class="es-error" style="display:none;"></div>
-  <button id="pw-reset-btn" onclick="submitPasswordReset()" class="big-btn blue center" style="max-width:300px;width:100%;">Reset-Link senden</button>
-  <button onclick="showAuth()"
-    style="margin-top:14px;background:none;border:none;color:#888;font-family:'Fredoka One',cursive;font-size:.85rem;cursor:pointer;text-decoration:underline;">
-    Abbrechen
-  </button>
+  <button id="pw-reset-btn" onclick="submitPasswordReset()" class="big-btn brand center" style="max-width:300px;width:100%;">Reset-Link senden</button>
+  <button onclick="showAuth()" class="link-btn">Abbrechen</button>
 </div>
 
 <!-- ═══ PASSWORD RESET SENT SCREEN ═══ -->
@@ -125,7 +115,7 @@
     Schau in dein Postfach und klick auf den Link.<br>
     Falls keine E-Mail kommt, prüfe ob die Adresse korrekt war.
   </p>
-  <button onclick="showAuth()" class="big-btn purple center" style="max-width:300px;width:100%;">Zurück zum Login</button>
+  <button onclick="showAuth()" class="big-btn brand center" style="max-width:300px;width:100%;">Zurück zum Login</button>
 </div>
 
 <!-- ═══ NEW PASSWORD SCREEN ═══ -->
@@ -138,11 +128,8 @@
   <input id="new-pw-confirm" type="password" class="es-input" placeholder="Passwort bestätigen" autocomplete="new-password"
     onkeydown="if(event.key==='Enter')submitNewPassword()">
   <div id="new-pw-error" class="es-error" style="display:none;"></div>
-  <button id="new-pw-btn" onclick="submitNewPassword()" class="big-btn blue center" style="max-width:300px;width:100%;">Passwort speichern</button>
-  <button onclick="cancelNewPassword()"
-    style="margin-top:14px;background:none;border:none;color:#aaa;font-family:'Fredoka One',cursive;font-size:.85rem;cursor:pointer;text-decoration:underline;">
-    Abbrechen
-  </button>
+  <button id="new-pw-btn" onclick="submitNewPassword()" class="big-btn brand center" style="max-width:300px;width:100%;">Passwort speichern</button>
+  <button onclick="cancelNewPassword()" class="link-btn">Abbrechen</button>
 </div>
 
 <!-- ═══ EMAIL CONFIRM SCREEN ═══ -->
@@ -158,13 +145,10 @@
   </p>
   <div id="confirm-message" style="display:none;font-size:.82rem;font-weight:700;text-align:center;max-width:300px;margin-bottom:12px;padding:8px 12px;border-radius:10px;"></div>
   <button id="confirm-resend-btn" onclick="authResend()"
-    class="big-btn purple center" style="max-width:300px;width:100%;margin-bottom:10px;">
+    class="big-btn brand center" style="max-width:300px;width:100%;margin-bottom:10px;">
     Erneut senden
   </button>
-  <button onclick="showAuth()"
-    style="background:none;border:none;color:#888;font-family:'Fredoka One',cursive;font-size:.85rem;cursor:pointer;text-decoration:underline;">
-    Zurück zum Login
-  </button>
+  <button onclick="showAuth()" class="link-btn">Zurück zum Login</button>
 </div>
 
 <!-- ═══ NAME SCREEN ═══ -->
@@ -210,11 +194,7 @@
     <div id="probetest-section" style="width:100%;margin-bottom:16px;"></div>
     <div id="free-decks-header" style="display:flex;align-items:center;justify-content:space-between;width:100%;margin-bottom:8px;">
       <div class="section-title" style="margin:0">📚 Vokabelsammlungen</div>
-      <button id="schnell-toggle" onclick="toggleSchnell()" style="
-        font-family:'Fredoka One',cursive;font-size:.78rem;padding:6px 12px;
-        border:none;border-radius:11px;cursor:pointer;transition:all .2s;
-        background:#eee;color:#888;box-shadow:0 3px 0 #ccc;white-space:nowrap;
-      ">⚡ Schnell: AUS</button>
+      <button id="schnell-toggle" class="schnell-btn" onclick="toggleSchnell()">⚡ Schnell: AUS</button>
     </div>
     <!-- Liste der Decks (dynamisch) — «+ Neue Sammlung» wird von renderDecks() als erstes Element eingefügt -->
     <div id="decks-container" style="width:100%;"></div>

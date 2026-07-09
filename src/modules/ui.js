@@ -416,23 +416,28 @@ export function renderProbetestSection() {
   const sub = hist.length
     ? hist.length + ' Test' + (hist.length === 1 ? '' : 's') + ' · zum Aufklappen tippen'
     : 'Gemischte Prüfung aus bis zu 2 Sammlungen';
+  // Gleiche Karten-Sprache wie die Deck-Karten (weiß, weicher Schatten, Chevron).
+  // Toggle liegt NUR auf dem Kopf — Klicks im aufgeklappten Bereich (Start-Button,
+  // Verlauf) dürfen die Karte nicht wieder zuklappen.
   let html =
-    '<div onclick="toggleProbetestHistory()" style="display:flex;align-items:center;gap:12px;width:100%;padding:14px 16px;border-radius:16px;cursor:pointer;background:linear-gradient(135deg,#5bc24a,#7ed957);color:#fff;box-shadow:0 4px 0 #3a9b45;">'
-    + '<span style="font-size:1.9rem;flex-shrink:0;">🎲</span>'
-    + '<span style="flex:1;min-width:0;"><span style="font-family:\'Fredoka One\',cursive;font-size:1.05rem;">Probetest</span><br>'
-    + '<span style="font-size:.78rem;opacity:.92;">' + sub + '</span></span>'
-    + '<span style="font-size:1rem;opacity:.9;">' + (open ? '▲' : '▼') + '</span></div>';
-
+    '<div class="deck-card' + (open ? ' expanded' : '') + '">'
+    + '<div class="deck-header" onclick="toggleProbetestHistory()" style="cursor:pointer;">'
+    + '<div style="width:44px;height:44px;border-radius:14px;background:linear-gradient(135deg,#e8f8eb,#d2f2d8);display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">🎲</div>'
+    + '<div class="deck-info"><div class="deck-name">Probetest</div>'
+    + '<div class="deck-meta"><span>' + sub + '</span></div></div>'
+    + '<div class="deck-chevron"' + (open ? ' style="transform:rotate(180deg);"' : '') + '>▼</div>'
+    + '</div>';
   if (open) {
-    html += '<div style="padding:12px 4px 2px;">'
+    html += '<div style="padding:0 14px 14px;">'
       + '<button onclick="openProbetestPicker()" class="big-btn green center" style="width:100%;margin-bottom:12px;"><span class="icon-btn">➕</span><span>Neuen Probetest starten</span></button>';
     if (!hist.length) {
-      html += '<div style="text-align:center;color:#999;font-size:.82rem;padding:10px 0 6px;">Noch keine Tests durchgeführt.</div>';
+      html += '<div style="text-align:center;color:#8a83a5;font-size:.82rem;padding:6px 0 2px;font-weight:700;">Noch keine Tests durchgeführt.</div>';
     } else {
       html += hist.map(_probetestEntryHtml).join('');
     }
     html += '</div>';
   }
+  html += '</div>';
   el.innerHTML = html;
 }
 
