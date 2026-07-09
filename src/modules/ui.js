@@ -288,18 +288,14 @@ export function skipApiKey() {
 // ────────────────────────────────────────────────
 
 function _renderModeToggle(mode) {
-  // Dark-Mode des Haupt-Switches spiegelt den Schnell-Zustand des ANGEZEIGTEN Modus
-  // (nur „Vokabeln"/free kann Schnell an haben → Kampagne/Unregelmäßige immer hell).
+  // Dark-Variante des Haupt-Switches spiegelt den Schnell-Zustand des ANGEZEIGTEN
+  // Modus. Optik liegt komplett im CSS (.mode-toggle/.mode-btn + .dark/.active).
   const dark = !!(window.schnellByMode && window.schnellByMode[mode]);
   const toggle = document.getElementById('mode-toggle');
-  if (toggle) toggle.style.background = dark ? '#252134' : '#f0f0f0';
+  if (toggle) toggle.classList.toggle('dark', dark);
   ['free', 'student', 'campaign'].forEach(m => {
     const btn = document.getElementById('mode-btn-' + m);
-    if (!btn) return;
-    const active = (m === mode);
-    btn.style.background = active ? (dark ? '#3a3352' : '#fff') : 'transparent';
-    btn.style.color      = active ? (dark ? '#d9b8ff' : 'var(--purple)') : (dark ? '#8a82a6' : '#999');
-    btn.style.boxShadow  = active ? (dark ? '0 2px 6px rgba(0,0,0,.4)' : '0 2px 6px rgba(0,0,0,.12)') : 'none';
+    if (btn) btn.classList.toggle('active', m === mode);
   });
 }
 

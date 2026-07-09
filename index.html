@@ -18,7 +18,7 @@
 </head>
 <body>
 
-<div id="init-overlay" style="position:fixed;inset:0;z-index:9999;background:#f5f0ff;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Fredoka One',cursive,sans-serif;">
+<div id="init-overlay" style="position:fixed;inset:0;z-index:9999;background:#f4f1fc;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Fredoka One',cursive,sans-serif;">
   <div style="font-size:3.5rem;margin-bottom:18px;">⭐</div>
   <div style="font-size:1.9rem;color:#a86cdb;margin-bottom:28px;">English Stars</div>
   <svg width="130" height="130" viewBox="0 0 130 130" style="animation:spin 1.2s linear infinite;">
@@ -74,16 +74,13 @@
   <span class="emoji-big">☁️</span>
   <h2 id="auth-title">Anmelden</h2>
   <p style="color:#888;font-size:.85rem;text-align:center;max-width:300px;margin-bottom:18px;">Lerne auf allen Geräten – dein Fortschritt wird sicher in der Cloud gespeichert.</p>
-  <input id="auth-email" type="email" placeholder="E-Mail-Adresse" autocomplete="email"
-    style="width:100%;max-width:300px;padding:12px 16px;border:2px solid #ddd;border-radius:12px;font-size:.95rem;font-family:inherit;margin-bottom:10px;box-sizing:border-box;"
+  <input id="auth-email" type="email" class="es-input" placeholder="E-Mail-Adresse" autocomplete="email"
     onkeydown="if(event.key==='Enter')document.getElementById('auth-password').focus()">
-  <input id="auth-password" type="password" placeholder="Passwort (mind. 6 Zeichen)" autocomplete="current-password"
-    style="width:100%;max-width:300px;padding:12px 16px;border:2px solid #ddd;border-radius:12px;font-size:.95rem;font-family:inherit;margin-bottom:10px;box-sizing:border-box;"
+  <input id="auth-password" type="password" class="es-input" placeholder="Passwort (mind. 6 Zeichen)" autocomplete="current-password"
     onkeydown="if(event.key==='Enter'){var c=document.getElementById('auth-password-confirm');c&&c.style.display!=='none'?c.focus():authSubmit()}">
-  <input id="auth-password-confirm" type="password" placeholder="Passwort wiederholen" autocomplete="new-password"
-    style="display:none;width:100%;max-width:300px;padding:12px 16px;border:2px solid #ddd;border-radius:12px;font-size:.95rem;font-family:inherit;margin-bottom:10px;box-sizing:border-box;"
-    onkeydown="if(event.key==='Enter')authSubmit()">
-  <div id="auth-error" style="display:none;color:#c0001a;font-size:.82rem;font-weight:700;text-align:center;max-width:300px;margin-bottom:10px;padding:8px 12px;background:#fff0f0;border-radius:10px;"></div>
+  <input id="auth-password-confirm" type="password" class="es-input" placeholder="Passwort wiederholen" autocomplete="new-password"
+    style="display:none;" onkeydown="if(event.key==='Enter')authSubmit()">
+  <div id="auth-error" class="es-error" style="display:none;"></div>
   <button id="auth-submit-btn" onclick="authSubmit()" class="big-btn blue center" style="max-width:300px;width:100%;">Anmelden</button>
   <button id="auth-toggle-btn" onclick="authToggleMode()"
     style="margin-top:14px;background:none;border:none;color:var(--purple);font-family:'Fredoka One',cursive;font-size:.88rem;cursor:pointer;text-decoration:underline;">
@@ -110,10 +107,9 @@
   <span class="emoji-big">🔑</span>
   <h2>Passwort zurücksetzen</h2>
   <p style="color:#888;font-size:.85rem;text-align:center;max-width:300px;margin-bottom:18px;">Wir senden dir einen Reset-Link an deine E-Mail-Adresse.</p>
-  <input id="pw-reset-email" type="email" placeholder="E-Mail-Adresse" autocomplete="email"
-    style="width:100%;max-width:300px;padding:12px 16px;border:2px solid #ddd;border-radius:12px;font-size:.95rem;font-family:inherit;margin-bottom:10px;box-sizing:border-box;"
+  <input id="pw-reset-email" type="email" class="es-input" placeholder="E-Mail-Adresse" autocomplete="email"
     onkeydown="if(event.key==='Enter')submitPasswordReset()">
-  <div id="pw-reset-error" style="display:none;color:#c0001a;font-size:.82rem;font-weight:700;text-align:center;max-width:300px;margin-bottom:10px;padding:8px 12px;background:#fff0f0;border-radius:10px;"></div>
+  <div id="pw-reset-error" class="es-error" style="display:none;"></div>
   <button id="pw-reset-btn" onclick="submitPasswordReset()" class="big-btn blue center" style="max-width:300px;width:100%;">Reset-Link senden</button>
   <button onclick="showAuth()"
     style="margin-top:14px;background:none;border:none;color:#888;font-family:'Fredoka One',cursive;font-size:.85rem;cursor:pointer;text-decoration:underline;">
@@ -137,13 +133,11 @@
   <span class="emoji-big">🔒</span>
   <h2>Neues Passwort</h2>
   <p style="color:#888;font-size:.85rem;text-align:center;max-width:300px;margin-bottom:18px;">Wähle ein neues Passwort für deinen Account.</p>
-  <input id="new-pw-input" type="password" placeholder="Neues Passwort (mind. 6 Zeichen)" autocomplete="new-password"
-    style="width:100%;max-width:300px;padding:12px 16px;border:2px solid #ddd;border-radius:12px;font-size:.95rem;font-family:inherit;margin-bottom:10px;box-sizing:border-box;"
+  <input id="new-pw-input" type="password" class="es-input" placeholder="Neues Passwort (mind. 6 Zeichen)" autocomplete="new-password"
     onkeydown="if(event.key==='Enter')document.getElementById('new-pw-confirm').focus()">
-  <input id="new-pw-confirm" type="password" placeholder="Passwort bestätigen" autocomplete="new-password"
-    style="width:100%;max-width:300px;padding:12px 16px;border:2px solid #ddd;border-radius:12px;font-size:.95rem;font-family:inherit;margin-bottom:10px;box-sizing:border-box;"
+  <input id="new-pw-confirm" type="password" class="es-input" placeholder="Passwort bestätigen" autocomplete="new-password"
     onkeydown="if(event.key==='Enter')submitNewPassword()">
-  <div id="new-pw-error" style="display:none;color:#c0001a;font-size:.82rem;font-weight:700;text-align:center;max-width:300px;margin-bottom:10px;padding:8px 12px;background:#fff0f0;border-radius:10px;"></div>
+  <div id="new-pw-error" class="es-error" style="display:none;"></div>
   <button id="new-pw-btn" onclick="submitNewPassword()" class="big-btn blue center" style="max-width:300px;width:100%;">Passwort speichern</button>
   <button onclick="cancelNewPassword()"
     style="margin-top:14px;background:none;border:none;color:#aaa;font-family:'Fredoka One',cursive;font-size:.85rem;cursor:pointer;text-decoration:underline;">
@@ -203,11 +197,11 @@
     <button class="back-btn" style="margin:0" onclick="event.stopPropagation();showStats()">📊 Fortschritt</button>
   </div>
 
-  <!-- Modus-Toggle -->
-  <div id="mode-toggle" style="display:flex;width:100%;background:#f0f0f0;border-radius:14px;padding:3px;margin-bottom:18px;gap:2px;">
-    <button id="mode-btn-campaign" onclick="setActiveMode('campaign')" style="flex:1;font-family:'Fredoka One',cursive;font-size:.78rem;padding:8px 4px;border:none;border-radius:11px;cursor:pointer;transition:all .15s;background:transparent;color:#999;">🗺️ Kampagne</button>
-    <button id="mode-btn-free" onclick="setActiveMode('free')" style="flex:1;font-family:'Fredoka One',cursive;font-size:.78rem;padding:8px 4px;border:none;border-radius:11px;cursor:pointer;transition:all .15s;background:#fff;color:var(--purple);box-shadow:0 2px 6px rgba(0,0,0,.12);">📚 Vokabeln</button>
-    <button id="mode-btn-student" onclick="setActiveMode('student')" style="flex:1;font-family:'Fredoka One',cursive;font-size:.78rem;padding:8px 4px;border:none;border-radius:11px;cursor:pointer;transition:all .15s;background:transparent;color:#999;">⚒️ Unregelmäßige</button>
+  <!-- Modus-Toggle (Optik in style.css: .mode-toggle/.mode-btn) -->
+  <div id="mode-toggle" class="mode-toggle">
+    <button id="mode-btn-campaign" class="mode-btn" onclick="setActiveMode('campaign')">🗺️ Kampagne</button>
+    <button id="mode-btn-free" class="mode-btn active" onclick="setActiveMode('free')">📚 Vokabeln</button>
+    <button id="mode-btn-student" class="mode-btn" onclick="setActiveMode('student')">⚒️ Unregelmäßige</button>
   </div>
 
   <!-- ─── Vokabeln ─── -->
