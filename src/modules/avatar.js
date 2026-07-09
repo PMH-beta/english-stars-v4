@@ -1,22 +1,27 @@
 // src/modules/avatar.js
-// Charakter-Avatar: prozedurales SVG (kein Bild-Asset), modular pro Merkmal.
-// 7 Merkmale × je 10 Stufen — Daten liegen in SD.avatar = {skin,hair,eyes,nose,mouth,ears,build}.
-// Kopf-Koordinaten sind fix (cx=100), nur Hautfarbe + Statur (Körper) variieren echt.
+// Charakter-Avatar im WINDOWS-95-PIXEL-STIL: prozedurales SVG auf einem festen
+// 24×36-Pixelraster (shape-rendering:crispEdges), harte Flächenfarben, dunkle
+// 1px-Outlines wie bei klassischen Sprite-Icons. Kein Bild-Asset, modular pro
+// Merkmal: 7 Merkmale × je 10 Stufen — Daten liegen unverändert in
+// SD.avatar = {skin,hair,eyes,nose,mouth,ears,build} (0..9), Sync kompatibel.
+//
+// Raster-Anatomie: Kopf x8..15 / y3..11 (Outline-Block 1px drumherum),
+// Hals y12..13, Rumpf ab y14, Beine ab y25, Schuhe bis y35.
 
 import { persist } from './storage.js';
 import { markDirty } from './sync.js';
 import { commitDirty } from './dialog.js';
 
 // Reihenfolge + Beschriftung der Einstell-Zeilen; anchor = vertikale Position der
-// Pfeile (% der Ganzkörper-Höhe) am jeweils veränderten Körperteil.
+// Pfeile (% der Ganzkörper-Höhe, 36 Rasterzeilen) am jeweils veränderten Körperteil.
 export const AVATAR_FEATURES = [
-  { key: 'hair',  icon: '💇', label: 'Haare',     anchor: 11 },
-  { key: 'eyes',  icon: '👀', label: 'Augen',     anchor: 22 },
-  { key: 'ears',  icon: '👂', label: 'Ohren',     anchor: 24 },
-  { key: 'nose',  icon: '👃', label: 'Nase',      anchor: 25 },
-  { key: 'mouth', icon: '👄', label: 'Mund',      anchor: 30 },
-  { key: 'skin',  icon: '🖐️', label: 'Hautfarbe', anchor: 46 },
-  { key: 'build', icon: '🧍', label: 'Statur',    anchor: 68 },
+  { key: 'hair',  icon: '💇', label: 'Haare',     anchor: 7 },
+  { key: 'eyes',  icon: '👀', label: 'Augen',     anchor: 18 },
+  { key: 'ears',  icon: '👂', label: 'Ohren',     anchor: 21 },
+  { key: 'nose',  icon: '👃', label: 'Nase',      anchor: 24 },
+  { key: 'mouth', icon: '👄', label: 'Mund',      anchor: 29 },
+  { key: 'skin',  icon: '🖐️', label: 'Hautfarbe', anchor: 44 },
+  { key: 'build', icon: '🧍', label: 'Statur',    anchor: 64 },
 ];
 
 const COUNT = 10; // je Merkmal 10 Stufen
@@ -43,188 +48,173 @@ export function ensureAvatar(sd) {
 const wrap = (n) => ((n % COUNT) + COUNT) % COUNT;
 
 // ────────────────────────────────────────────────
-//  SVG-TEILE (Kopf fix: cx=100, cy=86, rx=46, ry=50)
+//  PIXEL-HELFER
 // ────────────────────────────────────────────────
-function earsSVG(i, skin) {
-  const S = [
-    [9,11,88,0],[7,9,88,0],[10,13,88,0],[12,15,89,0],[8,12,86,0],
-    [11,16,90,0],[9,13,87,1],[13,17,90,0],[6,8,88,0],[10,14,86,1],
-  ][i];
-  const [rx, ry, y, pointy] = S;
-  let out = '';
-  for (const x of [54, 146]) {
-    if (pointy) {
-      const dir = x < 100 ? -1 : 1;
-      out += `<path d="M${x},${y - ry} Q${x + dir * rx},${y} ${x},${y + ry} Q${x - dir * 2},${y} ${x},${y - ry} Z" fill="${skin}" stroke="#0002"/>`;
-    } else {
-      out += `<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" fill="${skin}" stroke="#0002"/>`;
-      out += `<ellipse cx="${x}" cy="${y}" rx="${rx * 0.45}" ry="${ry * 0.5}" fill="#0001"/>`;
-    }
-  }
-  return out;
-}
+const OUT = '#1a1a2e';                 // Outline-Dunkel (fast schwarz, leicht blau)
+const px = (x, y, w, h, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${c}"/>`;
+// Block mit 1px-Outline drumherum (Outline zuerst, Füllung darüber).
+const bo = (x, y, w, h, c) => px(x - 1, y - 1, w + 2, h + 2, OUT) + px(x, y, w, h, c);
 
+// ── Kopf & Hals ────────────────────────────────
 function headSVG(skin) {
-  return `<ellipse cx="100" cy="86" rx="46" ry="50" fill="${skin}" stroke="#0002" stroke-width="1.5"/>`;
+  return px(7, 2, 10, 11, OUT)         // Outline-Block (Rand + Kinnzeile y12)
+    + px(8, 3, 8, 9, skin);            // Gesicht x8..15 / y3..11
 }
-
 function neckSVG(skin) {
-  return `<rect x="91" y="128" width="18" height="34" rx="6" fill="${skin}" stroke="#0001"/>`;
+  return px(10, 12, 4, 2, skin);       // Hals durchbricht die Kinn-Outline
 }
 
-// ── Haare ──────────────────────────────────────
-// Jede Frisur: { c, back, extra } + immer eine solide Kappe (deckt die Stirn ab → kein Loch).
-//  back  = vor dem Kopf-Hintergrund, ABER vor dem Hals gezeichnet (Länge fällt vor die Schultern, Hals bleibt frei)
-//  extra = nach dem Gesicht (Dutt etc.), dann zuletzt die Kappe.
-function vol(c)        { return `<ellipse cx="100" cy="72" rx="52" ry="50" fill="${c}"/>`; }
-function longHair(c, bY) {
-  const w = 18;
-  return vol(c)
-    + `<rect x="42" y="66" width="${w}" height="${bY - 66}" rx="9" fill="${c}"/>`
-    + `<rect x="${200 - 42 - w}" y="66" width="${w}" height="${bY - 66}" rx="9" fill="${c}"/>`;
-}
-function spikes(c) {
-  let p = '';
-  for (let k = 0; k <= 6; k++) { const x = 60 + k * 13; p += `<path d="M${x - 7},58 L${x},28 L${x + 7},58 Z" fill="${c}"/>`; }
-  return p + `<ellipse cx="100" cy="68" rx="50" ry="44" fill="${c}"/>`;
-}
-function curls(c) {
-  let p = '';
-  for (const [x, y] of [[60,60],[72,42],[90,34],[110,34],[128,42],[140,60],[146,78],[54,78]]) p += `<circle cx="${x}" cy="${y}" r="15" fill="${c}"/>`;
-  return p;
-}
-function afro(c)     { return `<ellipse cx="100" cy="60" rx="60" ry="56" fill="${c}"/>`; }
-function ponytail(c) { return `<path d="M150,72 q30,6 24,48 q-6,20 -20,15 q14,-34 -10,-58 Z" fill="${c}"/>`; }
-function bun(c)      { return `<circle cx="100" cy="30" r="15" fill="${c}"/>`; }
-// Solide Stirn-Kappe (immer, außer Glatze) — Haaransatz bei ~y58, deckt Stirn voll ab.
-// Außenbogen-Kontrollpunkte bei y=12 → Scheitel ≈ y31, sicher ÜBER der Kopfoberkante
-// (Ellipse: cy=86, ry=50 → y=36). Vorher lag er darunter → Haut-„Loch" am Oberkopf.
-function cap(c) {
-  return `<path d="M51,90 C47,12 153,12 149,90 C149,66 132,58 100,58 C68,58 51,66 51,90 Z" fill="${c}"/>`;
-}
-
-const HAIR = [
-  { c: '#6B4423', back: '',                    extra: '' },                  // 0 kurz braun
-  { c: '#1C1C1C', back: spikes('#1C1C1C'),     extra: '' },                  // 1 schwarz Stachel
-  { c: '#E3C45A', back: longHair('#E3C45A',215), extra: '' },               // 2 blond lang (Schulter)
-  { c: '#5B3A1E', back: vol('#5B3A1E'),        extra: bun('#5B3A1E') },      // 3 braun Dutt
-  { c: '#222222', back: curls('#222222'),      extra: '' },                  // 4 schwarz lockig
-  null,                                                                       // 5 Glatze
-  { c: '#C0502A', back: vol('#C0502A'),        extra: '' },                  // 6 rot voll
-  { c: '#6B4423', back: ponytail('#6B4423') + vol('#6B4423'), extra: '' },   // 7 Pferdeschwanz
-  { c: '#1A1A1A', back: afro('#1A1A1A'),       extra: '' },                  // 8 schwarz Afro
-  { c: '#D9B84A', back: longHair('#D9B84A',300), extra: '' },               // 9 blond sehr lang
+// ── Ohren: [Breite, Höhe, y, Ohrring?] ─────────
+const EARS = [
+  [1, 2, 7, 0], [1, 3, 6, 0], [2, 2, 7, 0], [2, 3, 6, 0], [1, 2, 8, 0],
+  [2, 3, 7, 1], [1, 1, 7, 0], [3, 3, 6, 0], [1, 2, 6, 0], [2, 2, 7, 1],
 ];
+function earsSVG(i, skin) {
+  const [w, h, y, ring] = EARS[i];
+  let s = '';
+  s += px(7 - w, y - 1, w + 1, h + 2, OUT) + px(8 - w, y, w, h, skin);   // links
+  s += px(16, y - 1, w + 1, h + 2, OUT) + px(16, y, w, h, skin);         // rechts
+  if (ring) s += px(8 - w, y + h + 1, 1, 1, '#ffd43b') + px(15 + w, y + h + 1, 1, 1, '#ffd43b');
+  return s;
+}
 
+// ── Augen (linkes Auge x9, rechtes x13, y6) ────
+function _eyeOpen(x, iris) {
+  return px(x, 6, 2, 2, '#ffffff') + px(x + 1, 7, 1, 1, iris);
+}
+function _lensFrame(x) {                 // hohler 4×4-Brillenrahmen
+  return px(x, 5, 4, 1, OUT) + px(x, 8, 4, 1, OUT) + px(x, 5, 1, 4, OUT) + px(x + 3, 5, 1, 4, OUT);
+}
 function eyesSVG(i) {
-  const specs = [
-    { rx: 9, ry: 9, iris: '#5b3a1e', ir: 4 },
-    { rx: 11, ry: 11, iris: '#3b82d6', ir: 5 },
-    { rx: 7, ry: 7, iris: '#3a8a4a', ir: 3 },
-    { rx: 10, ry: 7, iris: '#5b3a1e', ir: 4 },
-    { line: true },
-    { rx: 11, ry: 9, iris: '#8a6a3a', ir: 5 },
-    { rx: 9, ry: 9, iris: '#222', ir: 4 },
-    { rx: 9, ry: 8, iris: '#7a8a9a', ir: 4 },
-    { rx: 11, ry: 11, iris: '#2aa05a', ir: 5 },
-    { rx: 8, ry: 6, iris: '#5b3a1e', ir: 3 },
-  ];
-  const s = specs[i], y = 82;
-  let out = '';
-  for (const x of [82, 118]) {
-    if (s.line) {
-      out += `<path d="M${x - 9},${y} Q${x},${y + 5} ${x + 9},${y}" stroke="#3a2a1a" stroke-width="2.4" fill="none" stroke-linecap="round"/>`;
-      continue;
-    }
-    out += `<ellipse cx="${x}" cy="${y}" rx="${s.rx}" ry="${s.ry}" fill="#fff" stroke="#0003"/>`
-      + `<circle cx="${x}" cy="${y + (s.ry - s.ir) * 0.3}" r="${s.ir}" fill="${s.iris}"/>`
-      + `<circle cx="${x}" cy="${y + (s.ry - s.ir) * 0.3}" r="${Math.max(1.6, s.ir * 0.45)}" fill="#111"/>`
-      + `<circle cx="${x - 2}" cy="${y - 2}" r="1.5" fill="#fff"/>`;
+  switch (i) {
+    case 0: return _eyeOpen(9, '#5b3a1e') + _eyeOpen(13, '#5b3a1e');
+    case 1: return px(9, 5, 2, 3, '#ffffff') + px(10, 7, 1, 1, '#3b82d6')
+      + px(13, 5, 2, 3, '#ffffff') + px(13, 7, 1, 1, '#3b82d6');
+    case 2: return px(10, 7, 1, 1, OUT) + px(13, 7, 1, 1, OUT);                     // Punkte
+    case 3: return px(9, 7, 2, 1, OUT) + px(13, 7, 2, 1, OUT);                      // fröhlich zu
+    case 4: return _eyeOpen(9, '#5b3a1e') + px(13, 7, 2, 1, OUT);                   // Zwinkern
+    case 5: return _lensFrame(8) + _lensFrame(12) + px(7, 6, 1, 1, OUT) + px(16, 6, 1, 1, OUT)
+      + px(9, 6, 2, 2, '#ffffff') + px(10, 7, 1, 1, '#3a3a3a')
+      + px(13, 6, 2, 2, '#ffffff') + px(13, 7, 1, 1, '#3a3a3a');                    // Brille
+    case 6: return px(8, 6, 3, 2, OUT) + px(13, 6, 3, 2, OUT) + px(11, 6, 2, 1, OUT)
+      + px(9, 6, 1, 1, '#6a7a9a') + px(14, 6, 1, 1, '#6a7a9a');                     // Sonnenbrille
+    case 7: return _eyeOpen(9, '#2aa05a') + _eyeOpen(13, '#2aa05a');
+    case 8: return px(9, 5, 2, 1, OUT) + px(13, 5, 2, 1, OUT)                       // Brauen
+      + _eyeOpen(9, '#222222') + _eyeOpen(13, '#222222');
+    case 9: return px(9, 6, 2, 1, '#ffffff') + px(9, 7, 2, 1, OUT)
+      + px(13, 6, 2, 1, '#ffffff') + px(13, 7, 2, 1, OUT);                          // müde
   }
-  return out;
+  return '';
 }
 
+// ── Nasen (Mitte x11..12, y8) ──────────────────
+const NOSE_SH = '#00000038';
 function noseSVG(i) {
-  const x = 100, y = 92, sh = '#00000022', st = 'stroke="#00000033" stroke-width="2" fill="none" stroke-linecap="round"';
-  return [
-    `<path d="M${x},${y - 3} Q${x + 5},${y + 5} ${x},${y + 6} Q${x - 5},${y + 5} ${x},${y - 3}" fill="${sh}"/>`,
-    `<path d="M${x},${y - 4} L${x},${y + 6}" ${st}/>`,
-    `<path d="M${x - 4},${y + 5} Q${x},${y + 8} ${x + 4},${y + 5}" ${st}/>`,
-    `<path d="M${x},${y - 4} L${x - 5},${y + 6} L${x + 5},${y + 6} Z" fill="${sh}"/>`,
-    `<circle cx="${x}" cy="${y + 3}" r="4.5" fill="${sh}"/>`,
-    `<ellipse cx="${x}" cy="${y + 4}" rx="7" ry="4" fill="${sh}"/>`,
-    `<path d="M${x},${y - 6} L${x - 2},${y + 7} Q${x},${y + 9} ${x + 2},${y + 7} Z" fill="${sh}"/>`,
-    `<path d="M${x},${y + 6} Q${x - 6},${y + 2} ${x - 3},${y - 3}" ${st}/>`,
-    `<path d="M${x - 4},${y + 4} Q${x},${y + 9} ${x + 4},${y + 4}" ${st}/><circle cx="${x - 3}" cy="${y + 3}" r="1.4" fill="${sh}"/><circle cx="${x + 3}" cy="${y + 3}" r="1.4" fill="${sh}"/>`,
-    `<circle cx="${x - 2}" cy="${y + 4}" r="2" fill="${sh}"/><circle cx="${x + 2}" cy="${y + 4}" r="2" fill="${sh}"/>`,
-  ][i];
+  switch (i) {
+    case 0: return px(11, 8, 1, 2, NOSE_SH);
+    case 1: return px(11, 9, 2, 1, NOSE_SH);
+    case 2: return px(12, 8, 1, 2, NOSE_SH) + px(11, 9, 1, 1, NOSE_SH);   // Haken
+    case 3: return px(11, 8, 2, 2, NOSE_SH);                              // groß
+    case 4: return '';                                                    // keine
+    case 5: return px(10, 9, 1, 1, NOSE_SH) + px(13, 9, 1, 1, NOSE_SH);   // Nüstern
+    case 6: return px(11, 8, 2, 2, '#d46a6a');                            // rot
+    case 7: return px(11, 7, 1, 3, NOSE_SH);                              // lang
+    case 8: return px(11, 9, 2, 1, OUT);                                  // markant
+    case 9: return px(12, 9, 1, 1, NOSE_SH);                              // winzig
+  }
+  return '';
 }
 
+// ── Münder (y10, Kinn y11) ─────────────────────
 function mouthSVG(i) {
-  const x = 100, y = 112, lip = '#C0506A';
-  return [
-    `<path d="M${x - 12},${y} Q${x},${y + 11} ${x + 12},${y}" stroke="${lip}" stroke-width="3" fill="none" stroke-linecap="round"/>`,
-    `<path d="M${x - 15},${y - 2} Q${x},${y + 18} ${x + 15},${y - 2} Q${x},${y + 4} ${x - 15},${y - 2} Z" fill="${lip}"/>`,
-    `<path d="M${x - 11},${y + 2} L${x + 11},${y + 2}" stroke="${lip}" stroke-width="3" fill="none" stroke-linecap="round"/>`,
-    `<ellipse cx="${x}" cy="${y + 3}" rx="9" ry="7" fill="#7a2a3a"/><path d="M${x - 9},${y} Q${x},${y - 3} ${x + 9},${y}" fill="#fff"/>`,
-    `<path d="M${x - 6},${y} Q${x},${y + 6} ${x + 6},${y}" stroke="${lip}" stroke-width="3" fill="none" stroke-linecap="round"/>`,
-    `<path d="M${x - 13},${y - 1} Q${x},${y + 13} ${x + 13},${y - 1} Z" fill="#7a2a3a"/><rect x="${x - 11}" y="${y - 1}" width="22" height="5" fill="#fff"/>`,
-    `<path d="M${x - 12},${y + 6} Q${x},${y - 4} ${x + 12},${y + 6}" stroke="${lip}" stroke-width="3" fill="none" stroke-linecap="round"/>`,
-    `<circle cx="${x}" cy="${y + 2}" r="7" fill="#7a2a3a"/>`,
-    `<path d="M${x - 11},${y} Q${x},${y + 9} ${x + 11},${y - 4}" stroke="${lip}" stroke-width="3" fill="none" stroke-linecap="round"/>`,
-    `<path d="M${x - 16},${y - 2} Q${x},${y + 16} ${x + 16},${y - 2}" stroke="${lip}" stroke-width="3.5" fill="none" stroke-linecap="round"/>`,
-  ][i];
+  const lip = '#b23a5f';
+  switch (i) {
+    case 0: return px(9, 9, 1, 1, OUT) + px(14, 9, 1, 1, OUT) + px(10, 10, 4, 1, OUT);      // Lächeln
+    case 1: return px(10, 10, 4, 2, OUT) + px(11, 11, 2, 1, '#e0607e');                     // lachend offen
+    case 2: return px(10, 10, 4, 1, OUT);                                                   // neutral
+    case 3: return px(11, 10, 2, 2, OUT);                                                   // „oh"
+    case 4: return px(9, 10, 6, 1, OUT) + px(10, 11, 4, 1, '#ffffff');                      // Grinsen (Zähne)
+    case 5: return px(9, 9, 1, 1, OUT) + px(14, 9, 1, 1, OUT) + px(10, 10, 4, 1, OUT)
+      + px(11, 11, 2, 1, '#f08a9b');                                                        // Zunge raus
+    case 6: return px(9, 11, 1, 1, OUT) + px(14, 11, 1, 1, OUT) + px(10, 10, 4, 1, OUT);    // schmollend
+    case 7: return px(10, 10, 4, 1, '#d4547a') + px(11, 11, 2, 1, lip);                     // Lippen
+    case 8: return px(11, 10, 3, 1, OUT) + px(14, 9, 1, 1, OUT);                            // Smirk
+    case 9: return px(9, 9, 6, 1, '#5b3a1e') + px(10, 11, 4, 1, OUT);                       // Schnurrbart
+  }
+  return '';
 }
 
-// Körper / Statur (ohne Hals — Hals wird separat NACH den Haaren gezeichnet, bleibt sichtbar).
-function bodySVG(i, skin) {
-  const B = [
-    [30, 20, 24, 9, 13],[33, 22, 27, 9, 14],[36, 24, 30, 10, 15],[39, 27, 33, 11, 16],
-    [42, 30, 36, 12, 17],[45, 33, 39, 12, 18],[48, 36, 42, 13, 19],[51, 39, 45, 14, 20],
-    [54, 43, 48, 15, 22],[58, 47, 52, 16, 24],
-  ][i];
-  const [SH, WA, HI, AR, LG] = B;
-  const shirt = '#5B8DEF', pants = '#39405A', shoe = '#4A3422';
-  const sx = 100, shoulderY = 156, waistY = 244, hipY = 252;
+// ── Frisuren ───────────────────────────────────
+// Jede Frisur = Pixelblöcke mit bo()-Outline; Pony-Fransen als 1px-Dither.
+function _cap(c) { return bo(8, 2, 8, 2, c); }
+function _fringe(c) { return px(8, 4, 1, 1, c) + px(10, 4, 1, 1, c) + px(12, 4, 1, 1, c) + px(14, 4, 1, 1, c); }
+const HAIR = [
+  { c: '#6B4423', draw: (c) => _cap(c) + _fringe(c) },                                     // 0 kurz braun
+  { c: '#1C1C1C', draw: (c) => px(8, 1, 1, 1, c) + px(10, 1, 1, 1, c) + px(12, 1, 1, 1, c)
+      + px(14, 1, 1, 1, c) + _cap(c) },                                                    // 1 schwarz Stachel
+  { c: '#E3C45A', draw: (c) => _cap(c) + _fringe(c) + bo(6, 4, 2, 12, c) + bo(16, 4, 2, 12, c) }, // 2 blond lang
+  { c: '#5B3A1E', draw: (c) => _cap(c) + bo(10, 0, 4, 2, c) },                             // 3 braun Dutt
+  { c: '#222222', draw: (c) => _cap(c) + px(8, 1, 2, 1, c) + px(11, 1, 2, 1, c)
+      + px(14, 1, 2, 1, c) + px(7, 4, 1, 2, c) + px(16, 4, 1, 2, c) },                     // 4 schwarz lockig
+  null,                                                                                    // 5 Glatze
+  { c: '#C0502A', draw: (c) => bo(8, 2, 8, 3, c) + bo(7, 4, 1, 5, c) + bo(16, 4, 1, 5, c) }, // 6 rot voll
+  { c: '#6B4423', draw: (c) => _cap(c) + _fringe(c) + bo(17, 4, 2, 8, c) + px(17, 4, 2, 1, '#d4a017') }, // 7 Pferdeschwanz
+  { c: '#1A1A1A', draw: (c) => bo(7, 0, 10, 5, c) + bo(6, 2, 1, 6, c) + bo(17, 2, 1, 6, c) },  // 8 schwarz Afro
+  { c: '#D9B84A', draw: (c) => _cap(c) + _fringe(c) + bo(6, 4, 2, 19, c) + bo(16, 4, 2, 19, c) }, // 9 blond sehr lang
+];
+function hairSVG(i) {
+  const h = HAIR[i];
+  if (!h) return px(10, 3, 1, 1, '#ffffff59');   // Glatze: kleiner Glanzpunkt
+  return h.draw(h.c);
+}
 
-  let legs = '';
-  for (const lx of [sx - HI * 0.5, sx + HI * 0.5]) {
-    legs += `<rect x="${lx - LG / 2}" y="250" width="${LG}" height="104" rx="${LG / 2}" fill="${skin}"/>`
-      + `<rect x="${lx - LG / 2 - 1}" y="248" width="${LG + 2}" height="60" rx="7" fill="${pants}"/>`
-      + `<ellipse cx="${lx}" cy="357" rx="${LG * 0.75}" ry="8" fill="${shoe}"/>`;
+// ── Körper / Statur ────────────────────────────
+// SH = halbe Schulterbreite, HIP = halbe Hüfte, LW = Beinbreite (Rasterpixel).
+const BUILD = {
+  SH:  [3, 3, 4, 4, 5, 5, 6, 6, 7, 7],
+  HIP: [2, 3, 3, 3, 4, 4, 5, 5, 6, 6],
+  LW:  [2, 2, 2, 2, 2, 3, 3, 3, 3, 3],
+};
+function bodySVG(i, skin) {
+  const SH = BUILD.SH[i], HIP = BUILD.HIP[i], LW = BUILD.LW[i];
+  const SHIRT = '#2f6df6', SHIRT_D = '#1f4fc0', PANTS = '#3a4160', SHOE = '#4a3422';
+  let s = '';
+  // Arme (Outline-Säulen, kurzärmlig: 3 Zeilen Shirt, dann Haut)
+  s += px(12 - SH - 3, 13, 3, 10, OUT) + px(12 - SH - 2, 14, 2, 3, SHIRT) + px(12 - SH - 2, 17, 2, 5, skin);
+  s += px(12 + SH, 13, 3, 10, OUT) + px(12 + SH + 1, 14, 2, 3, SHIRT) + px(12 + SH + 1, 17, 2, 5, skin);
+  // Rumpf (Shirt) mit rechter Schattenkante — klassisches Icon-Shading
+  s += px(12 - SH - 1, 13, SH * 2 + 2, 9, OUT);
+  s += px(12 - SH, 14, SH * 2, 7, SHIRT);
+  s += px(12 + SH - 2, 14, 2, 7, SHIRT_D);
+  // Hüfte/Hose
+  s += px(12 - HIP - 1, 21, HIP * 2 + 2, 4, OUT) + px(12 - HIP, 22, HIP * 2, 3, PANTS);
+  // Beine + Schuhe
+  for (const lx of [12 - HIP, 12 + HIP - LW]) {
+    s += px(lx - 1, 24, LW + 2, 9, OUT) + px(lx, 25, LW, 8, PANTS);
+    s += px(lx - 2, 32, LW + 4, 4, OUT) + px(lx - 1, 33, LW + 2, 2, SHOE);
   }
-  let arms = '';
-  for (const ax of [sx - SH, sx + SH]) {
-    arms += `<rect x="${ax - AR / 2}" y="158" width="${AR}" height="92" rx="${AR / 2}" fill="${skin}"/>`
-      + `<rect x="${ax - AR / 2 - 1}" y="158" width="${AR + 2}" height="26" rx="6" fill="${shirt}"/>`;
-  }
-  const torso = `<path d="M${sx - SH},${shoulderY} Q${sx},${shoulderY - 10} ${sx + SH},${shoulderY} `
-    + `L${sx + WA},${waistY} Q${sx + WA},${hipY + 4} ${sx + HI},${hipY + 6} `
-    + `L${sx - HI},${hipY + 6} Q${sx - WA},${hipY + 4} ${sx - WA},${waistY} Z" fill="${shirt}"/>`;
-  return legs + arms + torso;
+  return s;
 }
 
 // ────────────────────────────────────────────────
 //  GESAMT-SVG
-//  Reihenfolge (hinten→vorne): Körper · Haar-Hinterteil · Hals · Ohren · Kopf ·
-//  Gesicht · Haar-Extra · Stirn-Kappe.
+//  Reihenfolge (hinten→vorne): Körper · Hals · Kopf · Ohren · Gesicht · Haare.
+//  Haare zuletzt → lange Frisuren fallen VOR die Schultern (Pixel-Look erlaubt das).
 // ────────────────────────────────────────────────
 export function avatarSVG(cfg, opts = {}) {
   const headOnly = !!opts.headOnly;
   const skin = SKIN[cfg.skin] || SKIN[0];
-  const h = HAIR[cfg.hair];
   const inner =
     (headOnly ? '' : bodySVG(cfg.build, skin)) +
-    (h ? h.back : '') +
     neckSVG(skin) +
-    earsSVG(cfg.ears, skin) +
     headSVG(skin) +
+    earsSVG(cfg.ears, skin) +
     eyesSVG(cfg.eyes) +
     noseSVG(cfg.nose) +
     mouthSVG(cfg.mouth) +
-    (h ? h.extra + cap(h.c) : '');
-  const vb = headOnly ? '32 22 136 136' : '0 0 200 372';
-  return `<svg viewBox="${vb}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;display:block;">${inner}</svg>`;
+    hairSVG(cfg.hair);
+  const vb = headOnly ? '3 0 18 16' : '0 0 24 36';
+  return `<svg viewBox="${vb}" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges" style="width:100%;height:100%;display:block;image-rendering:pixelated;">${inner}</svg>`;
 }
 
 export function renderAvatarInto(elId, sd, opts = {}) {
@@ -266,7 +256,7 @@ export function renderCharacter() {
   const lbl = document.getElementById('character-feature-label');
   if (lbl) {
     const swatch = feat.key === 'skin'
-      ? `<span style="display:inline-block;width:18px;height:18px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #ccc;vertical-align:middle;margin-right:6px;background:${SKIN[cfg.skin]}"></span>`
+      ? `<span style="display:inline-block;width:18px;height:18px;border-radius:4px;border:2px solid #fff;box-shadow:0 0 0 1px #ccc;vertical-align:middle;margin-right:6px;background:${SKIN[cfg.skin]}"></span>`
       : '';
     lbl.innerHTML = `${feat.icon} <b>${feat.label}</b> &nbsp; ${swatch}<span style="color:var(--purple);font-weight:800;">${cfg[feat.key] + 1} / ${COUNT}</span>`;
   }
