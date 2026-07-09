@@ -224,19 +224,19 @@ export function renderEquipmentPanel() {
   const equippedIds = new Set(Object.values(c.equipment).filter(Boolean));
   const autoWeaponId = !c.equipment.weapon ? equippedWeapon().id : null;
 
-  let inv;
-  if (!items.length) {
-    inv = `<div class="pd-empty">Noch nichts geschmiedet — wähle in der ⚒️ Schmiede beim Befüllen ein Objekt (Waffe oder Rüstungsteil) und übe seine Verben.</div>`;
-  } else {
-    inv = items.map(it => {
-      const on = equippedIds.has(it.id) || it.id === autoWeaponId;
-      const perk = it.slot === 'weapon' && WEAPON_PERK[it.type] ? ' · ' + WEAPON_PERK[it.type].text : '';
-      return `<button class="pd-item${on ? ' on' : ''}" data-item="${it.id}"
-        title="${it.name} (${it.parts}/${SLOTS_PER_FORM} Teile, ${it.station})${perk}">
-        ${itemSpriteSVG(it.type, it.tier)}
-      </button>`;
-    }).join('');
-  }
+  // Tasche: immer ein Slot-Raster zeigen — geschmiedete Items füllen es von
+  // links, der Rest bleibt als leere (gestrichelte) Plätze sichtbar.
+  let inv = items.map(it => {
+    const on = equippedIds.has(it.id) || it.id === autoWeaponId;
+    const perk = it.slot === 'weapon' && WEAPON_PERK[it.type] ? ' · ' + WEAPON_PERK[it.type].text : '';
+    return `<button class="pd-item${on ? ' on' : ''}" data-item="${it.id}"
+      title="${it.name} (${it.parts}/${SLOTS_PER_FORM} Teile, ${it.station})${perk}">
+      ${itemSpriteSVG(it.type, it.tier)}
+    </button>`;
+  }).join('');
+  const bagSize = Math.max(10, Math.ceil(items.length / 5) * 5);
+  for (let i = items.length; i < bagSize; i++) inv += `<div class="pd-item empty" title="Leerer Platz — schmiede etwas in der ⚒️ Schmiede"></div>`;
+  const emptyHint = items.length ? '' : `<div class="pd-empty">Deine Tasche ist noch leer — wähle in der ⚒️ Schmiede beim Befüllen ein Objekt (Waffe oder Rüstungsteil) und übe seine Verben, dann taucht es hier auf.</div>`;
 
   host.innerHTML = `
     <h3 style="color:var(--purple);margin-top:0">🧰 Ausrüstung</h3>
@@ -249,8 +249,9 @@ export function renderEquipmentPanel() {
       <div class="pd-col">${PD_RIGHT.map(k => _slotTile(c, k)).join('')}</div>
     </div>
     ${_effectsHtml()}
-    <div class="pd-inv-title">Geschmiedete Gegenstände</div>
+    <div class="pd-inv-title">🎒 Tasche</div>
     <div class="pd-inv">${inv}</div>
+    ${emptyHint}
     <div class="pd-hint">Antippen legt an bzw. ab · 🔩 Stahl = Simple Past · 🥇 Gold = Past Participle · ✨ Verzaubert = alle 5 Teile</div>`;
 
   if (!host._pdWired) {

@@ -1345,7 +1345,37 @@ body.in-game .mode-progress{display:block;}
 }
 .pd-item:hover{transform:translateY(-1px);border-color:#d9c8f2;}
 .pd-item.on{border-color:var(--purple);background:#faf6ff;box-shadow:0 0 0 3px rgba(168,108,219,.14);}
-.pd-empty{font-size:.8rem;font-weight:700;color:#8a83a5;line-height:1.55;padding:6px 2px;}
+.pd-item.empty{
+  border-style:dashed;border-color:#ddd4ef;background:transparent;cursor:default;
+  position:relative;
+}
+.pd-item.empty::after{
+  content:'';position:absolute;inset:0;margin:auto;width:8px;height:8px;
+  border-radius:2px;background:#eee6f8;
+}
+.pd-empty{font-size:.8rem;font-weight:700;color:#8a83a5;line-height:1.55;padding:10px 2px 2px;text-align:center;}
+
+/* Merkmal-Slider im Charakter-Editor */
+.cg-featbar{display:flex;align-items:center;justify-content:center;gap:12px;}
+.cg-featarrow{
+  font-family:'Fredoka One',cursive;font-size:1.3rem;line-height:1;
+  width:42px;height:42px;border:1px solid var(--line);border-radius:50%;cursor:pointer;
+  background:#fff;color:var(--purple);box-shadow:0 3px 10px rgba(88,60,150,.14);
+  display:flex;align-items:center;justify-content:center;padding-bottom:3px;flex-shrink:0;
+  transition:all .12s;
+}
+.cg-featarrow:hover{transform:translateY(-1px);}
+.cg-featarrow:active{transform:translateY(1px);}
+.cg-featlbl{
+  font-family:'Fredoka One',cursive;font-size:1.05rem;color:var(--text);
+  min-width:150px;text-align:center;
+}
+.cg-featdots{display:flex;gap:8px;justify-content:center;margin-top:10px;}
+.cg-dot{
+  width:10px;height:10px;border-radius:50%;border:none;padding:0;cursor:pointer;
+  background:#ddd4ef;transition:all .12s;
+}
+.cg-dot.active{background:var(--purple);transform:scale(1.3);}
 .pd-hint{font-size:.7rem;font-weight:700;color:#b0a8c8;text-align:center;margin-top:10px;line-height:1.5;}
 
 /* ── Responsive-Feinschliff ── */

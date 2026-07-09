@@ -378,12 +378,23 @@ export function renderCharacter() {
   if (nameIn && document.activeElement !== nameIn) nameIn.value = sd.playerName || '';
   _wireNameInput();
 
-  // Merkmal-Chips
-  const chips = document.getElementById('character-feature-chips');
-  if (chips) chips.innerHTML = AVATAR_FEATURES.map(f => {
-    const on = f.key === _activeFeature;
-    return `<button onclick="avatarPick('${f.key}')" style="flex:0 0 auto;font-family:'Fredoka One',cursive;font-size:.8rem;padding:7px 12px;border:none;border-radius:50px;cursor:pointer;white-space:nowrap;${on ? 'background:linear-gradient(135deg,var(--purple),var(--pink));color:#fff;box-shadow:0 3px 0 #7a4ba8;' : 'background:#f0e6ff;color:var(--purple);'}">${f.icon} ${f.label}</button>`;
-  }).join('');
+  // Merkmal-SLIDER: ‹ Merkmal › + Punkte — so ist garantiert jedes Merkmal
+  // erreichbar (die alte Chip-Reihe lief rechts aus dem Bild, „Statur" war
+  // auf manchen Geräten nicht anwählbar).
+  const bar = document.getElementById('character-feature-chips');
+  if (bar) {
+    const idx = AVATAR_FEATURES.findIndex(f => f.key === _activeFeature);
+    const feat = AVATAR_FEATURES[idx] || AVATAR_FEATURES[0];
+    bar.innerHTML = `
+      <div class="cg-featbar">
+        <button class="cg-featarrow" onclick="avatarPickStep(-1)" aria-label="voriges Merkmal">‹</button>
+        <div class="cg-featlbl">${feat.icon} ${feat.label}</div>
+        <button class="cg-featarrow" onclick="avatarPickStep(1)" aria-label="nächstes Merkmal">›</button>
+      </div>
+      <div class="cg-featdots">${AVATAR_FEATURES.map((f, i) =>
+        `<button class="cg-dot${i === idx ? ' active' : ''}" onclick="avatarPick('${f.key}')" title="${f.label}" aria-label="${f.label}"></button>`).join('')}
+      </div>`;
+  }
 
   // Varianten-Grid: jede Stufe als Mini-Vorschau, aktuelle markiert.
   const grid = document.getElementById('character-variants');
@@ -418,9 +429,17 @@ function _wireNameInput() {
   inp.addEventListener('blur', save);
 }
 
-// Merkmal auswählen (Chip) → Varianten-Grid wechselt.
+// Merkmal auswählen (Punkt) → Varianten-Grid wechselt.
 export function avatarPick(key) {
   if (AVATAR_FEATURES.some(f => f.key === key)) _activeFeature = key;
+  renderCharacter();
+}
+
+// Merkmal-Slider: ‹/› blättert durch die 7 Merkmale (mit Umlauf).
+export function avatarPickStep(dir) {
+  const idx = AVATAR_FEATURES.findIndex(f => f.key === _activeFeature);
+  const n = AVATAR_FEATURES.length;
+  _activeFeature = AVATAR_FEATURES[(((idx + dir) % n) + n) % n].key;
   renderCharacter();
 }
 
