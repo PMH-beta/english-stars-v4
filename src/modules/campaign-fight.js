@@ -157,10 +157,29 @@ function _usePotion(i) {
 
 function _el(id) { return document.getElementById(id); }
 
+// Pixel-Landschaft hinter den Kämpfern (Art-Direction: dunkle Nacht-Szene,
+// Klotz-Mond, Sterne, zwei gezackte Berg-Silhouetten — dunkle Platzhalter-Töne,
+// Palette folgt). Anker unten (yMax), damit die Berge auf dem Boden aufsetzen.
+function _arenaScene() {
+  const px = (x, y, w, h, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${c}"/>`;
+  let s = '';
+  [[10, 6], [30, 3], [52, 8], [70, 4], [88, 7], [112, 5], [120, 12], [40, 12], [8, 14]]
+    .forEach(([x, y]) => { s += px(x, y, 1, 1, '#8f88b0'); });
+  s += px(102, 4, 6, 1, '#c4c4c4') + px(101, 5, 8, 1, '#c4c4c4') + px(100, 6, 10, 6, '#c4c4c4')
+    + px(101, 12, 8, 1, '#c4c4c4') + px(102, 13, 6, 1, '#c4c4c4')
+    + px(103, 7, 2, 2, '#9a9a9a') + px(106, 10, 1, 1, '#9a9a9a') + px(102, 10, 1, 2, '#9a9a9a');
+  const far = [30, 26, 32, 24, 28, 34, 27, 31, 25, 33, 29, 26, 31, 28, 24, 30];
+  far.forEach((t, i) => { s += px(i * 8, t, 8, 48 - t, '#221e33'); });
+  const near = [40, 36, 42, 38, 35, 41, 37, 39];
+  near.forEach((t, i) => { s += px(i * 16, t, 16, 48 - t, '#2a2540'); });
+  return `<svg viewBox="0 0 128 48" preserveAspectRatio="xMidYMax slice" shape-rendering="crispEdges" style="width:100%;height:100%;display:block;image-rendering:pixelated;" aria-hidden="true">${s}</svg>`;
+}
+
 // Kampf-Szene im Retro-OS-Look (Art-Direction): dunkler Raum mit harten
 // vertikalen Licht-Streifen, darin EIN Fenster mit Titelleiste + [–][×]
 // (× = Kampf verlassen), Pixel-Font, segmentierte HP-Balken (Batterie-Stil).
-// Das Minispiel läuft im dunklen „Monitor"-Bereich des Fensters.
+// Oben die Landschafts-Arena (Spieler vs. Gegner), das Minispiel läuft im
+// dunklen „Monitor"-Bereich des Fensters.
 function _renderOverlay() {
   _removeOverlay();
   const { run, node, enemy, weapon } = _ctx;
@@ -178,29 +197,29 @@ function _renderOverlay() {
     </div>
     <div class="rw-body">
       <div class="cf-arena">
+        <div class="cf-scenery">${_arenaScene()}</div>
         <div class="cf-hero" id="cf-hero">${avatarSVG(ensureAvatar(window.SD), { gear: equippedGearMap() })}</div>
         <div class="cf-enemy${node.type === 'boss' ? ' boss' : ''}" id="cf-enemy">${enemySpriteSVG(node.type)}</div>
         <div class="cf-ground"></div>
       </div>
-      <div class="cf-bars">
-        <div class="cf-bar">
-          <div class="rw-label">DU</div>
-          <div class="seg-bar hp" id="cf-phpseg"></div>
-          <div class="rw-dim" id="cf-phptxt"></div>
-        </div>
-        <div class="cf-bar right">
-          <div class="rw-label">${enemy.name}</div>
+      <div class="cf-enemyrow">
+        <div class="cf-enemyinfo">
+          <div class="rw-label">${enemy.name} <span class="rw-dim" id="cf-wave">Welle ${f.wave}</span></div>
           <div class="seg-bar" id="cf-ehpseg"></div>
           <div class="rw-dim" id="cf-ehptxt"></div>
         </div>
       </div>
-      <div class="cf-meta">
-        <span class="rw-chip" title="${weapon.name} — ${weapon.dmg} Schaden">${wIcon}<b>${weapon.dmg}</b></span>
-        <span class="rw-dim" id="cf-wave">Welle ${f.wave}</span>
-      </div>
       <div id="cf-feedback" class="rw-feedback"></div>
       <div id="cf-potions" class="cf-potions"></div>
       <div id="cf-stage" class="cf-stage"></div>
+      <div class="cf-playerrow">
+        <span class="rw-label">DU</span>
+        <div class="cf-playerbars">
+          <div class="seg-bar hp" id="cf-phpseg"></div>
+          <div class="rw-dim" id="cf-phptxt"></div>
+        </div>
+        <span class="rw-chip" title="${weapon.name} — ${weapon.dmg} Schaden">${wIcon}<b>${weapon.dmg}</b></span>
+      </div>
     </div>
   </div>`;
   document.body.appendChild(ov);

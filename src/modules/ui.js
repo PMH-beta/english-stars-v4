@@ -7,9 +7,9 @@ import { releaseMicStream, stopVisualizer, voskStop, speakWord } from './speech.
 import { signIn, signUp, signOut, resendConfirmation, requestPasswordReset, updatePassword, signInWithGoogle } from './auth.js';
 import { cloudLoad, cloudReset, saveDeck, saveWordStats, saveExam, markDirty, flushPendingSync, setCloudConfirmed, getPendingCount, setKnownSig, cloudChangedRemotely, deleteCloudPresetStats } from './sync.js';
 import { commitDirty } from './dialog.js';
-import { uvMap, uvLernstand, constellationWords, FORGE_DISC } from './irregular-game.js';
+import { uvMap, uvLernstand, constellationWords, FORGE_DISC, SLOTS_PER_FORM } from './irregular-game.js';
 import { renderAvatarInto, renderCharacter, commitAvatar, resetCharacterFeature } from './avatar.js';
-import { IRREGULAR_PRESET_ID, uvAvailableVerbs, CONSTELLATION_SIZE, cefrOf, forgeObject, FORGE_OBJECTS, usedForgeObjects } from './irregular-verbs.js';
+import { IRREGULAR_PRESET_ID, uvAvailableVerbs, CONSTELLATION_SIZE, cefrOf, forgeObject, FORGE_OBJECTS, usedForgeObjects, getConstellations } from './irregular-verbs.js';
 import { objectPerkText, renderEquipmentPanel } from './campaign-equipment.js';
 import { renderFriendsSection, refreshFriendBadge, friendProgress, subscribeFriendRealtime, unsubscribeFriendRealtime } from './friends.js';
 import { renderCampaign, updateTalerBadge, refreshClaimedTaler } from './campaign.js';
@@ -740,6 +740,55 @@ function _uvFill(ens, obj) {
   renderStudentUV();
 }
 
+// Auftrag (Station) löschen — nach Bestätigung mit Ausrüstungs-Warnung.
+// Räumt ALLES ab: Schmiede-Fortschritt der 10 Verben (lokal + Cloud via
+// deleteCloudPresetStats), angelegte Ausrüstung aus dieser Station und die
+// f:<idx>:<form>-Ids HÖHERER Stationen (rutschen nach, weil der Array-Index
+// die Stations-Nummer ist). uvFills + campaign syncen über profile.
+export async function uvDeleteStation(idx) {
+  const fills = window.SD && window.SD.uvFills;
+  if (!Array.isArray(fills) || !fills[idx]) return;
+  const c = getConstellations().find((x) => x.idx === idx);
+  const ob = forgeObject(idx, 'past');
+  const ok = await window.esConfirm({
+    icon: '🗑️', title: `Auftrag ${idx + 1} löschen?`,
+    body: `${ob.icon} ${ob.name} (Stahl & Gold) wird eingeschmolzen — du verlierst auch diese Ausrüstung in der Kampagne! Der Schmiede-Fortschritt der Station ist weg, die ${CONSTELLATION_SIZE} Verben werden wieder frei.`,
+    ok: 'Löschen', cancel: 'Behalten', danger: true,
+  });
+  if (!ok) return;
+  // 1) Stats der Stations-Verben löschen (alle 5 Teile × Past/PP)
+  const gps = window.SD.globalPresetStats;
+  const keys = [];
+  if (c && gps && gps.wordStats) {
+    for (const v of c.verbs) for (const which of ['past', 'pp']) for (let i = 0; i < SLOTS_PER_FORM; i++) {
+      const k = statKeyFor(v.de, v.en, `_${which}_s${i}`, IRREGULAR_PRESET_ID);
+      if (gps.wordStats[k]) { delete gps.wordStats[k]; keys.push(k); }
+    }
+  }
+  // 2) Ausrüstung: Items dieser Station ablegen, höhere Stations-Ids nachrücken
+  const eq = window.SD.campaign && window.SD.campaign.equipment;
+  if (eq) for (const slot in eq) {
+    const m = /^f:(\d+):(past|pp)$/.exec(eq[slot] || '');
+    if (!m) continue;
+    const si = +m[1];
+    if (si === idx) delete eq[slot];
+    else if (si > idx) eq[slot] = `f:${si - 1}:${m[2]}`;
+  }
+  // 3) Auftrag entfernen + speichern/syncen
+  fills.splice(idx, 1);
+  persist(window.SD);
+  if (window.currentUser) {
+    markDirty('profile');
+    commitDirty();
+    if (keys.length) {
+      deleteCloudPresetStats(keys, [], window.currentUser.id)
+        .catch((e) => console.error('[uvDelete] Cloud-Delete fehlgeschlagen:', e.message));
+    }
+  }
+  renderStudentUV();
+  renderEquipmentPanel();
+}
+
 // Befüllen-Karte für das nächste, noch leere Sternbild.
 function _cstFillCard() {
   const remaining = uvAvailableVerbs().length;
@@ -983,6 +1032,7 @@ function _forgeStation(m) {
   return `<div class="forge-station${m.unlocked ? '' : ' locked'}${m.complete ? ' complete' : ''}">
     <div class="forge-head">
       <span class="forge-title">⚒️ Auftrag ${m.c.idx + 1}${m.complete ? ' 🌟' : ''}</span>
+      <button class="forge-del" onclick="uvDeleteStation(${m.c.idx})" title="Auftrag löschen" aria-label="Auftrag löschen">🗑</button>
     </div>
     ${body}
     ${_forgeWords(m)}

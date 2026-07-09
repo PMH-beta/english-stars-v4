@@ -1068,6 +1068,11 @@ body.in-game .mode-progress{display:block;}
 .forge-station.complete{border-color:#ffd45e;}
 .forge-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
 .forge-title{font-family:'Fredoka One',cursive;font-size:1rem;color:var(--text);}
+.forge-del{
+  margin-left:auto;border:none;background:none;cursor:pointer;font-size:.95rem;
+  opacity:.4;padding:4px 6px;border-radius:8px;transition:opacity .15s,background .15s;
+}
+.forge-del:hover{opacity:1;background:rgba(224,49,49,.1);}
 .forge-cefr{font-size:.6rem;font-weight:800;color:var(--purple);background:rgba(168,108,219,.12);padding:2px 8px;border-radius:20px;}
 .forge-active-tag{margin-left:auto;font-family:'Fredoka One',cursive;font-size:.72rem;color:#3a9b45;}
 .forge-active-btn{margin-left:auto;font-family:'Fredoka One',cursive;font-size:.72rem;padding:5px 12px;border-radius:50px;cursor:pointer;background:rgba(95,208,138,.16);color:#2a8a4a;border:1px solid rgba(95,208,138,.5);}
@@ -1300,13 +1305,15 @@ body.in-game .mode-progress{display:block;}
 .seg-bar i.on{background:#2c2c2c;}
 .seg-bar.hp i.on{background:#6e6e6e;}
 
-/* Kampfort: dunkle Arena im Fenster — Spieler links, Gegner rechts, beide auf
-   dem Pixel-Boden. Idle-Wackeln in 2 Frames, hartes Aufblinken bei Treffer. */
+/* Kampfort: Pixel-Landschaft als Arena — Nachthimmel mit Mond + Bergen als
+   SVG-Szenerie, Spieler links, Gegner rechts, beide auf dem Pixel-Boden.
+   Idle-Wackeln in 2 Frames, hartes Aufblinken bei Treffer. */
 .cf-arena{
   position:relative;display:flex;align-items:flex-end;justify-content:space-between;
   background:#1a1826;border:2px solid #2c2c2c;padding:16px 20px 14px;
   margin-bottom:8px;min-height:130px;overflow:hidden;
 }
+.cf-scenery{position:absolute;inset:0 0 12px 0;overflow:hidden;}
 .cf-ground{
   position:absolute;left:0;right:0;bottom:0;height:14px;background:#26223a;
   border-top:2px solid #2c2c2c;
@@ -1321,14 +1328,12 @@ body.in-game .mode-progress{display:block;}
 @keyframes enemyBob{0%,100%{transform:translateY(0);}50%{transform:translateY(-3px);}}
 .cf-enemy.hit svg{animation:none;filter:brightness(2.2);}
 
-/* HP-Balken beider Kämpfer nebeneinander + Waffen-/Wellen-Zeile */
-.cf-bars{display:flex;gap:12px;margin-bottom:6px;}
-.cf-bar{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;}
-.cf-bar.right .rw-label,.cf-bar.right .rw-dim{text-align:right;}
-.cf-meta{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
-
-/* Minispiel-„Monitor" im Fenster */
+/* Gegner-/Spielerzeile (HP-Balken) wie klassisch + Minispiel-„Monitor" */
+.cf-enemyrow{margin-bottom:6px;}
+.cf-enemyinfo{display:flex;flex-direction:column;gap:6px;}
 .cf-stage{background:#1a1826;border:2px solid #2c2c2c;padding:10px;margin:8px 0;}
+.cf-playerrow{display:flex;align-items:center;gap:8px;}
+.cf-playerbars{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;}
 
 /* Tränke im Kampf (Retro-Kacheln) */
 .cf-potions{display:flex;gap:6px;justify-content:center;margin:4px 0;min-height:4px;}
