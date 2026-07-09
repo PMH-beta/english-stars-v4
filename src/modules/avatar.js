@@ -1,32 +1,40 @@
 // src/modules/avatar.js
-// Charakter-Avatar im WINDOWS-95-PIXEL-STIL: prozedurales SVG auf einem festen
-// 24×36-Pixelraster (shape-rendering:crispEdges), harte Flächenfarben, dunkle
-// 1px-Outlines wie bei klassischen Sprite-Icons. Kein Bild-Asset, modular pro
-// Merkmal: 7 Merkmale × je 10 Stufen — Daten liegen unverändert in
-// SD.avatar = {skin,hair,eyes,nose,mouth,ears,build} (0..9), Sync kompatibel.
+// Charakter-Avatar in LO-FI PIXEL ART (moderner Indie-Stil à la Celeste /
+// Hyper Light Drifter): 32×48-Sprite-Raster, shape-rendering:crispEdges,
+// ganzzahlige Pixel, KEIN Anti-Aliasing.
 //
-// Raster-Anatomie: Kopf x8..15 / y3..11 (Outline-Block 1px drumherum),
-// Hals y12..13, Rumpf ab y14, Beine ab y25, Schuhe bis y35.
+// Stilregeln (Art-Direction):
+// - minimalistisch: Augen als 1–2px-Punkte, Mund/Nase nur angedeutet
+// - großer Kopf (~1/3 der Höhe), einfache Gliedmaßen, weiche Silhouetten
+// - Flat Shading: max. 3 Helligkeitsstufen pro Fläche, Schatten per Dithering
+// - 1px-Outline im DUNKLEREN TON der Füllfarbe (keine schwarzen Outlines)
+// - Kleidung: Graustufen-Platzhalter (max. 6 Stufen) bis die Palette steht;
+//   Haut-/Haarfarbe bleiben echte Farben (wählbare Merkmale, keine Palette)
+//
+// Datenmodell unverändert: SD.avatar = {skin,hair,eyes,nose,mouth,ears,build}
+// (je 0..9), API avatarSVG/renderAvatarInto kompatibel — kein Sync-Umbau.
 
 import { persist } from './storage.js';
 import { markDirty } from './sync.js';
 import { commitDirty } from './dialog.js';
 
 // Reihenfolge + Beschriftung der Einstell-Zeilen; anchor = vertikale Position der
-// Pfeile (% der Ganzkörper-Höhe, 36 Rasterzeilen) am jeweils veränderten Körperteil.
+// Pfeile (% der Sprite-Höhe, 48 Rasterzeilen) am jeweils veränderten Körperteil.
 export const AVATAR_FEATURES = [
-  { key: 'hair',  icon: '💇', label: 'Haare',     anchor: 7 },
-  { key: 'eyes',  icon: '👀', label: 'Augen',     anchor: 18 },
-  { key: 'ears',  icon: '👂', label: 'Ohren',     anchor: 21 },
-  { key: 'nose',  icon: '👃', label: 'Nase',      anchor: 24 },
-  { key: 'mouth', icon: '👄', label: 'Mund',      anchor: 29 },
-  { key: 'skin',  icon: '🖐️', label: 'Hautfarbe', anchor: 44 },
-  { key: 'build', icon: '🧍', label: 'Statur',    anchor: 64 },
+  { key: 'hair',  icon: '💇', label: 'Haare',     anchor: 8 },
+  { key: 'eyes',  icon: '👀', label: 'Augen',     anchor: 25 },
+  { key: 'ears',  icon: '👂', label: 'Ohren',     anchor: 28 },
+  { key: 'nose',  icon: '👃', label: 'Nase',      anchor: 31 },
+  { key: 'mouth', icon: '👄', label: 'Mund',      anchor: 36 },
+  { key: 'skin',  icon: '🖐️', label: 'Hautfarbe', anchor: 50 },
+  { key: 'build', icon: '🧍', label: 'Statur',    anchor: 70 },
 ];
 
 const COUNT = 10; // je Merkmal 10 Stufen
 
 const SKIN = ['#FFE0C4','#F7CEA6','#EEB98A','#E0A26B','#CC8A52','#B27440','#965E31','#7C4A26','#5E3719','#FFD2B0'];
+// Graustufen-Platzhalter für Kleidung/Akzente (max. 6 Stufen laut Art-Direction).
+const G = ['#e8e8e8','#c4c4c4','#9a9a9a','#6e6e6e','#4a4a4a','#2c2c2c'];
 
 export function defaultAvatar() {
   return { skin: 0, build: 4, hair: 0, eyes: 0, nose: 0, mouth: 0, ears: 2 };
@@ -50,156 +58,174 @@ const wrap = (n) => ((n % COUNT) + COUNT) % COUNT;
 // ────────────────────────────────────────────────
 //  PIXEL-HELFER
 // ────────────────────────────────────────────────
-const OUT = '#1a1a2e';                 // Outline-Dunkel (fast schwarz, leicht blau)
 const px = (x, y, w, h, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${c}"/>`;
-// Block mit 1px-Outline drumherum (Outline zuerst, Füllung darüber).
-const bo = (x, y, w, h, c) => px(x - 1, y - 1, w + 2, h + 2, OUT) + px(x, y, w, h, c);
-
-// ── Kopf & Hals ────────────────────────────────
-function headSVG(skin) {
-  return px(7, 2, 10, 11, OUT)         // Outline-Block (Rand + Kinnzeile y12)
-    + px(8, 3, 8, 9, skin);            // Gesicht x8..15 / y3..11
+// Dunklerer/hellerer Ton einer Füllfarbe (für Outlines/Shading — NIE schwarz).
+function shade(hex, f) {
+  const n = parseInt(hex.slice(1), 16);
+  const ch = (v) => Math.max(0, Math.min(255, Math.round(v * f)));
+  const r = ch((n >> 16) & 255), g = ch((n >> 8) & 255), b = ch(n & 255);
+  return '#' + ((r << 16) | (g << 8) | b).toString(16).padStart(6, '0');
 }
-function neckSVG(skin) {
-  return px(10, 12, 4, 2, skin);       // Hals durchbricht die Kinn-Outline
+// Weiche Silhouette: Rechteck mit 1px eingerückten Ecken (oben/unten).
+// Zu schmale/flache Formen (< 3px) bleiben schlichte Rechtecke.
+function soft(x, y, w, h, c) {
+  if (w < 3 || h < 3) return px(x, y, w, h, c);
+  return px(x + 1, y, w - 2, 1, c) + px(x, y + 1, w, h - 2, c) + px(x + 1, y + h - 1, w - 2, 1, c);
 }
-
-// ── Ohren: [Breite, Höhe, y, Ohrring?] ─────────
-const EARS = [
-  [1, 2, 7, 0], [1, 3, 6, 0], [2, 2, 7, 0], [2, 3, 6, 0], [1, 2, 8, 0],
-  [2, 3, 7, 1], [1, 1, 7, 0], [3, 3, 6, 0], [1, 2, 6, 0], [2, 2, 7, 1],
-];
-function earsSVG(i, skin) {
-  const [w, h, y, ring] = EARS[i];
+// Weiche Form mit 1px-Outline im dunkleren Füllton.
+function softO(x, y, w, h, c) {
+  return soft(x - 1, y - 1, w + 2, h + 2, shade(c, 0.62)) + soft(x, y, w, h, c);
+}
+// Dithering (Schachbrett) — die dritte Helligkeitsstufe einer Fläche.
+function dith(x, y, w, h, c) {
   let s = '';
-  s += px(7 - w, y - 1, w + 1, h + 2, OUT) + px(8 - w, y, w, h, skin);   // links
-  s += px(16, y - 1, w + 1, h + 2, OUT) + px(16, y, w, h, skin);         // rechts
-  if (ring) s += px(8 - w, y + h + 1, 1, 1, '#ffd43b') + px(15 + w, y + h + 1, 1, 1, '#ffd43b');
+  for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) if ((x + i + y + j) % 2 === 0) s += px(x + i, y + j, 1, 1, c);
   return s;
 }
 
-// ── Augen (linkes Auge x9, rechtes x13, y6) ────
-function _eyeOpen(x, iris) {
-  return px(x, 6, 2, 2, '#ffffff') + px(x + 1, 7, 1, 1, iris);
+// ── Kopf (~1/3 der Höhe): x10..21 / y7..20, weiche Ecken ──
+function headSVG(skin) {
+  return softO(10, 7, 12, 14, skin)
+    + dith(19, 16, 2, 4, shade(skin, 0.88));   // rechte Wangen-Schattierung
 }
-function _lensFrame(x) {                 // hohler 4×4-Brillenrahmen
-  return px(x, 5, 4, 1, OUT) + px(x, 8, 4, 1, OUT) + px(x, 5, 1, 4, OUT) + px(x + 3, 5, 1, 4, OUT);
+function neckSVG(skin) {
+  return px(14, 21, 4, 2, skin) + px(14, 22, 4, 1, shade(skin, 0.8));
 }
+
+// ── Ohren: kleine seitliche Noppen [w, h, y, Ohrring?]; 6 = keine ──
+const EARS = [
+  [1, 2, 13, 0], [1, 3, 12, 0], [2, 2, 13, 0], [2, 3, 12, 0], [1, 2, 14, 0],
+  [2, 2, 13, 1], null, [2, 4, 12, 0], [1, 2, 12, 0], [1, 3, 13, 1],
+];
+function earsSVG(i, skin) {
+  const e = EARS[i];
+  if (!e) return '';
+  const [w, h, y, ring] = e;
+  const d = shade(skin, 0.62);
+  let s = '';
+  s += px(10 - w, y, w, h, skin) + px(9 - w, y, 1, h, d);      // links + Außen-Outline
+  s += px(22, y, w, h, skin) + px(22 + w, y, 1, h, d);         // rechts
+  if (ring) s += px(10 - w, y + h, 1, 1, G[0]) + px(21 + w, y + h, 1, 1, G[0]);
+  return s;
+}
+
+// ── Augen: 1–2px-Punkte (Herzstück des Stils), y12..13 ──
 function eyesSVG(i) {
+  const d = G[5];
+  const two = (lx, rx, y, w, h) => px(lx, y, w, h, d) + px(rx, y, w, h, d);
   switch (i) {
-    case 0: return _eyeOpen(9, '#5b3a1e') + _eyeOpen(13, '#5b3a1e');
-    case 1: return px(9, 5, 2, 3, '#ffffff') + px(10, 7, 1, 1, '#3b82d6')
-      + px(13, 5, 2, 3, '#ffffff') + px(13, 7, 1, 1, '#3b82d6');
-    case 2: return px(10, 7, 1, 1, OUT) + px(13, 7, 1, 1, OUT);                     // Punkte
-    case 3: return px(9, 7, 2, 1, OUT) + px(13, 7, 2, 1, OUT);                      // fröhlich zu
-    case 4: return _eyeOpen(9, '#5b3a1e') + px(13, 7, 2, 1, OUT);                   // Zwinkern
-    case 5: return _lensFrame(8) + _lensFrame(12) + px(7, 6, 1, 1, OUT) + px(16, 6, 1, 1, OUT)
-      + px(9, 6, 2, 2, '#ffffff') + px(10, 7, 1, 1, '#3a3a3a')
-      + px(13, 6, 2, 2, '#ffffff') + px(13, 7, 1, 1, '#3a3a3a');                    // Brille
-    case 6: return px(8, 6, 3, 2, OUT) + px(13, 6, 3, 2, OUT) + px(11, 6, 2, 1, OUT)
-      + px(9, 6, 1, 1, '#6a7a9a') + px(14, 6, 1, 1, '#6a7a9a');                     // Sonnenbrille
-    case 7: return _eyeOpen(9, '#2aa05a') + _eyeOpen(13, '#2aa05a');
-    case 8: return px(9, 5, 2, 1, OUT) + px(13, 5, 2, 1, OUT)                       // Brauen
-      + _eyeOpen(9, '#222222') + _eyeOpen(13, '#222222');
-    case 9: return px(9, 6, 2, 1, '#ffffff') + px(9, 7, 2, 1, OUT)
-      + px(13, 6, 2, 1, '#ffffff') + px(13, 7, 2, 1, OUT);                          // müde
+    case 0: return two(13, 18, 12, 1, 2);                                     // Standard
+    case 1: return two(13, 18, 13, 1, 1);                                     // Punkte
+    case 2: return two(12, 19, 12, 1, 2);                                     // weit
+    case 3: return two(14, 17, 12, 1, 2);                                     // eng
+    case 4: return px(13, 12, 1, 2, d) + px(18, 13, 2, 1, d);                 // Zwinkern
+    case 5: return two(12, 18, 13, 2, 1);                                     // fröhlich zu
+    case 6: return two(12, 18, 12, 2, 1) + two(13, 18, 13, 1, 1);             // müde (Lid+Punkt)
+    case 7: return two(12, 18, 12, 2, 2);                                     // groß
+    case 8: return two(13, 18, 12, 1, 2)                                      // Brille
+      + px(11, 11, 4, 1, G[3]) + px(17, 11, 4, 1, G[3])
+      + px(11, 14, 4, 1, G[3]) + px(17, 14, 4, 1, G[3])
+      + px(11, 12, 1, 2, G[3]) + px(14, 12, 1, 2, G[3])
+      + px(17, 12, 1, 2, G[3]) + px(20, 12, 1, 2, G[3])
+      + px(15, 12, 2, 1, G[3]);
+    case 9: return two(13, 18, 14, 1, 1);                                     // tief/verträumt
   }
   return '';
 }
 
-// ── Nasen (Mitte x11..12, y8) ──────────────────
-const NOSE_SH = '#00000038';
-function noseSVG(i) {
+// ── Nase: nur angedeutet (Hautton dunkler), viele Stufen fast unsichtbar ──
+function noseSVG(i, skin) {
+  const n = shade(skin, 0.82);
   switch (i) {
-    case 0: return px(11, 8, 1, 2, NOSE_SH);
-    case 1: return px(11, 9, 2, 1, NOSE_SH);
-    case 2: return px(12, 8, 1, 2, NOSE_SH) + px(11, 9, 1, 1, NOSE_SH);   // Haken
-    case 3: return px(11, 8, 2, 2, NOSE_SH);                              // groß
-    case 4: return '';                                                    // keine
-    case 5: return px(10, 9, 1, 1, NOSE_SH) + px(13, 9, 1, 1, NOSE_SH);   // Nüstern
-    case 6: return px(11, 8, 2, 2, '#d46a6a');                            // rot
-    case 7: return px(11, 7, 1, 3, NOSE_SH);                              // lang
-    case 8: return px(11, 9, 2, 1, OUT);                                  // markant
-    case 9: return px(12, 9, 1, 1, NOSE_SH);                              // winzig
+    case 0: return '';                                    // keine (Stil-Standard)
+    case 1: return px(15, 15, 1, 1, n);
+    case 2: return px(15, 15, 2, 1, n);
+    case 3: return px(16, 14, 1, 2, n);
+    case 4: return px(15, 16, 2, 1, n);
+    case 5: return px(14, 15, 1, 1, n) + px(17, 15, 1, 1, n);
+    case 6: return px(15, 14, 1, 3, n);
+    case 7: return px(15, 14, 1, 1, n);
+    case 8: return px(15, 15, 2, 2, shade(skin, 0.9));
+    case 9: return px(16, 15, 1, 1, n);
   }
   return '';
 }
 
-// ── Münder (y10, Kinn y11) ─────────────────────
+// ── Mund: meist weggelassen bzw. minimal, y17..18 ──
 function mouthSVG(i) {
-  const lip = '#b23a5f';
+  const d = G[5];
   switch (i) {
-    case 0: return px(9, 9, 1, 1, OUT) + px(14, 9, 1, 1, OUT) + px(10, 10, 4, 1, OUT);      // Lächeln
-    case 1: return px(10, 10, 4, 2, OUT) + px(11, 11, 2, 1, '#e0607e');                     // lachend offen
-    case 2: return px(10, 10, 4, 1, OUT);                                                   // neutral
-    case 3: return px(11, 10, 2, 2, OUT);                                                   // „oh"
-    case 4: return px(9, 10, 6, 1, OUT) + px(10, 11, 4, 1, '#ffffff');                      // Grinsen (Zähne)
-    case 5: return px(9, 9, 1, 1, OUT) + px(14, 9, 1, 1, OUT) + px(10, 10, 4, 1, OUT)
-      + px(11, 11, 2, 1, '#f08a9b');                                                        // Zunge raus
-    case 6: return px(9, 11, 1, 1, OUT) + px(14, 11, 1, 1, OUT) + px(10, 10, 4, 1, OUT);    // schmollend
-    case 7: return px(10, 10, 4, 1, '#d4547a') + px(11, 11, 2, 1, lip);                     // Lippen
-    case 8: return px(11, 10, 3, 1, OUT) + px(14, 9, 1, 1, OUT);                            // Smirk
-    case 9: return px(9, 9, 6, 1, '#5b3a1e') + px(10, 11, 4, 1, OUT);                       // Schnurrbart
+    case 0: return '';                                                        // keiner (Stil-Standard)
+    case 1: return px(15, 17, 2, 1, d);
+    case 2: return px(15, 17, 1, 1, d);
+    case 3: return px(14, 17, 1, 1, d) + px(17, 17, 1, 1, d) + px(15, 18, 2, 1, d);   // Lächeln
+    case 4: return px(15, 17, 2, 2, d);                                       // offen
+    case 5: return px(14, 17, 4, 1, d);                                       // breit
+    case 6: return px(14, 18, 1, 1, d) + px(17, 18, 1, 1, d) + px(15, 17, 2, 1, d);   // schmollend
+    case 7: return px(15, 18, 2, 1, d);                                       // tief
+    case 8: return px(16, 17, 2, 1, d);                                       // Smirk
+    case 9: return px(15, 17, 2, 1, d) + px(15, 18, 2, 1, G[2]);              // Lippe (2 Stufen)
   }
   return '';
 }
 
-// ── Frisuren ───────────────────────────────────
-// Jede Frisur = Pixelblöcke mit bo()-Outline; Pony-Fransen als 1px-Dither.
-function _cap(c) { return bo(8, 2, 8, 2, c); }
-function _fringe(c) { return px(8, 4, 1, 1, c) + px(10, 4, 1, 1, c) + px(12, 4, 1, 1, c) + px(14, 4, 1, 1, c); }
+// ── Frisuren: Kappe + Varianten, Outline im dunkleren Haarton, Dither-Pony ──
+function _cap(c) { return softO(9, 3, 14, 6, c); }
+function _fringe(c) { return dith(10, 9, 12, 1, c); }
 const HAIR = [
   { c: '#6B4423', draw: (c) => _cap(c) + _fringe(c) },                                     // 0 kurz braun
-  { c: '#1C1C1C', draw: (c) => px(8, 1, 1, 1, c) + px(10, 1, 1, 1, c) + px(12, 1, 1, 1, c)
-      + px(14, 1, 1, 1, c) + _cap(c) },                                                    // 1 schwarz Stachel
-  { c: '#E3C45A', draw: (c) => _cap(c) + _fringe(c) + bo(6, 4, 2, 12, c) + bo(16, 4, 2, 12, c) }, // 2 blond lang
-  { c: '#5B3A1E', draw: (c) => _cap(c) + bo(10, 0, 4, 2, c) },                             // 3 braun Dutt
-  { c: '#222222', draw: (c) => _cap(c) + px(8, 1, 2, 1, c) + px(11, 1, 2, 1, c)
-      + px(14, 1, 2, 1, c) + px(7, 4, 1, 2, c) + px(16, 4, 1, 2, c) },                     // 4 schwarz lockig
+  { c: '#2b2b33', draw: (c) => px(10, 2, 1, 1, c) + px(13, 2, 1, 1, c) + px(16, 2, 1, 1, c)
+      + px(19, 2, 1, 1, c) + _cap(c) },                                                    // 1 dunkel Stachel
+  { c: '#E3C45A', draw: (c) => _cap(c) + _fringe(c) + softO(8, 8, 3, 18, c) + softO(21, 8, 3, 18, c) }, // 2 blond lang
+  { c: '#5B3A1E', draw: (c) => _cap(c) + softO(13, 0, 6, 3, c) },                          // 3 braun Dutt
+  { c: '#33302e', draw: (c) => _cap(c) + px(10, 2, 3, 1, c) + px(15, 2, 3, 1, c)
+      + px(20, 2, 2, 1, c) + px(8, 8, 1, 3, c) + px(23, 8, 1, 3, c) },                     // 4 dunkel lockig
   null,                                                                                    // 5 Glatze
-  { c: '#C0502A', draw: (c) => bo(8, 2, 8, 3, c) + bo(7, 4, 1, 5, c) + bo(16, 4, 1, 5, c) }, // 6 rot voll
-  { c: '#6B4423', draw: (c) => _cap(c) + _fringe(c) + bo(17, 4, 2, 8, c) + px(17, 4, 2, 1, '#d4a017') }, // 7 Pferdeschwanz
-  { c: '#1A1A1A', draw: (c) => bo(7, 0, 10, 5, c) + bo(6, 2, 1, 6, c) + bo(17, 2, 1, 6, c) },  // 8 schwarz Afro
-  { c: '#D9B84A', draw: (c) => _cap(c) + _fringe(c) + bo(6, 4, 2, 19, c) + bo(16, 4, 2, 19, c) }, // 9 blond sehr lang
+  { c: '#C0502A', draw: (c) => softO(9, 3, 14, 8, c) + softO(8, 9, 2, 6, c) + softO(22, 9, 2, 6, c) }, // 6 rot voll
+  { c: '#6B4423', draw: (c) => _cap(c) + _fringe(c) + softO(23, 7, 3, 14, c) + px(23, 9, 3, 1, G[1]) }, // 7 Pferdeschwanz
+  { c: '#2b2b33', draw: (c) => softO(7, 0, 18, 10, c) + softO(7, 9, 2, 5, c) + softO(23, 9, 2, 5, c) }, // 8 Afro
+  { c: '#D9B84A', draw: (c) => _cap(c) + _fringe(c) + softO(8, 8, 3, 28, c) + softO(21, 8, 3, 28, c) }, // 9 blond sehr lang
 ];
 function hairSVG(i) {
   const h = HAIR[i];
-  if (!h) return px(10, 3, 1, 1, '#ffffff59');   // Glatze: kleiner Glanzpunkt
-  return h.draw(h.c);
+  if (!h) return '';
+  return h.draw(h.c) + dith(10, 4, 12, 2, shade(h.c, 0.8));   // Dither-Schattierung in der Kappe
 }
 
-// ── Körper / Statur ────────────────────────────
-// SH = halbe Schulterbreite, HIP = halbe Hüfte, LW = Beinbreite (Rasterpixel).
+// ── Körper / Statur: Kleidung in Graustufen-Platzhaltern ──
+// SH = halbe Schulterbreite, HIP = halbe Hüfte, LW = Beinbreite.
 const BUILD = {
-  SH:  [3, 3, 4, 4, 5, 5, 6, 6, 7, 7],
-  HIP: [2, 3, 3, 3, 4, 4, 5, 5, 6, 6],
-  LW:  [2, 2, 2, 2, 2, 3, 3, 3, 3, 3],
+  SH:  [5, 5, 6, 6, 7, 7, 8, 8, 9, 9],
+  HIP: [4, 4, 5, 5, 6, 6, 7, 7, 8, 8],
+  LW:  [3, 3, 3, 3, 4, 4, 4, 4, 5, 5],
 };
 function bodySVG(i, skin) {
   const SH = BUILD.SH[i], HIP = BUILD.HIP[i], LW = BUILD.LW[i];
-  const SHIRT = '#2f6df6', SHIRT_D = '#1f4fc0', PANTS = '#3a4160', SHOE = '#4a3422';
+  const SHIRT = G[2], PANTS = G[4], SHOE = G[5];
+  const armD = shade(SHIRT, 0.62);
   let s = '';
-  // Arme (Outline-Säulen, kurzärmlig: 3 Zeilen Shirt, dann Haut)
-  s += px(12 - SH - 3, 13, 3, 10, OUT) + px(12 - SH - 2, 14, 2, 3, SHIRT) + px(12 - SH - 2, 17, 2, 5, skin);
-  s += px(12 + SH, 13, 3, 10, OUT) + px(12 + SH + 1, 14, 2, 3, SHIRT) + px(12 + SH + 1, 17, 2, 5, skin);
-  // Rumpf (Shirt) mit rechter Schattenkante — klassisches Icon-Shading
-  s += px(12 - SH - 1, 13, SH * 2 + 2, 9, OUT);
-  s += px(12 - SH, 14, SH * 2, 7, SHIRT);
-  s += px(12 + SH - 2, 14, 2, 7, SHIRT_D);
+  // Arme (lange Ärmel, Hände in Hautfarbe) — Außenkante als dunkle Outline-Spalte
+  const alx = 16 - SH - 2, arx = 16 + SH;
+  s += px(alx, 23, 2, 8, SHIRT) + px(alx - 1, 23, 1, 9, armD) + px(alx, 31, 2, 2, skin);
+  s += px(arx, 23, 2, 8, SHIRT) + px(arx + 2, 23, 1, 9, armD) + px(arx, 31, 2, 2, skin);
+  // Rumpf (weiche Silhouette, Outline im dunkleren Ton, Dither-Schatten rechts unten)
+  s += softO(16 - SH, 23, SH * 2, 11, SHIRT);
+  s += dith(16 + SH - 4, 29, 4, 4, shade(SHIRT, 0.8));
   // Hüfte/Hose
-  s += px(12 - HIP - 1, 21, HIP * 2 + 2, 4, OUT) + px(12 - HIP, 22, HIP * 2, 3, PANTS);
-  // Beine + Schuhe
-  for (const lx of [12 - HIP, 12 + HIP - LW]) {
-    s += px(lx - 1, 24, LW + 2, 9, OUT) + px(lx, 25, LW, 8, PANTS);
-    s += px(lx - 2, 32, LW + 4, 4, OUT) + px(lx - 1, 33, LW + 2, 2, SHOE);
-  }
+  s += softO(16 - HIP, 35, HIP * 2, 3, PANTS);
+  // Beine + Schuhe (Zehen 1px nach außen)
+  const lx1 = 16 - HIP, lx2 = 16 + HIP - LW;
+  s += px(lx1, 38, LW, 7, PANTS) + px(lx1 - 1, 38, 1, 7, shade(PANTS, 0.7));
+  s += px(lx2, 38, LW, 7, PANTS) + px(lx2 + LW, 38, 1, 7, shade(PANTS, 0.7));
+  s += px(lx1 - 1, 45, LW + 1, 2, SHOE);
+  s += px(lx2, 45, LW + 1, 2, SHOE);
   return s;
 }
 
 // ────────────────────────────────────────────────
-//  GESAMT-SVG
+//  GESAMT-SVG (32×48)
 //  Reihenfolge (hinten→vorne): Körper · Hals · Kopf · Ohren · Gesicht · Haare.
-//  Haare zuletzt → lange Frisuren fallen VOR die Schultern (Pixel-Look erlaubt das).
+//  Haare zuletzt → lange Frisuren fallen VOR die Schultern.
 // ────────────────────────────────────────────────
 export function avatarSVG(cfg, opts = {}) {
   const headOnly = !!opts.headOnly;
@@ -210,10 +236,10 @@ export function avatarSVG(cfg, opts = {}) {
     headSVG(skin) +
     earsSVG(cfg.ears, skin) +
     eyesSVG(cfg.eyes) +
-    noseSVG(cfg.nose) +
+    noseSVG(cfg.nose, skin) +
     mouthSVG(cfg.mouth) +
     hairSVG(cfg.hair);
-  const vb = headOnly ? '3 0 18 16' : '0 0 24 36';
+  const vb = headOnly ? '5 0 22 22' : '0 0 32 48';
   return `<svg viewBox="${vb}" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges" style="width:100%;height:100%;display:block;image-rendering:pixelated;">${inner}</svg>`;
 }
 
