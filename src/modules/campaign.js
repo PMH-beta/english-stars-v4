@@ -17,7 +17,8 @@ import { markDirty } from './sync.js';
 import { commitDirty } from './dialog.js';
 import { HP_MAX, REST_HEAL } from './campaign-balance.js';
 import { openFight, fightPoolReady, verbsReady } from './campaign-fight.js';
-import { openEquipment, equipEffects, openPotionChoice, POTIONS } from './campaign-equipment.js';
+import { equipEffects, openPotionChoice, POTIONS } from './campaign-equipment.js';
+import { showProfile } from './ui.js';
 
 const ROWS = 13;            // Reihe 0 = Start (unten), Reihe ROWS-1 = Boss (oben)
 const COLS = 5;
@@ -174,23 +175,14 @@ export function startCampaignRun() {
   renderCampaign();
 }
 
-// Ausrüstung öffnen (Startansicht, Run-Kopf, Rastplatz). Nach dem Schließen die
-// max. HP eines laufenden Runs an die 🛡️-Rüstung anpassen (hp bleibt, gedeckelt).
+// Ausrüstung liegt jetzt als Paperdoll im PROFIL (keine eigene Seite mehr) —
+// die 🎒-Buttons (Startansicht, Run-Kopf, Rastplatz) springen dorthin. Die max.
+// HP eines laufenden Runs werden beim nächsten Karten-Render angeglichen
+// (_renderCampaignNow), Rückweg ist der normale Zurück-Button des Profils.
 export function openCampaignEquipment() {
-  openEquipment({
-    onClose: () => {
-      const c = _camp();
-      if (c.run) {
-        const hpMax = HP_MAX + equipEffects().hpBonus;
-        if (hpMax !== c.run.hpMax) {
-          c.run.hpMax = hpMax;
-          c.run.hp = Math.min(c.run.hp, hpMax);
-          _saveCampaign();
-        }
-      }
-      renderCampaign();
-    },
-  });
+  showProfile();
+  const el = document.getElementById('prof-equip-section');
+  if (el) el.scrollIntoView({ block: 'start', behavior: 'smooth' });
 }
 
 export function campaignNode(id) {
@@ -315,6 +307,15 @@ function _renderCampaignNow(host) {
   // Sicherheitsnetz: Run mit 0 HP (z. B. Reload genau zwischen Tod und Aufräumen)
   // gilt als beendet — Einsatz ist weg, Startansicht zeigen.
   if (c.run && c.run.hp <= 0) { c.run = null; _saveCampaign(); }
+  // 🛡️-Rüstung kann sich im Profil geändert haben → max. HP des Runs angleichen.
+  if (c.run) {
+    const hpMax = HP_MAX + equipEffects().hpBonus;
+    if (hpMax !== c.run.hpMax) {
+      c.run.hpMax = hpMax;
+      c.run.hp = Math.min(c.run.hp, hpMax);
+      _saveCampaign();
+    }
+  }
   updateTalerBadge();
   if (!c.run) {
     // Startansicht (gesperrt / Einsatz) + darunter die Karte als Vorschau.

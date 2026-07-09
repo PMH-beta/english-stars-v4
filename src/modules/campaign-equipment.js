@@ -13,6 +13,7 @@
 import { FIST_DMG, WEAPON_BASE_DMG, EQUIP_EFFECT, RING_POTION_BONUS, COMPANION_GUARDS, WEAPON_PERK, PERK_SCHWERT_DMG, PERK_DOLCH_DODGE, PERK_STAB_MS, POTION_CHOICES, POTION_HEAL, POTION_POWER, POTION_TIME_MS, POTION_TIME_WAVES } from './campaign-balance.js';
 import { getConstellations, forgeObject } from './irregular-verbs.js';
 import { starLit, SLOTS_PER_FORM } from './irregular-game.js';
+import { avatarSVG, ensureAvatar, itemSpriteSVG } from './avatar.js';
 import { persist } from './storage.js';
 import { markDirty } from './sync.js';
 import { commitDirty } from './dialog.js';
@@ -153,82 +154,51 @@ export function openPotionChoice({ onPick }) {
   document.body.appendChild(ov);
 }
 
-// ── Ausrüstungs-Overlay ──────────────────────────────────────────────────────
-let _openSlotKey = null;
-let _onClose = null;
+// ── Ausrüstungs-Panel im Profil (WoW-artiges Paperdoll + Inventar) ───────────
+// Links/rechts Slot-Kacheln, in der Mitte der Charakter MIT angelegter
+// Ausrüstung (Pixel-Gear-Layer aus avatar.js), Waffe darunter. Darunter das
+// Inventar aller geschmiedeten Items — antippen legt an / ab.
 
-export function openEquipment(opts = {}) {
-  _onClose = opts.onClose || null;
-  _openSlotKey = null;
-  _renderEq();
-}
+const PD_LEFT = ['head', 'body', 'arms', 'legs'];
+const PD_RIGHT = ['talisman', 'ring1', 'ring2', 'companion'];
 
-function _renderEq() {
-  let ov = document.getElementById('ce-overlay');
-  if (!ov) {
-    ov = document.createElement('div');
-    ov.id = 'ce-overlay';
-    ov.className = 'adv-screen';
-    ov.addEventListener('click', _onClick);
-    document.body.appendChild(ov);
+// Angelegte Items als gear-Map für den Sprite (avatarSVG opts.gear).
+function _gearMap(c) {
+  const get = (k) => {
+    const it = _itemById(c.equipment[k]);
+    return (it && it.slot === (SLOT_TYPE[k] || k)) ? it : null;
+  };
+  const g = {};
+  for (const k of ['head', 'body', 'arms', 'legs', 'talisman', 'companion']) {
+    const it = get(k);
+    if (it) g[k] = it;
   }
-  const c = _eq();
-  let html = `
-    <div class="adv-head">
-      <button class="adv-x" data-act="close">✖</button>
-      <div class="adv-head-title">🎒 Ausrüstung</div>
-    </div>
-    <div class="ce-grid">`;
-  for (const key in SLOTS) html += _slotCard(c, key);
-  html += '</div>';
-  if (_openSlotKey) html += _pickerHtml(c, _openSlotKey);
-  html += _effectsHtml();
-  html += `<div class="adv-hint">Alle Teile entstehen in der ⚒️ Schmiede: wähle dort beim Befüllen ein Objekt (Waffe oder Rüstung) — 🔩 Stahl = Simple Past, 🥇 Gold = Past Participle, ✨ Verzaubert = alle 5 Teile fertig.</div>`;
-  ov.innerHTML = html;
+  g.ring = get('ring1') || get('ring2') || undefined;
+  const w = equippedWeapon();
+  if (w.type) g.weapon = w;
+  return g;
 }
 
-function _slotCard(c, key) {
+function _slotTile(c, key) {
   const meta = SLOTS[key];
-  let label;
+  let inner, filled = false, title = `${meta.name} — ${meta.desc}`;
   if (key === 'weapon') {
     const w = equippedWeapon();
-    label = `${w.icon} ${w.dmg} Schaden`;
+    if (w.type) {
+      inner = itemSpriteSVG(w.type, w.tier);
+      filled = true;
+      title = `${w.name} · ${w.dmg} Schaden${WEAPON_PERK[w.type] ? ' · ' + WEAPON_PERK[w.type].text : ''}`;
+    } else inner = `<span class="pd-ghost">${meta.icon}</span>`;
   } else {
     const it = _itemById(c.equipment[key]);
-    label = (it && it.slot === (SLOT_TYPE[key] || key)) ? `${TIER[it.tier].icon} ${TIER[it.tier].name}` : '— leer —';
+    if (it && it.slot === (SLOT_TYPE[key] || key)) {
+      inner = itemSpriteSVG(it.type, it.tier);
+      filled = true;
+      title = `${it.name} (${it.parts}/${SLOTS_PER_FORM} Teile) — antippen zum Ablegen`;
+    } else inner = `<span class="pd-ghost">${meta.icon}</span>`;
   }
-  return `<button class="ce-slot${_openSlotKey === key ? ' open' : ''}" data-act="slot" data-slot="${key}">
-    <div class="ce-slot-ic">${meta.icon}</div>
-    <div class="ce-slot-nm">${meta.name}</div>
-    <div class="ce-slot-it">${label}</div>
-  </button>`;
-}
-
-function _pickerHtml(c, key) {
-  const meta = SLOTS[key];
-  const type = SLOT_TYPE[key] || key;
-  const items = forgedItems().filter(i => i.slot === type);
-  let rows = '';
-  if (key === 'weapon') {
-    rows += _pickRow('', '👊 Auto — beste geschmiedete Waffe (sonst Faust)', !c.equipment.weapon);
-    for (const w of items) {
-      const perk = WEAPON_PERK[w.type]?.text;
-      rows += _pickRow(w.id, `${w.icon} ${w.name} · ${w.dmg} Schaden (${w.parts}/${SLOTS_PER_FORM})${perk ? ` · ${perk}` : ''}`, c.equipment.weapon === w.id);
-    }
-  } else {
-    rows += _pickRow('', '— nichts anlegen —', !c.equipment[key]);
-    for (const it of items) {
-      const usedElsewhere = Object.keys(SLOTS).some(k => k !== key && c.equipment[k] === it.id);
-      if (usedElsewhere) continue;   // ein Item nur in einem Slot (relevant für Ringe)
-      rows += _pickRow(it.id, `${it.icon} ${it.name} (${it.parts}/${SLOTS_PER_FORM} Teile)`, c.equipment[key] === it.id);
-    }
-  }
-  if (!items.length) rows += `<div class="adv-hint" style="text-align:left;">Noch nichts geschmiedet — wähle in der ⚒️ Schmiede beim Befüllen „${meta.name}" als Objekt.</div>`;
-  return `<div class="ce-picker">
-    <div class="ce-picker-head">${meta.icon} ${meta.name} — ${meta.desc}</div>${rows}</div>`;
-}
-function _pickRow(id, label, selected) {
-  return `<button class="ce-pick${selected ? ' sel' : ''}" data-act="equip" data-id="${id}">${selected ? '✅ ' : ''}${label}</button>`;
+  return `<button class="pd-slot${filled ? ' filled' : ''}" data-slot="${key}" title="${title}">${inner}
+    <span class="pd-slot-nm">${meta.name}</span></button>`;
 }
 
 function _effectsHtml() {
@@ -243,24 +213,78 @@ function _effectsHtml() {
   if (eff.talisman) parts.push('🧿 +50 % an 🌀');
   if (eff.potionBonus) parts.push(`💍 +${eff.potionBonus} Trank-Auswahl`);
   if (eff.companionGuards) parts.push('🐾 1 Fehlgriff gefangen');
-  return `<div class="ce-effects">${parts.join(' · ')}</div>`;
+  return `<div class="pd-fx">${parts.join(' · ')}</div>`;
 }
 
-function _onClick(e) {
-  const t = e.target.closest('[data-act]');
-  if (!t) return;
+export function renderEquipmentPanel() {
+  const host = document.getElementById('prof-equip-section');
+  if (!host) return;
   const c = _eq();
-  const act = t.dataset.act;
-  if (act === 'close') {
-    document.getElementById('ce-overlay')?.remove();
-    const cb = _onClose; _onClose = null;
-    if (cb) cb();
-  } else if (act === 'slot') {
-    _openSlotKey = _openSlotKey === t.dataset.slot ? null : t.dataset.slot;
-    _renderEq();
-  } else if (act === 'equip') {
-    if (_openSlotKey) c.equipment[_openSlotKey] = t.dataset.id || null;
+  const items = forgedItems();
+  const equippedIds = new Set(Object.values(c.equipment).filter(Boolean));
+  const autoWeaponId = !c.equipment.weapon ? equippedWeapon().id : null;
+
+  let inv;
+  if (!items.length) {
+    inv = `<div class="pd-empty">Noch nichts geschmiedet — wähle in der ⚒️ Schmiede beim Befüllen ein Objekt (Waffe oder Rüstungsteil) und übe seine Verben.</div>`;
+  } else {
+    inv = items.map(it => {
+      const on = equippedIds.has(it.id) || it.id === autoWeaponId;
+      const perk = it.slot === 'weapon' && WEAPON_PERK[it.type] ? ' · ' + WEAPON_PERK[it.type].text : '';
+      return `<button class="pd-item${on ? ' on' : ''}" data-item="${it.id}"
+        title="${it.name} (${it.parts}/${SLOTS_PER_FORM} Teile, ${it.station})${perk}">
+        ${itemSpriteSVG(it.type, it.tier)}
+      </button>`;
+    }).join('');
+  }
+
+  host.innerHTML = `
+    <h3 style="color:var(--purple);margin-top:0">🧰 Ausrüstung</h3>
+    <div class="pd-wrap">
+      <div class="pd-col">${PD_LEFT.map(k => _slotTile(c, k)).join('')}</div>
+      <div class="pd-center">
+        <div class="pd-avatar">${avatarSVG(ensureAvatar(window.SD), { gear: _gearMap(c) })}</div>
+        ${_slotTile(c, 'weapon')}
+      </div>
+      <div class="pd-col">${PD_RIGHT.map(k => _slotTile(c, k)).join('')}</div>
+    </div>
+    ${_effectsHtml()}
+    <div class="pd-inv-title">Geschmiedete Gegenstände</div>
+    <div class="pd-inv">${inv}</div>
+    <div class="pd-hint">Antippen legt an bzw. ab · 🔩 Stahl = Simple Past · 🥇 Gold = Past Participle · ✨ Verzaubert = alle 5 Teile</div>`;
+
+  if (!host._pdWired) {
+    host._pdWired = true;
+    host.addEventListener('click', _onPanelClick);
+  }
+}
+
+function _onPanelClick(e) {
+  const c = _eq();
+  const itemBtn = e.target.closest('[data-item]');
+  if (itemBtn) {
+    const it = _itemById(itemBtn.dataset.item);
+    if (!it) return;
+    // Bereits angelegt → ablegen; sonst in den passenden Slot legen.
+    const wornKey = Object.keys(SLOTS).find(k => c.equipment[k] === it.id);
+    if (wornKey) c.equipment[wornKey] = null;
+    else if (it.slot === 'ring') {
+      const r1 = _itemById(c.equipment.ring1), r2 = _itemById(c.equipment.ring2);
+      c.equipment[!r1 ? 'ring1' : !r2 ? 'ring2' : 'ring1'] = it.id;
+    } else {
+      c.equipment[it.slot] = it.id;
+    }
     _save();
-    _renderEq();
+    renderEquipmentPanel();
+    return;
+  }
+  const slotBtn = e.target.closest('[data-slot]');
+  if (slotBtn) {
+    const key = slotBtn.dataset.slot;
+    if (c.equipment[key]) {
+      c.equipment[key] = null;   // Waffe ohne Auswahl = Auto (beste)
+      _save();
+      renderEquipmentPanel();
+    }
   }
 }

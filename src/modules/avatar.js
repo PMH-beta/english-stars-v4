@@ -223,9 +223,118 @@ function bodySVG(i, skin) {
 }
 
 // ────────────────────────────────────────────────
+//  AUSRÜSTUNG AM SPRITE (Paperdoll-Layer)
+//  gear = { weapon?, head?, body?, arms?, legs?, talisman?, ring?, companion? }
+//  mit je {type, tier}; Stufen-Grau: Stahl dunkel, Gold hell, Verzaubert hellst
+//  + weißer Funkel-Pixel. Alles Graustufen-Platzhalter bis die Palette steht.
+// ────────────────────────────────────────────────
+const TIER_G = { stahl: G[3], gold: G[1], verzaubert: G[0] };
+
+function gearSVG(cfg, gear) {
+  if (!gear) return '';
+  const SH = BUILD.SH[cfg.build], HIP = BUILD.HIP[cfg.build], LW = BUILD.LW[cfg.build];
+  const alx = 16 - SH - 2, arx = 16 + SH;
+  const lx1 = 16 - HIP, lx2 = 16 + HIP - LW;
+  let s = '';
+  const col = (it) => TIER_G[it.tier] || G[3];
+  const spark = (it, x, y) => it.tier === 'verzaubert' ? px(x, y, 1, 1, '#ffffff') : '';
+
+  if (gear.body) {
+    const c = col(gear.body);
+    s += px(16 - SH, 23, SH * 2, 6, c) + px(16 - SH, 29, SH * 2, 1, shade(c, 0.62))
+      + px(14, 23, 4, 1, shade(c, 0.75))                       // Halsausschnitt
+      + dith(16 + SH - 4, 26, 3, 3, shade(c, 0.8))
+      + spark(gear.body, 16 - SH + 1, 24);
+  }
+  if (gear.arms) {
+    const c = col(gear.arms);
+    s += px(alx, 30, 2, 3, c) + px(arx, 30, 2, 3, c)
+      + px(alx, 30, 2, 1, shade(c, 0.62)) + px(arx, 30, 2, 1, shade(c, 0.62))
+      + spark(gear.arms, alx, 31);
+  }
+  if (gear.legs) {
+    const c = col(gear.legs);
+    s += px(lx1 - 1, 43, LW + 1, 4, c) + px(lx2, 43, LW + 1, 4, c)
+      + px(lx1 - 1, 43, LW + 1, 1, shade(c, 0.62)) + px(lx2, 43, LW + 1, 1, shade(c, 0.62))
+      + spark(gear.legs, lx2 + LW - 1, 44);
+  }
+  if (gear.talisman) {
+    const c = col(gear.talisman);
+    s += px(14, 22, 1, 1, G[4]) + px(17, 22, 1, 1, G[4]) + px(15, 23, 2, 2, c)
+      + spark(gear.talisman, 16, 23);
+  }
+  if (gear.ring) {
+    s += px(alx, 31, 1, 1, col(gear.ring)) + spark(gear.ring, alx, 30);
+  }
+  if (gear.head) {
+    const c = col(gear.head);
+    s += soft(9, 3, 14, 6, c) + px(9, 8, 14, 1, shade(c, 0.62)) + dith(11, 4, 10, 2, shade(c, 0.82))
+      + spark(gear.head, 20, 4);
+  }
+  if (gear.weapon && gear.weapon.type) {
+    s += weaponSVG(gear.weapon, arx + 3);
+  }
+  if (gear.companion) {
+    const c = col(gear.companion);
+    s += soft(26, 42, 5, 4, c)                                  // Körper
+      + px(27, 41, 1, 1, c) + px(29, 40, 1, 2, c)               // Ohren (asymmetrisch)
+      + px(31, 43, 1, 2, shade(c, 0.75))                        // Schwanz
+      + px(28, 43, 1, 1, G[5])                                  // Auge
+      + spark(gear.companion, 26, 41);
+  }
+  return s;
+}
+
+// Waffe in der rechten Hand (senkrecht, Klinge nach oben), wx = Waffen-Spalte.
+function weaponSVG(w, wx) {
+  wx = Math.min(wx, 29);
+  const c = TIER_G[w.tier] || G[3];
+  const d = shade(c, 0.62);
+  const grip = px(wx, 30, 1, 3, G[4]);
+  let s = '';
+  switch (w.type) {
+    case 'schwert': s = grip + px(wx - 1, 29, 3, 1, d) + px(wx, 17, 1, 12, c) + px(wx, 16, 1, 1, '#ffffff'); break;
+    case 'dolch':   s = grip + px(wx - 1, 29, 3, 1, d) + px(wx, 23, 1, 6, c); break;
+    case 'speer':   s = px(wx, 14, 1, 19, G[4]) + px(wx - 1, 12, 3, 1, c) + px(wx, 11, 1, 1, c) + px(wx, 13, 1, 1, c); break;
+    case 'axt':     s = px(wx, 16, 1, 17, G[4]) + px(wx - 3, 16, 3, 4, c) + px(wx - 4, 17, 1, 2, c); break;
+    case 'hammer':  s = px(wx, 16, 1, 17, G[4]) + px(wx - 2, 15, 4, 4, c); break;
+    case 'stab':    s = px(wx, 15, 1, 18, G[4]) + px(wx - 1, 12, 3, 3, c) + px(wx, 13, 1, 1, '#ffffff'); break;
+    default: return '';
+  }
+  if (w.tier === 'verzaubert') s += px(wx + 1, 14, 1, 1, '#ffffff');
+  return s;
+}
+
+// 16×16-Pixel-Icon eines geschmiedeten Objekts (fürs Inventar) — gleiche
+// Stilregeln: weiche Silhouetten, Outline im dunkleren Ton, Stufen-Grau.
+export function itemSpriteSVG(type, tier) {
+  const c = TIER_G[tier] || G[3];
+  const d = shade(c, 0.62);
+  let s = '';
+  switch (type) {
+    case 'schwert':    s = px(7, 1, 2, 9, c) + px(7, 0, 2, 1, '#ffffff') + px(5, 10, 6, 1, d) + px(7, 11, 2, 4, G[4]); break;
+    case 'dolch':      s = px(7, 3, 2, 6, c) + px(5, 9, 6, 1, d) + px(7, 10, 2, 4, G[4]); break;
+    case 'speer':      s = px(7, 4, 2, 11, G[4]) + px(6, 2, 4, 2, c) + px(7, 0, 2, 2, c); break;
+    case 'axt':        s = px(8, 2, 2, 12, G[4]) + px(3, 2, 5, 5, c) + px(2, 3, 1, 3, c); break;
+    case 'hammer':     s = px(7, 4, 2, 10, G[4]) + px(4, 1, 8, 4, c); break;
+    case 'stab':       s = px(7, 4, 2, 11, G[4]) + px(6, 1, 4, 4, c) + px(7, 2, 2, 2, '#ffffff'); break;
+    case 'helm':       s = soft(3, 4, 10, 6, c) + px(3, 10, 10, 1, d) + px(5, 7, 6, 1, shade(c, 0.8)); break;
+    case 'ruestung':   s = soft(3, 3, 10, 9, c) + px(6, 3, 4, 1, d) + px(3, 11, 10, 1, d) + dith(9, 8, 3, 3, shade(c, 0.8)); break;
+    case 'handschuhe': s = px(2, 5, 4, 6, c) + px(2, 5, 4, 1, d) + px(10, 5, 4, 6, c) + px(10, 5, 4, 1, d); break;
+    case 'stiefel':    s = px(3, 4, 3, 7, c) + px(2, 10, 5, 2, d) + px(10, 4, 3, 7, c) + px(9, 10, 5, 2, d); break;
+    case 'talisman':   s = px(5, 2, 1, 3, G[4]) + px(10, 2, 1, 3, G[4]) + px(6, 1, 4, 1, G[4]) + soft(5, 6, 6, 6, c); break;
+    case 'ring':       s = soft(4, 6, 8, 8, d) + px(6, 8, 4, 4, '#f4f1fc') + px(6, 2, 4, 4, c); break;
+    case 'gefaehrte':  s = soft(4, 7, 8, 6, c) + px(5, 5, 1, 2, c) + px(9, 4, 1, 3, c) + px(7, 9, 1, 1, G[5]); break;
+    default: s = px(5, 5, 6, 6, c);
+  }
+  if (tier === 'verzaubert') s += px(13, 1, 1, 1, '#ffffff') + px(2, 13, 1, 1, '#ffffff');
+  return `<svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges" style="width:100%;height:100%;display:block;image-rendering:pixelated;">${s}</svg>`;
+}
+
+// ────────────────────────────────────────────────
 //  GESAMT-SVG (32×48)
-//  Reihenfolge (hinten→vorne): Körper · Hals · Kopf · Ohren · Gesicht · Haare.
-//  Haare zuletzt → lange Frisuren fallen VOR die Schultern.
+//  Reihenfolge (hinten→vorne): Körper · Hals · Kopf · Ohren · Gesicht · Haare ·
+//  Ausrüstung (opts.gear — Paperdoll: Helm über Haar, Waffe in der Hand …).
 // ────────────────────────────────────────────────
 export function avatarSVG(cfg, opts = {}) {
   const headOnly = !!opts.headOnly;
@@ -238,7 +347,8 @@ export function avatarSVG(cfg, opts = {}) {
     eyesSVG(cfg.eyes) +
     noseSVG(cfg.nose, skin) +
     mouthSVG(cfg.mouth) +
-    hairSVG(cfg.hair);
+    hairSVG(cfg.hair) +
+    (headOnly ? '' : gearSVG(cfg, opts.gear));
   const vb = headOnly ? '5 0 22 22' : '0 0 32 48';
   return `<svg viewBox="${vb}" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges" style="width:100%;height:100%;display:block;image-rendering:pixelated;">${inner}</svg>`;
 }
@@ -251,7 +361,9 @@ export function renderAvatarInto(elId, sd, opts = {}) {
 
 // ────────────────────────────────────────────────
 //  CHARAKTER-SCREEN (Anpassung)
-//  Großer Charakter + Pfeile links/rechts auf Höhe des veränderten Körperteils.
+//  UX: Merkmal-Chips oben, darunter ein 10er-KACHEL-GRID mit Live-Vorschau
+//  jeder Variante (antippen = anziehen). Name als normales Eingabefeld,
+//  das beim Tippen speichert — kein Popup mehr.
 // ────────────────────────────────────────────────
 let _activeFeature = 'hair';
 
@@ -261,15 +373,10 @@ export function renderCharacter() {
   const cfg = ensureAvatar(sd);
   renderAvatarInto('character-canvas', sd, { headOnly: false });
 
-  const nameEl = document.getElementById('char-player-name');
-  if (nameEl) nameEl.textContent = sd.playerName || 'Spieler';
-
-  const feat = AVATAR_FEATURES.find(f => f.key === _activeFeature) || AVATAR_FEATURES[0];
-
-  // Pfeile auf Höhe des Körperteils positionieren
-  const aL = document.getElementById('char-arrow-left');
-  const aR = document.getElementById('char-arrow-right');
-  if (aL && aR) { aL.style.top = feat.anchor + '%'; aR.style.top = feat.anchor + '%'; }
+  // Name: Eingabefeld befüllen (nur wenn nicht gerade darin getippt wird)
+  const nameIn = document.getElementById('char-name-input');
+  if (nameIn && document.activeElement !== nameIn) nameIn.value = sd.playerName || '';
+  _wireNameInput();
 
   // Merkmal-Chips
   const chips = document.getElementById('character-feature-chips');
@@ -278,32 +385,62 @@ export function renderCharacter() {
     return `<button onclick="avatarPick('${f.key}')" style="flex:0 0 auto;font-family:'Fredoka One',cursive;font-size:.8rem;padding:7px 12px;border:none;border-radius:50px;cursor:pointer;white-space:nowrap;${on ? 'background:linear-gradient(135deg,var(--purple),var(--pink));color:#fff;box-shadow:0 3px 0 #7a4ba8;' : 'background:#f0e6ff;color:var(--purple);'}">${f.icon} ${f.label}</button>`;
   }).join('');
 
-  // Beschriftung + Stand
-  const lbl = document.getElementById('character-feature-label');
-  if (lbl) {
-    const swatch = feat.key === 'skin'
-      ? `<span style="display:inline-block;width:18px;height:18px;border-radius:4px;border:2px solid #fff;box-shadow:0 0 0 1px #ccc;vertical-align:middle;margin-right:6px;background:${SKIN[cfg.skin]}"></span>`
-      : '';
-    lbl.innerHTML = `${feat.icon} <b>${feat.label}</b> &nbsp; ${swatch}<span style="color:var(--purple);font-weight:800;">${cfg[feat.key] + 1} / ${COUNT}</span>`;
+  // Varianten-Grid: jede Stufe als Mini-Vorschau, aktuelle markiert.
+  const grid = document.getElementById('character-variants');
+  if (grid) {
+    const key = _activeFeature;
+    const headKeys = ['hair', 'eyes', 'ears', 'nose', 'mouth', 'skin'];
+    grid.innerHTML = Array.from({ length: COUNT }, (_, v) => {
+      const preview = avatarSVG({ ...cfg, [key]: v }, { headOnly: headKeys.includes(key) });
+      const on = cfg[key] === v;
+      return `<button class="cg-tile${on ? ' sel' : ''}" onclick="avatarSet('${key}',${v})" aria-label="${key} ${v + 1}">${preview}</button>`;
+    }).join('');
   }
 }
 
-// Merkmal auswählen (Chip) → Pfeile springen ans Körperteil.
+// Namensfeld: speichert beim Tippen (debounced via change/blur), Menü-Banner
+// aktualisiert sich beim nächsten showMenu; Cloud-Commit beim Verlassen
+// (commitAvatar) — kein Prompt-Popup mehr.
+let _nameWired = false;
+function _wireNameInput() {
+  if (_nameWired) return;
+  const inp = document.getElementById('char-name-input');
+  if (!inp) return;
+  _nameWired = true;
+  const save = () => {
+    const v = (inp.value || '').trim().slice(0, 20);
+    if (!v || v === window.SD.playerName) return;
+    window.SD.playerName = v;
+    persist(window.SD);
+    if (window.currentUser) markDirty('profile');
+  };
+  inp.addEventListener('change', save);
+  inp.addEventListener('blur', save);
+}
+
+// Merkmal auswählen (Chip) → Varianten-Grid wechselt.
 export function avatarPick(key) {
   if (AVATAR_FEATURES.some(f => f.key === key)) _activeFeature = key;
   renderCharacter();
 }
 
-// Pfeil ‹/› ändert das aktuell gewählte Merkmal.
-export function avatarArrow(dir) {
+// Variante direkt setzen (Kachel im Grid).
+export function avatarSet(key, v) {
   const sd = window.SD;
   const cfg = ensureAvatar(sd);
-  cfg[_activeFeature] = wrap(cfg[_activeFeature] + dir);
+  if (!AVATAR_FEATURES.some(f => f.key === key) || !Number.isInteger(v)) return;
+  cfg[key] = wrap(v);
   persist(sd);
   if (window.currentUser) markDirty('profile');   // Pending-Flag überlebt auch Hardware-Zurück
   renderCharacter();
   renderAvatarInto('menu-avatar', sd, { headOnly: true });
   renderAvatarInto('prof-avatar', sd, { headOnly: true });
+}
+
+// Alt-API (Pfeile ‹/›) — bleibt für Kompatibilität, nutzt jetzt avatarSet.
+export function avatarArrow(dir) {
+  const cfg = ensureAvatar(window.SD);
+  avatarSet(_activeFeature, wrap(cfg[_activeFeature] + dir));
 }
 
 // Beim Öffnen Standard-Merkmal setzen.

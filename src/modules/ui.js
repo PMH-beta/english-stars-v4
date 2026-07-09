@@ -10,7 +10,7 @@ import { commitDirty } from './dialog.js';
 import { uvMap, uvLernstand, constellationWords, FORGE_DISC } from './irregular-game.js';
 import { renderAvatarInto, renderCharacter, commitAvatar, resetCharacterFeature } from './avatar.js';
 import { IRREGULAR_PRESET_ID, uvAvailableVerbs, CONSTELLATION_SIZE, cefrOf, forgeObject, FORGE_OBJECTS } from './irregular-verbs.js';
-import { objectPerkText } from './campaign-equipment.js';
+import { objectPerkText, renderEquipmentPanel } from './campaign-equipment.js';
 import { renderFriendsSection, refreshFriendBadge, friendProgress, subscribeFriendRealtime, unsubscribeFriendRealtime } from './friends.js';
 import { renderCampaign, updateTalerBadge, refreshClaimedTaler } from './campaign.js';
 
@@ -1302,6 +1302,7 @@ export function showMenu() {
 export function showProfile() {
   showScreen('profile-screen');
   renderFriendsSection();   // FREUNDE-Sektion (Suche, Anfragen, Liste) füllen
+  renderEquipmentPanel();   // AUSRÜSTUNG: Paperdoll + Inventar (WoW-artig)
   const SD = window.SD;
   renderAvatarInto('prof-avatar', SD, { headOnly: true });
   const pn = document.getElementById('prof-name');
