@@ -853,133 +853,48 @@ const FORGE_MAT = {
   pp:   { label: '✓ Past Participle', mat: 'Gold' },
 };
 
-// ── Waffen-Geometrie ─────────────────────────────────────────────────────────
-// Jede Waffe = 5 SVG-Teile in Schmiede-Reihenfolge (unten→oben), passend zu den
-// 5 Schritten der Form. `vb` = eng anliegende viewBox je Waffe, damit jede Form so
-// GROSS wie möglich dargestellt wird (preserveAspectRatio meet füllt den Platz).
-// Platzhalter-Silhouetten — du kannst die Pfade/vb durch echte Kunst ersetzen, die
-// Zustands-Logik (built/next/ghost) trägt sich von selbst. Neue Typen: hier
-// { vb, parts:[5] } ergänzen + Name in FORGE_OBJECTS.
-const WEAPON_PARTS = {
-  // 0 Knauf · 1 Griff · 2 Parier · 3 Klinge unten · 4 Klingenspitze
-  schwert: { vb: '28 4 44 118', parts: [
-    'M50 104 L58 112 L50 120 L42 112 Z',
-    'M45 86 H55 V104 H45 Z',
-    'M30 80 L36 76 H64 L70 80 L64 84 H36 Z',
-    'M44 80 H56 L53 30 H47 Z',
-    'M47 30 H53 L50 6 Z',
-  ] },
-  // Dolch: kürzer, breite Blattklinge
-  dolch: { vb: '34 28 32 94', parts: [
-    'M50 106 L57 113 L50 120 L43 113 Z',
-    'M46 90 H54 V106 H46 Z',
-    'M36 84 H64 V90 H36 Z',
-    'M44 84 H56 L57 58 H43 Z',
-    'M43 58 H57 L50 30 Z',
-  ] },
-  // Speer: langer Schaft (3) + Tülle + Blattspitze
-  speer: { vb: '39 2 22 118', parts: [
-    'M47 92 H53 V120 H47 Z',
-    'M47 60 H53 V92 H47 Z',
-    'M47 38 H53 V60 H47 Z',
-    'M44 32 H56 L53 40 H47 Z',
-    'M50 4 L59 26 L50 36 L41 26 Z',
-  ] },
-  // Streitaxt: Schaft (3) + Kopfkern + Doppelklinge
-  axt: { vb: '20 32 60 90', parts: [
-    'M47 92 H53 V120 H47 Z',
-    'M47 60 H53 V92 H47 Z',
-    'M47 36 H53 V60 H47 Z',
-    'M40 34 H60 V54 H40 Z',
-    'M40 34 L22 40 L22 50 L40 54 Z M60 34 L78 40 L78 50 L60 54 Z',
-  ] },
-  // Streithammer: Schaft (3) + Kopfkern + Kopfbacken
-  hammer: { vb: '24 28 52 94', parts: [
-    'M47 92 H53 V120 H47 Z',
-    'M47 62 H53 V92 H47 Z',
-    'M47 40 H53 V62 H47 Z',
-    'M36 30 H64 V52 H36 Z',
-    'M36 32 L26 36 V46 L36 50 Z M64 32 L74 36 V46 L64 50 Z',
-  ] },
-  // Zauberstab: Stab (3) + Fassung + Edelstein
-  stab: { vb: '35 4 30 118', parts: [
-    'M47 92 H53 V120 H47 Z',
-    'M47 60 H53 V92 H47 Z',
-    'M47 40 H53 V60 H47 Z',
-    'M42 36 H58 L54 46 H46 Z',
-    'M50 6 L63 24 L50 42 L37 24 Z',
-  ] },
-  // ── Rüstungsteile (Kampagnen-Ausrüstung) — Platzhalter-Silhouetten ──
-  // Helm: Rand · linke Schale · rechte Schale · Visierschlitz · Kamm
-  helm: { vb: '22 20 56 76', parts: [
-    'M28 84 H72 V92 H28 Z',
-    'M28 84 Q28 40 50 36 L50 84 Z',
-    'M72 84 Q72 40 50 36 L50 84 Z',
-    'M34 66 H66 V72 H34 Z',
-    'M45 36 Q50 22 55 36 L55 42 H45 Z',
-  ] },
-  // Rüstung: Bauchplatte · linke Brust · rechte Brust · Schultern · Emblem
-  ruestung: { vb: '20 32 60 72', parts: [
-    'M34 84 H66 L62 100 H38 Z',
-    'M30 48 L50 44 V84 H32 Z',
-    'M70 48 L50 44 V84 H68 Z',
-    'M24 46 L36 38 H64 L76 46 L70 54 H30 Z',
-    'M50 56 L58 66 L50 78 L42 66 Z',
-  ] },
-  // Handschuhe: linke Stulpe · linke Hand · rechte Stulpe · rechte Hand · Knöchel
-  handschuhe: { vb: '20 46 60 50', parts: [
-    'M26 78 H44 V90 H26 Z',
-    'M26 52 H44 V78 H26 Z',
-    'M56 78 H74 V90 H56 Z',
-    'M56 52 H74 V78 H56 Z',
-    'M30 60 H40 V66 H30 Z M60 60 H70 V66 H60 Z',
-  ] },
-  // Stiefel: linker Fuß · linker Schaft · rechter Fuß · rechter Schaft · Borten
-  stiefel: { vb: '18 36 64 62', parts: [
-    'M24 80 H48 V92 H24 Z',
-    'M28 42 H44 V80 H28 Z',
-    'M52 80 H76 V92 H52 Z',
-    'M56 42 H72 V80 H56 Z',
-    'M28 42 H44 V48 H28 Z M56 42 H72 V48 H56 Z',
-  ] },
-  // Talisman: Kordel links · Kordel rechts · Fassung · Medaillon · Kernstein
-  talisman: { vb: '26 14 48 86', parts: [
-    'M50 18 Q30 26 34 50 L38 50 Q36 30 52 22 Z',
-    'M50 18 Q70 26 66 50 L62 50 Q64 30 48 22 Z',
-    'M44 50 H56 V58 H44 Z',
-    'M50 56 L68 76 L50 96 L32 76 Z',
-    'M50 66 L58 76 L50 86 L42 76 Z',
-  ] },
-  // Ring: Bandbogen unten · Band links · Band rechts · Fassung · Edelstein
-  ring: { vb: '24 20 52 80', parts: [
-    'M32 72 Q50 96 68 72 L62 68 Q50 84 38 68 Z',
-    'M32 72 Q28 56 38 46 L44 52 Q36 60 38 68 Z',
-    'M68 72 Q72 56 62 46 L56 52 Q64 60 62 68 Z',
-    'M44 40 H56 L60 48 H40 Z',
-    'M50 24 L60 38 L50 48 L40 38 Z',
-  ] },
-  // Gefährte: Körper · Kopf · Ohren · Schwanz · Augen
-  gefaehrte: { vb: '20 22 62 68', parts: [
-    'M34 62 Q50 50 66 62 Q70 82 50 86 Q30 82 34 62 Z',
-    'M38 46 Q50 32 62 46 Q64 58 50 60 Q36 58 38 46 Z',
-    'M40 40 L36 26 L48 36 Z M60 40 L64 26 L52 36 Z',
-    'M66 70 Q80 66 78 52 L72 52 Q74 62 64 66 Z',
-    'M44 48 h4 v4 h-4 Z M52 48 h4 v4 h-4 Z',
-  ] },
+// ── Objekt-Geometrie (LO-FI PIXEL ART, Art-Direction) ────────────────────────
+// Jedes Objekt = 5 PIXEL-Teile in Schmiede-Reihenfolge (unten→oben) auf einem
+// gemeinsamen 16×24-Raster. Ein Teil = Liste von [x,y,w,h]-Rechtecken. Die
+// Zustands-Logik (built/next/ghost) färbt die <g>-Gruppen per CSS (.wp) —
+// Material Stahl/Gold über .forge-weapon.past/.pp wie gehabt.
+const PIXEL_PARTS = {
+  // Knauf · Griff · Parierstange · Klinge · Spitze
+  schwert:    [[[6, 21, 4, 2], [7, 23, 2, 1]], [[7, 17, 2, 4]], [[4, 15, 8, 2]], [[6, 5, 4, 10]], [[6, 3, 4, 2], [7, 1, 2, 2]]],
+  dolch:      [[[6, 20, 4, 2]], [[7, 17, 2, 3]], [[5, 15, 6, 2]], [[6, 8, 4, 7]], [[7, 5, 2, 3]]],
+  // Schaft ×3 · Tülle · Blattspitze
+  speer:      [[[7, 18, 2, 5]], [[7, 12, 2, 6]], [[7, 7, 2, 5]], [[6, 5, 4, 2]], [[6, 2, 4, 3], [7, 0, 2, 2]]],
+  axt:        [[[7, 18, 2, 5]], [[7, 12, 2, 6]], [[7, 7, 2, 5]], [[4, 5, 6, 5]], [[1, 4, 3, 7], [0, 5, 1, 5]]],
+  hammer:     [[[7, 18, 2, 5]], [[7, 12, 2, 6]], [[7, 7, 2, 5]], [[4, 4, 8, 5]], [[2, 5, 2, 4], [12, 5, 2, 4]]],
+  stab:       [[[7, 18, 2, 5]], [[7, 12, 2, 6]], [[7, 7, 2, 5]], [[6, 5, 4, 2]], [[6, 1, 4, 4], [7, 0, 2, 1]]],
+  // Rand · linke Schale · rechte Schale · Kuppel · Kamm
+  helm:       [[[3, 18, 10, 2]], [[3, 10, 4, 8]], [[9, 10, 4, 8]], [[4, 7, 8, 3], [5, 5, 6, 2]], [[7, 2, 2, 4]]],
+  // Bauch · Brust links · Brust rechts · Schultern · Emblem
+  ruestung:   [[[4, 16, 8, 4]], [[3, 8, 5, 8]], [[8, 8, 5, 8]], [[1, 7, 4, 3], [11, 7, 4, 3]], [[7, 11, 2, 3], [6, 12, 4, 1]]],
+  // linke Stulpe · linke Hand · rechte Stulpe · rechte Hand · Knöchel
+  handschuhe: [[[2, 14, 5, 3]], [[2, 8, 5, 6]], [[9, 14, 5, 3]], [[9, 8, 5, 6]], [[3, 10, 3, 2], [10, 10, 3, 2]]],
+  // linke Sohle · linker Schaft · rechte Sohle · rechter Schaft · Borten
+  stiefel:    [[[1, 19, 6, 3]], [[2, 10, 4, 9]], [[9, 19, 6, 3]], [[10, 10, 4, 9]], [[2, 10, 4, 2], [10, 10, 4, 2]]],
+  // Kordel links · Kordel rechts · Fassung · Medaillon · Kernstein
+  talisman:   [[[4, 3, 2, 2], [3, 5, 2, 5]], [[10, 3, 2, 2], [11, 5, 2, 5]], [[6, 9, 4, 2]], [[5, 11, 6, 6]], [[7, 13, 2, 2]]],
+  // Bandbogen · Band links · Band rechts · Fassung · Edelstein
+  ring:       [[[5, 18, 6, 2]], [[3, 12, 2, 6]], [[11, 12, 2, 6]], [[5, 9, 6, 3]], [[6, 4, 4, 5], [7, 2, 2, 2]]],
+  // Körper · Kopf · Ohren · Schwanz · Augen
+  gefaehrte:  [[[4, 15, 8, 6]], [[5, 8, 7, 6]], [[5, 5, 2, 3], [10, 4, 2, 4]], [[12, 16, 3, 2], [14, 13, 2, 3]], [[7, 10, 1, 2], [10, 10, 1, 2]]],
 };
-WEAPON_PARTS._default = WEAPON_PARTS.schwert;
+PIXEL_PARTS._default = PIXEL_PARTS.schwert;
 
-// Die Waffe als 5-teiliges SVG: gemeisterte Teile solide (built), das nächste zu
-// schmiedende Teil pulsiert (next), der Rest ist transparent (ghost) — so erkennt
-// man die Endform schon vorher. Teil-Index = Schritt-Reihenfolge (unten→oben).
+// Das Objekt als 5-teiliges Pixel-SVG: gemeisterte Teile solide (built), das
+// nächste zu schmiedende Teil pulsiert (next), der Rest ist nur angedeutet
+// (ghost) — Teil-Index = Schritt-Reihenfolge (unten→oben).
 function _forgeWeaponSvg(type, steps, nextI) {
-  const w = WEAPON_PARTS[type] || WEAPON_PARTS._default;
-  const paths = w.parts.map((d, i) => {
+  const parts = PIXEL_PARTS[type] || PIXEL_PARTS._default;
+  const gs = parts.map((rects, i) => {
     const s = steps[i];
     const cls = (s && s.lit) ? 'wp built' : (i === nextI ? 'wp next' : 'wp ghost');
-    return `<path class="${cls}" d="${d}"/>`;
+    return `<g class="${cls}">${rects.map(r => `<rect x="${r[0]}" y="${r[1]}" width="${r[2]}" height="${r[3]}"/>`).join('')}</g>`;
   }).join('');
-  return `<svg class="fw-weapon" viewBox="${w.vb}" preserveAspectRatio="xMidYMid meet" aria-hidden="true">${paths}</svg>`;
+  return `<svg class="fw-weapon" viewBox="0 0 16 24" preserveAspectRatio="xMidYMid meet" shape-rendering="crispEdges" style="image-rendering:pixelated;" aria-hidden="true">${gs}</svg>`;
 }
 
 // Eine Waffe (Stahl-Past oder Gold-PP) groß als Mittelpunkt. KEINE Einzel-Schritte

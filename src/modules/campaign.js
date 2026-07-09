@@ -18,7 +18,6 @@ import { commitDirty } from './dialog.js';
 import { HP_MAX, REST_HEAL } from './campaign-balance.js';
 import { openFight, fightPoolReady, verbsReady } from './campaign-fight.js';
 import { equipEffects, openPotionChoice, POTIONS } from './campaign-equipment.js';
-import { showProfile } from './ui.js';
 
 const ROWS = 13;            // Reihe 0 = Start (unten), Reihe ROWS-1 = Boss (oben)
 const COLS = 5;
@@ -175,15 +174,9 @@ export function startCampaignRun() {
   renderCampaign();
 }
 
-// Ausrüstung liegt jetzt als Paperdoll im PROFIL (keine eigene Seite mehr) —
-// die 🎒-Buttons (Startansicht, Run-Kopf, Rastplatz) springen dorthin. Die max.
-// HP eines laufenden Runs werden beim nächsten Karten-Render angeglichen
-// (_renderCampaignNow), Rückweg ist der normale Zurück-Button des Profils.
-export function openCampaignEquipment() {
-  showProfile();
-  const el = document.getElementById('prof-equip-section');
-  if (el) el.scrollIntoView({ block: 'start', behavior: 'smooth' });
-}
+// Ausrüstung liegt als Paperdoll im PROFIL — die Kampagne verweist nicht mehr
+// darauf. Die max. HP eines laufenden Runs werden beim Karten-Render an die
+// Rüstung angeglichen (_renderCampaignNow).
 
 export function campaignNode(id) {
   const c = _camp();
@@ -203,23 +196,12 @@ export function campaignNode(id) {
   run.pos = id;
   if (!run.visited.includes(id)) run.visited.push(id);
   if (node.type === 'rest') {
-    // 🔥 Rastplatz: heilen ODER Ausrüstung wechseln (eins von beiden).
-    const heal = () => {
-      const before = run.hp;
-      run.hp = Math.min(run.hpMax, run.hp + REST_HEAL);
-      _saveCampaign();
-      renderCampaign();
-      window.esToast?.('🔥 Ausgeruht: +' + (run.hp - before) + ' HP');
-    };
+    // 🔥 Rastplatz: ausruhen (+HP, gedeckelt).
+    const before = run.hp;
+    run.hp = Math.min(run.hpMax, run.hp + REST_HEAL);
     _saveCampaign();
     renderCampaign();
-    if (window.esConfirm) {
-      window.esConfirm({
-        icon: '🔥', title: 'Rastplatz',
-        body: `Ausruhen (<b>+${REST_HEAL} HP</b>) oder die Ausrüstung wechseln?`,
-        ok: '❤️ Ausruhen', cancel: '🎒 Ausrüstung',
-      }).then(ok => { if (ok) heal(); else openCampaignEquipment(); });
-    } else heal();
+    window.esToast?.('🔥 Ausgeruht: +' + (run.hp - before) + ' HP');
     return;
   }
   if (node.type === 'treasure') {
@@ -355,9 +337,6 @@ function _startScreenHtml() {
     <button onclick="startCampaignRun()" ${canStart ? '' : 'disabled'}
       style="font-family:'Fredoka One',cursive;font-size:1rem;padding:14px 26px;border:none;border-radius:14px;cursor:${canStart ? 'pointer' : 'not-allowed'};background:${canStart ? 'linear-gradient(135deg,#a86cdb,#c084fc)' : '#e5def2'};color:${canStart ? '#fff' : '#a79cc2'};box-shadow:${canStart ? '0 4px 0 #7d4bb0' : 'none'};">
       ▶️ Kampagne starten (${STAKE_COST} 🪙)</button>
-    <div style="margin-top:12px;">
-      <button onclick="openCampaignEquipment()" class="back-btn">🎒 Ausrüstung</button>
-    </div>
     ${canStart ? '' : `<div style="font-size:.82rem;color:#8a83a5;font-weight:700;margin-top:12px;">Nicht genug Taler — bring weitere Übungsarten auf 100 %.</div>`}`);
 }
 
@@ -400,7 +379,6 @@ function _mapHtml(run, preview) {
       <div style="font-family:'Fredoka One',cursive;font-size:.8rem;color:var(--text);margin-bottom:3px;">❤️ ${run.hp} / ${run.hpMax}</div>
       <div style="height:12px;background:#ece5f9;border-radius:8px;overflow:hidden;"><div style="height:100%;width:${hpPct}%;background:linear-gradient(90deg,#ff6b6b,#e03131);"></div></div>
     </div>
-    <button onclick="openCampaignEquipment()" class="back-btn" style="font-size:.72rem;padding:8px 12px;flex-shrink:0;">🎒</button>
     <button onclick="campaignGiveUp()" class="back-btn" style="font-size:.72rem;padding:8px 12px;flex-shrink:0;color:#c0392b;">🏳️ Aufgeben</button>
   </div>
   ${run.fight ? `<div style="text-align:center;margin-bottom:8px;">

@@ -197,8 +197,8 @@ export const CONSTELLATION_NAMES = [
 // Past) und eine Gold-Waffe (Past Participle), die sich auch in der Form unterscheiden.
 // Kuratiertes Set: Gegenstände, die sich sauber in 5 gestapelte Teile zerlegen
 // lassen (Griff→Kopf/Klinge), damit jede Waffe Teil für Teil geschmiedet werden
-// kann. Die Teil-Geometrie (SVG) liegt in ui.js (WEAPON_PARTS, je type). icon =
-// Fallback. Mehr Typen jederzeit ergänzbar (type + 5 Pfade in WEAPON_PARTS).
+// kann. Die Teil-Geometrie (Pixel-Rechtecke) liegt in ui.js (PIXEL_PARTS, je
+// type). icon = Fallback. Neue Typen: type + 5 Teile in PIXEL_PARTS ergänzen.
 // slot = Ausrüstungs-Slot in der Kampagne ('weapon' | 'head' | 'body' | 'arms' |
 // 'legs' | 'talisman' | 'ring' | 'companion'). Waffen haben zusätzlich einen
 // Typ-Vorteil (campaign-balance.js WEAPON_PERK).
