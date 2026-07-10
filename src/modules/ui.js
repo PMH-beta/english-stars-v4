@@ -1232,6 +1232,10 @@ function initUvSliders() {
       if (track._pending) _finalizeSnap(track);   // laufenden Snap sofort abschließen
       _centerTrack(track, false);
       startX = e.clientX; dx = 0; track._moved = false;
+      // Echtes Tipp-Ziel VOR der Pointer-Capture merken: nach setPointerCapture
+      // leiten Chrome/Edge auch das click-Event auf den Track um → e.target wäre
+      // der Track und closest('[data-forge]') (Kind!) fände nichts mehr.
+      track._downTarget = e.target;
       track.style.transition = 'none';
       track.setPointerCapture?.(e.pointerId);
     });
@@ -1256,16 +1260,18 @@ function initUvSliders() {
     track.addEventListener('pointerup', end);
     track.addEventListener('pointercancel', end);
     track.addEventListener('click', (e) => {
+      const origin = track._downTarget || e.target;   // s. pointerdown (Capture-Umleitung)
+      track._downTarget = null;
       if (track._moved) { track._moved = false; return; }   // war ein Wisch
       // Ganze Waffe antippen → gemischte Form-Runde (alle 5 Modi zufällig).
-      const f = e.target.closest('[data-forge]');
+      const f = origin.closest('[data-forge]');
       if (f) {
         const [ci, which] = f.getAttribute('data-forge').split(':');
         window.startConstellationForm(Number(ci), which);
         return;
       }
       // Einzel-Schritt (Alt-Pfad, falls noch verwendet).
-      const g = e.target.closest('[data-play]');
+      const g = origin.closest('[data-play]');
       if (!g) return;
       const [ci, si] = g.getAttribute('data-play').split(':').map(Number);
       window.startConstellationStar(ci, si);
