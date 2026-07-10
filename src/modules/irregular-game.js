@@ -154,12 +154,22 @@ export function startConstellationForm(cIdx, which) {
 }
 
 // ── Trainingsplatz: eine Disziplin über ALLE Verben eines Trainings-Decks ────
-// (beide Formen, eigene _tr_-Stats — der Schmiede-Fortschritt bleibt unberührt).
+// (eigene _tr_-Stats — der Schmiede-Fortschritt bleibt unberührt).
 // Deck.vocab hält nur {de,en}; die Formen kommen aus IRREGULAR_VERBS (verbsByEns).
+// deck.uvForms steuert die geübten Formen: 'past' = nur Simple Past, 'both' =
+// beide, 'open' = nach Reset noch nicht gewählt, null/undefined = Legacy (beide).
+export function uvTrainForms(deck) {
+  return (deck && deck.uvForms === 'past') ? ['past'] : ['past', 'pp'];
+}
+
 export function startUvTraining(deckId, disc) {
   if (!UV_TRAIN_SUF[disc]) return;
   const deck = window.SD && window.SD.decks ? window.SD.decks[deckId] : null;
   if (!deck) return;
+  if (deck.uvForms === 'open') {
+    window.esAlert?.({ icon: '⏱', title: 'Erst Formen wählen', body: 'Wähle auf der Deck-Karte, ob du nur Simple Past oder beide Formen üben willst.' });
+    return;
+  }
   const verbs = verbsByEns((deck.vocab || []).map((v) => v.en));
   if (!verbs.length) {
     window.esAlert?.({ icon: '🎯', title: 'Keine Verben', body: 'In diesem Trainings-Deck stecken keine unregelmäßigen Verben.' });
@@ -169,7 +179,7 @@ export function startUvTraining(deckId, disc) {
   window.isSchnellModus = false;
   window._uvConstellation = null;
   window._uvStar = null;
-  window._uvTrain = { deckId, disc };
+  window._uvTrain = { deckId, disc, forms: uvTrainForms(deck) };
   if (typeof window.VOCAB === 'undefined') window.VOCAB = [];
   window.VOCAB.length = 0;
   verbs.map(irregularAsVocab).forEach((v) => window.VOCAB.push(v));
@@ -177,14 +187,15 @@ export function startUvTraining(deckId, disc) {
 }
 
 // Trainings-Fortschritt eines Decks je Disziplin: ein Verb zählt als gemeistert,
-// wenn BEIDE Formen (Past + PP) im _tr_-Suffix sitzen.
+// wenn ALLE gewählten Formen (uvTrainForms) im _tr_-Suffix sitzen.
 export function uvTrainProgress(deck, disc) {
   const sufs = UV_TRAIN_SUF[disc];
   const ws = _ws();
+  const forms = uvTrainForms(deck);
   const verbs = verbsByEns(((deck && deck.vocab) || []).map((v) => v.en));
   let mastered = 0;
   for (const v of verbs) {
-    if (['past', 'pp'].every((w) => isStatMastered(ws[statKeyFor(v.de, v.en, sufs[w], IRREGULAR_PRESET_ID)]))) mastered++;
+    if (forms.every((w) => isStatMastered(ws[statKeyFor(v.de, v.en, sufs[w], IRREGULAR_PRESET_ID)]))) mastered++;
   }
   return { mastered, total: verbs.length };
 }
@@ -194,10 +205,14 @@ export function uvTrainProgress(deck, disc) {
 export function uvProgress() {
   const verbs = (window.VOCAB || []).filter((v) => v.forms);
   const tr = window._uvTrain;
-  if (tr && UV_TRAIN_SUF[tr.disc]) {   // Trainingsplatz: beide Formen der Disziplin
+  if (tr && UV_TRAIN_SUF[tr.disc]) {   // Trainingsplatz: die gewählten Formen der Disziplin
     const sufs = UV_TRAIN_SUF[tr.disc];
-    const a = _slotScore(verbs, sufs.past), b = _slotScore(verbs, sufs.pp);
-    return { score: a.score + b.score, mastered: a.mastered + b.mastered, total: a.total + b.total };
+    let score = 0, mastered = 0, total = 0;
+    for (const w of (tr.forms || ['past', 'pp'])) {
+      const r = _slotScore(verbs, sufs[w]);
+      score += r.score; mastered += r.mastered; total += r.total;
+    }
+    return { score, mastered, total };
   }
   const star = window._uvStar;
   if (star && star.suf) return _slotScore(verbs, star.suf);   // aktuelles Teil (= Overview-%)

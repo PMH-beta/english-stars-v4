@@ -211,6 +211,7 @@ async function _cloudLoadOnce(userId) {
       mode:             row.mode || 'free',
       sortOrder:        (row.sort_order > 0) ? row.sort_order : (i + 1) * 10,
       lastExam:         row.last_exam || null,
+      uvForms:          row.uv_forms || null,
     };
   }
 
@@ -307,6 +308,9 @@ export async function saveDeck(deck, userId) {
     mode:               deck.mode || 'free',
     sort_order:         deck.sortOrder || 0,
     last_exam:          deck.lastExam || null,
+    // uv_forms nur bei Trainings-Decks mitschicken — so bleiben normale Deck-
+    // Writes unberührt, falls die Spalte (Migration) noch fehlt.
+    ...(deck.mode === 'training' ? { uv_forms: deck.uvForms || null } : {}),
   };
   console.log('[sync] saveDeck →', deck.id, '| vocab:', deck.vocab?.length ?? '?', 'words | row:', row);
 

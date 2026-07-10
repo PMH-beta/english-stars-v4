@@ -363,10 +363,10 @@ function buildUVPool(m, limit){
   // eigene _tr_-Suffixe (der Schmiede-Stationsfortschritt bleibt unberührt).
   if(m==='uvtrain' && window._uvTrain && UV_TRAIN_SUF[window._uvTrain.disc]){
     const disc=window._uvTrain.disc, sufs=UV_TRAIN_SUF[disc];
+    const forms=window._uvTrain.forms||['past','pp'];   // deck.uvForms: 'past' = nur Simple Past
     window.VOCAB.forEach(v=>{
       if(!v.forms) return;
-      all.push(bDisc(v,'past',disc,sufs.past));
-      all.push(bDisc(v,'pp',disc,sufs.pp));
+      forms.forEach(w=>all.push(bDisc(v,w,disc,sufs[w])));
     });
     const getS=q=>window.SD?.globalPresetStats?.wordStats?.[q.statKey];
     return weightedPickUnique(all, getS, limit);
