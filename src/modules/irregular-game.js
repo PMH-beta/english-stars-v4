@@ -12,7 +12,7 @@
 
 import { startGame } from './game.js';
 import { effectivePct, isStatMastered, statKeyFor } from './stats.js';
-import { irregularAsVocab, getConstellations, IRREGULAR_PRESET_ID } from './irregular-verbs.js';
+import { irregularAsVocab, getConstellations, IRREGULAR_PRESET_ID, UV_TRAIN_SUF, verbsByEns } from './irregular-verbs.js';
 
 export const SLOTS_PER_FORM = 5;
 // Die drei Disziplinen (Icon + Name) — von ui.js/game.js für Label/% genutzt.
@@ -128,6 +128,7 @@ function _enterUV(c) {
   window.isUV = true;
   window.isSchnellModus = false;   // UV hat keinen Schnell-Toggle → immer echte Wertung
   window._uvConstellation = c;
+  window._uvTrain = null;          // Stations-Runde ≠ Trainingsplatz (uvProgress-Routing)
   if (typeof window.VOCAB === 'undefined') window.VOCAB = [];
   window.VOCAB.length = 0;
   c.verbs.map(irregularAsVocab).forEach((v) => window.VOCAB.push(v));
@@ -152,11 +153,53 @@ export function startConstellationForm(cIdx, which) {
   startGame('uvslot');
 }
 
+// ── Trainingsplatz: eine Disziplin über ALLE Verben eines Trainings-Decks ────
+// (beide Formen, eigene _tr_-Stats — der Schmiede-Fortschritt bleibt unberührt).
+// Deck.vocab hält nur {de,en}; die Formen kommen aus IRREGULAR_VERBS (verbsByEns).
+export function startUvTraining(deckId, disc) {
+  if (!UV_TRAIN_SUF[disc]) return;
+  const deck = window.SD && window.SD.decks ? window.SD.decks[deckId] : null;
+  if (!deck) return;
+  const verbs = verbsByEns((deck.vocab || []).map((v) => v.en));
+  if (!verbs.length) {
+    window.esAlert?.({ icon: '🎯', title: 'Keine Verben', body: 'In diesem Trainings-Deck stecken keine unregelmäßigen Verben.' });
+    return;
+  }
+  window.isUV = true;
+  window.isSchnellModus = false;
+  window._uvConstellation = null;
+  window._uvStar = null;
+  window._uvTrain = { deckId, disc };
+  if (typeof window.VOCAB === 'undefined') window.VOCAB = [];
+  window.VOCAB.length = 0;
+  verbs.map(irregularAsVocab).forEach((v) => window.VOCAB.push(v));
+  startGame('uvtrain');
+}
+
+// Trainings-Fortschritt eines Decks je Disziplin: ein Verb zählt als gemeistert,
+// wenn BEIDE Formen (Past + PP) im _tr_-Suffix sitzen.
+export function uvTrainProgress(deck, disc) {
+  const sufs = UV_TRAIN_SUF[disc];
+  const ws = _ws();
+  const verbs = verbsByEns(((deck && deck.vocab) || []).map((v) => v.en));
+  let mastered = 0;
+  for (const v of verbs) {
+    if (['past', 'pp'].every((w) => isStatMastered(ws[statKeyFor(v.de, v.en, sufs[w], IRREGULAR_PRESET_ID)]))) mastered++;
+  }
+  return { mastered, total: verbs.length };
+}
+
 // ── Live-Fortschritt im Spiel (progressForCurrentMode in game.js) ────────────
 // Slot-Runde → genau das aktive Teil-Suffix. Fallback: ganze Waffe.
 export function uvProgress() {
-  const star = window._uvStar;
   const verbs = (window.VOCAB || []).filter((v) => v.forms);
+  const tr = window._uvTrain;
+  if (tr && UV_TRAIN_SUF[tr.disc]) {   // Trainingsplatz: beide Formen der Disziplin
+    const sufs = UV_TRAIN_SUF[tr.disc];
+    const a = _slotScore(verbs, sufs.past), b = _slotScore(verbs, sufs.pp);
+    return { score: a.score + b.score, mastered: a.mastered + b.mastered, total: a.total + b.total };
+  }
+  const star = window._uvStar;
   if (star && star.suf) return _slotScore(verbs, star.suf);   // aktuelles Teil (= Overview-%)
   if (star && star.which) {                                   // Fallback: ganze Waffe
     let score = 0, mastered = 0, total = 0;

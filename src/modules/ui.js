@@ -1,15 +1,15 @@
 // src/modules/ui.js
 import { persist, freshData, clearStorage } from './storage.js';
 import { effectivePct, isStatMastered, statKeyFor } from './stats.js';
-import { syncMirrorFromActiveDeck, deckProgress, presetProgressPct, renderDecks, migrateStatKeys, migrateDeckModes, deckMode, activeDeckIdForMode } from './decks.js';
+import { syncMirrorFromActiveDeck, deckProgress, presetProgressPct, renderDecks, migrateStatKeys, migrateDeckModes, deckMode, activeDeckIdForMode, createDeck, deleteDeck } from './decks.js';
 import { getPresetCategories } from './vocab.js';
 import { releaseMicStream, stopVisualizer, voskStop, speakWord } from './speech.js';
 import { signIn, signUp, signOut, resendConfirmation, requestPasswordReset, updatePassword, signInWithGoogle } from './auth.js';
 import { cloudLoad, cloudReset, saveDeck, saveWordStats, saveExam, markDirty, flushPendingSync, setCloudConfirmed, getPendingCount, setKnownSig, cloudChangedRemotely, deleteCloudPresetStats } from './sync.js';
 import { commitDirty } from './dialog.js';
-import { uvMap, uvLernstand, constellationWords, FORGE_DISC, SLOTS_PER_FORM } from './irregular-game.js';
+import { uvMap, uvLernstand, constellationWords, FORGE_DISC, SLOTS_PER_FORM, uvTrainProgress } from './irregular-game.js';
 import { renderAvatarInto, renderCharacter, commitAvatar, resetCharacterFeature } from './avatar.js';
-import { IRREGULAR_PRESET_ID, uvAvailableVerbs, CONSTELLATION_SIZE, cefrOf, forgeObject, FORGE_OBJECTS, usedForgeObjects, getConstellations } from './irregular-verbs.js';
+import { IRREGULAR_PRESET_ID, uvAvailableVerbs, CONSTELLATION_SIZE, cefrOf, forgeObject, FORGE_OBJECTS, usedForgeObjects, getConstellations, allVerbsSorted, verbsByEns } from './irregular-verbs.js';
 import { objectPerkText, renderEquipmentPanel } from './campaign-equipment.js';
 import { renderFriendsSection, refreshFriendBadge, friendProgress, subscribeFriendRealtime, unsubscribeFriendRealtime } from './friends.js';
 import { renderCampaign, updateTalerBadge, refreshClaimedTaler } from './campaign.js';
@@ -336,11 +336,174 @@ export async function setActiveMode(mode) {
   if (window.currentUser) { markDirty('profile'); await commitDirty(); }
 }
 
-// ── Unregelmäßige: nur noch die Schmiede (Gestaltwandler) ──
+// ── Unregelmäßige: Trainingsplatz (oben, aufklappbar) + die Schmiede ──
 function renderStudentMode() {
   const uv = document.getElementById('student-uv');
   if (uv) uv.style.display = 'block';
+  renderUvTrainingSection();
   renderStudentUV();
+}
+
+// ── Trainingsplatz: aufklappbare Sektion ÜBER der Schmiede (wie Probetest) ──
+// Trainings-Decks sind ECHTE Decks (SD.decks) mit mode 'training' → Sync läuft
+// über die decks-Tabelle wie bei Vokabelsammlungen. Die drei Spiel-Sektionen
+// sind die Schmiede-Disziplinen (🔍 Erkennen · 🔨 Schmieden · 🪄 Verzaubern) mit
+// eigenen _tr_-Stats — der Schmiede-Stationsfortschritt bleibt unberührt.
+// Achtung: mode 'training' (nicht 'student') — migrateDeckModes räumt 'student' weg.
+const UV_TRAIN_MAX = 15;
+let _uvTrainExpanded = false;
+export function toggleUvTraining() { _uvTrainExpanded = !_uvTrainExpanded; renderUvTrainingSection(); }
+
+function _trainingDecks() {
+  return Object.values(window.SD?.decks || {})
+    .filter((d) => deckMode(d) === 'training')
+    .sort((a, b) => ((a.sortOrder ?? a.createdAt ?? 0) - (b.sortOrder ?? b.createdAt ?? 0)));
+}
+
+// Ein Trainings-Deck als Karte: Kopf wie Deck-Karten (Name, Anzahl, Mini-Balken),
+// darunter immer sichtbar die drei Disziplin-Buttons + Löschen.
+function _trainDeckCardHtml(deck) {
+  const per = ['erkennen', 'schmieden', 'verzaubern'].map((d) => uvTrainProgress(deck, d));
+  const total = per.reduce((s, p) => s + p.total, 0);
+  const mastered = per.reduce((s, p) => s + p.mastered, 0);
+  const pct = total ? Math.round(mastered / total * 100) : 0;
+  const sub = (p) => `⭐ ${p.mastered}/${p.total} gemeistert`;
+  const id = deck.id;
+  return `<div class="deck-card" style="border:1px solid var(--line);box-shadow:none;margin-bottom:10px;">
+    <div class="deck-header" style="cursor:default;">
+      <div class="deck-icon">🎯</div>
+      <div class="deck-info">
+        <div class="deck-name">${window.escHtml(deck.name)}</div>
+        <div class="deck-meta"><span>📝 ${(deck.vocab || []).length} Verben</span></div>
+        <div class="deck-progress-mini"><div class="deck-progress-mini-fill" style="width:${pct}%"></div></div>
+      </div>
+      <div class="deck-pct">${pct}%</div>
+    </div>
+    <div style="padding:0 14px 14px;">
+      <div class="mode-buttons">
+        <button class="big-btn blue" onclick="startUvTraining('${id}','erkennen')">
+          <span class="icon-btn">🔍</span><div><span>Erkennen</span><span class="btn-sub">${sub(per[0])}</span></div>
+        </button>
+        <button class="big-btn purple" onclick="startUvTraining('${id}','schmieden')">
+          <span class="icon-btn">🔨</span><div><span>Schmieden</span><span class="btn-sub">${sub(per[1])}</span></div>
+        </button>
+        <button class="big-btn pink" onclick="startUvTraining('${id}','verzaubern')">
+          <span class="icon-btn">🪄</span><div><span>Verzaubern</span><span class="btn-sub">${sub(per[2])}</span></div>
+        </button>
+      </div>
+      <div class="deck-actions">
+        <button class="deck-action-btn danger" onclick="uvTrainDelete('${id}')">🗑️ Löschen</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+export function renderUvTrainingSection() {
+  const el = document.getElementById('uv-training-section');
+  if (!el) return;
+  const decks = _trainingDecks();
+  const open = _uvTrainExpanded;
+  const sub = decks.length
+    ? decks.length + ' Deck' + (decks.length === 1 ? '' : 's') + ' · zum Aufklappen tippen'
+    : `Eigene Übungsdecks aus bis zu ${UV_TRAIN_MAX} Verben`;
+  let html =
+    '<div class="deck-card' + (open ? ' expanded' : '') + '" style="text-align:left;margin-bottom:14px;">'
+    + '<div class="deck-header" onclick="toggleUvTraining()" style="cursor:pointer;">'
+    + '<div style="width:44px;height:44px;border-radius:14px;background:linear-gradient(135deg,#fdeef0,#fbd9e0);display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">🎯</div>'
+    + '<div class="deck-info"><div class="deck-name">Trainingsplatz</div>'
+    + '<div class="deck-meta"><span>' + sub + '</span></div></div>'
+    + '<div class="deck-chevron"' + (open ? ' style="transform:rotate(180deg);"' : '') + '>▼</div>'
+    + '</div>';
+  if (open) {
+    html += '<div style="padding:0 14px 14px;">'
+      + '<button onclick="uvTrainOpenCreate()" class="big-btn green center" style="width:100%;margin-bottom:12px;"><span class="icon-btn">➕</span><span>Neues Trainings-Deck</span></button>'
+      + (decks.length
+        ? decks.map(_trainDeckCardHtml).join('')
+        : '<div style="text-align:center;color:#8a83a5;font-size:.82rem;padding:6px 0 2px;font-weight:700;">Noch kein Trainings-Deck angelegt.</div>')
+      + '</div>';
+  }
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+// Popup: Name + bis zu 15 Verben ankreuzen (alle 151, sortiert nach Stufe).
+export function uvTrainOpenCreate() {
+  const all = allVerbsSorted();
+  const overlay = document.createElement('div');
+  overlay.className = 'uv-fill-overlay';
+  document.body.appendChild(overlay);
+  const close = () => overlay.remove();
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+  const sel = new Set();
+  const defName = 'Training ' + (_trainingDecks().length + 1);
+  overlay.innerHTML = `<div class="uv-fill-card">
+    <div class="uv-fill-head">
+      <div class="uv-fill-title">🎯 Neues Trainings-Deck</div>
+      <div class="uv-fill-hint">Wähle bis zu ${UV_TRAIN_MAX} Verben — geübt wird in 🔍 Erkennen · 🔨 Schmieden · 🪄 Verzaubern.</div>
+      <input id="uv-train-name" class="uv-train-name" maxlength="30" value="${defName}"/>
+      <div class="uv-fill-count"><span id="uv-train-n">0</span>/${UV_TRAIN_MAX}</div>
+    </div>
+    <div class="uv-fill-list">
+      ${all.map((v) => `<label class="uv-fill-row" data-en="${window.escHtml(v.en)}">
+        <input type="checkbox" class="uv-fill-cb"/>
+        <span class="uv-fill-de">${window.escHtml(v.de)}</span>
+        <span class="uv-fill-en">${window.escHtml(v.en)}</span>
+        <span class="uv-fill-cefr">${cefrOf(v)}</span>
+      </label>`).join('')}
+    </div>
+    <div class="uv-fill-foot">
+      <button class="uv-fill-cancel" id="uv-train-cancel">Abbrechen</button>
+      <button class="uv-fill-ok" id="uv-train-ok" disabled>Anlegen</button>
+    </div>
+  </div>`;
+  const nEl = overlay.querySelector('#uv-train-n');
+  const okBtn = overlay.querySelector('#uv-train-ok');
+  overlay.querySelector('#uv-train-cancel').addEventListener('click', close);
+  overlay.querySelectorAll('.uv-fill-row').forEach((row) => {
+    const cb = row.querySelector('.uv-fill-cb');
+    const en = row.getAttribute('data-en');
+    cb.addEventListener('change', () => {
+      if (cb.checked && sel.size >= UV_TRAIN_MAX) { cb.checked = false; return; }
+      if (cb.checked) { sel.add(en); row.classList.add('sel'); }
+      else { sel.delete(en); row.classList.remove('sel'); }
+      nEl.textContent = String(sel.size);
+      okBtn.disabled = sel.size < 1;
+    });
+  });
+  okBtn.addEventListener('click', () => {
+    if (!sel.size) return;
+    const name = (overlay.querySelector('#uv-train-name').value || '').trim() || defName;
+    close();
+    _uvTrainCreate(name, [...sel]);
+  });
+}
+
+// Deck anlegen + syncen. Nach dem Cloud-Insert bekommt das Deck eine UUID
+// (saveDeck ersetzt die lokale Id) → danach neu rendern, damit die onclick-Ids stimmen.
+function _uvTrainCreate(name, ens) {
+  const id = createDeck(name, 'training');
+  const deck = window.SD.decks[id];
+  deck.vocab = verbsByEns(ens).map((v) => ({ de: v.de, en: v.en }));
+  persist(window.SD);
+  _uvTrainExpanded = true;
+  renderUvTrainingSection();
+  if (window.currentUser) {
+    markDirty('deck', id);
+    commitDirty().then(() => renderUvTrainingSection());
+  }
+}
+
+export async function uvTrainDelete(id) {
+  const deck = window.SD?.decks?.[id];
+  if (!deck) return;
+  const ok = await window.esConfirm({
+    icon: '🗑️', title: `„${deck.name}" löschen?`,
+    body: 'Das Trainings-Deck wird gelöscht (auch in der Cloud). Der Übungs-Fortschritt der Verben bleibt gespeichert.',
+    ok: 'Löschen', cancel: 'Behalten', danger: true,
+  });
+  if (!ok) return;
+  deleteDeck(id);
+  renderUvTrainingSection();
 }
 
 // ── Probetest: ephemerer Misch-Test über bis zu 2 Vokabelsammlungen ──
@@ -1289,6 +1452,7 @@ export function showMenu() {
   try { releaseMicStream(); } catch (e) {}
   try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) {}
   window.isUV = false;   // UV-Runde verlassen → window.VOCAB wird gleich neu gespiegelt
+  window._uvTrain = null;       // Trainingsplatz-Runde beendet (uvProgress-Routing)
   window.isProbetest = false;   // Probetest beendet → wieder normale Wertung
   hideFeedback();
   showScreen('menu-screen');

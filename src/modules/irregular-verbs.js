@@ -240,6 +240,29 @@ export function forgeObject(idx, which) {
 
 const _byEn = new Map(IRREGULAR_VERBS.map((v) => [v.en, v]));
 
+// ── Trainingsplatz (freies Üben, eigene Decks) ───────────────────────────────
+// Eigene Stat-Suffixe je Disziplin × Form — bewusst GETRENNT von den Stations-
+// Slots (_past_s0…_pp_s4): Training verändert den Schmiede-Fortschritt nicht.
+export const UV_TRAIN_SUF = {
+  erkennen:   { past: '_tr_er_past', pp: '_tr_er_pp' },
+  schmieden:  { past: '_tr_sc_past', pp: '_tr_sc_pp' },
+  verzaubern: { past: '_tr_vz_past', pp: '_tr_vz_pp' },
+};
+
+// en-Liste → Verb-Objekte (Trainings-Decks speichern nur {de,en}; forms kommen
+// von hier). Unbekannte ens werden still übersprungen.
+export function verbsByEns(ens) {
+  return (ens || []).map((en) => _byEn.get(en)).filter(Boolean);
+}
+
+// ALLE Verben (fürs Trainings-Deck frei wählbar), sortiert wie uvAvailableVerbs.
+export function allVerbsSorted() {
+  return IRREGULAR_VERBS
+    .map((v, i) => [v, i])
+    .sort((a, b) => (a[0].tier - b[0].tier) || (a[1] - b[1]))
+    .map(([v]) => v);
+}
+
 // Aktuelle Befüllungen (en-Listen je Sternbild) aus dem Spielstand. Robust gegen
 // fehlende/kaputte Einträge.
 function _fills() {

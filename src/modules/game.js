@@ -7,7 +7,7 @@ import { ensureMicStream, releaseMicStream, voskStop, stopVisualizer, speakWord,
 import { persist } from './storage.js';
 import { markDirty, saveExam, saveProbetest } from './sync.js';
 import { commitDirty } from './dialog.js';
-import { IRREGULAR_PRESET_ID, formDistractors } from './irregular-verbs.js';
+import { IRREGULAR_PRESET_ID, formDistractors, UV_TRAIN_SUF } from './irregular-verbs.js';
 
 // Game state – all on window.* so Commit B functions (still in index.html) can read them as globals
 window.isSchnellModus = false;            // gespiegelter Zustand des AKTIVEN Modus
@@ -359,6 +359,18 @@ function buildUVPool(m, limit){
     });
     return shuffle(all).slice(0, limit);   // isExamMode → kein Mastery-Filter (Boss prüft Gemeistertes)
   }
+  // Trainingsplatz-Runde: EINE Disziplin über alle Deck-Verben, beide Formen,
+  // eigene _tr_-Suffixe (der Schmiede-Stationsfortschritt bleibt unberührt).
+  if(m==='uvtrain' && window._uvTrain && UV_TRAIN_SUF[window._uvTrain.disc]){
+    const disc=window._uvTrain.disc, sufs=UV_TRAIN_SUF[disc];
+    window.VOCAB.forEach(v=>{
+      if(!v.forms) return;
+      all.push(bDisc(v,'past',disc,sufs.past));
+      all.push(bDisc(v,'pp',disc,sufs.pp));
+    });
+    const getS=q=>window.SD?.globalPresetStats?.wordStats?.[q.statKey];
+    return weightedPickUnique(all, getS, limit);
+  }
   // Slot-Runde (EIN Teil einer Waffe): window._uvStar = {which, slot, discipline, suf}.
   // Eine Runde übt GENAU diese Disziplin auf dem Teil-Suffix; der Aufgabentyp wird
   // je Frage zufällig gewählt (bDisc). Mastery-Filter (buildPool) lässt schon
@@ -527,7 +539,7 @@ export function startGame(m) {
 }
 
 function _launchGame(m) {
-  const hasPronounce=(m==='pronounce'||m==='mixed_vocab'||(m==='uvslot'&&window._uvStar?.discipline==='verzaubern'));
+  const hasPronounce=(m==='pronounce'||m==='mixed_vocab'||(m==='uvslot'&&window._uvStar?.discipline==='verzaubern')||(m==='uvtrain'&&window._uvTrain?.disc==='verzaubern'));
   if(hasPronounce&&navigator.mediaDevices){
     try{ warmAudio(); }catch(e){}   // AudioContext in der User-Geste aufwecken → Visualizer/Erkennung ab Runde 1 warm
     try{ warmIosMic(); }catch(e){}  // iOS: Mic-Prompt/Session jetzt etablieren statt mitten in Runde 1

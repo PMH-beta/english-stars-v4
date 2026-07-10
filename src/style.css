@@ -1320,6 +1320,14 @@ body.in-game .mode-progress{display:block;}
 .uv-obj-row.taken{opacity:.45;cursor:default;}
 .uv-obj-row.taken:hover{background:#f7f4fc;}
 
+/* Trainingsplatz: Namens-Feld im Anlegen-Popup */
+.uv-train-name{
+  width:100%;box-sizing:border-box;margin-top:8px;padding:9px 12px;
+  border:2px solid var(--line);border-radius:12px;background:#fff;
+  font-family:'Fredoka One',cursive;font-size:.95rem;color:var(--text);
+}
+.uv-train-name:focus{outline:none;border-color:var(--purple);}
+
 /* ── Schmiede & Kampagne: HELL, wie der Rest der App (ein Guss). ──
    Die Schmiede nutzt ihre hellen Basis-Styles (.forge-station weiß usw.),
    hier nur Karten-Feinschliff im neuen Look. */
