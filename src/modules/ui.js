@@ -1533,8 +1533,11 @@ function renderStudentUV() {
   if (!host) return;
   _uvEnsureInit();                       // beim ersten Mal: UV-Reset + leer starten
   const map = uvMap();
-  const parts = map.map((m) => _forgeStation(m));
-  if (uvAvailableVerbs().length >= CONSTELLATION_SIZE) parts.push(_forgeFillCard());
+  // „Werkstoff wählen" steht OBEN, darunter die Aufträge neueste zuerst —
+  // ein neuer Auftrag erscheint also direkt unter der Wahl-Karte und die
+  // Liste wächst von oben nach unten. (Nummerierung bleibt: Auftrag 1 = ältester.)
+  const parts = map.map((m) => _forgeStation(m)).reverse();
+  if (uvAvailableVerbs().length >= CONSTELLATION_SIZE) parts.unshift(_forgeFillCard());
 
   const L = uvLernstand();
   host.style.textAlign = 'center';
