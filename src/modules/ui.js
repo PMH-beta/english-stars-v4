@@ -1515,29 +1515,24 @@ function _forgeStation(m) {
   </div>`;
 }
 
-// Auftrags-Karte fürs nächste leere Werkstück — frei verfügbar (kein Freispielen
-// nötig), solange genug freie Verben da sind. So lassen sich alle Stationen vorab
-// befüllen.
-function _forgeFillCard() {
-  const remaining = uvAvailableVerbs().length;
-  return `<div class="forge-station forge-fill">
-    <div class="forge-fill-ic">✨</div>
-    <div class="forge-fill-title">Neuer Schmiede-Auftrag</div>
-    <div class="forge-fill-sub">Wähle ${CONSTELLATION_SIZE} Verben zum Schmieden · <b>${remaining}</b> noch frei</div>
-    <button class="forge-fill-btn" onclick="uvOpenFill()">✨ Werkstoff wählen</button>
-  </div>`;
-}
-
 function renderStudentUV() {
   const host = document.getElementById('student-uv');
   if (!host) return;
   _uvEnsureInit();                       // beim ersten Mal: UV-Reset + leer starten
   const map = uvMap();
-  // „Werkstoff wählen" steht OBEN, darunter die Aufträge neueste zuerst —
-  // ein neuer Auftrag erscheint also direkt unter der Wahl-Karte und die
-  // Liste wächst von oben nach unten. (Nummerierung bleibt: Auftrag 1 = ältester.)
+  // Aufträge neueste zuerst — ein neuer Auftrag erscheint direkt unter dem
+  // Kopf und die Liste wächst von oben nach unten. (Nummerierung bleibt:
+  // Auftrag 1 = ältester.)
   const parts = map.map((m) => _forgeStation(m)).reverse();
-  if (uvAvailableVerbs().length >= CONSTELLATION_SIZE) parts.unshift(_forgeFillCard());
+
+  // „Neuer Auftrag" steckt platzsparend MIT im Schmiede-Kopf (statt eigener
+  // Karte): eine Zeile Info + der bekannte „Werkstoff wählen"-Button. Nur
+  // solange genug freie Verben für eine volle Station da sind.
+  const remaining = uvAvailableVerbs().length;
+  const fillPart = remaining >= CONSTELLATION_SIZE
+    ? `<div class="forge-fill-sub" style="margin-top:8px;">✨ Neuer Auftrag: ${CONSTELLATION_SIZE} Verben wählen · <b>${remaining}</b> noch frei</div>
+       <button class="forge-fill-btn" onclick="uvOpenFill()">✨ Werkstoff wählen</button>`
+    : '';
 
   const L = uvLernstand();
   host.style.textAlign = 'center';
@@ -1548,6 +1543,7 @@ function renderStudentUV() {
       <div class="forge-emoji">⚒️</div>
       <div class="forge-h1">Die Schmiede</div>
       <div class="forge-stand">🛠️ ${L.complete}/${L.total} Stationen · 🔨 ${L.totalLit}/${L.maxLit} Schritte</div>
+      ${fillPart}
     </div>
     ${parts.join('')}
   </div>`;
