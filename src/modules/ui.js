@@ -729,77 +729,56 @@ export function uvTrainOpenStats(id) {
   pane.style.display = 'block';
 
   const verbs = verbsByEns((deck.vocab || []).map((v) => v.en));
-  const single = deck.uvForms === 'past' || deck.uvForms === 'pp';
   const ws = window.SD.globalPresetStats?.wordStats || {};
-  const statOf = (v, suf) => ws[statKeyFor(v.de, v.en, suf, IRREGULAR_PRESET_ID)];
+  const forms = uvTrainForms(deck);
 
-  // Gesamtfortschritt oben: Balken über alle Disziplinen + Taler, darunter je
-  // Disziplin eine Kachel (Optik wie die Vorlagen-Kacheln der Vokabel-Statistik).
-  const per = ['erkennen', 'schmieden', 'verzaubern'].map((d) => ({ d, p: uvTrainProgress(deck, d) }));
-  const total = per.reduce((s, x) => s + x.p.total, 0);
-  const mastered = per.reduce((s, x) => s + x.p.mastered, 0);
+  // Gesamtfortschritt-Kachel — 1:1 die Vorlagen-Kachel der Vokabel-Statistik
+  // (preset-row: Füll-Verlauf + % rechts, fertig = grün). % wie auf der Karte.
+  const per = ['erkennen', 'schmieden', 'verzaubern'].map((d) => uvTrainProgress(deck, d));
+  const total = per.reduce((s, p) => s + p.total, 0);
+  const mastered = per.reduce((s, p) => s + p.mastered, 0);
   const pct = total ? Math.round(mastered / total * 100) : 0;
-  const talerEarned = per.filter((x) => x.p.total > 0 && x.p.mastered === x.p.total).length;
-  const discRow = (x) => {
-    const dPct = x.p.total ? Math.round(x.p.mastered / x.p.total * 100) : 0;
-    const done = x.p.total > 0 && x.p.mastered === x.p.total;
-    const info = FORGE_DISC[x.d];
-    const bg = done
-      ? 'background:linear-gradient(to right,rgba(58,170,92,.18) 100%,#fff 100%);box-shadow:inset 0 0 0 2px #3aaa5c;'
-      : 'background:linear-gradient(to right,rgba(168,108,219,.15) ' + dPct + '%,#f7f7f7 ' + dPct + '%);';
-    const right = done
-      ? '<span style="font-size:.72rem;font-weight:700;color:#2a8a4a;background:rgba(58,170,92,.15);padding:3px 9px;border-radius:20px;white-space:nowrap;">✓ 🪙 erledigt</span>'
-      : `<span style="font-family:'Fredoka One',cursive;font-size:.95rem;color:#7a3aac;">${dPct}%</span>`;
-    return `<div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:12px;margin-bottom:6px;${bg}">
-      <div style="flex:1;min-width:0;">
-        <div style="font-weight:700;color:var(--text);font-size:.86rem;">${info.icon} ${info.name}</div>
-        <div style="font-size:.68rem;color:#888;">⭐ ${x.p.mastered}/${x.p.total} gemeistert</div>
+  const done = total > 0 && mastered === total;
+  const tileBg = done
+    ? 'background:linear-gradient(to right,rgba(58,170,92,.18) 100%,#fff 100%);box-shadow:inset 0 0 0 2.5px #3aaa5c;'
+    : `background:linear-gradient(to right,rgba(168,108,219,.15) ${pct}%,#fff ${pct}%);box-shadow:inset 0 0 0 2.5px #a86cdb;`;
+  const tileRight = done
+    ? '<span style="font-size:.72rem;font-weight:700;color:#2a8a4a;background:rgba(58,170,92,.15);padding:3px 9px;border-radius:20px;white-space:nowrap;flex-shrink:0;">✓ erledigt</span>'
+    : `<span style="font-family:'Fredoka One',cursive;font-size:1rem;color:#7a3aac;flex-shrink:0;">${pct}%</span>`;
+  const tileHtml = `<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:6px;">
+    <div class="preset-row" style="${tileBg}">
+      <div class="preset-info">
+        <span class="preset-name">${window.escHtml(deck.name)}</span>
+        <span class="preset-count">${verbs.length} Verben · ${_uvFormsLabel(deck)}</span>
       </div>
-      ${right}
-    </div>`;
-  };
-  const headHtml = `<div style="margin-bottom:8px;">
-    <div style="display:flex;justify-content:space-between;align-items:center;font-size:.85rem;font-weight:700;color:var(--text);margin-bottom:6px;">
-      <span>Gesamtfortschritt · ${_uvFormsLabel(deck)}</span>
-      <span style="font-family:'Fredoka One',cursive;font-size:1.05rem;color:#7a3aac;">${pct}%</span>
+      ${tileRight}
     </div>
-    <div style="height:14px;background:#eee;border-radius:10px;overflow:hidden;margin-bottom:6px;">
-      <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--purple),var(--pink));border-radius:10px;"></div>
-    </div>
-    <div style="display:flex;justify-content:space-between;align-items:center;font-size:.78rem;font-weight:700;color:#888;margin-bottom:10px;">
-      <span>⭐ ${mastered}/${total} gemeistert</span>
-      <span title="Freigespielte Taler (Erkennen / Schmieden / Verzaubern je 100 %)" style="font-size:.70rem;font-weight:800;background:rgba(201,151,0,.14);color:#a67c00;padding:2px 7px;border-radius:20px;">🪙 ${talerEarned}/3</span>
-    </div>
-    ${per.map(discRow).join('')}
   </div>`;
 
-  // Bei „beide Formen": Stand + Richtig/Falsch übereinander in EINER Zelle je
-  // Form, sonst wird die Tabelle auf dem Handy zu breit.
-  const formCell = (s) => {
-    const st = wordStatus(s, 3);
-    return `<td><span class="ws-badge ${st.cls}">${st.label}</span><div style="margin-top:3px;">${wrongDots(s)}</div></td>`;
+  // Wort-Tabellen wie bei Vokabel-Decks (_wordTablesHtml-Optik): eine Tabelle
+  // je geübter FORM, Spalten Deutsch/Englisch/Stand/Richtig-Falsch. Der Stand
+  // ist übergeordnet — die drei Disziplin-Stats werden je Wort aufsummiert.
+  const combined = (v, w) => {
+    let asked = 0, correct = 0, wrong = 0, any = false;
+    for (const disc of Object.keys(UV_TRAIN_SUF)) {
+      const s = ws[statKeyFor(v.de, v.en, UV_TRAIN_SUF[disc][w], IRREGULAR_PRESET_ID)];
+      if (!s || !s.asked) continue;
+      any = true; asked += s.asked; correct += s.correct || 0; wrong += s.wrong || 0;
+    }
+    return any ? { asked, correct, wrong, recent: '' } : null;
   };
-  const table = (disc) => {
-    const d = FORGE_DISC[disc], sufs = UV_TRAIN_SUF[disc];
-    const head = single
-      ? '<th>Deutsch</th><th>Englisch</th><th>Stand</th><th>Richtig/Falsch</th>'
-      : '<th>Deutsch</th><th>Englisch</th><th>⏱ Simple Past</th><th>✓ Participle</th>';
+  const FORM_TITLES = { past: '⏱ Simple Past', pp: '✓ Past Participle' };
+  const makeTable = (w) => {
     const rows = verbs.map((v) => {
-      let cells;
-      if (single) {
-        const s = statOf(v, deck.uvForms === 'pp' ? sufs.pp : sufs.past);
-        const st = wordStatus(s, 3);
-        cells = `<td><span class="ws-badge ${st.cls}">${st.label}</span></td><td>${wrongDots(s)}</td>`;
-      } else {
-        cells = formCell(statOf(v, sufs.past)) + formCell(statOf(v, sufs.pp));
-      }
-      return `<tr><td>${window.escHtml(v.de)}</td><td>${window.escHtml(v.en)}</td>${cells}</tr>`;
+      const s = combined(v, w);
+      const st = wordStatus(s, 3);
+      return `<tr><td>${window.escHtml(v.de)}</td><td>${window.escHtml(v.en)}</td><td><span class="ws-badge ${st.cls}">${st.label}</span></td><td>${wrongDots(s)}</td></tr>`;
     }).join('');
-    return `<h3 style="font-family:'Fredoka One',cursive;color:var(--purple);font-size:1rem;margin:16px 0 6px;">${d.icon} ${d.name}</h3>
-<table class="word-table"><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table>`;
+    return `<h3 style="font-family:'Fredoka One',cursive;color:var(--purple);font-size:1rem;margin:16px 0 6px;">${FORM_TITLES[w]}</h3>
+<table class="word-table"><thead><tr><th>Deutsch</th><th>Englisch</th><th>Stand</th><th>Richtig/Falsch</th></tr></thead><tbody>${rows}</tbody></table>`;
   };
   pane.innerHTML = verbs.length
-    ? headHtml + ['erkennen', 'schmieden', 'verzaubern'].map(table).join('')
+    ? tileHtml + forms.map(makeTable).join('')
     : '<p style="text-align:center;color:#999;padding:20px;">Keine Verben.</p>';
 }
 
