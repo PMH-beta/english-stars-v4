@@ -360,12 +360,22 @@ function _trainingDecks() {
     .sort((a, b) => ((a.sortOrder ?? a.createdAt ?? 0) - (b.sortOrder ?? b.createdAt ?? 0)));
 }
 
-// Formen-Wahl eines Trainings-Decks als Kurz-Label (Kopfzeile der Karte).
+// Optik je Auswahl-Topf: Icon + Farben (Stahl-Blau = SP, Gold = PP, Verlauf =
+// beide) — für Icon-Kachel und Label-Badge der Deck-Karte.
+const UV_TRACK_STYLE = {
+  past: { icon: '⏱',  label: 'Nur Simple Past', color: '#3a6ea8', bg: 'rgba(58,110,168,.14)' },
+  pp:   { icon: '✓',  label: 'Nur Participle',  color: '#a67c00', bg: 'rgba(202,160,74,.20)' },
+  both: { icon: '⏱✓', label: 'Beide Formen',    color: '#7a3aac', bg: 'linear-gradient(135deg,rgba(58,110,168,.14),rgba(202,160,74,.22))' },
+  open: { icon: '❓',  label: 'Formen wählen',   color: '#8a83a5', bg: '#efedf5' },
+};
+function _uvTrack(deck) {
+  return (deck.uvForms === 'past' || deck.uvForms === 'pp' || deck.uvForms === 'open') ? deck.uvForms : 'both';
+}
+
+// Formen-Wahl eines Trainings-Decks als Kurz-Label (Fortschritt-Seite u. a.).
 function _uvFormsLabel(deck) {
-  if (deck.uvForms === 'open') return '❓ Formen wählen';
-  if (deck.uvForms === 'past') return '⏱ Nur Simple Past';
-  if (deck.uvForms === 'pp') return '✓ Nur Participle';
-  return '⏱✓ Beide Formen';
+  const st = UV_TRACK_STYLE[_uvTrack(deck)];
+  return `${st.icon} ${st.label}`;
 }
 
 // Belegte Verben JE AUSWAHL-TOPF (past / pp / both) — die drei Töpfe zählen
@@ -423,12 +433,13 @@ function _trainDeckCardHtml(deck) {
         ${_uvFormChipsHtml((f) => `onclick="uvTrainChooseForms('${id}','${f}')"`)}
       </div>`
     : '';
-  return `<div class="deck-card${open ? ' expanded' : ''}" style="border:1px solid var(--line);box-shadow:none;margin-bottom:10px;">
+  const ts = UV_TRACK_STYLE[_uvTrack(deck)];
+  return `<div class="deck-card${open ? ' expanded' : ''}" style="border:1.5px solid ${ts.color}55;box-shadow:none;margin-bottom:10px;">
     <div class="deck-header" onclick="uvTrainToggleDeck('${id}')" style="cursor:pointer;">
-      <div class="deck-icon">🎯</div>
+      <div style="width:44px;height:44px;border-radius:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:${ts.bg};color:${ts.color};font-family:'Fredoka One',cursive;font-size:${ts.icon.length > 1 ? '.95rem' : '1.3rem'};">${ts.icon}</div>
       <div class="deck-info">
         <div class="deck-name">${window.escHtml(deck.name)}</div>
-        <div class="deck-meta"><span>📝 ${(deck.vocab || []).length} Verben</span><span>${_uvFormsLabel(deck)}</span><span title="Freigespielte Taler (Erkennen / Schmieden / Verzaubern je 100 %)" style="font-size:.70rem;font-weight:800;background:rgba(201,151,0,.14);color:#a67c00;padding:2px 7px;border-radius:20px;">🪙 ${talerEarned}/3</span></div>
+        <div class="deck-meta"><span>📝 ${(deck.vocab || []).length} Verben</span><span style="font-size:.70rem;font-weight:800;background:${ts.bg};color:${ts.color};padding:2px 7px;border-radius:20px;">${ts.icon} ${ts.label}</span><span title="Freigespielte Taler (Erkennen / Schmieden / Verzaubern je 100 %)" style="font-size:.70rem;font-weight:800;background:rgba(201,151,0,.14);color:#a67c00;padding:2px 7px;border-radius:20px;">🪙 ${talerEarned}/3</span></div>
         <div class="deck-progress-mini"><div class="deck-progress-mini-fill" style="width:${pct}%"></div></div>
       </div>
       <div class="deck-pct">${pct}%</div>
@@ -659,11 +670,32 @@ export async function uvTrainDelete(id) {
   if (!deck) return;
   const ok = await window.esConfirm({
     icon: '🗑️', title: `„${deck.name}" löschen?`,
-    body: 'Das Trainings-Deck wird gelöscht (auch in der Cloud). Die Verben werden für neue Trainings-Decks wieder frei; ihr Übungs-Fortschritt bleibt gespeichert.',
+    body: 'Das Trainings-Deck wird gelöscht (auch in der Cloud), samt Übungs-Fortschritt seiner Verben. Die Verben werden für neue Trainings-Decks wieder frei.',
     ok: 'Löschen', cancel: 'Behalten', danger: true,
   });
   if (!ok) return;
+  // Übungs-Fortschritt der geübten Formen mitlöschen (lokal + Cloud) — sonst
+  // zeigt ein späteres Deck mit denselben Verben alten Stand. Wie beim Reset
+  // nur die eigenen Formen: ein SP-Deck lässt PP-Stände anderer Decks stehen.
+  // (Teilt ein Beide-Deck ein Verb mit einem SP-Deck, hängt der Past-Stand an
+  // demselben globalen Key — der geht dann mit. Bewusster Trade-off.)
+  const ws = window.SD.globalPresetStats?.wordStats || {};
+  const forms = uvTrainForms(deck);
+  const statKeys = [];
+  for (const v of verbsByEns((deck.vocab || []).map((x) => x.en))) {
+    for (const disc of Object.keys(UV_TRAIN_SUF)) {
+      for (const w of forms) {
+        const key = statKeyFor(v.de, v.en, UV_TRAIN_SUF[disc][w], IRREGULAR_PRESET_ID);
+        statKeys.push(key);
+        delete ws[key];
+      }
+    }
+  }
   deleteDeck(id);
+  if (window.currentUser && statKeys.length) {
+    deleteCloudPresetStats(statKeys, [], window.currentUser.id)
+      .catch((e) => console.error('[uvTrainDelete] Cloud-Delete Stats fehlgeschlagen:', e.message));
+  }
   renderUvTrainingSection();
 }
 
