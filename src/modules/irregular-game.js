@@ -156,10 +156,13 @@ export function startConstellationForm(cIdx, which) {
 // ── Trainingsplatz: eine Disziplin über ALLE Verben eines Trainings-Decks ────
 // (eigene _tr_-Stats — der Schmiede-Fortschritt bleibt unberührt).
 // Deck.vocab hält nur {de,en}; die Formen kommen aus IRREGULAR_VERBS (verbsByEns).
-// deck.uvForms steuert die geübten Formen: 'past' = nur Simple Past, 'both' =
-// beide, 'open' = nach Reset noch nicht gewählt, null/undefined = Legacy (beide).
+// deck.uvForms steuert die geübten Formen: 'past' = nur Simple Past, 'pp' = nur
+// Past Participle, 'both' = beide, 'open' = nach Reset noch nicht gewählt,
+// null/undefined = Legacy (beide).
 export function uvTrainForms(deck) {
-  return (deck && deck.uvForms === 'past') ? ['past'] : ['past', 'pp'];
+  if (deck && deck.uvForms === 'past') return ['past'];
+  if (deck && deck.uvForms === 'pp') return ['pp'];
+  return ['past', 'pp'];
 }
 
 export function startUvTraining(deckId, disc) {

@@ -363,32 +363,38 @@ function _trainingDecks() {
 // Formen-Wahl eines Trainings-Decks als Kurz-Label (Kopfzeile der Karte).
 function _uvFormsLabel(deck) {
   if (deck.uvForms === 'open') return '❓ Formen wählen';
-  return uvTrainForms(deck).length === 1 ? '⏱ Nur Simple Past' : '⏱✓ Beide Formen';
+  if (deck.uvForms === 'past') return '⏱ Nur Simple Past';
+  if (deck.uvForms === 'pp') return '✓ Nur Participle';
+  return '⏱✓ Beide Formen';
 }
 
-// Welche Formen bestehende Trainings-Decks je Verb schon belegen (en → Set).
-// 'open' (nach Reset) zählt konservativ als beide Formen.
-function _uvClaimedForms() {
-  const map = new Map();
+// Belegte Verben JE AUSWAHL-TOPF (past / pp / both) — die drei Töpfe zählen
+// getrennt: ein Verb im „Nur Simple Past"-Deck bleibt für „Nur Participle" UND
+// für „Beide Formen" frei wählbar; gesperrt ist es nur für ein weiteres Deck
+// mit derselben Auswahl. 'open' (nach Reset) sperrt konservativ alle drei Töpfe.
+function _uvClaimedByTrack() {
+  const m = { past: new Set(), pp: new Set(), both: new Set() };
   for (const d of _trainingDecks()) {
-    const forms = uvTrainForms(d);
+    const t = d.uvForms === 'past' ? 'past' : d.uvForms === 'pp' ? 'pp' : d.uvForms === 'open' ? null : 'both';
     for (const v of (d.vocab || [])) {
-      let s = map.get(v.en);
-      if (!s) map.set(v.en, s = new Set());
-      forms.forEach((f) => s.add(f));
+      if (t) m[t].add(v.en);
+      else { m.past.add(v.en); m.pp.add(v.en); m.both.add(v.en); }
     }
   }
-  return map;
+  return m;
 }
 
-// Die zwei Formen-Chips (Anlege-Popup + Deck-Karte nach Reset) — bewusst
-// unterschiedlich gefärbt (Stahl-Blau vs. Gold), damit die Wahl sichtbar ist.
+// Die drei Formen-Chips (Anlege-Popup + Deck-Karte nach Reset) — bewusst
+// unterschiedlich gefärbt (Stahl-Blau / Gold / Verlauf), damit die Wahl sichtbar ist.
 function _uvFormChipsHtml(attrs) {
   return `<button class="uv-form-chip past" ${attrs('past')}>
-      <span class="fc-title">⏱ Nur Simple Past</span><span class="fc-sub">nur 2. Form — went</span>
+      <span class="fc-title">⏱ Simple Past</span><span class="fc-sub">2. Form — went</span>
+    </button>
+    <button class="uv-form-chip pp" ${attrs('pp')}>
+      <span class="fc-title">✓ Participle</span><span class="fc-sub">3. Form — gone</span>
     </button>
     <button class="uv-form-chip both" ${attrs('both')}>
-      <span class="fc-title">⏱✓ Beide Formen</span><span class="fc-sub">2. + 3. Form — went &amp; gone</span>
+      <span class="fc-title">⏱✓ Beide</span><span class="fc-sub">went &amp; gone</span>
     </button>`;
 }
 
@@ -407,6 +413,8 @@ function _trainDeckCardHtml(deck) {
   const total = per.reduce((s, p) => s + p.total, 0);
   const mastered = per.reduce((s, p) => s + p.mastered, 0);
   const pct = total ? Math.round(mastered / total * 100) : 0;
+  // Taler wie bei Vokabel-Decks: 1 pro Disziplin, sobald sie 100 % erreicht.
+  const talerEarned = per.filter((p) => p.total > 0 && p.mastered === p.total).length;
   const sub = (p) => `⭐ ${p.mastered}/${p.total} gemeistert`;
   const id = deck.id;
   const open = id === _uvTrainExpandedId;
@@ -420,7 +428,7 @@ function _trainDeckCardHtml(deck) {
       <div class="deck-icon">🎯</div>
       <div class="deck-info">
         <div class="deck-name">${window.escHtml(deck.name)}</div>
-        <div class="deck-meta"><span>📝 ${(deck.vocab || []).length} Verben</span><span>${_uvFormsLabel(deck)}</span></div>
+        <div class="deck-meta"><span>📝 ${(deck.vocab || []).length} Verben</span><span>${_uvFormsLabel(deck)}</span><span title="Freigespielte Taler (Erkennen / Schmieden / Verzaubern je 100 %)" style="font-size:.70rem;font-weight:800;background:rgba(201,151,0,.14);color:#a67c00;padding:2px 7px;border-radius:20px;">🪙 ${talerEarned}/3</span></div>
         <div class="deck-progress-mini"><div class="deck-progress-mini-fill" style="width:${pct}%"></div></div>
       </div>
       <div class="deck-pct">${pct}%</div>
@@ -480,21 +488,16 @@ export function renderUvTrainingSection() {
   el.innerHTML = html;
 }
 
-// Popup: Name + Formen-Vorauswahl (nur Simple Past / beide) + bis zu 15 Verben
-// ankreuzen (alle 151, sortiert nach Stufe). Die Sperre gilt JE FORM: gesperrt
-// (= gar nicht gelistet) ist ein Verb nur, wenn alle Formen, die das neue Deck
-// üben würde, schon in anderen Trainings-Decks belegt sind. Ein „Nur Simple
-// Past"-Verb bleibt also für „Beide Formen" wählbar — der Past-Stand ist eh
-// global, das neue Deck ergänzt das Participle. Beim Umschalten der Formen-Wahl
-// rutschen wegfallende Wörter links raus, neu verfügbare kommen rechts rein.
+// Popup: Name + Formen-Vorauswahl (Simple Past / Participle / Beide) + bis zu
+// 15 Verben ankreuzen (alle 151, sortiert nach Stufe). Die Sperre gilt JE TOPF:
+// ausgegraut (nicht mehr klickbar) ist ein Verb nur, wenn es schon in einem
+// anderen Deck MIT DERSELBEN Auswahl steckt — SP, PP und Beide zählen getrennt.
+// Beim Umschalten der Auswahl slidet die ganze Wortliste links raus und kommt
+// mit den neuen Grau-Zuständen von rechts wieder rein.
 export function uvTrainOpenCreate() {
   const all = allVerbsSorted();
-  const claimed = _uvClaimedForms();
-  const isLocked = (en, forms) => {
-    const s = claimed.get(en);
-    if (!s) return false;
-    return (forms === 'past' ? ['past'] : ['past', 'pp']).every((f) => s.has(f));
-  };
+  const claimed = _uvClaimedByTrack();
+  const isLocked = (en, track) => claimed[track].has(en);
   const overlay = document.createElement('div');
   overlay.className = 'uv-fill-overlay';
   document.body.appendChild(overlay);
@@ -514,12 +517,14 @@ export function uvTrainOpenCreate() {
       <div class="uv-fill-count"><span id="uv-train-n">0</span>/${UV_TRAIN_MAX}</div>
     </div>
     <div class="uv-fill-list">
-      ${all.map((v) => `<label class="uv-fill-row${isLocked(v.en, formsSel) ? ' gone' : ''}" data-en="${window.escHtml(v.en)}">
+      <div class="uv-fill-slide" id="uv-train-slide">
+      ${all.map((v) => `<label class="uv-fill-row" data-en="${window.escHtml(v.en)}" data-cefr="${cefrOf(v)}">
         <input type="checkbox" class="uv-fill-cb"/>
         <span class="uv-fill-de">${window.escHtml(v.de)}</span>
         <span class="uv-fill-en">${window.escHtml(v.en)}</span>
         <span class="uv-fill-cefr">${cefrOf(v)}</span>
       </label>`).join('')}
+      </div>
     </div>
     <div class="uv-fill-foot">
       <button class="uv-fill-cancel" id="uv-train-cancel">Abbrechen</button>
@@ -527,6 +532,7 @@ export function uvTrainOpenCreate() {
     </div>
   </div>`;
   overlay.querySelector('[data-sel]').classList.add('sel');
+  const slide = overlay.querySelector('#uv-train-slide');
   const nEl = overlay.querySelector('#uv-train-n');
   const okBtn = overlay.querySelector('#uv-train-ok');
   overlay.querySelector('#uv-train-cancel').addEventListener('click', close);
@@ -534,38 +540,38 @@ export function uvTrainOpenCreate() {
     nEl.textContent = String(sel.size);
     okBtn.disabled = sel.size < 1;
   };
-  // Formen-Wechsel: Sperr-Zustand je Zeile neu bewerten und animieren —
-  // wegfallende Wörter gleiten nach links raus, neue kommen von rechts rein.
-  const applyFormChoice = () => {
-    overlay.querySelectorAll('.uv-fill-row').forEach((row) => {
+  // Grau-Zustand aller Zeilen für die aktuelle Auswahl setzen; angekreuzte
+  // Verben, die dabei gesperrt werden, fliegen aus der Auswahl.
+  const applyLocks = () => {
+    slide.querySelectorAll('.uv-fill-row').forEach((row) => {
       const en = row.getAttribute('data-en');
       const lock = isLocked(en, formsSel);
-      const hidden = row.classList.contains('gone') || row.classList.contains('leave');
-      if (lock && !hidden) {
-        const cb = row.querySelector('.uv-fill-cb');
-        if (cb.checked) { cb.checked = false; sel.delete(en); row.classList.remove('sel'); }
-        row.classList.add('leave');
-        setTimeout(() => {
-          if (row.classList.contains('leave')) { row.classList.add('gone'); row.classList.remove('leave'); }
-        }, 320);
-      } else if (!lock && hidden) {
-        row.classList.remove('leave', 'gone');
-        row.classList.add('enter');
-        requestAnimationFrame(() => requestAnimationFrame(() => row.classList.remove('enter')));
-      }
+      const cb = row.querySelector('.uv-fill-cb');
+      if (lock && cb.checked) { cb.checked = false; sel.delete(en); row.classList.remove('sel'); }
+      cb.disabled = lock;
+      row.classList.toggle('used', lock);
+      row.querySelector('.uv-fill-cefr').textContent = lock ? '🎯 vergeben' : row.getAttribute('data-cefr');
     });
     updateCount();
   };
+  applyLocks();
   overlay.querySelectorAll('.uv-form-chip').forEach((chip) => {
     chip.addEventListener('click', () => {
       const nf = chip.getAttribute('data-forms');
       if (nf === formsSel) return;
       formsSel = nf;
       overlay.querySelectorAll('.uv-form-chip').forEach((c) => c.classList.toggle('sel', c === chip));
-      applyFormChoice();
+      // Ganze Liste raus nach links, Zustände tauschen, von rechts wieder rein.
+      slide.classList.add('slide-left');
+      setTimeout(() => {
+        applyLocks();
+        slide.classList.remove('slide-left');
+        slide.classList.add('slide-right');
+        requestAnimationFrame(() => requestAnimationFrame(() => slide.classList.remove('slide-right')));
+      }, 230);
     });
   });
-  overlay.querySelectorAll('.uv-fill-row').forEach((row) => {
+  slide.querySelectorAll('.uv-fill-row').forEach((row) => {
     const cb = row.querySelector('.uv-fill-cb');
     const en = row.getAttribute('data-en');
     cb.addEventListener('change', () => {
@@ -589,7 +595,7 @@ function _uvTrainCreate(name, ens, forms) {
   const id = createDeck(name, 'training');
   const deck = window.SD.decks[id];
   deck.vocab = verbsByEns(ens).map((v) => ({ de: v.de, en: v.en }));
-  deck.uvForms = forms === 'past' ? 'past' : 'both';
+  deck.uvForms = (forms === 'past' || forms === 'pp') ? forms : 'both';
   persist(window.SD);
   _uvTrainExpanded = true;
   renderUvTrainingSection();
@@ -604,7 +610,7 @@ function _uvTrainCreate(name, ens, forms) {
 export function uvTrainChooseForms(id, forms) {
   const deck = window.SD?.decks?.[id];
   if (!deck || deck.uvForms !== 'open') return;
-  deck.uvForms = forms === 'past' ? 'past' : 'both';
+  deck.uvForms = (forms === 'past' || forms === 'pp') ? forms : 'both';
   persist(window.SD);
   renderUvTrainingSection();
   if (window.currentUser) { markDirty('deck', id); commitDirty(); }
@@ -661,55 +667,108 @@ export async function uvTrainDelete(id) {
   renderUvTrainingSection();
 }
 
-// ── Trainingsplatz-Statistik: wie die Vokabel-Deck-Statistik (Wort-Tabellen mit
-// Stand + Richtig/Falsch), aber eine Tabelle je Disziplin und die Spalten an die
-// Formen-Wahl angepasst: nur Simple Past, oder Simple Past + Past Participle.
+// ── Trainingsplatz-Statistik als eigene SEITE (wie die Vokabel-Deck-Statistik):
+// oben Gesamtfortschritt (Balken + Taler + eine Kachel je Disziplin), darunter
+// je Disziplin die Wort-Tabelle — Spalten an die Formen-Wahl angepasst (eine
+// Form wie bei Vokabeln, bei „beide" je Form eine kombinierte Zelle). Nutzt den
+// vm-Screen OHNE switchDeck — das aktive Deck / der Spiegel bleiben unberührt.
 export function uvTrainOpenStats(id) {
   const deck = window.SD?.decks?.[id];
   if (!deck) return;
+  showScreen('scan-screen');
+  const title = document.getElementById('vm-title');
+  if (title) title.textContent = '📊 Statistik';
+  const dn = document.getElementById('vm-deck-name');
+  if (dn) dn.textContent = 'Statistik: ' + deck.name;
+  const ba = document.getElementById('vm-back-area');
+  if (ba) ba.innerHTML = '<button class="back-btn sticky" onclick="showMenu()" style="margin-bottom:14px;">← Zurück</button>';
+  const tabsEl = document.querySelector('.vm-tabs');
+  if (tabsEl) tabsEl.innerHTML = '';
+  const aa = document.getElementById('vm-action-area');
+  if (aa) aa.innerHTML = '';
+  const ba2 = document.getElementById('vm-bottom-area');
+  if (ba2) ba2.innerHTML = '';
+  ['list', 'add', 'scan', 'paste', 'presets'].forEach((name) => {
+    const el = document.getElementById('vm-pane-' + name);
+    if (el) el.style.display = 'none';
+  });
+  const pane = document.getElementById('vm-pane-deck-stats');
+  if (!pane) return;
+  pane.style.display = 'block';
+
   const verbs = verbsByEns((deck.vocab || []).map((v) => v.en));
-  const both = deck.uvForms !== 'past';
+  const single = deck.uvForms === 'past' || deck.uvForms === 'pp';
   const ws = window.SD.globalPresetStats?.wordStats || {};
   const statOf = (v, suf) => ws[statKeyFor(v.de, v.en, suf, IRREGULAR_PRESET_ID)];
-  // Bei „beide Formen": Stand + Richtig/Falsch übereinander in EINER Zelle je Form,
-  // sonst wird die Tabelle auf dem Handy zu breit.
+
+  // Gesamtfortschritt oben: Balken über alle Disziplinen + Taler, darunter je
+  // Disziplin eine Kachel (Optik wie die Vorlagen-Kacheln der Vokabel-Statistik).
+  const per = ['erkennen', 'schmieden', 'verzaubern'].map((d) => ({ d, p: uvTrainProgress(deck, d) }));
+  const total = per.reduce((s, x) => s + x.p.total, 0);
+  const mastered = per.reduce((s, x) => s + x.p.mastered, 0);
+  const pct = total ? Math.round(mastered / total * 100) : 0;
+  const talerEarned = per.filter((x) => x.p.total > 0 && x.p.mastered === x.p.total).length;
+  const discRow = (x) => {
+    const dPct = x.p.total ? Math.round(x.p.mastered / x.p.total * 100) : 0;
+    const done = x.p.total > 0 && x.p.mastered === x.p.total;
+    const info = FORGE_DISC[x.d];
+    const bg = done
+      ? 'background:linear-gradient(to right,rgba(58,170,92,.18) 100%,#fff 100%);box-shadow:inset 0 0 0 2px #3aaa5c;'
+      : 'background:linear-gradient(to right,rgba(168,108,219,.15) ' + dPct + '%,#f7f7f7 ' + dPct + '%);';
+    const right = done
+      ? '<span style="font-size:.72rem;font-weight:700;color:#2a8a4a;background:rgba(58,170,92,.15);padding:3px 9px;border-radius:20px;white-space:nowrap;">✓ 🪙 erledigt</span>'
+      : `<span style="font-family:'Fredoka One',cursive;font-size:.95rem;color:#7a3aac;">${dPct}%</span>`;
+    return `<div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:12px;margin-bottom:6px;${bg}">
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:700;color:var(--text);font-size:.86rem;">${info.icon} ${info.name}</div>
+        <div style="font-size:.68rem;color:#888;">⭐ ${x.p.mastered}/${x.p.total} gemeistert</div>
+      </div>
+      ${right}
+    </div>`;
+  };
+  const headHtml = `<div style="margin-bottom:8px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;font-size:.85rem;font-weight:700;color:var(--text);margin-bottom:6px;">
+      <span>Gesamtfortschritt · ${_uvFormsLabel(deck)}</span>
+      <span style="font-family:'Fredoka One',cursive;font-size:1.05rem;color:#7a3aac;">${pct}%</span>
+    </div>
+    <div style="height:14px;background:#eee;border-radius:10px;overflow:hidden;margin-bottom:6px;">
+      <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--purple),var(--pink));border-radius:10px;"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;font-size:.78rem;font-weight:700;color:#888;margin-bottom:10px;">
+      <span>⭐ ${mastered}/${total} gemeistert</span>
+      <span title="Freigespielte Taler (Erkennen / Schmieden / Verzaubern je 100 %)" style="font-size:.70rem;font-weight:800;background:rgba(201,151,0,.14);color:#a67c00;padding:2px 7px;border-radius:20px;">🪙 ${talerEarned}/3</span>
+    </div>
+    ${per.map(discRow).join('')}
+  </div>`;
+
+  // Bei „beide Formen": Stand + Richtig/Falsch übereinander in EINER Zelle je
+  // Form, sonst wird die Tabelle auf dem Handy zu breit.
   const formCell = (s) => {
     const st = wordStatus(s, 3);
     return `<td><span class="ws-badge ${st.cls}">${st.label}</span><div style="margin-top:3px;">${wrongDots(s)}</div></td>`;
   };
   const table = (disc) => {
     const d = FORGE_DISC[disc], sufs = UV_TRAIN_SUF[disc];
-    const head = both
-      ? '<th>Deutsch</th><th>Englisch</th><th>⏱ Simple Past</th><th>✓ Participle</th>'
-      : '<th>Deutsch</th><th>Englisch</th><th>Stand</th><th>Richtig/Falsch</th>';
+    const head = single
+      ? '<th>Deutsch</th><th>Englisch</th><th>Stand</th><th>Richtig/Falsch</th>'
+      : '<th>Deutsch</th><th>Englisch</th><th>⏱ Simple Past</th><th>✓ Participle</th>';
     const rows = verbs.map((v) => {
-      const sp = statOf(v, sufs.past);
-      const cells = both
-        ? formCell(sp) + formCell(statOf(v, sufs.pp))
-        : (() => { const st = wordStatus(sp, 3); return `<td><span class="ws-badge ${st.cls}">${st.label}</span></td><td>${wrongDots(sp)}</td>`; })();
+      let cells;
+      if (single) {
+        const s = statOf(v, deck.uvForms === 'pp' ? sufs.pp : sufs.past);
+        const st = wordStatus(s, 3);
+        cells = `<td><span class="ws-badge ${st.cls}">${st.label}</span></td><td>${wrongDots(s)}</td>`;
+      } else {
+        cells = formCell(statOf(v, sufs.past)) + formCell(statOf(v, sufs.pp));
+      }
       return `<tr><td>${window.escHtml(v.de)}</td><td>${window.escHtml(v.en)}</td>${cells}</tr>`;
     }).join('');
     return `<h3 style="font-family:'Fredoka One',cursive;color:var(--purple);font-size:1rem;margin:16px 0 6px;">${d.icon} ${d.name}</h3>
 <table class="word-table"><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table>`;
   };
-  const overlay = document.createElement('div');
-  overlay.className = 'uv-fill-overlay';
-  document.body.appendChild(overlay);
-  const close = () => overlay.remove();
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
-  overlay.innerHTML = `<div class="uv-fill-card">
-    <div class="uv-fill-head">
-      <div class="uv-fill-title">📊 Statistik</div>
-      <div class="uv-fill-hint">${window.escHtml(deck.name)} · ${_uvFormsLabel(deck)}</div>
-    </div>
-    <div class="uv-fill-list" style="padding:0 12px 12px;">
-      ${verbs.length ? ['erkennen', 'schmieden', 'verzaubern'].map(table).join('') : '<p style="text-align:center;color:#999;padding:20px;">Keine Verben.</p>'}
-    </div>
-    <div class="uv-fill-foot">
-      <button class="uv-fill-cancel" id="uv-tstat-close">Schließen</button>
-    </div>
-  </div>`;
-  overlay.querySelector('#uv-tstat-close').addEventListener('click', close);
+  pane.innerHTML = verbs.length
+    ? headHtml + ['erkennen', 'schmieden', 'verzaubern'].map(table).join('')
+    : '<p style="text-align:center;color:#999;padding:20px;">Keine Verben.</p>';
 }
 
 // ── Probetest: ephemerer Misch-Test über bis zu 2 Vokabelsammlungen ──

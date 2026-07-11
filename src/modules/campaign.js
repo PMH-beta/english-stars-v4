@@ -12,6 +12,7 @@
 // ab 2 erledigten Teilabschnitten; Start kostet 2 Taler Einsatz; Tod (HP=0) → Einsatz weg.
 
 import { deckProgress } from './decks.js';
+import { uvTrainProgress } from './irregular-game.js';
 import { persist } from './storage.js';
 import { markDirty } from './sync.js';
 import { commitDirty } from './dialog.js';
@@ -58,10 +59,17 @@ export function talerAvailable() {
 // Taler-Regel: pro Deck (Vokabeln-Modus) und pro Übungsart (MC/Schreiben/Sprechen)
 // gibt es 1 Taler, sobald diese Art im Deck 100 % (alle Wörter gemeistert) ist.
 // claimed-Key = deckId|mc|sp|pr. Einmal verdient = dauerhaft (kein Zurückfallen).
+// Trainingsplatz-Decks analog: pro Deck und Disziplin (Erkennen/Schmieden/
+// Verzaubern) 1 Taler bei 100 % der gewählten Formen. Key = deckId|er|sc|vz.
 export const TALER_MODES = [
   { key: 'mc', label: 'MC',            prog: (pm) => pm.vocab },
   { key: 'sp', label: 'Rechtschreibung', prog: (pm) => pm.spelling },
   { key: 'pr', label: 'Aussprache',    prog: (pm) => pm.pronounce },
+];
+export const TALER_TRAIN_DISCS = [
+  { key: 'er', disc: 'erkennen' },
+  { key: 'sc', disc: 'schmieden' },
+  { key: 'vz', disc: 'verzaubern' },
 ];
 
 // Ist diese Übungsart in diesem Deck fertig (alle Wörter gemeistert)?
@@ -74,19 +82,28 @@ export function isModeComplete(prog) {
 export async function refreshClaimedTaler() {
   const c = _camp();
   // Migration: frühere claimed-Einträge waren Preset-Kategorie-IDs (ohne |mode-Suffix).
-  const cleaned = c.claimed.filter(k => /\|(mc|sp|pr)$/.test(k));
+  const cleaned = c.claimed.filter(k => /\|(mc|sp|pr|er|sc|vz)$/.test(k));
   let changed = cleaned.length !== c.claimed.length;
   c.claimed = cleaned;
 
   const decks = window.SD?.decks || {};
   for (const id in decks) {
     const deck = decks[id];
-    if (!deck?.vocab?.length || (deck.mode || 'free') !== 'free') continue;
-    const pm = deckProgress(deck).perMode;
-    for (const m of TALER_MODES) {
-      if (!isModeComplete(m.prog(pm))) continue;
-      const key = id + '|' + m.key;
-      if (!c.claimed.includes(key)) { c.claimed.push(key); changed = true; }
+    if (!deck?.vocab?.length) continue;
+    const mode = deck.mode || 'free';
+    if (mode === 'free') {
+      const pm = deckProgress(deck).perMode;
+      for (const m of TALER_MODES) {
+        if (!isModeComplete(m.prog(pm))) continue;
+        const key = id + '|' + m.key;
+        if (!c.claimed.includes(key)) { c.claimed.push(key); changed = true; }
+      }
+    } else if (mode === 'training') {
+      for (const t of TALER_TRAIN_DISCS) {
+        if (!isModeComplete(uvTrainProgress(deck, t.disc))) continue;
+        const key = id + '|' + t.key;
+        if (!c.claimed.includes(key)) { c.claimed.push(key); changed = true; }
+      }
     }
   }
   if (changed) _saveCampaign();

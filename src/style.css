@@ -838,31 +838,34 @@ body.in-game .mode-progress{display:block;}
 .uv-fill-title{font-family:'Fredoka One',cursive;color:var(--purple);font-size:1.15rem;}
 .uv-fill-hint{font-size:.8rem;color:#777;margin-top:4px;}
 .uv-fill-count{font-family:'Fredoka One',cursive;color:#a86cdb;font-size:1rem;margin-top:8px;}
-.uv-fill-list{overflow-y:auto;padding:6px 10px;flex:1;}
+.uv-fill-list{overflow-y:auto;overflow-x:hidden;padding:6px 10px;flex:1;}
 .uv-fill-row{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:12px;cursor:pointer;border:2px solid transparent;}
 .uv-fill-row.sel{background:rgba(168,108,219,.1);border-color:rgba(168,108,219,.4);}
 .uv-fill-cb{width:20px;height:20px;flex-shrink:0;accent-color:#a86cdb;cursor:pointer;}
 .uv-fill-de{flex:1;font-weight:800;color:var(--text);font-size:.92rem;}
 .uv-fill-en{color:#888;font-size:.82rem;font-weight:700;}
 .uv-fill-cefr{font-size:.62rem;font-weight:800;color:#a86cdb;background:rgba(168,108,219,.12);padding:2px 8px;border-radius:20px;}
-/* Formen-Wechsel im Anlege-Popup: wegfallende Zeilen gleiten links raus
-   (und klappen zu), neue kommen von rechts rein. .gone = ganz aus der Liste. */
-.uv-fill-row{max-height:52px;transition:transform .3s ease,opacity .3s ease,max-height .3s ease,padding .3s ease;}
-.uv-fill-row.leave{transform:translateX(-70px);opacity:0;max-height:0;padding-top:0;padding-bottom:0;overflow:hidden;pointer-events:none;}
-.uv-fill-row.enter{transform:translateX(70px);opacity:0;}
-.uv-fill-row.gone{display:none;}
+/* Formen-Wechsel im Anlege-Popup: die GANZE Wortliste slidet links raus und
+   kommt mit den neuen Grau-Zuständen von rechts wieder rein. Vergebene Verben
+   (.used) bleiben sichtbar, sind aber ausgegraut und nicht klickbar. */
+.uv-fill-slide{transition:transform .22s ease,opacity .22s ease;}
+.uv-fill-slide.slide-left{transform:translateX(-105%);opacity:0;}
+.uv-fill-slide.slide-right{transition:none;transform:translateX(105%);opacity:0;}
+.uv-fill-row.used{opacity:.45;pointer-events:none;}
 
-/* Formen-Wahl: zwei deutlich verschiedene Chips — Stahl-Blau (nur Simple Past)
-   vs. Gold (beide Formen), gewählt = gefüllt + Häkchen. */
-.uv-form-choice{display:flex;gap:8px;margin-top:10px;}
-.uv-form-chip{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:9px 8px;border-radius:14px;border:2px solid #ddd6ee;background:#fff;cursor:pointer;font-family:'Fredoka One',cursive;}
-.uv-form-chip .fc-title{font-size:.8rem;}
-.uv-form-chip .fc-sub{font-size:.6rem;font-weight:700;color:#8a83a5;}
+/* Formen-Wahl: drei deutlich verschiedene Chips — Stahl-Blau (Simple Past),
+   Gold (Participle), Blau-Gold-Verlauf (beide) — gewählt = gefüllt + Häkchen. */
+.uv-form-choice{display:flex;gap:6px;margin-top:10px;}
+.uv-form-chip{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:9px 6px;border-radius:14px;border:2px solid #ddd6ee;background:#fff;cursor:pointer;font-family:'Fredoka One',cursive;}
+.uv-form-chip .fc-title{font-size:.74rem;}
+.uv-form-chip .fc-sub{font-size:.58rem;font-weight:700;color:#8a83a5;}
 .uv-form-chip.past{color:#3a6ea8;}
-.uv-form-chip.both{color:#a67c00;}
+.uv-form-chip.pp{color:#a67c00;}
+.uv-form-chip.both{color:#7a3aac;}
 .uv-form-chip.sel .fc-title::after{content:' ✔';}
 .uv-form-chip.past.sel{background:rgba(58,110,168,.14);border-color:#3a6ea8;box-shadow:0 3px 0 rgba(58,110,168,.35);}
-.uv-form-chip.both.sel{background:linear-gradient(135deg,rgba(58,110,168,.10),rgba(202,160,74,.24));border-color:#caa04a;box-shadow:0 3px 0 rgba(166,124,0,.35);}
+.uv-form-chip.pp.sel{background:rgba(202,160,74,.18);border-color:#caa04a;box-shadow:0 3px 0 rgba(166,124,0,.35);}
+.uv-form-chip.both.sel{background:linear-gradient(135deg,rgba(58,110,168,.12),rgba(202,160,74,.24));border-color:#a86cdb;box-shadow:0 3px 0 rgba(122,58,172,.35);}
 .uv-fill-foot{display:flex;gap:10px;justify-content:center;padding:12px 16px;border-top:1px solid #eee;}
 .uv-fill-cancel{font-family:'Fredoka One',cursive;font-size:.92rem;padding:11px 20px;background:#eee;color:#333;border:none;border-radius:50px;cursor:pointer;}
 .uv-fill-ok{font-family:'Fredoka One',cursive;font-size:.92rem;padding:11px 24px;border:none;border-radius:50px;cursor:pointer;color:#fff;background:linear-gradient(135deg,#a86cdb,#c084fc);box-shadow:0 4px 0 #7a4ba8;}
