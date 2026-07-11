@@ -756,29 +756,37 @@ export function uvTrainOpenStats(id) {
   </div>`;
 
   // Wort-Tabellen wie bei Vokabel-Decks (_wordTablesHtml-Optik): eine Tabelle
-  // je geübter FORM, Spalten Deutsch/Englisch/Stand/Richtig-Falsch. Der Stand
-  // ist übergeordnet — die drei Disziplin-Stats werden je Wort aufsummiert.
-  const combined = (v, w) => {
-    let asked = 0, correct = 0, wrong = 0, any = false;
-    for (const disc of Object.keys(UV_TRAIN_SUF)) {
-      const s = ws[statKeyFor(v.de, v.en, UV_TRAIN_SUF[disc][w], IRREGULAR_PRESET_ID)];
-      if (!s || !s.asked) continue;
-      any = true; asked += s.asked; correct += s.correct || 0; wrong += s.wrong || 0;
-    }
-    return any ? { asked, correct, wrong, recent: '' } : null;
+  // je DISZIPLIN (Erkennen/Schmieden/Verzaubern = das Pendant zu MC/Recht-
+  // schreibung/Aussprache). Übt das Deck nur eine Form, sind die Spalten exakt
+  // wie bei Vokabeln (Stand + Richtig/Falsch); bei „beide" bekommt jede Form
+  // eine kombinierte Zelle (Badge + Punkte), sonst wird es auf dem Handy zu breit.
+  const single = forms.length === 1;
+  const statOf = (v, suf) => ws[statKeyFor(v.de, v.en, suf, IRREGULAR_PRESET_ID)];
+  const formCell = (s) => {
+    const st = wordStatus(s, 3);
+    return `<td><span class="ws-badge ${st.cls}">${st.label}</span><div style="margin-top:3px;">${wrongDots(s)}</div></td>`;
   };
-  const FORM_TITLES = { past: '⏱ Simple Past', pp: '✓ Past Participle' };
-  const makeTable = (w) => {
+  const makeTable = (disc) => {
+    const d = FORGE_DISC[disc], sufs = UV_TRAIN_SUF[disc];
+    const head = single
+      ? '<th>Deutsch</th><th>Englisch</th><th>Stand</th><th>Richtig/Falsch</th>'
+      : '<th>Deutsch</th><th>Englisch</th><th>⏱ Simple Past</th><th>✓ Participle</th>';
     const rows = verbs.map((v) => {
-      const s = combined(v, w);
-      const st = wordStatus(s, 3);
-      return `<tr><td>${window.escHtml(v.de)}</td><td>${window.escHtml(v.en)}</td><td><span class="ws-badge ${st.cls}">${st.label}</span></td><td>${wrongDots(s)}</td></tr>`;
+      let cells;
+      if (single) {
+        const s = statOf(v, sufs[forms[0]]);
+        const st = wordStatus(s, 3);
+        cells = `<td><span class="ws-badge ${st.cls}">${st.label}</span></td><td>${wrongDots(s)}</td>`;
+      } else {
+        cells = formCell(statOf(v, sufs.past)) + formCell(statOf(v, sufs.pp));
+      }
+      return `<tr><td>${window.escHtml(v.de)}</td><td>${window.escHtml(v.en)}</td>${cells}</tr>`;
     }).join('');
-    return `<h3 style="font-family:'Fredoka One',cursive;color:var(--purple);font-size:1rem;margin:16px 0 6px;">${FORM_TITLES[w]}</h3>
-<table class="word-table"><thead><tr><th>Deutsch</th><th>Englisch</th><th>Stand</th><th>Richtig/Falsch</th></tr></thead><tbody>${rows}</tbody></table>`;
+    return `<h3 style="font-family:'Fredoka One',cursive;color:var(--purple);font-size:1rem;margin:16px 0 6px;">${d.icon} ${d.name}</h3>
+<table class="word-table"><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table>`;
   };
   pane.innerHTML = verbs.length
-    ? tileHtml + forms.map(makeTable).join('')
+    ? tileHtml + ['erkennen', 'schmieden', 'verzaubern'].map(makeTable).join('')
     : '<p style="text-align:center;color:#999;padding:20px;">Keine Verben.</p>';
 }
 
