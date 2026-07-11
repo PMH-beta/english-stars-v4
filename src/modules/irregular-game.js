@@ -186,8 +186,9 @@ export function startUvTraining(deckId, disc) {
   startGame('uvtrain');
 }
 
-// Trainings-Fortschritt eines Decks je Disziplin: ein Verb zählt als gemeistert,
-// wenn ALLE gewählten Formen (uvTrainForms) im _tr_-Suffix sitzen.
+// Trainings-Fortschritt eines Decks je Disziplin — in FORM-Einheiten gerechnet
+// (total = Verben × gewählte Formen), damit die Prozente mathematisch stimmen:
+// ein „Beide Formen"-Deck mit fertigem Past steht bei 50 %, nicht bei 0 %.
 export function uvTrainProgress(deck, disc) {
   const sufs = UV_TRAIN_SUF[disc];
   const ws = _ws();
@@ -195,9 +196,11 @@ export function uvTrainProgress(deck, disc) {
   const verbs = verbsByEns(((deck && deck.vocab) || []).map((v) => v.en));
   let mastered = 0;
   for (const v of verbs) {
-    if (forms.every((w) => isStatMastered(ws[statKeyFor(v.de, v.en, sufs[w], IRREGULAR_PRESET_ID)]))) mastered++;
+    for (const w of forms) {
+      if (isStatMastered(ws[statKeyFor(v.de, v.en, sufs[w], IRREGULAR_PRESET_ID)])) mastered++;
+    }
   }
-  return { mastered, total: verbs.length };
+  return { mastered, total: verbs.length * forms.length };
 }
 
 // ── Live-Fortschritt im Spiel (progressForCurrentMode in game.js) ────────────

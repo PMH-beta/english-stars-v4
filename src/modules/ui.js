@@ -366,6 +366,32 @@ function _uvFormsLabel(deck) {
   return uvTrainForms(deck).length === 1 ? '⏱ Nur Simple Past' : '⏱✓ Beide Formen';
 }
 
+// Welche Formen bestehende Trainings-Decks je Verb schon belegen (en → Set).
+// 'open' (nach Reset) zählt konservativ als beide Formen.
+function _uvClaimedForms() {
+  const map = new Map();
+  for (const d of _trainingDecks()) {
+    const forms = uvTrainForms(d);
+    for (const v of (d.vocab || [])) {
+      let s = map.get(v.en);
+      if (!s) map.set(v.en, s = new Set());
+      forms.forEach((f) => s.add(f));
+    }
+  }
+  return map;
+}
+
+// Die zwei Formen-Chips (Anlege-Popup + Deck-Karte nach Reset) — bewusst
+// unterschiedlich gefärbt (Stahl-Blau vs. Gold), damit die Wahl sichtbar ist.
+function _uvFormChipsHtml(attrs) {
+  return `<button class="uv-form-chip past" ${attrs('past')}>
+      <span class="fc-title">⏱ Nur Simple Past</span><span class="fc-sub">nur 2. Form — went</span>
+    </button>
+    <button class="uv-form-chip both" ${attrs('both')}>
+      <span class="fc-title">⏱✓ Beide Formen</span><span class="fc-sub">2. + 3. Form — went &amp; gone</span>
+    </button>`;
+}
+
 // Ein Trainings-Deck als auf-/zuklappbare Karte (wie Vokabelsammlungen): Kopf
 // tippen klappt auf; im Body die drei Disziplin-Buttons + die drei Funktionen
 // (Statistik / Zurücksetzen / Löschen). Nach einem Reset (uvForms 'open')
@@ -386,8 +412,7 @@ function _trainDeckCardHtml(deck) {
   const open = id === _uvTrainExpandedId;
   const formsChips = deck.uvForms === 'open'
     ? `<div class="uv-form-choice" style="margin-bottom:12px;">
-        <button class="uv-form-chip" onclick="uvTrainChooseForms('${id}','past')">⏱ Nur Simple Past</button>
-        <button class="uv-form-chip" onclick="uvTrainChooseForms('${id}','both')">⏱✓ Beide Formen</button>
+        ${_uvFormChipsHtml((f) => `onclick="uvTrainChooseForms('${id}','${f}')"`)}
       </div>`
     : '';
   return `<div class="deck-card${open ? ' expanded' : ''}" style="border:1px solid var(--line);box-shadow:none;margin-bottom:10px;">
@@ -456,11 +481,20 @@ export function renderUvTrainingSection() {
 }
 
 // Popup: Name + Formen-Vorauswahl (nur Simple Past / beide) + bis zu 15 Verben
-// ankreuzen (alle 151, sortiert nach Stufe). Verben, die schon in einem anderen
-// Trainings-Deck stecken, sind gesperrt — erst Löschen des Decks gibt sie frei.
+// ankreuzen (alle 151, sortiert nach Stufe). Die Sperre gilt JE FORM: gesperrt
+// (= gar nicht gelistet) ist ein Verb nur, wenn alle Formen, die das neue Deck
+// üben würde, schon in anderen Trainings-Decks belegt sind. Ein „Nur Simple
+// Past"-Verb bleibt also für „Beide Formen" wählbar — der Past-Stand ist eh
+// global, das neue Deck ergänzt das Participle. Beim Umschalten der Formen-Wahl
+// rutschen wegfallende Wörter links raus, neu verfügbare kommen rechts rein.
 export function uvTrainOpenCreate() {
   const all = allVerbsSorted();
-  const taken = new Set(_trainingDecks().flatMap((d) => (d.vocab || []).map((v) => v.en)));
+  const claimed = _uvClaimedForms();
+  const isLocked = (en, forms) => {
+    const s = claimed.get(en);
+    if (!s) return false;
+    return (forms === 'past' ? ['past'] : ['past', 'pp']).every((f) => s.has(f));
+  };
   const overlay = document.createElement('div');
   overlay.className = 'uv-fill-overlay';
   document.body.appendChild(overlay);
@@ -475,45 +509,70 @@ export function uvTrainOpenCreate() {
       <div class="uv-fill-hint">Wähle bis zu ${UV_TRAIN_MAX} Verben — geübt wird in 🔍 Erkennen · 🔨 Schmieden · 🪄 Verzaubern.</div>
       <input id="uv-train-name" class="uv-train-name" maxlength="30" value="${defName}"/>
       <div class="uv-form-choice">
-        <button class="uv-form-chip" data-forms="past">⏱ Nur Simple Past</button>
-        <button class="uv-form-chip sel" data-forms="both">⏱✓ Beide Formen</button>
+        ${_uvFormChipsHtml((f) => `data-forms="${f}"${f === 'both' ? ' data-sel="1"' : ''}`)}
       </div>
       <div class="uv-fill-count"><span id="uv-train-n">0</span>/${UV_TRAIN_MAX}</div>
     </div>
     <div class="uv-fill-list">
-      ${all.map((v) => {
-        const used = taken.has(v.en);
-        return `<label class="uv-fill-row${used ? ' used' : ''}" data-en="${window.escHtml(v.en)}">
-        <input type="checkbox" class="uv-fill-cb"${used ? ' disabled' : ''}/>
+      ${all.map((v) => `<label class="uv-fill-row${isLocked(v.en, formsSel) ? ' gone' : ''}" data-en="${window.escHtml(v.en)}">
+        <input type="checkbox" class="uv-fill-cb"/>
         <span class="uv-fill-de">${window.escHtml(v.de)}</span>
         <span class="uv-fill-en">${window.escHtml(v.en)}</span>
-        <span class="uv-fill-cefr">${used ? '🎯 vergeben' : cefrOf(v)}</span>
-      </label>`;
-      }).join('')}
+        <span class="uv-fill-cefr">${cefrOf(v)}</span>
+      </label>`).join('')}
     </div>
     <div class="uv-fill-foot">
       <button class="uv-fill-cancel" id="uv-train-cancel">Abbrechen</button>
       <button class="uv-fill-ok" id="uv-train-ok" disabled>Anlegen</button>
     </div>
   </div>`;
+  overlay.querySelector('[data-sel]').classList.add('sel');
   const nEl = overlay.querySelector('#uv-train-n');
   const okBtn = overlay.querySelector('#uv-train-ok');
   overlay.querySelector('#uv-train-cancel').addEventListener('click', close);
+  const updateCount = () => {
+    nEl.textContent = String(sel.size);
+    okBtn.disabled = sel.size < 1;
+  };
+  // Formen-Wechsel: Sperr-Zustand je Zeile neu bewerten und animieren —
+  // wegfallende Wörter gleiten nach links raus, neue kommen von rechts rein.
+  const applyFormChoice = () => {
+    overlay.querySelectorAll('.uv-fill-row').forEach((row) => {
+      const en = row.getAttribute('data-en');
+      const lock = isLocked(en, formsSel);
+      const hidden = row.classList.contains('gone') || row.classList.contains('leave');
+      if (lock && !hidden) {
+        const cb = row.querySelector('.uv-fill-cb');
+        if (cb.checked) { cb.checked = false; sel.delete(en); row.classList.remove('sel'); }
+        row.classList.add('leave');
+        setTimeout(() => {
+          if (row.classList.contains('leave')) { row.classList.add('gone'); row.classList.remove('leave'); }
+        }, 320);
+      } else if (!lock && hidden) {
+        row.classList.remove('leave', 'gone');
+        row.classList.add('enter');
+        requestAnimationFrame(() => requestAnimationFrame(() => row.classList.remove('enter')));
+      }
+    });
+    updateCount();
+  };
   overlay.querySelectorAll('.uv-form-chip').forEach((chip) => {
     chip.addEventListener('click', () => {
-      formsSel = chip.getAttribute('data-forms');
+      const nf = chip.getAttribute('data-forms');
+      if (nf === formsSel) return;
+      formsSel = nf;
       overlay.querySelectorAll('.uv-form-chip').forEach((c) => c.classList.toggle('sel', c === chip));
+      applyFormChoice();
     });
   });
-  overlay.querySelectorAll('.uv-fill-row:not(.used)').forEach((row) => {
+  overlay.querySelectorAll('.uv-fill-row').forEach((row) => {
     const cb = row.querySelector('.uv-fill-cb');
     const en = row.getAttribute('data-en');
     cb.addEventListener('change', () => {
       if (cb.checked && sel.size >= UV_TRAIN_MAX) { cb.checked = false; return; }
       if (cb.checked) { sel.add(en); row.classList.add('sel'); }
       else { sel.delete(en); row.classList.remove('sel'); }
-      nEl.textContent = String(sel.size);
-      okBtn.disabled = sel.size < 1;
+      updateCount();
     });
   });
   okBtn.addEventListener('click', () => {
@@ -551,8 +610,9 @@ export function uvTrainChooseForms(id, forms) {
   if (window.currentUser) { markDirty('deck', id); commitDirty(); }
 }
 
-// Trainings-Fortschritt des Decks löschen (alle _tr_-Stats seiner Verben, beide
-// Formen, lokal + Cloud) und die Formen-Wahl wieder freigeben.
+// Trainings-Fortschritt des Decks löschen (lokal + Cloud) und die Formen-Wahl
+// wieder freigeben. Gelöscht werden nur die Formen, die das Deck geübt hat —
+// ein „Nur Simple Past"-Reset lässt Participle-Stände anderer Decks unberührt.
 export async function uvTrainReset(id) {
   const deck = window.SD?.decks?.[id];
   if (!deck) return;
@@ -563,10 +623,11 @@ export async function uvTrainReset(id) {
   });
   if (!ok) return;
   const ws = window.SD.globalPresetStats?.wordStats || {};
+  const forms = uvTrainForms(deck);
   const statKeys = [];
   for (const v of verbsByEns((deck.vocab || []).map((x) => x.en))) {
     for (const disc of Object.keys(UV_TRAIN_SUF)) {
-      for (const w of ['past', 'pp']) {
+      for (const w of forms) {
         const key = statKeyFor(v.de, v.en, UV_TRAIN_SUF[disc][w], IRREGULAR_PRESET_ID);
         statKeys.push(key);
         delete ws[key];
