@@ -1741,8 +1741,6 @@ export function showMenu() {
   showScreen('menu-screen');
   document.getElementById('menu-player-name').textContent = 'Hallo, ' + window.SD.playerName + '! 👋';
   renderAvatarInto('menu-avatar', window.SD, { headOnly: true });
-  document.getElementById('menu-highscore').textContent = window.SD.highscore;
-  document.getElementById('menu-total').textContent = window.SD.totalPoints;
   updateTalerBadge();                          // Taler sofort aus lokalem Stand
   refreshClaimedTaler().catch(() => {});       // 100%-Teilabschnitte nachzählen (retroaktiv)
   const ft = document.getElementById('menu-footer'); if (ft) ft.style.display = 'flex';
@@ -2645,8 +2643,6 @@ function showMenuSkeleton() {
   _ensureSkeletonStyle();
   showScreen('menu-screen');
   const nm = document.getElementById('menu-player-name'); if (nm) nm.textContent = 'Lädt…';
-  const hs = document.getElementById('menu-highscore');   if (hs) hs.textContent = '·';
-  const tp = document.getElementById('menu-total');       if (tp) tp.textContent = '·';
   const tl = document.getElementById('menu-taler');       if (tl) tl.textContent = '·';
   const ft = document.getElementById('menu-footer');      if (ft) ft.style.display = 'flex';
   const c = document.getElementById('decks-container');
