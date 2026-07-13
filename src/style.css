@@ -1418,9 +1418,11 @@ body.in-game .mode-progress{display:block;}
 .pd-item{
   aspect-ratio:1/1;padding:8px;border:2px solid var(--line);border-radius:12px;
   background:#fbfaff;cursor:pointer;transition:all .12s;
+  touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
 }
 .pd-item:hover{transform:translateY(-1px);border-color:#d9c8f2;}
 .pd-item.on{border-color:var(--purple);background:#faf6ff;box-shadow:0 0 0 3px rgba(168,108,219,.14);}
+.pd-item.sel{border-color:#f2a516;background:#fff8e6;box-shadow:0 0 0 3px rgba(242,165,22,.22);}
 .pd-item.empty{
   border-style:dashed;border-color:#ddd4ef;background:transparent;cursor:default;
   position:relative;
@@ -1430,6 +1432,44 @@ body.in-game .mode-progress{display:block;}
   border-radius:2px;background:#eee6f8;
 }
 .pd-empty{font-size:.8rem;font-weight:700;color:#8a83a5;line-height:1.55;padding:10px 2px 2px;text-align:center;}
+
+/* Kampf-Werte-Kacheln (echte Spielwerte; grün/rot = Vorschau des angewählten Items) */
+.pd-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:14px 0 4px;}
+.pd-stat{background:#fbfaff;border:1px solid var(--line);border-radius:12px;padding:7px 3px 6px;text-align:center;transition:all .15s;}
+.pd-stat .ic{font-size:1.05rem;display:block;}
+.pd-stat b{display:block;font-family:'Fredoka One',cursive;font-size:.88rem;color:var(--text);line-height:1.35;white-space:nowrap;}
+.pd-stat span:last-child{font-size:.58rem;font-weight:800;color:#8a83a5;}
+.pd-stat.chg b{font-size:.7rem;}
+.pd-stat.chg.up{border-color:#7ed957;background:#f2fbec;box-shadow:0 0 0 3px rgba(126,217,87,.18);}
+.pd-stat.chg.up b{color:#2a7a35;}
+.pd-stat.chg.down{border-color:#f0a0a0;background:#fff4f2;box-shadow:0 0 0 3px rgba(224,80,60,.12);}
+.pd-stat.chg.down b{color:#c0392b;}
+
+/* Vorschau-Karte des angewählten Items (unter der Tasche) */
+.pd-preview{
+  display:flex;align-items:center;gap:12px;margin-top:10px;padding:10px 12px;
+  background:#fff8e6;border:2px solid #f2a516;border-radius:14px;
+}
+.pd-preview-sprite{width:44px;height:44px;flex-shrink:0;}
+.pd-preview-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
+.pd-preview-info b{font-family:'Fredoka One',cursive;font-size:.88rem;color:var(--text);}
+.pd-preview-info span{font-size:.68rem;font-weight:700;color:#8a83a5;}
+.pd-preview-info .pd-preview-perk{color:#a8720a;}
+.pd-equip-btn{
+  font-family:'Fredoka One',cursive;font-size:.85rem;padding:9px 16px;border:none;
+  border-radius:50px;cursor:pointer;flex-shrink:0;color:#fff;
+  background:linear-gradient(135deg,#5bc24a,#7ed957);box-shadow:0 3px 0 #3a9b45;
+}
+.pd-equip-btn.off{background:linear-gradient(135deg,#e57c73,#f09a90);box-shadow:0 3px 0 #b8564d;}
+
+/* Ziehen: Geist unterm Finger + leuchtende Ziel-Slots */
+.pd-drag-ghost{
+  position:fixed;z-index:10000;width:46px;height:46px;pointer-events:none;
+  transform:translate(-50%,-70%);filter:drop-shadow(0 4px 8px rgba(20,10,50,.35));
+}
+.pd-slot.drop-ok{border-color:#7ed957;background:#f2fbec;animation:es-drop-pulse 1s ease-in-out infinite;}
+.pd-slot.drop-hover{border-color:#2a7a35;background:#e2f7d8;box-shadow:0 0 0 4px rgba(126,217,87,.35);animation:none;}
+@keyframes es-drop-pulse{0%,100%{box-shadow:0 0 0 2px rgba(126,217,87,.2);}50%{box-shadow:0 0 0 5px rgba(126,217,87,.4);}}
 
 /* Merkmal-Slider im Charakter-Editor */
 .cg-featbar{display:flex;align-items:center;justify-content:center;gap:12px;}
