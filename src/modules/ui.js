@@ -5,7 +5,7 @@ import { syncMirrorFromActiveDeck, deckProgress, presetProgressPct, renderDecks,
 import { getPresetCategories } from './vocab.js';
 import { releaseMicStream, stopVisualizer, voskStop, speakWord } from './speech.js';
 import { signIn, signUp, signOut, resendConfirmation, requestPasswordReset, updatePassword, signInWithGoogle } from './auth.js';
-import { cloudLoad, cloudReset, saveDeck, saveWordStats, saveExam, markDirty, flushPendingSync, setCloudConfirmed, getPendingCount, setKnownSig, cloudChangedRemotely, deleteCloudPresetStats } from './sync.js';
+import { cloudLoad, cloudReset, saveDeck, saveWordStats, saveExam, markDirty, flushPendingSync, setCloudConfirmed, getPendingCount, setKnownSig, cloudChangedRemotely, deleteCloudPresetStats, deleteProbetest } from './sync.js';
 import { commitDirty } from './dialog.js';
 import { uvMap, uvLernstand, constellationWords, FORGE_DISC, SLOTS_PER_FORM, uvTrainProgress, uvTrainForms } from './irregular-game.js';
 import { renderAvatarInto, renderCharacter, commitAvatar, resetCharacterFeature } from './avatar.js';
@@ -830,25 +830,48 @@ export function toggleProbetestHistory() {
 }
 
 // Ein Verlaufseintrag als Karte (geteilt: Vokabeln-Tab + Fortschritt-Seite).
-function _probetestEntryHtml(t) {
+// Mit idx (nur Vokabeln-Tab): 🗑️-Button zum Löschen des Eintrags.
+function _probetestEntryHtml(t, idx) {
   const names = (t.decks || []).map(d => window.escHtml(d.name || '')).join(' + ') || '—';
   const dateStr = new Date(t.date || Date.now()).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
   const gradeColor = t.grade <= 2 ? '#2a7a35' : (t.grade <= 4 ? '#cc8800' : '#c0392b');
+  const delBtn = idx == null ? '' :
+    '<button onclick="deleteProbetestEntry(' + idx + ')" title="Diesen Test löschen" '
+    + 'style="border:none;background:#fff0f0;color:#c0392b;border-radius:10px;width:30px;height:30px;font-size:.9rem;cursor:pointer;flex-shrink:0;">🗑️</button>';
   return '<div style="background:#fff;border-radius:14px;padding:12px 14px;margin-bottom:8px;box-shadow:var(--shadow);">'
     + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">'
     + '<span style="flex:1;min-width:0;font-family:\'Fredoka One\',cursive;font-size:.95rem;color:#444;">' + names + '</span>'
-    + '<span style="font-family:\'Fredoka One\',cursive;font-size:1.1rem;color:' + gradeColor + ';white-space:nowrap;">Note ' + t.grade + '</span></div>'
+    + '<span style="font-family:\'Fredoka One\',cursive;font-size:1.1rem;color:' + gradeColor + ';white-space:nowrap;">Note ' + t.grade + '</span>'
+    + delBtn + '</div>'
     + '<div style="display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.78rem;color:#777;font-weight:700;">'
     + '<span>📊 ' + t.percent + '%</span>'
     + '<span>✅ ' + t.correct + '/' + t.questions + ' richtig</span>'
     + '<span>📅 ' + dateStr + '</span></div></div>';
 }
 
+// 🗑️ am Verlaufseintrag: erst Gegenfrage, dann lokal + Cloud löschen.
+export async function deleteProbetestEntry(idx) {
+  const hist = Array.isArray(window.SD?.probetests) ? window.SD.probetests : [];
+  const t = hist[idx];
+  if (!t) return;
+  const names = (t.decks || []).map(d => d.name || '').filter(Boolean).join(' + ') || 'Probetest';
+  const ok = await window.esConfirm({
+    icon: '🗑️', danger: true, ok: 'Löschen',
+    title: 'Probetest löschen?',
+    body: '„' + names + '" (Note ' + t.grade + ') wird aus dem Verlauf entfernt.\nDas kann nicht rückgängig gemacht werden.',
+  });
+  if (!ok) return;
+  hist.splice(idx, 1);
+  persist(window.SD);
+  if (t.id && window.currentUser) deleteProbetest(t.id, window.currentUser.id).catch(() => {});
+  renderProbetestSection();
+}
+
 // Probetest-Verlauf für die Fortschritt-Seite (nur Anzeige, kein Start-Button).
 function _probetestBlock() {
   const hist = Array.isArray(window.SD?.probetests) ? window.SD.probetests : [];
   if (!hist.length) return '<div style="font-size:.82rem;color:#999;text-align:center;padding:12px;">Noch keine Probetests durchgeführt.</div>';
-  return hist.map(_probetestEntryHtml).join('');
+  return hist.map(t => _probetestEntryHtml(t)).join('');   // ohne idx → kein 🗑️ (nur Anzeige)
 }
 
 export function renderProbetestSection() {
@@ -880,7 +903,7 @@ export function renderProbetestSection() {
     if (!hist.length) {
       html += '<div style="text-align:center;color:#8a83a5;font-size:.82rem;padding:6px 0 2px;font-weight:700;">Noch keine Tests durchgeführt.</div>';
     } else {
-      html += hist.map(_probetestEntryHtml).join('');
+      html += hist.map((t, i) => _probetestEntryHtml(t, i)).join('');
     }
     html += '</div>';
   }

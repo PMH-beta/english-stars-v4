@@ -1345,7 +1345,9 @@ function showEnd() {
       window.SD.probetests.unshift(entry);
       if(window.SD.probetests.length>50) window.SD.probetests.length=50;
       persist(window.SD);
-      if(window.currentUser) saveProbetest(entry, window.currentUser.id).catch(()=>{});
+      // Cloud-id am lokalen Eintrag merken, damit „Löschen" auch die Cloud-Zeile trifft.
+      if(window.currentUser) saveProbetest(entry, window.currentUser.id)
+        .then(id=>{ if(id){ entry.id=id; persist(window.SD); } }).catch(()=>{});
     }
     const newHS=window.points>=window.SD.highscore&&window.points>0;
     showScreen('end-screen');

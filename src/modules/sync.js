@@ -129,6 +129,7 @@ async function _cloudLoadOnce(userId) {
   // Probetest-Verlauf (non-fatal: fehlt die Tabelle noch, bleibt der Verlauf leer)
   if (probetestsRes?.error) console.error('[cloudLoad] probetests:', probetestsRes.error.message);
   const probetests = (probetestsRes?.data || []).map(r => ({
+    id:        r.id || null,
     decks:     Array.isArray(r.decks) ? r.decks : [],
     grade:     Number(r.grade)     || 0,
     percent:   Number(r.percent)   || 0,
@@ -441,17 +442,26 @@ export async function saveExam({ deckId, grade, percent }, userId) {
   if (error) throw new Error('[sync] saveExam: ' + error.message);
 }
 
-/** Speichert einen Probetest in der probetests-Tabelle (deck-unabhängig). */
+/** Speichert einen Probetest in der probetests-Tabelle (deck-unabhängig).
+ *  Gibt die Cloud-id zurück, damit der lokale Verlaufseintrag löschbar bleibt. */
 export async function saveProbetest({ decks, grade, percent, questions, correct }, userId) {
-  const { error } = await fetchWithRetry(() => supabase.from('probetests').insert({
+  const { data, error } = await fetchWithRetry(() => supabase.from('probetests').insert({
     user_id:   userId,
     decks:     Array.isArray(decks) ? decks : [],
     grade:     Math.round(grade),
     percent:   Math.round(percent),
     questions: Math.round(questions) || 0,
     correct:   Math.round(correct)   || 0,
-  }));
+  }).select('id').single());
   if (error) throw new Error('[sync] saveProbetest: ' + error.message);
+  return data?.id || null;
+}
+
+/** Löscht einen einzelnen Probetest aus der Cloud (DELETE-Policy existiert). */
+export async function deleteProbetest(id, userId) {
+  const { error } = await fetchWithRetry(() => supabase
+    .from('probetests').delete().eq('id', id).eq('user_id', userId));
+  if (error) throw new Error('[sync] deleteProbetest: ' + error.message);
 }
 
 /** Löscht alle Cloud-Daten eines Users (Decks, word_stats und exams via CASCADE). */
