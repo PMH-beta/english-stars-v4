@@ -26,10 +26,9 @@ export const SLOTS = {
   legs:      { icon: '🥾', name: 'Stiefel',     desc: 'Chance auszuweichen' },
   talisman:  { icon: '🧿', name: 'Talisman',    desc: '+50 % Schaden an 🌀-Knoten' },
   ring1:     { icon: '💍', name: 'Ring',        desc: 'mehr Trank-Auswahl am 💎' },
-  ring2:     { icon: '💍', name: 'Ring',        desc: 'mehr Trank-Auswahl am 💎' },
   companion: { icon: '🐾', name: 'Gefährte',    desc: 'fängt 1 Fehlgriff pro Kampf' },
 };
-const SLOT_TYPE = { ring1: 'ring', ring2: 'ring' };   // sonst = Slot-Key selbst
+const SLOT_TYPE = { ring1: 'ring' };   // sonst = Slot-Key selbst
 export const TIER = {
   stahl:      { icon: '🔩', name: 'Stahl' },
   gold:       { icon: '🥇', name: 'Gold' },
@@ -49,6 +48,11 @@ function _eq() {
   if (!SD.campaign || typeof SD.campaign !== 'object') SD.campaign = { claimed: [], talerSpent: 0, run: null };
   const c = SD.campaign;
   if (!c.equipment || typeof c.equipment !== 'object') c.equipment = {};
+  // Es gibt nur noch EINEN Ring-Slot — alten ring2-Stand nach ring1 retten.
+  if (c.equipment.ring2) {
+    if (!c.equipment.ring1) c.equipment.ring1 = c.equipment.ring2;
+    delete c.equipment.ring2;
+  }
   return c;
 }
 function _save() {
@@ -68,6 +72,8 @@ export function forgedItems() {
       for (let i = 0; i < SLOTS_PER_FORM; i++) if (starLit(c.verbs, `_${which}_s${i}`)) lit++;
       if (!lit) continue;
       const ob = forgeObject(c.idx, which);
+      // Gefährten gibt es erst KOMPLETT: alle 5 Teile fertig, vorher kein Item.
+      if (ob.slot === 'companion' && lit < SLOTS_PER_FORM) continue;
       const tier = lit >= SLOTS_PER_FORM ? 'verzaubert' : (which === 'past' ? 'stahl' : 'gold');
       // Name trägt IMMER das Material (Stahl/Gold = Form) — „Verzaubert" ist nur
       // die Ausbaustufe (✨-Suffix), sonst wären zwei fertige Teile ununterscheidbar.
@@ -131,7 +137,6 @@ function _effectsOf(equipment) {
   eff.talisman = !!get('talisman');
   if (get('companion')) eff.companionGuards = COMPANION_GUARDS;
   if (get('ring1')) eff.potionBonus += RING_POTION_BONUS;
-  if (get('ring2')) eff.potionBonus += RING_POTION_BONUS;
   // Waffen-Typ-Vorteile, die wie Ausrüstung wirken (Dolch/Stab/Streitkolben).
   const w = _weaponOf(equipment);
   if (w.type === 'dolch') eff.dodge += PERK_DOLCH_DODGE;
@@ -182,7 +187,7 @@ export function openPotionChoice({ onPick }) {
 // Inventar aller geschmiedeten Items — antippen legt an / ab.
 
 const PD_LEFT = ['head', 'body', 'arms', 'legs'];
-const PD_RIGHT = ['talisman', 'ring1', 'ring2', 'weapon'];   // Gefährte steht neben dem Charakter
+const PD_RIGHT = ['weapon', 'talisman', 'ring1', 'companion'];   // Waffe oben, Gefährte unten
 
 // Angelegte Items als gear-Map für den Sprite (avatarSVG opts.gear).
 function _gearMap(c) {
@@ -195,7 +200,7 @@ function _gearMap(c) {
     const it = get(k);
     if (it) g[k] = it;
   }
-  g.ring = get('ring1') || get('ring2') || undefined;
+  g.ring = get('ring1') || undefined;
   const w = equippedWeapon();
   if (w.type) g.weapon = w;
   return g;
@@ -215,12 +220,12 @@ function _wornItem(c, key) {
   return (it && it.slot === (SLOT_TYPE[key] || key)) ? it : null;
 }
 
-function _slotTile(c, key, extra = '') {
+function _slotTile(c, key) {
   const meta = SLOTS[key];
   const it = _wornItem(c, key);
   const inner = it ? itemSpriteSVG(it.type, it.tier, it.which) : `<span class="pd-ghost">${meta.icon}</span>`;
   const title = it ? `${it.name} (${it.parts}/${SLOTS_PER_FORM} Teile)` : `${meta.name} — ${meta.desc}`;
-  return `<button class="pd-slot${extra}${it ? ' filled' : ''}${key === _selSlot ? ' active' : ''}" data-slot="${key}" title="${title}">${inner}
+  return `<button class="pd-slot${it ? ' filled' : ''}${key === _selSlot ? ' active' : ''}" data-slot="${key}" title="${title}">${inner}
     <span class="pd-slot-nm">${meta.name}</span></button>`;
 }
 
@@ -262,10 +267,7 @@ function _previewEquipment(c, it) {
   const eq = { ...c.equipment };
   const wornKey = _wornKeyOf(c, it);
   if (wornKey) { eq[wornKey] = wornKey === 'weapon' ? 'none' : null; return eq; }
-  if (it.slot === 'ring') {
-    const r1 = _itemById(eq.ring1), r2 = _itemById(eq.ring2);
-    eq[!r1 ? 'ring1' : !r2 ? 'ring2' : 'ring1'] = it.id;
-  } else eq[it.slot] = it.id;
+  eq[it.slot === 'ring' ? 'ring1' : it.slot] = it.id;
   return eq;
 }
 
@@ -352,7 +354,6 @@ export function renderEquipmentPanel() {
       <div class="pd-col">${PD_LEFT.map(k => _slotTile(c, k)).join('')}</div>
       <div class="pd-center">
         <div class="pd-avatar">${avatarSVG(ensureAvatar(window.SD), { gear: _gearMap(c) })}</div>
-        ${_slotTile(c, 'companion', ' pd-comp')}
       </div>
       <div class="pd-col">${PD_RIGHT.map(k => _slotTile(c, k)).join('')}</div>
     </div>
@@ -369,16 +370,9 @@ export function renderEquipmentPanel() {
   }
 }
 
-// Item in den passenden Slot legen. slotKey (vom Ziehen) gewinnt bei Ringen,
-// sonst zählt der Item-Slot; freier Ring-Platz wird bevorzugt.
-function _equipInto(c, it, slotKey) {
-  if (it.slot === 'ring') {
-    if (slotKey === 'ring1' || slotKey === 'ring2') c.equipment[slotKey] = it.id;
-    else {
-      const r1 = _itemById(c.equipment.ring1), r2 = _itemById(c.equipment.ring2);
-      c.equipment[!r1 ? 'ring1' : !r2 ? 'ring2' : 'ring1'] = it.id;
-    }
-  } else c.equipment[it.slot] = it.id;
+// Item in den passenden Slot legen (Ring-Items landen im ring1-Slot).
+function _equipInto(c, it) {
+  c.equipment[it.slot === 'ring' ? 'ring1' : it.slot] = it.id;
 }
 
 function _onPanelClick(e) {
@@ -392,7 +386,7 @@ function _onPanelClick(e) {
     if (!it) return;
     const wornKey = _wornKeyOf(c, it);
     if (wornKey) c.equipment[wornKey] = wornKey === 'weapon' ? 'none' : null;
-    else _equipInto(c, it, null);
+    else _equipInto(c, it);
     _save();
     renderEquipmentPanel();
     return;
@@ -499,8 +493,8 @@ function _onPointerUp(e) {
   if (!s) return;
   const c = _eq();
   const wornKey = Object.keys(SLOTS).find(k => c.equipment[k] === d.it.id);
-  if (wornKey) c.equipment[wornKey] = null;   // z. B. Ring von Slot zu Slot ziehen
-  _equipInto(c, d.it, s.dataset.slot);
+  if (wornKey) c.equipment[wornKey] = null;
+  _equipInto(c, d.it);
   _selId = d.it.id;   // angelegtes Item bleibt angewählt → Werte bleiben sichtbar
   _save();
   renderEquipmentPanel();

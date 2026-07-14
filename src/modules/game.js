@@ -1371,8 +1371,14 @@ function showEnd() {
   if(mp && mp.total>0 && mp.mastered>=mp.total){
     window.spawnConfetti();
     try{ playSfx('end'); }catch(e){}
+    // Letztes Teil eines Gefährten fertig → der taucht JETZT erstmals in der
+    // Ausrüstung auf (vorher unsichtbar) — das feiern statt der Modus-Meldung.
+    const comp = window.isUV && window._uvStar && window._uvStar.unlocksCompanion;
     setTimeout(()=>{
-      window.esAlert({ icon:'🏆', title:'100% erreicht!', body:'Du hast den Modus "'+(mp.title||window.mode)+'" gemeistert!', ok:'Weiter' }).then(()=>showMenu());
+      const msg = comp
+        ? { icon:'🐾', title:'Gefährte freigespielt!', body:'Alle 5 Teile geschafft! Dein Gefährte wartet jetzt im Profil unter 🧰 Ausrüstung.', ok:'Super!' }
+        : { icon:'🏆', title:'100% erreicht!', body:'Du hast den Modus "'+(mp.title||window.mode)+'" gemeistert!', ok:'Weiter' };
+      window.esAlert(msg).then(()=>showMenu());
     }, 400);
     return;
   }

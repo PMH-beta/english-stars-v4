@@ -12,7 +12,7 @@
 
 import { startGame } from './game.js';
 import { effectivePct, isStatMastered, statKeyFor } from './stats.js';
-import { irregularAsVocab, getConstellations, IRREGULAR_PRESET_ID, UV_TRAIN_SUF, verbsByEns } from './irregular-verbs.js';
+import { irregularAsVocab, getConstellations, IRREGULAR_PRESET_ID, UV_TRAIN_SUF, verbsByEns, forgeObject } from './irregular-verbs.js';
 
 export const SLOTS_PER_FORM = 5;
 // Die drei Disziplinen (Icon + Name) — von ui.js/game.js für Label/% genutzt.
@@ -149,7 +149,11 @@ export function startConstellationForm(cIdx, which) {
   if (!slot) slot = [...slots].reverse().find((s) => s.unlocked) || slots[0];
   if (!slot) return;
   _enterUV(c);
-  window._uvStar = { which, slot: slot.i, discipline: slot.discipline, suf: slot.suffix };
+  // Merker für die End-Karte: Spielt diese Runde das LETZTE offene Teil eines
+  // Gefährten frei? (Gefährten tauchen erst mit allen 5 Teilen in der Tasche auf.)
+  const unlocksCompanion = forgeObject(cIdx, which).slot === 'companion'
+    && !slot.lit && slots.filter((s) => !s.lit).length === 1;
+  window._uvStar = { which, slot: slot.i, discipline: slot.discipline, suf: slot.suffix, unlocksCompanion };
   startGame('uvslot');
 }
 

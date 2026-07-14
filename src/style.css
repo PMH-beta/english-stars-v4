@@ -1390,12 +1390,9 @@ body.in-game .mode-progress{display:block;}
 /* ── Paperdoll + Inventar im Profil (WoW-artig) ── */
 .pd-wrap{display:flex;align-items:stretch;justify-content:center;gap:10px;margin-bottom:10px;}
 .pd-col{display:flex;flex-direction:column;gap:8px;justify-content:center;}
-.pd-center{display:flex;align-items:flex-end;gap:6px;}
-/* Gefährte: eigene, größere Kachel neben dem Charakter — man sieht das Tier
-   (oder den 🐾-Platzhalter, bis eins geschmiedet und angelegt ist) */
-.pd-slot.pd-comp{width:64px;height:84px;padding:10px;}
+.pd-center{display:flex;flex-direction:column;align-items:center;}
 .pd-avatar{
-  width:112px;height:168px;                                   /* 3.5× von 32×48 */
+  width:155px;height:232px;   /* 2:3 wie der Sprite, Höhe = 4 Slots + 3 Lücken */
   background:linear-gradient(180deg,#f6f0fe,#ece2fa);
   border:1px solid var(--line);border-radius:16px;padding:6px;
 }
@@ -1510,6 +1507,6 @@ body.in-game .mode-progress{display:block;}
   .game-card{padding:18px 14px;}
   .player-banner{padding:10px 14px;}
   .pd-slot{width:46px;height:46px;padding:6px;}
-  .pd-avatar{width:96px;height:144px;}
+  .pd-avatar{width:139px;height:208px;}   /* Höhe = 4×46 + 3×8 */
   .cg-grid{gap:6px;}
 }
