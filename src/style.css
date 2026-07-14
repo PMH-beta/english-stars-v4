@@ -1403,6 +1403,8 @@ body.in-game .mode-progress{display:block;}
 }
 .pd-slot:hover{border-color:#d9c8f2;}
 .pd-slot.filled{border-color:rgba(168,108,219,.55);background:#fff;}
+.pd-slot.active{border-color:var(--purple);background:#faf6ff;box-shadow:0 0 0 3px rgba(168,108,219,.22);}
+.pd-slot.active .pd-slot-nm{color:var(--purple);border-color:var(--purple);}
 .pd-slot .pd-ghost{
   font-size:1.3rem;opacity:.35;display:flex;align-items:center;justify-content:center;height:100%;
   filter:grayscale(1);

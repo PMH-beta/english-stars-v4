@@ -225,10 +225,13 @@ function bodySVG(i, skin) {
 // ────────────────────────────────────────────────
 //  AUSRÜSTUNG AM SPRITE (Paperdoll-Layer)
 //  gear = { weapon?, head?, body?, arms?, legs?, talisman?, ring?, companion? }
-//  mit je {type, tier}; Stufen-Grau: Stahl dunkel, Gold hell, Verzaubert hellst
-//  + weißer Funkel-Pixel. Alles Graustufen-Platzhalter bis die Palette steht.
+//  mit je {type, tier, which}; Farbe = MATERIAL (which: past → Stahlblau,
+//  pp → Gold), damit Stahl- und Gold-Teile unterscheidbar sind — auch wenn
+//  beide „verzaubert" sind. Der weiße Funkel-Pixel hängt an der Stufe (tier).
 // ────────────────────────────────────────────────
-const TIER_G = { stahl: G[3], gold: G[1], verzaubert: G[0] };
+const MAT_C = { past: '#8fa2b8', pp: '#e3b341' };
+const TIER_G = { stahl: MAT_C.past, gold: MAT_C.pp, verzaubert: G[0] };   // Fallback ohne which
+const matColor = (which, tier) => MAT_C[which] || TIER_G[tier] || G[3];
 
 function gearSVG(cfg, gear) {
   if (!gear) return '';
@@ -236,7 +239,7 @@ function gearSVG(cfg, gear) {
   const alx = 16 - SH - 2, arx = 16 + SH;
   const lx1 = 16 - HIP, lx2 = 16 + HIP - LW;
   let s = '';
-  const col = (it) => TIER_G[it.tier] || G[3];
+  const col = (it) => matColor(it.which, it.tier);
   const spark = (it, x, y) => it.tier === 'verzaubert' ? px(x, y, 1, 1, '#ffffff') : '';
 
   if (gear.body) {
@@ -288,7 +291,7 @@ function gearSVG(cfg, gear) {
 // Waffe in der rechten Hand (senkrecht, Klinge nach oben), wx = Waffen-Spalte.
 function weaponSVG(w, wx) {
   wx = Math.min(wx, 29);
-  const c = TIER_G[w.tier] || G[3];
+  const c = matColor(w.which, w.tier);
   const d = shade(c, 0.62);
   const grip = px(wx, 30, 1, 3, G[4]);
   let s = '';
@@ -309,8 +312,8 @@ function weaponSVG(w, wx) {
 
 // 16×16-Pixel-Icon eines geschmiedeten Objekts (fürs Inventar) — gleiche
 // Stilregeln: weiche Silhouetten, Outline im dunkleren Ton, Stufen-Grau.
-export function itemSpriteSVG(type, tier) {
-  const c = TIER_G[tier] || G[3];
+export function itemSpriteSVG(type, tier, which) {
+  const c = matColor(which, tier);
   const d = shade(c, 0.62);
   let s = '';
   switch (type) {
