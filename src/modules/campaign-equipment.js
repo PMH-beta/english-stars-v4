@@ -10,8 +10,8 @@
 // Tränke (💎 Schatz): 3 zufällige zur Wahl, run-gebunden (run.potions), im
 // Kampf spielbar — Definitionen hier, Kampf-Logik in campaign-fight.js.
 
-import { HP_MAX, FIST_DMG, WEAPON_BASE_DMG, WEAPON_GOLD_BONUS, FORM_BONUS, EQUIP_EFFECT, RING_POTION_BONUS, COMPANION_GUARDS, WEAPON_PERK, PERK_SCHWERT_DMG, PERK_DOLCH_DODGE, PERK_STAB_MS, PERK_KOLBEN_GUARD, POTION_CHOICES, POTION_HEAL, POTION_POWER, POTION_TIME_MS, POTION_TIME_WAVES } from './campaign-balance.js';
-import { getConstellations, forgeObject, FORGE_OBJECTS } from './irregular-verbs.js';
+import { HP_MAX, FIST_DMG, WEAPON_BASE_DMG, WEAPON_GOLD_BONUS, EQUIP_EFFECT, RING_POTION_BONUS, COMPANION_GUARDS, WEAPON_PERK, PERK_SCHWERT_DMG, PERK_DOLCH_DODGE, PERK_STAB_MS, PERK_KOLBEN_GUARD, POTION_CHOICES, POTION_HEAL, POTION_POWER, POTION_TIME_MS, POTION_TIME_WAVES } from './campaign-balance.js';
+import { getConstellations, forgeObject } from './irregular-verbs.js';
 import { starLit, SLOTS_PER_FORM } from './irregular-game.js';
 import { avatarSVG, ensureAvatar, itemSpriteSVG } from './avatar.js';
 import { persist } from './storage.js';
@@ -211,7 +211,7 @@ function _slotTile(c, key) {
     if (w.type) {
       inner = itemSpriteSVG(w.type, w.tier, w.which);
       filled = true;
-      title = `${w.name} · ${w.dmg} Schaden${WEAPON_PERK[w.type] ? ' · ' + WEAPON_PERK[w.type].text : ''}`;
+      title = `${w.name} · ${w.dmg} Schaden`;
     } else inner = `<span class="pd-ghost">${meta.icon}</span>`;
   } else {
     const it = _itemById(c.equipment[key]);
@@ -281,33 +281,22 @@ function _statsHtml(c) {
     const val = chg ? `${d.fmt(a)} → ${d.fmt(b)}` : d.fmt(a);
     return `<div class="pd-stat${cls}"><span class="ic">${d.icon}</span><b>${val}</b><span>${d.label}</span></div>`;
   }).join('');
-  const w = _weaponOf(c.equipment);
-  const perk = (w.type && WEAPON_PERK[w.type]) ? `<div class="pd-fx">${w.icon} Waffen-Vorteil: ${WEAPON_PERK[w.type].text}</div>` : '';
-  return `<div class="pd-stats">${tiles}</div>${perk}`;
+  return `<div class="pd-stats">${tiles}</div>`;
 }
 
-// Karte unter der Tasche fürs angewählte Item: was es ist, was es verbessert,
+// Karte unter der Tasche fürs angewählte Item: Bild, Name, Attribut,
 // „Anlegen"/„Ablegen"-Knopf (einfacher Weg neben dem Ziehen).
 function _previewHtml(c) {
   const it = _selectedItem();
   if (!it) return '';
   const wornKey = _wornKeyOf(c, it);
   const slotKey = it.slot === 'ring' ? 'ring1' : it.slot;
-  const perk = it.slot === 'weapon'
-    ? `${it.dmg} Schaden${WEAPON_PERK[it.type] ? ' · ' + WEAPON_PERK[it.type].text : ''}`
-    : SLOTS[slotKey].desc;
-  // Material-Zeile: macht den Unterschied Stahl/Gold sichtbar — bei Waffen mit
-  // dem Formen-Bonus aus dem Kampf (Stahl wirkt auf Past-, Gold auf PP-Wellen).
-  const mat = it.which === 'past'
-    ? `🔩 Stahl (Simple Past)${it.slot === 'weapon' ? ` · +${FORM_BONUS} Schaden bei Simple-Past-Wellen` : ''}`
-    : `🥇 Gold (Past Participle)${it.slot === 'weapon' ? ` · +${FORM_BONUS} Schaden bei Past-Participle-Wellen` : ''}`;
+  const attr = it.slot === 'weapon' ? `⚔️ ${it.dmg} Schaden` : `${SLOTS[slotKey].icon} ${SLOTS[slotKey].desc}`;
   return `<div class="pd-preview">
     <div class="pd-preview-sprite">${itemSpriteSVG(it.type, it.tier, it.which)}</div>
     <div class="pd-preview-info">
       <b>${it.name}</b>
-      <span>${SLOTS[slotKey].icon} ${SLOTS[slotKey].name} · ${it.parts}/${SLOTS_PER_FORM} Teile · ${it.station}</span>
-      <span>${mat}</span>
-      <span class="pd-preview-perk">✨ ${perk}</span>
+      <span>${attr}</span>
     </div>
     <button class="pd-equip-btn${wornKey ? ' off' : ''}" data-equip="${it.id}">${wornKey ? 'Ablegen' : 'Anlegen'}</button>
   </div>`;
@@ -320,18 +309,16 @@ export function renderEquipmentPanel() {
   const equippedIds = new Set(Object.values(c.equipment).filter(Boolean));
   const autoWeaponId = !c.equipment.weapon ? equippedWeapon().id : null;
 
-  // Liste unten: nur Teile für den angewählten Slot. Plätze = wie viele Teile
-  // es für diesen Slot überhaupt geben kann (schmiedbare Objekte × 2 Materialien
-  // Stahl/Gold) — passt sich automatisch an, wenn FORGE_OBJECTS wächst.
+  // Liste unten: nur Teile für den angewählten Slot. Immer volle 4er-Zeilen:
+  // eine Zeile zum Start, ab dem 5. Teil kommt die nächste Zeile dazu.
   const slotType = SLOT_TYPE[_selSlot] || _selSlot;
   const bagItems = forgedItems().filter(i => i.slot === slotType);
-  const capacity = FORGE_OBJECTS.filter(o => o.slot === slotType).length * 2;
+  const capacity = Math.max(4, Math.ceil(bagItems.length / 4) * 4);
   let inv = bagItems.map(it => {
     const on = equippedIds.has(it.id) || it.id === autoWeaponId;
     const sel = it.id === _selId;
-    const perk = it.slot === 'weapon' && WEAPON_PERK[it.type] ? ' · ' + WEAPON_PERK[it.type].text : '';
     return `<button class="pd-item${on ? ' on' : ''}${sel ? ' sel' : ''}" data-item="${it.id}"
-      title="${it.name} (${it.parts}/${SLOTS_PER_FORM} Teile, ${it.station})${perk}">
+      title="${it.name} (${it.parts}/${SLOTS_PER_FORM} Teile, ${it.station})">
       ${itemSpriteSVG(it.type, it.tier, it.which)}
     </button>`;
   }).join('');
@@ -352,8 +339,7 @@ export function renderEquipmentPanel() {
     <div class="pd-inv-title">${SLOTS[_selSlot].icon} ${SLOTS[_selSlot].name}</div>
     <div class="pd-inv">${inv}</div>
     ${_previewHtml(c)}
-    ${emptyHint}
-    <div class="pd-hint">Feld oben antippen zeigt unten die passenden Teile · Teil antippen zeigt, was es verbessert · aufs Feld ziehen (oder „Anlegen") legt an · 🔩 Stahl = Simple Past · 🥇 Gold = Past Participle · ✨ = verzaubert (alle 5 Teile)</div>`;
+    ${emptyHint}`;
 
   if (!host._pdWired) {
     host._pdWired = true;
@@ -412,9 +398,11 @@ function _onPanelClick(e) {
 }
 
 // ── Ziehen aus der Tasche auf einen Slot (Pointer Events, touch-tauglich) ────
-// Erst ab 8 px Bewegung wird es ein Zug (darunter bleibt es ein Klick =
-// Auswahl); passende Slots leuchten, Loslassen über einem Slot legt an.
+// Touch: kurz HALTEN packt die Kachel (vorher darf der Finger die Seite
+// scrollen — CSS touch-action:pan-y), Maus: ab 8 px Bewegung. Darunter bleibt
+// es ein Klick = Auswahl; passende Slots leuchten, Loslassen legt an.
 let _drag = null, _dragDone = false;
+const HOLD_MS = 220;
 
 function _slotMatches(key, it) { return (SLOT_TYPE[key] || key) === it.slot; }
 function _slotUnder(e, it) {
@@ -428,27 +416,47 @@ function _onPointerDown(e) {
   if (!btn) return;
   const it = _itemById(btn.dataset.item);
   if (!it) return;
-  _drag = { it, btn, x0: e.clientX, y0: e.clientY, ghost: null };
+  _drag = { it, btn, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, ghost: null, holdTimer: null };
+  // Touch: erst nach kurzem Halten wird gepackt — ein sofortiges Wischen bleibt Scrollen.
+  if (e.pointerType !== 'mouse') _drag.holdTimer = setTimeout(() => { if (_drag) _startCarry(); }, HOLD_MS);
   window.addEventListener('pointermove', _onPointerMove);
   window.addEventListener('pointerup', _onPointerUp);
   window.addEventListener('pointercancel', _onPointerCancel);
+  window.addEventListener('touchmove', _onTouchMove, { passive: false });
+}
+
+// Kachel „gepackt": Original bleibt blass zurück, eine Kachel-Kopie hängt am Finger.
+function _startCarry() {
+  const d = _drag;
+  const g = document.createElement('div');
+  g.className = 'pd-drag-ghost';
+  g.innerHTML = itemSpriteSVG(d.it.type, d.it.tier, d.it.which);
+  g.style.left = d.x + 'px';
+  g.style.top = d.y + 'px';
+  document.body.appendChild(g);
+  d.ghost = g;
+  d.btn.classList.add('dragging');
+  document.querySelectorAll('.pd-slot').forEach(el => {
+    if (_slotMatches(el.dataset.slot, d.it)) el.classList.add('drop-ok');
+  });
+}
+
+// Beim Tragen darf die Seite nicht mitscrollen — der allererste (noch
+// abbrechbare) touchmove wird geschluckt, danach gehören die Events uns.
+function _onTouchMove(e) {
+  if (_drag && _drag.ghost && e.cancelable) e.preventDefault();
 }
 
 function _onPointerMove(e) {
   const d = _drag;
   if (!d) return;
+  d.x = e.clientX;
+  d.y = e.clientY;
   if (!d.ghost) {
     if (Math.hypot(e.clientX - d.x0, e.clientY - d.y0) < 8) return;
-    // Kachel „gepackt": Original bleibt blass zurück, eine Kachel-Kopie hängt am Finger.
-    const g = document.createElement('div');
-    g.className = 'pd-drag-ghost';
-    g.innerHTML = itemSpriteSVG(d.it.type, d.it.tier, d.it.which);
-    document.body.appendChild(g);
-    d.ghost = g;
-    d.btn.classList.add('dragging');
-    document.querySelectorAll('.pd-slot').forEach(el => {
-      if (_slotMatches(el.dataset.slot, d.it)) el.classList.add('drop-ok');
-    });
+    // Touch bewegt sich VOR dem Halten → das ist Scrollen, kein Zug.
+    if (d.holdTimer) { _cleanupDrag(); return; }
+    _startCarry();   // Maus: ab 8 px wird gezogen
   }
   d.ghost.style.left = e.clientX + 'px';
   d.ghost.style.top = e.clientY + 'px';
@@ -477,6 +485,7 @@ function _onPointerUp(e) {
 function _onPointerCancel() { _cleanupDrag(); }
 
 function _cleanupDrag() {
+  if (_drag && _drag.holdTimer) clearTimeout(_drag.holdTimer);
   if (_drag && _drag.ghost) _drag.ghost.remove();
   if (_drag && _drag.btn) _drag.btn.classList.remove('dragging');
   document.querySelectorAll('.pd-slot.drop-ok, .pd-slot.drop-hover')
@@ -485,4 +494,5 @@ function _cleanupDrag() {
   window.removeEventListener('pointermove', _onPointerMove);
   window.removeEventListener('pointerup', _onPointerUp);
   window.removeEventListener('pointercancel', _onPointerCancel);
+  window.removeEventListener('touchmove', _onTouchMove);
 }
