@@ -10,7 +10,7 @@
 // Tränke (💎 Schatz): 3 zufällige zur Wahl, run-gebunden (run.potions), im
 // Kampf spielbar — Definitionen hier, Kampf-Logik in campaign-fight.js.
 
-import { HP_MAX, FIST_DMG, WEAPON_BASE_DMG, FORM_BONUS, EQUIP_EFFECT, RING_POTION_BONUS, COMPANION_GUARDS, WEAPON_PERK, PERK_SCHWERT_DMG, PERK_DOLCH_DODGE, PERK_STAB_MS, PERK_KOLBEN_GUARD, POTION_CHOICES, POTION_HEAL, POTION_POWER, POTION_TIME_MS, POTION_TIME_WAVES } from './campaign-balance.js';
+import { HP_MAX, FIST_DMG, WEAPON_BASE_DMG, WEAPON_GOLD_BONUS, FORM_BONUS, EQUIP_EFFECT, RING_POTION_BONUS, COMPANION_GUARDS, WEAPON_PERK, PERK_SCHWERT_DMG, PERK_DOLCH_DODGE, PERK_STAB_MS, PERK_KOLBEN_GUARD, POTION_CHOICES, POTION_HEAL, POTION_POWER, POTION_TIME_MS, POTION_TIME_WAVES } from './campaign-balance.js';
 import { getConstellations, forgeObject, FORGE_OBJECTS } from './irregular-verbs.js';
 import { starLit, SLOTS_PER_FORM } from './irregular-game.js';
 import { avatarSVG, ensureAvatar, itemSpriteSVG } from './avatar.js';
@@ -78,7 +78,8 @@ export function forgedItems() {
         station: c.name, which, tier, parts: lit,
       };
       if (ob.slot === 'weapon') {
-        item.dmg = WEAPON_BASE_DMG + lit + (ob.type === 'schwert' ? PERK_SCHWERT_DMG : 0);
+        item.dmg = WEAPON_BASE_DMG + lit + (ob.type === 'schwert' ? PERK_SCHWERT_DMG : 0)
+          + (which === 'pp' ? WEAPON_GOLD_BONUS : 0);   // Gold = stärkeres Material
       }
       out.push(item);
     }
@@ -88,16 +89,28 @@ export function forgedItems() {
 function _itemById(id) { return id ? forgedItems().find(i => i.id === id) : null; }
 
 // Angelegte Waffe — Auswahl aus dem Waffen-Slot, sonst automatisch die beste;
-// ganz ohne Schmiede-Fortschritt kämpft die Faust. Parametrisiert über die
-// equipment-Map, damit die Profil-Vorschau („was wäre wenn") mitrechnen kann.
+// ganz ohne Schmiede-Fortschritt kämpft die Faust. equipment.weapon = 'none'
+// heißt: bewusst abgelegt → Slot bleibt LEER (Faust), keine Auto-Beste mehr.
+// Parametrisiert über die equipment-Map, damit die Profil-Vorschau mitrechnet.
+const FIST = { dmg: FIST_DMG, icon: '👊', name: 'Faust', type: null, which: null, parts: 0 };
 function _weaponOf(equipment) {
+  if (equipment.weapon === 'none') return { ...FIST };
   const sel = _itemById(equipment.weapon);
   if (sel && sel.slot === 'weapon') return sel;
-  let best = { dmg: FIST_DMG, icon: '👊', name: 'Faust', type: null, which: null, parts: 0 };
+  let best = { ...FIST };
   for (const w of forgedItems()) if (w.slot === 'weapon' && w.dmg > best.dmg) best = w;
   return best;
 }
 export function equippedWeapon() { return _weaponOf(_eq().equipment); }
+
+// Trägt das Kind dieses Item? Die automatisch angelegte beste Waffe zählt mit —
+// sonst hieße ihr Knopf „Anlegen", obwohl sie längst in der Hand liegt.
+function _wornKeyOf(c, it) {
+  const k = Object.keys(SLOTS).find(key => c.equipment[key] === it.id);
+  if (k) return k;
+  if (it.slot === 'weapon' && c.equipment.weapon !== 'none' && _weaponOf(c.equipment).id === it.id) return 'weapon';
+  return null;
+}
 
 // ── Effekte der angelegten Items (vom Kampf & den Drops gelesen) ─────────────
 function _effectsOf(equipment) {
@@ -245,10 +258,11 @@ let _selId = null;
 function _selectedItem() { return _itemById(_selId) || null; }
 
 // equipment-Map, WENN das Item angelegt (bzw. ein getragenes abgelegt) würde.
+// Abgelegte Waffe → 'none' (leerer Slot, Faust) statt Rückfall auf die Auto-Beste.
 function _previewEquipment(c, it) {
   const eq = { ...c.equipment };
-  const wornKey = Object.keys(SLOTS).find(k => eq[k] === it.id);
-  if (wornKey) { eq[wornKey] = null; return eq; }   // getragen → Vorschau fürs Ablegen
+  const wornKey = _wornKeyOf(c, it);
+  if (wornKey) { eq[wornKey] = wornKey === 'weapon' ? 'none' : null; return eq; }
   if (it.slot === 'ring') {
     const r1 = _itemById(eq.ring1), r2 = _itemById(eq.ring2);
     eq[!r1 ? 'ring1' : !r2 ? 'ring2' : 'ring1'] = it.id;
@@ -277,7 +291,7 @@ function _statsHtml(c) {
 function _previewHtml(c) {
   const it = _selectedItem();
   if (!it) return '';
-  const wornKey = Object.keys(SLOTS).find(k => c.equipment[k] === it.id);
+  const wornKey = _wornKeyOf(c, it);
   const slotKey = it.slot === 'ring' ? 'ring1' : it.slot;
   const perk = it.slot === 'weapon'
     ? `${it.dmg} Schaden${WEAPON_PERK[it.type] ? ' · ' + WEAPON_PERK[it.type].text : ''}`
@@ -365,11 +379,12 @@ function _onPanelClick(e) {
   const c = _eq();
   const eqBtn = e.target.closest('[data-equip]');
   if (eqBtn) {
-    // „Anlegen"/„Ablegen"-Knopf der Vorschau-Karte.
+    // „Anlegen"/„Ablegen"-Knopf der Vorschau-Karte. Abgelegte Waffe → 'none'
+    // (Slot bleibt leer, Faust) — sonst käme sofort die Auto-Beste zurück.
     const it = _itemById(eqBtn.dataset.equip);
     if (!it) return;
-    const wornKey = Object.keys(SLOTS).find(k => c.equipment[k] === it.id);
-    if (wornKey) c.equipment[wornKey] = null;
+    const wornKey = _wornKeyOf(c, it);
+    if (wornKey) c.equipment[wornKey] = wornKey === 'weapon' ? 'none' : null;
     else _equipInto(c, it, null);
     _save();
     renderEquipmentPanel();
@@ -413,7 +428,7 @@ function _onPointerDown(e) {
   if (!btn) return;
   const it = _itemById(btn.dataset.item);
   if (!it) return;
-  _drag = { it, x0: e.clientX, y0: e.clientY, ghost: null };
+  _drag = { it, btn, x0: e.clientX, y0: e.clientY, ghost: null };
   window.addEventListener('pointermove', _onPointerMove);
   window.addEventListener('pointerup', _onPointerUp);
   window.addEventListener('pointercancel', _onPointerCancel);
@@ -424,11 +439,13 @@ function _onPointerMove(e) {
   if (!d) return;
   if (!d.ghost) {
     if (Math.hypot(e.clientX - d.x0, e.clientY - d.y0) < 8) return;
+    // Kachel „gepackt": Original bleibt blass zurück, eine Kachel-Kopie hängt am Finger.
     const g = document.createElement('div');
     g.className = 'pd-drag-ghost';
     g.innerHTML = itemSpriteSVG(d.it.type, d.it.tier, d.it.which);
     document.body.appendChild(g);
     d.ghost = g;
+    d.btn.classList.add('dragging');
     document.querySelectorAll('.pd-slot').forEach(el => {
       if (_slotMatches(el.dataset.slot, d.it)) el.classList.add('drop-ok');
     });
@@ -461,6 +478,7 @@ function _onPointerCancel() { _cleanupDrag(); }
 
 function _cleanupDrag() {
   if (_drag && _drag.ghost) _drag.ghost.remove();
+  if (_drag && _drag.btn) _drag.btn.classList.remove('dragging');
   document.querySelectorAll('.pd-slot.drop-ok, .pd-slot.drop-hover')
     .forEach(el => el.classList.remove('drop-ok', 'drop-hover'));
   _drag = null;

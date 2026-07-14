@@ -16,8 +16,10 @@ export const ENEMY = {
 // Waffenschaden pro gewonnener Welle: ohne Schmiede-Waffe kämpft die Faust;
 // mit Waffe = WEAPON_BASE_DMG + fertige Teile (1–5 → 6–10). „Verzaubert" (alle
 // 5 Teile inkl. Verzaubern-Slot) ist damit automatisch die 10er-Stufe.
+// Gold (= Past Participle) ist das wertvollere Material: +2 Grundschaden.
 export const FIST_DMG = 4;
 export const WEAPON_BASE_DMG = 5;
+export const WEAPON_GOLD_BONUS = 2;
 
 // Formen-Bonus (nur 🌀/👑, dort gibt es Formen-Wellen): Stahl-Waffe (= Simple Past)
 // +2 Schaden auf Past-Wellen, Gold-Waffe (= Past Participle) +2 auf PP-Wellen.
@@ -45,7 +47,7 @@ export const ECHO_CHOICES = 5;             // 1 richtig + 4 falsch
 // Rüstungs-Stufe: Stahl (Past-Form) / Gold (PP-Form); „Verzaubert" = alle 5 Teile
 // fertig (inkl. Verzaubern-Slot). Effekte pro Stufe:
 export const EQUIP_EFFECT = {
-  head: { stahl: 1, gold: 1, verzaubert: 2 },            // abgewehrte Wellen pro Kampf
+  head: { stahl: 1, gold: 2, verzaubert: 3 },            // abgewehrte Wellen pro Kampf
   body: { stahl: 5, gold: 10, verzaubert: 15 },          // max. HP
   arms: { stahl: 2000, gold: 3000, verzaubert: 5000 },   // Zeitbonus je Minispiel (ms)
   legs: { stahl: 0.10, gold: 0.20, verzaubert: 0.30 },   // Ausweich-Chance

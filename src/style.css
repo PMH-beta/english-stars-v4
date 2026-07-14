@@ -1464,13 +1464,20 @@ body.in-game .mode-progress{display:block;}
 }
 .pd-equip-btn.off{background:linear-gradient(135deg,#e57c73,#f09a90);box-shadow:0 3px 0 #b8564d;}
 
-/* Ziehen: Geist unterm Finger + leuchtende Ziel-Slots */
+/* Ziehen: die „gepackte" Kachel hängt am Finger, das Original bleibt blass zurück,
+   passende Slots leuchten und wachsen, wenn man darüber ist */
+.pd-item.dragging{opacity:.35;transform:scale(.94);}
 .pd-drag-ghost{
-  position:fixed;z-index:10000;width:46px;height:46px;pointer-events:none;
-  transform:translate(-50%,-70%);filter:drop-shadow(0 4px 8px rgba(20,10,50,.35));
+  position:fixed;z-index:10000;width:58px;height:58px;pointer-events:none;
+  padding:9px;box-sizing:border-box;background:#fff8e6;border:2px solid #f2a516;
+  border-radius:12px;box-shadow:0 10px 24px rgba(20,10,50,.35);
+  transform:translate(-50%,-85%) scale(1.08);
 }
 .pd-slot.drop-ok{border-color:#7ed957;background:#f2fbec;animation:es-drop-pulse 1s ease-in-out infinite;}
-.pd-slot.drop-hover{border-color:#2a7a35;background:#e2f7d8;box-shadow:0 0 0 4px rgba(126,217,87,.35);animation:none;}
+.pd-slot.drop-hover{
+  border-color:#2a7a35;background:#e2f7d8;box-shadow:0 0 0 4px rgba(126,217,87,.35);
+  animation:none;transform:scale(1.28);z-index:5;
+}
 @keyframes es-drop-pulse{0%,100%{box-shadow:0 0 0 2px rgba(126,217,87,.2);}50%{box-shadow:0 0 0 5px rgba(126,217,87,.4);}}
 
 /* Merkmal-Slider im Charakter-Editor */
