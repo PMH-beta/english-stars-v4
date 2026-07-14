@@ -12,7 +12,7 @@ import { renderAvatarInto, renderCharacter, commitAvatar, resetCharacterFeature 
 import { IRREGULAR_PRESET_ID, uvAvailableVerbs, CONSTELLATION_SIZE, cefrOf, forgeObject, FORGE_OBJECTS, usedForgeObjects, getConstellations, allVerbsSorted, verbsByEns, UV_TRAIN_SUF } from './irregular-verbs.js';
 import { objectPerkText, renderEquipmentPanel } from './campaign-equipment.js';
 import { renderFriendsSection, refreshFriendBadge, friendProgress, subscribeFriendRealtime, unsubscribeFriendRealtime } from './friends.js';
-import { renderCampaign, updateTalerBadge, refreshClaimedTaler } from './campaign.js';
+import { renderCampaign, updateTalerBadge, refreshClaimedTaler, talerAvailable } from './campaign.js';
 
 const API_KEY_SK = 'es_apikey';
 
@@ -1794,14 +1794,7 @@ export function showProfile() {
   }
   const ph = document.getElementById('prof-hs'); if (ph) ph.textContent = SD.highscore || 0;
   const pp = document.getElementById('prof-pts'); if (pp) pp.textContent = SD.totalPoints || 0;
-  const deckIds = Object.keys(SD.decks || {});
-  const pd = document.getElementById('prof-decks'); if (pd) pd.textContent = deckIds.length;
-  let totalMastered = 0;
-  deckIds.forEach(id => {
-    const p = deckProgress(SD.decks[id]);
-    totalMastered += p.overallMastered || 0;
-  });
-  const pm = document.getElementById('prof-mastered'); if (pm) pm.textContent = totalMastered;
+  const pt = document.getElementById('prof-taler'); if (pt) pt.textContent = talerAvailable();
 
   const cloudSection = document.getElementById('prof-cloud-section');
   if (cloudSection) {
