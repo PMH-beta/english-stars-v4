@@ -274,14 +274,14 @@ function _statsHtml(c) {
   const cur = _statVals(c.equipment);
   const sel = _selectedItem();
   const prev = sel ? _statVals(_previewEquipment(c, sel)) : null;
-  const tiles = STAT_DEFS.map(d => {
+  const rows = STAT_DEFS.map(d => {
     const a = cur[d.key], b = prev ? prev[d.key] : a;
     const chg = prev && b !== a;
     const cls = chg ? (b > a ? ' chg up' : ' chg down') : '';
     const val = chg ? `${d.fmt(a)} → ${d.fmt(b)}` : d.fmt(a);
-    return `<div class="pd-stat${cls}"><span class="ic">${d.icon}</span><b>${val}</b><span>${d.label}</span></div>`;
+    return `<div class="pd-stat${cls}"><span class="lbl">${d.icon} ${d.label}</span><span class="dots"></span><b>${val}</b></div>`;
   }).join('');
-  return `<div class="pd-stats">${tiles}</div>`;
+  return `<div class="pd-stats">${rows}</div>`;
 }
 
 // Karte unter der Tasche fürs angewählte Item: Bild, Name, Attribut,
@@ -309,11 +309,13 @@ export function renderEquipmentPanel() {
   const equippedIds = new Set(Object.values(c.equipment).filter(Boolean));
   const autoWeaponId = !c.equipment.weapon ? equippedWeapon().id : null;
 
-  // Liste unten: nur Teile für den angewählten Slot. Immer volle 4er-Zeilen:
-  // eine Zeile zum Start, ab dem 5. Teil kommt die nächste Zeile dazu.
+  // Liste unten: nur Teile für den angewählten Slot. Immer volle Zeilen à
+  // BAG_COLS Plätze (muss zu .pd-inv im CSS passen) — überschreitet ein Teil
+  // die Zeile, kommt die nächste angefangene Zeile dazu.
+  const BAG_COLS = 6;
   const slotType = SLOT_TYPE[_selSlot] || _selSlot;
   const bagItems = forgedItems().filter(i => i.slot === slotType);
-  const capacity = Math.max(4, Math.ceil(bagItems.length / 4) * 4);
+  const capacity = Math.max(BAG_COLS, Math.ceil(bagItems.length / BAG_COLS) * BAG_COLS);
   let inv = bagItems.map(it => {
     const on = equippedIds.has(it.id) || it.id === autoWeaponId;
     const sel = it.id === _selId;
