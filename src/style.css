@@ -1390,7 +1390,10 @@ body.in-game .mode-progress{display:block;}
 /* ── Paperdoll + Inventar im Profil (WoW-artig) ── */
 .pd-wrap{display:flex;align-items:stretch;justify-content:center;gap:10px;margin-bottom:10px;}
 .pd-col{display:flex;flex-direction:column;gap:8px;justify-content:center;}
-.pd-center{display:flex;flex-direction:column;align-items:center;gap:8px;}
+.pd-center{display:flex;align-items:flex-end;gap:6px;}
+/* Gefährte: eigene, größere Kachel neben dem Charakter — man sieht das Tier
+   (oder den 🐾-Platzhalter, bis eins geschmiedet und angelegt ist) */
+.pd-slot.pd-comp{width:64px;height:84px;padding:10px;}
 .pd-avatar{
   width:112px;height:168px;                                   /* 3.5× von 32×48 */
   background:linear-gradient(180deg,#f6f0fe,#ece2fa);
@@ -1422,7 +1425,6 @@ body.in-game .mode-progress{display:block;}
   touch-action:pan-y;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
 }
 .pd-item:hover{transform:translateY(-1px);border-color:#d9c8f2;}
-.pd-item.on{border-color:var(--purple);background:#faf6ff;box-shadow:0 0 0 3px rgba(168,108,219,.14);}
 .pd-item.sel{border-color:#f2a516;background:#fff8e6;box-shadow:0 0 0 3px rgba(242,165,22,.22);}
 .pd-item.empty{
   border-style:dashed;border-color:#ddd4ef;background:transparent;cursor:default;

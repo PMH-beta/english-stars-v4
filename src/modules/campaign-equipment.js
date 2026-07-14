@@ -10,7 +10,7 @@
 // Tränke (💎 Schatz): 3 zufällige zur Wahl, run-gebunden (run.potions), im
 // Kampf spielbar — Definitionen hier, Kampf-Logik in campaign-fight.js.
 
-import { HP_MAX, FIST_DMG, WEAPON_BASE_DMG, WEAPON_GOLD_BONUS, EQUIP_EFFECT, RING_POTION_BONUS, COMPANION_GUARDS, WEAPON_PERK, PERK_SCHWERT_DMG, PERK_DOLCH_DODGE, PERK_STAB_MS, PERK_KOLBEN_GUARD, POTION_CHOICES, POTION_HEAL, POTION_POWER, POTION_TIME_MS, POTION_TIME_WAVES } from './campaign-balance.js';
+import { HP_MAX, FIST_DMG, WEAPON_BASE_DMG, WEAPON_GOLD_BONUS, EQUIP_EFFECT, TALISMAN_MULT, RING_POTION_BONUS, COMPANION_GUARDS, WEAPON_PERK, PERK_SCHWERT_DMG, PERK_DOLCH_DODGE, PERK_SPEER_BOSS, PERK_AXT_ELITE, PERK_HAMMER_MULT, PERK_STAB_MS, PERK_BOGEN_FIGHT, PERK_KOLBEN_GUARD, POTION_CHOICES, POTION_HEAL, POTION_POWER, POTION_TIME_MS, POTION_TIME_WAVES } from './campaign-balance.js';
 import { getConstellations, forgeObject } from './irregular-verbs.js';
 import { starLit, SLOTS_PER_FORM } from './irregular-game.js';
 import { avatarSVG, ensureAvatar, itemSpriteSVG } from './avatar.js';
@@ -113,16 +113,21 @@ function _wornKeyOf(c, it) {
 }
 
 // ── Effekte der angelegten Items (vom Kampf & den Drops gelesen) ─────────────
+// Rüstungs-Wirkung = Material (Stahl/Gold) + Verzaubert-Bonus obendrauf.
+function _equipVal(slot, it) {
+  const e = EQUIP_EFFECT[slot];
+  return e[it.which === 'past' ? 'stahl' : 'gold'] + (it.tier === 'verzaubert' ? e.verzaubert : 0);
+}
 function _effectsOf(equipment) {
   const get = (k) => {
     const it = _itemById(equipment[k]);
     return (it && it.slot === (SLOT_TYPE[k] || k)) ? it : null;
   };
   const eff = { hpBonus: 0, timeBonusMs: 0, dodge: 0, headGuards: 0, talisman: false, companionGuards: 0, potionBonus: 0 };
-  const head = get('head'); if (head) eff.headGuards = EQUIP_EFFECT.head[head.tier] || 0;
-  const body = get('body'); if (body) eff.hpBonus = EQUIP_EFFECT.body[body.tier] || 0;
-  const arms = get('arms'); if (arms) eff.timeBonusMs = EQUIP_EFFECT.arms[arms.tier] || 0;
-  const legs = get('legs'); if (legs) eff.dodge = EQUIP_EFFECT.legs[legs.tier] || 0;
+  const head = get('head'); if (head) eff.headGuards = _equipVal('head', head);
+  const body = get('body'); if (body) eff.hpBonus = _equipVal('body', body);
+  const arms = get('arms'); if (arms) eff.timeBonusMs = _equipVal('arms', arms);
+  const legs = get('legs'); if (legs) eff.dodge = _equipVal('legs', legs);
   eff.talisman = !!get('talisman');
   if (get('companion')) eff.companionGuards = COMPANION_GUARDS;
   if (get('ring1')) eff.potionBonus += RING_POTION_BONUS;
@@ -177,7 +182,7 @@ export function openPotionChoice({ onPick }) {
 // Inventar aller geschmiedeten Items — antippen legt an / ab.
 
 const PD_LEFT = ['head', 'body', 'arms', 'legs'];
-const PD_RIGHT = ['talisman', 'ring1', 'ring2', 'companion'];
+const PD_RIGHT = ['talisman', 'ring1', 'ring2', 'weapon'];   // Gefährte steht neben dem Charakter
 
 // Angelegte Items als gear-Map für den Sprite (avatarSVG opts.gear).
 function _gearMap(c) {
@@ -203,25 +208,19 @@ export function equippedGearMap() { return _gearMap(_eq()); }
 // dann alle schmiedbaren Teile für genau diesen Slot.
 let _selSlot = 'weapon';
 
-function _slotTile(c, key) {
+// Getragenes Item eines Slots (Waffe inkl. Auto-Beste), sonst null.
+function _wornItem(c, key) {
+  if (key === 'weapon') { const w = equippedWeapon(); return w.id ? w : null; }
+  const it = _itemById(c.equipment[key]);
+  return (it && it.slot === (SLOT_TYPE[key] || key)) ? it : null;
+}
+
+function _slotTile(c, key, extra = '') {
   const meta = SLOTS[key];
-  let inner, filled = false, title = `${meta.name} — ${meta.desc}`;
-  if (key === 'weapon') {
-    const w = equippedWeapon();
-    if (w.type) {
-      inner = itemSpriteSVG(w.type, w.tier, w.which);
-      filled = true;
-      title = `${w.name} · ${w.dmg} Schaden`;
-    } else inner = `<span class="pd-ghost">${meta.icon}</span>`;
-  } else {
-    const it = _itemById(c.equipment[key]);
-    if (it && it.slot === (SLOT_TYPE[key] || key)) {
-      inner = itemSpriteSVG(it.type, it.tier, it.which);
-      filled = true;
-      title = `${it.name} (${it.parts}/${SLOTS_PER_FORM} Teile)`;
-    } else inner = `<span class="pd-ghost">${meta.icon}</span>`;
-  }
-  return `<button class="pd-slot${filled ? ' filled' : ''}${key === _selSlot ? ' active' : ''}" data-slot="${key}" title="${title}">${inner}
+  const it = _wornItem(c, key);
+  const inner = it ? itemSpriteSVG(it.type, it.tier, it.which) : `<span class="pd-ghost">${meta.icon}</span>`;
+  const title = it ? `${it.name} (${it.parts}/${SLOTS_PER_FORM} Teile)` : `${meta.name} — ${meta.desc}`;
+  return `<button class="pd-slot${extra}${it ? ' filled' : ''}${key === _selSlot ? ' active' : ''}" data-slot="${key}" title="${title}">${inner}
     <span class="pd-slot-nm">${meta.name}</span></button>`;
 }
 
@@ -273,7 +272,8 @@ function _previewEquipment(c, it) {
 function _statsHtml(c) {
   const cur = _statVals(c.equipment);
   const sel = _selectedItem();
-  const prev = sel ? _statVals(_previewEquipment(c, sel)) : null;
+  // Getragene Items zeigen KEINE Änderung — sie stecken ja schon in den Werten.
+  const prev = sel && !_wornKeyOf(c, sel) ? _statVals(_previewEquipment(c, sel)) : null;
   const rows = STAT_DEFS.map(d => {
     const a = cur[d.key], b = prev ? prev[d.key] : a;
     const chg = prev && b !== a;
@@ -284,19 +284,40 @@ function _statsHtml(c) {
   return `<div class="pd-stats">${rows}</div>`;
 }
 
-// Karte unter der Tasche fürs angewählte Item: Bild, Name, Attribut,
+// ALLE Verbesserungen eines Items als kurze Zahlen-Zeilen (keine Beschreibungen).
+function _itemBonuses(it) {
+  if (it.slot === 'weapon') {
+    const out = [`⚔️ ${it.dmg} Schaden`];
+    if (it.type === 'dolch') out.push(`🍃 +${Math.round(PERK_DOLCH_DODGE * 100)} % Ausweichen`);
+    if (it.type === 'stab') out.push(`⏱️ +${PERK_STAB_MS / 1000} s Zeit`);
+    if (it.type === 'streitkolben') out.push(`🪖 +${PERK_KOLBEN_GUARD}× Abwehr`);
+    if (it.type === 'speer') out.push(`🐉 +${PERK_SPEER_BOSS} Schaden an Bossen`);
+    if (it.type === 'axt') out.push(`🌀 +${PERK_AXT_ELITE} Schaden an Elite`);
+    if (it.type === 'bogen') out.push(`👾 +${PERK_BOGEN_FIGHT} Schaden an Wortgeistern`);
+    if (it.type === 'hammer') out.push(`💥 1. Welle ×${PERK_HAMMER_MULT} Schaden`);
+    return out;
+  }
+  if (it.slot === 'head') return [`🪖 ${_equipVal('head', it)}× Abwehr`];
+  if (it.slot === 'body') return [`❤️ +${_equipVal('body', it)} Leben`];
+  if (it.slot === 'arms') return [`⏱️ +${_equipVal('arms', it) / 1000} s Zeit`];
+  if (it.slot === 'legs') return [`🍃 +${Math.round(_equipVal('legs', it) * 100)} % Ausweichen`];
+  if (it.slot === 'talisman') return [`🌀 +${Math.round((TALISMAN_MULT - 1) * 100)} % Schaden an 🌀`];
+  if (it.slot === 'ring') return [`🧪 +${RING_POTION_BONUS} Trank zur Wahl`];
+  if (it.slot === 'companion') return [`🐾 fängt ${COMPANION_GUARDS} Fehler pro Kampf`];
+  return [];
+}
+
+// Karte unter der Tasche fürs angewählte Item: Bild, Name, Verbesserungen,
 // „Anlegen"/„Ablegen"-Knopf (einfacher Weg neben dem Ziehen).
 function _previewHtml(c) {
   const it = _selectedItem();
   if (!it) return '';
   const wornKey = _wornKeyOf(c, it);
-  const slotKey = it.slot === 'ring' ? 'ring1' : it.slot;
-  const attr = it.slot === 'weapon' ? `⚔️ ${it.dmg} Schaden` : `${SLOTS[slotKey].icon} ${SLOTS[slotKey].desc}`;
   return `<div class="pd-preview">
     <div class="pd-preview-sprite">${itemSpriteSVG(it.type, it.tier, it.which)}</div>
     <div class="pd-preview-info">
       <b>${it.name}</b>
-      <span>${attr}</span>
+      ${_itemBonuses(it).map(b => `<span>${b}</span>`).join('')}
     </div>
     <button class="pd-equip-btn${wornKey ? ' off' : ''}" data-equip="${it.id}">${wornKey ? 'Ablegen' : 'Anlegen'}</button>
   </div>`;
@@ -309,23 +330,21 @@ export function renderEquipmentPanel() {
   const equippedIds = new Set(Object.values(c.equipment).filter(Boolean));
   const autoWeaponId = !c.equipment.weapon ? equippedWeapon().id : null;
 
-  // Liste unten: nur Teile für den angewählten Slot. Immer volle Zeilen à
-  // BAG_COLS Plätze (muss zu .pd-inv im CSS passen) — überschreitet ein Teil
-  // die Zeile, kommt die nächste angefangene Zeile dazu.
+  // Tasche unten: nur UNANGELEGTE Teile für den angewählten Slot (getragene
+  // stecken in den Feldern am Charakter). Immer volle Zeilen à BAG_COLS Plätze
+  // (muss zu .pd-inv im CSS passen) — überschreitet ein Teil die Zeile, kommt
+  // die nächste angefangene Zeile dazu.
   const BAG_COLS = 6;
   const slotType = SLOT_TYPE[_selSlot] || _selSlot;
-  const bagItems = forgedItems().filter(i => i.slot === slotType);
+  const allOfSlot = forgedItems().filter(i => i.slot === slotType);
+  const bagItems = allOfSlot.filter(i => !equippedIds.has(i.id) && i.id !== autoWeaponId);
   const capacity = Math.max(BAG_COLS, Math.ceil(bagItems.length / BAG_COLS) * BAG_COLS);
-  let inv = bagItems.map(it => {
-    const on = equippedIds.has(it.id) || it.id === autoWeaponId;
-    const sel = it.id === _selId;
-    return `<button class="pd-item${on ? ' on' : ''}${sel ? ' sel' : ''}" data-item="${it.id}"
+  let inv = bagItems.map(it => `<button class="pd-item${it.id === _selId ? ' sel' : ''}" data-item="${it.id}"
       title="${it.name} (${it.parts}/${SLOTS_PER_FORM} Teile, ${it.station})">
       ${itemSpriteSVG(it.type, it.tier, it.which)}
-    </button>`;
-  }).join('');
+    </button>`).join('');
   for (let i = bagItems.length; i < capacity; i++) inv += `<div class="pd-item empty" title="Leerer Platz — schmiede etwas in der ⚒️ Schmiede"></div>`;
-  const emptyHint = bagItems.length ? '' : `<div class="pd-empty">Noch kein ${SLOTS[_selSlot].name}-Teil geschmiedet — wähle in der ⚒️ Schmiede beim Befüllen ein passendes Objekt und übe seine Verben, dann taucht es hier auf.</div>`;
+  const emptyHint = allOfSlot.length ? '' : `<div class="pd-empty">Noch kein ${SLOTS[_selSlot].name}-Teil geschmiedet — wähle in der ⚒️ Schmiede beim Befüllen ein passendes Objekt und übe seine Verben, dann taucht es hier auf.</div>`;
 
   host.innerHTML = `
     <h3 style="color:var(--purple);margin-top:0">🧰 Ausrüstung</h3>
@@ -333,7 +352,7 @@ export function renderEquipmentPanel() {
       <div class="pd-col">${PD_LEFT.map(k => _slotTile(c, k)).join('')}</div>
       <div class="pd-center">
         <div class="pd-avatar">${avatarSVG(ensureAvatar(window.SD), { gear: _gearMap(c) })}</div>
-        ${_slotTile(c, 'weapon')}
+        ${_slotTile(c, 'companion', ' pd-comp')}
       </div>
       <div class="pd-col">${PD_RIGHT.map(k => _slotTile(c, k)).join('')}</div>
     </div>
@@ -388,13 +407,16 @@ function _onPanelClick(e) {
   }
   const slotBtn = e.target.closest('[data-slot]');
   if (slotBtn) {
-    // Slot antippen = anwählen → Liste unten zeigt die passenden Teile.
-    // Abgelegt wird über den „Ablegen"-Knopf des angewählten Items.
+    // Slot antippen = anwählen → Tasche zeigt die passenden Teile; trägt der
+    // Slot ein Item, wird DAS angewählt (Karte unter der Tasche, „Ablegen").
     const key = slotBtn.dataset.slot;
-    if (_selSlot === key) return;
     _selSlot = key;
-    const sel = _selectedItem();
-    if (sel && sel.slot !== (SLOT_TYPE[key] || key)) _selId = null;   // Auswahl passt nicht mehr
+    const worn = _wornItem(c, key);
+    if (worn) _selId = worn.id;
+    else {
+      const sel = _selectedItem();
+      if (sel && sel.slot !== (SLOT_TYPE[key] || key)) _selId = null;   // Auswahl passt nicht mehr
+    }
     renderEquipmentPanel();
   }
 }

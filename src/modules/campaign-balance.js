@@ -44,13 +44,14 @@ export const ECHO_TIME_MS = 15000;
 export const ECHO_CHOICES = 5;             // 1 richtig + 4 falsch
 
 // ── Ausrüstung (alles wird in der Schmiede gebaut) ──
-// Rüstungs-Stufe: Stahl (Past-Form) / Gold (PP-Form); „Verzaubert" = alle 5 Teile
-// fertig (inkl. Verzaubern-Slot). Effekte pro Stufe:
+// Rüstungs-Wirkung nach MATERIAL (stahl = Past-Form, gold = PP-Form) plus
+// verzaubert-Bonus OBENDRAUF (alle 5 Teile fertig) — so ist Gold auf jeder
+// Stufe besser als Stahl (z. B. Helm: Stahl 1, Gold 2, Stahl✨ 2, Gold✨ 3).
 export const EQUIP_EFFECT = {
-  head: { stahl: 1, gold: 2, verzaubert: 3 },            // abgewehrte Wellen pro Kampf
-  body: { stahl: 5, gold: 10, verzaubert: 15 },          // max. HP
-  arms: { stahl: 2000, gold: 3000, verzaubert: 5000 },   // Zeitbonus je Minispiel (ms)
-  legs: { stahl: 0.10, gold: 0.20, verzaubert: 0.30 },   // Ausweich-Chance
+  head: { stahl: 1, gold: 2, verzaubert: 1 },            // abgewehrte Wellen pro Kampf
+  body: { stahl: 5, gold: 10, verzaubert: 5 },           // max. HP
+  arms: { stahl: 2000, gold: 3000, verzaubert: 2000 },   // Zeitbonus je Minispiel (ms)
+  legs: { stahl: 0.10, gold: 0.20, verzaubert: 0.10 },   // Ausweich-Chance
 };
 export const TALISMAN_MULT = 1.5;          // Waffenschaden ×1.5 an 🌀-Knoten
 export const RING_POTION_BONUS = 1;        // 💍 je Ring: +1 Trank-Auswahl am 💎 (3→4→5)
