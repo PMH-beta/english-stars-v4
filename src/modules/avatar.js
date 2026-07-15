@@ -277,37 +277,54 @@ export const HAIR_COLORS = [
   '#a04a28', '#C0502A', '#d97b29', '#D9B84A', '#E3C45A', '#f0dc82', '#c9ccd6', '#f2f0ea',
   '#e07ba8', '#8a5fc9', '#4a7fd1', '#3f9d4e',
 ];
-// Strähnen: unregelmäßige dunkle + helle 1px-Linien über der Grundfläche.
+// Additiver Aufheller — wirkt auch auf fast-schwarzen Farben (multiplikativ
+// bliebe Schwarz schwarz und die Strähnen-Textur wäre unsichtbar).
+function lift(hex, add) {
+  const n = parseInt(hex.slice(1), 16);
+  const ch = (v) => Math.min(255, v + add);
+  const r = ch((n >> 16) & 255), g = ch((n >> 8) & 255), b = ch(n & 255);
+  return '#' + ((r << 16) | (g << 8) | b).toString(16).padStart(6, '0');
+}
+// Strähnen: DICHTE Struktur — fast jede Spalte bekommt eine eigene Strähne in
+// einem von drei Tönen, mit variierendem Start und variierender Länge. Keine
+// flachen Farbflächen mehr, die Grundfläche blitzt nur noch dazwischen durch.
 function strands(x, y, w, h, c) {
   if (w < 3 || h < 2) return '';
   let s = '';
-  const dk = shade(c, 0.78), lt = shade(c, 1.18);
-  for (let i = 1; i < w; i += 3) {
-    const o = (i % 2) ? 1 : 0;
-    s += px(x + i, y + o, 1, Math.max(1, h - o - (i % 3 ? 2 : 0)), dk);
+  const dk = shade(c, 0.8), dk2 = shade(c, 0.68), lt = lift(c, 26);
+  for (let i = 1; i < w; i += 2) {
+    const v = (i * 7) % 3;                                    // 0..2 Variation je Spalte
+    const o = v === 2 ? 2 : v;                                // Start-Versatz
+    s += px(x + i, y + o, 1, Math.max(1, h - o - ((i * 5) % 3)), v === 1 ? dk2 : dk);
   }
-  for (let i = 3; i < w; i += 6) s += px(x + i, y + 1, 1, Math.max(2, h - 3), lt);
+  for (let i = 2; i < w; i += 5) s += px(x + i, y + ((i * 3) % 2), 1, Math.max(2, h - 3), lt);
   return s;
 }
-// Locken: dunkles Dither + versetzte helle Punkt-Reflexe (Kringel-Eindruck).
+// Locken: dunkles Dither + dichte, versetzte helle Punkt-Reflexe (Kringel).
 function curls(x, y, w, h, c) {
   let s = dith(x, y, w, h, shade(c, 0.8));
-  const lt = shade(c, 1.2);
-  for (let j = 1; j < h; j += 3) for (let i = 1 + (j % 2); i < w; i += 4) s += px(x + i, y + j, 1, 1, lt);
+  const lt = lift(c, 28);
+  for (let j = 0; j < h; j += 2) for (let i = 1 + ((j >> 1) % 2) * 2; i < w; i += 4) s += px(x + i, y + j, 1, 1, lt);
   return s;
 }
 function _capBase(c) {
   const d = shade(c, 0.62);
   return roundO(18, 6, 28, 12, c) + px(22, 7, 8, 1, shade(c, 1.22))
     + px(18, 17, 2, 7, c) + px(44, 17, 2, 7, c)          // Schläfenhaar bis zu den Ohren
+    + px(19, 18, 1, 5, shade(c, 0.78)) + px(44, 18, 1, 5, shade(c, 0.78))   // Schläfen-Strähne
     + px(18, 24, 1, 2, c) + px(45, 24, 1, 2, c)          // Koteletten-Spitzen
     + px(17, 17, 1, 6, d) + px(46, 17, 1, 6, d);         // Outline außen
 }
 function _cap(c) { return _capBase(c) + strands(20, 8, 24, 8, c); }
-// Gezackter Pony: abwechselnd 2/3px tiefe Zacken + einzelne Strähnchen-Spitzen.
+// Gezackter Pony: abwechselnd 2/3px tiefe Zacken, jede Zacke mit eigener
+// Schattenkante + einzelne Strähnchen-Spitzen.
 function _fringe(c) {
   let s = '';
-  for (let x = 20; x < 44; x += 3) s += px(x, 18, 3, (((x - 20) / 3) % 2 === 0) ? 3 : 2, c);
+  const dk = shade(c, 0.78);
+  for (let x = 20; x < 44; x += 3) {
+    const h = (((x - 20) / 3) % 2 === 0) ? 3 : 2;
+    s += px(x, 18, 3, h, c) + px(x + 2, 18, 1, h - 1, dk);
+  }
   return s + px(22, 21, 1, 1, c) + px(31, 21, 1, 1, c) + px(40, 21, 1, 1, c);
 }
 // Seitliche Haarpartien mit Strähnen und spitz auslaufenden Enden.
@@ -320,45 +337,54 @@ function _sides(c, len) {
   return s;
 }
 function _braid(x, c, tie) {
-  return softO(x, 18, 4, 5, c) + softO(x, 24, 4, 5, shade(c, 0.85)) + softO(x, 30, 4, 5, c)
+  // Jedes Flecht-Segment mit eigenem Licht-/Schattenpixel (plastische Wülste).
+  const seg = (yy, cc) => softO(x, yy, 4, 5, cc)
+    + px(x + 1, yy + 1, 1, 2, shade(cc, 1.18)) + px(x + 2, yy + 2, 1, 2, shade(cc, 0.72));
+  return seg(18, c) + seg(24, shade(c, 0.88)) + seg(30, c)
     + px(x + 1, 21, 2, 1, shade(c, 0.7)) + px(x + 1, 27, 2, 1, shade(c, 0.7))   // Flecht-Rillen
     + px(x + 1, 35, 2, 2, tie);
 }
-// Mittelscheitel: dunkle Scheitellinie + nach außen gelegter Pony.
+// Mittelscheitel: dunkle Scheitellinie + nach außen gelegter Pony (mit Strähnen).
 function _part(c) {
   return px(31, 6, 2, 5, shade(c, 0.68))
-    + px(20, 18, 10, 2, c) + px(20, 20, 5, 1, c)
-    + px(34, 18, 10, 2, c) + px(39, 20, 5, 1, c);
+    + px(20, 18, 10, 2, c) + px(20, 20, 5, 1, c) + strands(20, 18, 10, 2, c)
+    + px(34, 18, 10, 2, c) + px(39, 20, 5, 1, c) + strands(34, 18, 10, 2, c);
 }
 const HAIR = [
   (c) => _cap(c) + _fringe(c),                                                             // 0 kurz
-  (c) => px(20, 3, 2, 3, c) + px(25, 2, 2, 4, c) + px(30, 1, 2, 5, c) + px(35, 2, 2, 4, c)
-    + px(40, 3, 2, 3, c) + px(25, 2, 1, 1, shade(c, 1.2)) + px(30, 1, 1, 1, shade(c, 1.2))
-    + px(35, 2, 1, 1, shade(c, 1.2)) + _cap(c),                                            // 1 stachelig
+  (c) => [[20, 3, 3], [25, 2, 4], [30, 1, 5], [35, 2, 4], [40, 3, 3]].map(([sx, sy, sh]) =>
+    px(sx, sy, 2, sh, c) + px(sx + 1, sy + 1, 1, sh - 1, shade(c, 0.75))
+    + px(sx, sy, 1, 1, shade(c, 1.2))).join('') + _cap(c),                                 // 1 stachelig
   (c) => _cap(c) + _fringe(c) + _sides(c, 36),                                             // 2 lang
   (c) => _cap(c) + _fringe(c) + roundO(26, 0, 12, 6, c) + strands(27, 1, 10, 4, c)
     + px(26, 5, 12, 1, GOLD),                                                              // 3 Dutt
   (c) => _capBase(c) + px(19, 4, 4, 2, c) + px(25, 3, 4, 2, c) + px(31, 3, 4, 2, c)
-    + px(37, 4, 4, 2, c) + px(16, 14, 2, 8, c) + px(46, 14, 2, 8, c) + curls(20, 8, 24, 9, c),   // 4 Locken
+    + px(37, 4, 4, 2, c) + px(20, 4, 1, 1, shade(c, 1.2)) + px(32, 3, 1, 1, shade(c, 1.2))
+    + px(16, 14, 2, 8, c) + px(17, 15, 1, 6, shade(c, 0.75))
+    + px(46, 14, 2, 8, c) + px(46, 15, 1, 6, shade(c, 0.75)) + curls(20, 8, 24, 9, c),     // 4 Locken
   null,                                                                                    // 5 Glatze
   (c) => roundO(17, 5, 30, 16, c) + px(21, 6, 8, 1, shade(c, 1.22)) + strands(19, 8, 26, 12, c)
-    + softO(15, 16, 4, 14, c) + softO(45, 16, 4, 14, c)
+    + softO(15, 16, 4, 14, c) + strands(15, 17, 4, 12, c)
+    + softO(45, 16, 4, 14, c) + strands(45, 17, 4, 12, c)
     + px(16, 30, 2, 2, c) + px(46, 30, 2, 2, c),                                           // 6 voll/wuschelig
   (c) => _cap(c) + _fringe(c) + softO(46, 12, 5, 26, c) + strands(46, 14, 5, 20, c)
     + px(46, 17, 5, 2, GOLD) + px(47, 38, 3, 2, c) + px(48, 40, 1, 2, c),                  // 7 Pferdeschwanz
   (c) => roundO(14, 0, 36, 20, c) + curls(16, 2, 32, 16, c)
-    + softO(14, 16, 4, 12, c) + softO(46, 16, 4, 12, c),                                   // 8 Afro
+    + softO(14, 16, 4, 12, c) + curls(14, 17, 4, 10, c)
+    + softO(46, 16, 4, 12, c) + curls(46, 17, 4, 10, c),                                   // 8 Afro
   (c) => _cap(c) + _fringe(c) + _sides(c, 54),                                             // 9 sehr lang
   (c) => _cap(c) + _fringe(c) + _braid(14, c, '#d94f4f') + _braid(46, c, '#d94f4f'),       // 10 Zöpfe
-  (c) => soft(19, 9, 26, 4, '#55504a') + roundO(28, 0, 8, 16, c)
-    + px(30, 1, 1, 13, shade(c, 0.78)) + px(33, 2, 1, 12, shade(c, 1.18)),                 // 11 Irokese
+  (c) => soft(19, 9, 26, 4, '#55504a') + dith(20, 10, 24, 2, shade('#55504a', 1.2))
+    + roundO(28, 0, 8, 16, c) + strands(28, 1, 8, 14, c),                                  // 11 Irokese
   (c) => roundO(16, 5, 32, 14, c) + px(21, 6, 10, 1, shade(c, 1.22)) + strands(18, 7, 28, 10, c)
-    + softO(15, 14, 5, 14, c) + softO(44, 14, 5, 14, c) + px(20, 16, 24, 3, c)
-    + strands(20, 16, 24, 3, c),                                                           // 12 Bob
+    + softO(15, 14, 5, 14, c) + strands(15, 15, 5, 12, c)
+    + softO(44, 14, 5, 14, c) + strands(44, 15, 5, 12, c)
+    + px(20, 16, 24, 3, c) + strands(20, 16, 24, 3, c),                                    // 12 Bob
   (c) => _capBase(c) + curls(20, 8, 24, 8, c) + softO(14, 14, 7, 26, c) + softO(43, 14, 7, 26, c)
     + curls(15, 15, 5, 24, c) + curls(44, 15, 5, 24, c),                                   // 13 Locken lang
-  (c) => soft(19, 10, 26, 5, '#5a5148') + roundO(20, 3, 26, 9, c) + strands(21, 4, 24, 7, c)
-    + px(44, 6, 3, 3, c) + px(23, 4, 10, 1, shade(c, 1.2)),                                // 14 Undercut
+  (c) => soft(19, 10, 26, 5, '#5a5148') + dith(20, 11, 24, 3, shade('#5a5148', 1.22))
+    + roundO(20, 3, 26, 9, c) + strands(21, 4, 24, 7, c)
+    + px(44, 6, 3, 3, c) + px(45, 7, 1, 2, shade(c, 0.75)) + px(23, 4, 10, 1, shade(c, 1.2)),   // 14 Undercut
   (c) => _cap(c) + _part(c),                                                               // 15 Mittelscheitel kurz
   (c) => _cap(c) + _part(c) + _sides(c, 50),                                               // 16 Mittelscheitel lang
   (c) => roundO(16, 3, 32, 16, c) + curls(18, 5, 28, 12, c)
@@ -366,8 +392,11 @@ const HAIR = [
     + px(42, 2, 3, 1, c),                                                                  // 17 Wuschelkopf
   (c) => _cap(c) + _fringe(c)
     + px(18, 13, 28, 1, shade('#d94f4f', 0.7)) + px(18, 14, 28, 2, '#d94f4f'),             // 18 Stirnband
-  (c) => _cap(c) + _fringe(c) + softO(43, 16, 4, 6, c) + softO(42, 23, 4, 6, shade(c, 0.85))
-    + softO(41, 30, 4, 6, c) + px(42, 36, 2, 3, '#4a7fd1'),                                // 19 Seitenzopf
+  (c) => _cap(c) + _fringe(c)
+    + softO(43, 16, 4, 6, c) + px(44, 17, 1, 2, shade(c, 1.18)) + px(45, 19, 1, 2, shade(c, 0.72))
+    + softO(42, 23, 4, 6, shade(c, 0.88)) + px(43, 24, 1, 2, shade(c, 1.1)) + px(44, 26, 1, 2, shade(c, 0.68))
+    + softO(41, 30, 4, 6, c) + px(42, 31, 1, 2, shade(c, 1.18)) + px(43, 33, 1, 2, shade(c, 0.72))
+    + px(42, 36, 2, 3, '#4a7fd1'),                                                         // 19 Seitenzopf
 ];
 function hairSVG(i, colIdx) {
   const draw = HAIR[i];
@@ -382,7 +411,9 @@ function hairSVG(i, colIdx) {
 function _back(c, bottom, curly) {
   const b = shade(c, 0.9), d = shade(c, 0.62);
   let s = px(17, 14, 30, bottom - 14, b)
-    + px(16, 16, 1, bottom - 18, d) + px(47, 16, 1, bottom - 18, d);
+    + px(16, 16, 1, bottom - 18, d) + px(47, 16, 1, bottom - 18, d)
+    // seitlich sichtbare Ränder (neben dem Kopf) mit Strähnen statt Fläche
+    + strands(17, 17, 3, bottom - 20, b) + strands(44, 17, 3, bottom - 20, b);
   for (let x = 17; x < 47; x += 3) s += px(x, bottom, 3, (((x - 17) / 3) % 2 === 0) ? 2 : 1, b);
   const texH = bottom - 43;
   if (texH >= 3) s += curly ? curls(18, 42, 28, texH, b) : strands(18, 42, 28, texH, b);
