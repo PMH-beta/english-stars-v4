@@ -26,7 +26,7 @@ export const SLOTS = {
   legs:      { icon: '🥾', name: 'Stiefel',     desc: 'Chance auszuweichen' },
   talisman:  { icon: '🧿', name: 'Talisman',    desc: '+50 % Schaden an 🌀-Knoten' },
   ring1:     { icon: '💍', name: 'Ring',        desc: 'mehr Trank-Auswahl am 💎' },
-  companion: { icon: '🐾', name: 'Gefährte',    desc: 'fängt 1 Fehlgriff pro Kampf' },
+  companion: { icon: '🐾', name: 'Gefährte',    desc: 'fängt Fehlgriffe pro Kampf ab' },
 };
 const SLOT_TYPE = { ring1: 'ring' };   // sonst = Slot-Key selbst
 export const TIER = {
@@ -135,7 +135,8 @@ function _effectsOf(equipment) {
   const arms = get('arms'); if (arms) eff.timeBonusMs = _equipVal('arms', arms);
   const legs = get('legs'); if (legs) eff.dodge = _equipVal('legs', legs);
   eff.talisman = !!get('talisman');
-  if (get('companion')) eff.companionGuards = COMPANION_GUARDS;
+  const comp = get('companion');
+  if (comp) eff.companionGuards = COMPANION_GUARDS[comp.which === 'past' ? 'stahl' : 'gold'] || 0;
   if (get('ring1')) eff.potionBonus += RING_POTION_BONUS;
   // Waffen-Typ-Vorteile, die wie Ausrüstung wirken (Dolch/Stab/Streitkolben).
   const w = _weaponOf(equipment);
@@ -305,7 +306,7 @@ function _itemBonuses(it) {
   if (it.slot === 'legs') return [`🍃 +${Math.round(_equipVal('legs', it) * 100)} % Ausweichen`];
   if (it.slot === 'talisman') return [`🌀 +${Math.round((TALISMAN_MULT - 1) * 100)} % Schaden an 🌀`];
   if (it.slot === 'ring') return [`🧪 +${RING_POTION_BONUS} Trank zur Wahl`];
-  if (it.slot === 'companion') return [`🐾 fängt ${COMPANION_GUARDS} Fehler pro Kampf`];
+  if (it.slot === 'companion') return [`🐾 fängt ${COMPANION_GUARDS[it.which === 'past' ? 'stahl' : 'gold']} Fehler pro Kampf`];
   return [];
 }
 

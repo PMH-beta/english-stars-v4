@@ -37,7 +37,7 @@ const SKIN = ['#FFE0C4','#F7CEA6','#EEB98A','#E0A26B','#CC8A52','#B27440','#965E
 const G = ['#e8e8e8','#c4c4c4','#9a9a9a','#6e6e6e','#4a4a4a','#2c2c2c'];
 
 export function defaultAvatar() {
-  return { skin: 0, build: 4, hair: 0, eyes: 0, nose: 0, mouth: 0, ears: 2 };
+  return { skin: 0, build: 4, hair: 0, eyes: 0, nose: 0, mouth: 0, ears: 2, pet: 0 };
 }
 
 // Stellt sicher, dass sd.avatar existiert und alle Keys gültig (0..9) sind.
@@ -232,6 +232,51 @@ function bodySVG(i, skin) {
 const MAT_C = { past: '#8fa2b8', pp: '#e3b341' };
 const TIER_G = { stahl: MAT_C.past, gold: MAT_C.pp, verzaubert: G[0] };   // Fallback ohne which
 const matColor = (which, tier) => MAT_C[which] || TIER_G[tier] || G[3];
+export const PET_COLOR = MAT_C;   // fürs Gefährten-Aussehen im Charakter-Editor
+
+// ── Gefährten-Tiere (10 Varianten, 8×7-Pixelraster, Farbe = Material) ────────
+// Gleiche Stilregeln wie der Avatar: weiche Silhouetten, Outline im dunkleren
+// Ton, 1px-Auge. cfg.pet (0..9) wählt das Tier — am Sprite UND im Editor.
+export const PET_NAMES = ['Hund', 'Katze', 'Hase', 'Fuchs', 'Eule', 'Drache', 'Schildkröte', 'Vogel', 'Frosch', 'Geist'];
+function petPixels(variant, c) {
+  const d = shade(c, 0.62), e = G[5];
+  switch (((variant % 10) + 10) % 10) {
+    case 0:   // Hund: Schlappohr + Schwanz
+      return px(0, 3, 1, 2, d) + px(1, 3, 5, 3, c) + px(4, 1, 3, 3, c) + px(4, 0, 1, 2, d)
+        + px(6, 0, 1, 1, c) + px(5, 2, 1, 1, e) + px(2, 6, 1, 1, d) + px(5, 6, 1, 1, d);
+    case 1:   // Katze: Spitzohren + hoher Schwanz
+      return px(0, 1, 1, 1, c) + px(0, 2, 1, 3, d) + px(1, 4, 5, 2, c) + px(4, 1, 3, 3, c)
+        + px(4, 0, 1, 1, c) + px(6, 0, 1, 1, c) + px(5, 2, 1, 1, e) + px(2, 6, 1, 1, d) + px(5, 6, 1, 1, d);
+    case 2:   // Hase: lange Ohren, sitzend
+      return px(3, 0, 1, 2, c) + px(5, 0, 1, 2, c) + px(3, 2, 3, 2, c) + px(4, 3, 1, 1, e)
+        + px(2, 4, 4, 3, c) + px(1, 5, 1, 1, c) + px(2, 6, 1, 1, d) + px(4, 6, 1, 1, d);
+    case 3:   // Fuchs: buschiger Schwanz + Schnauze
+      return px(0, 3, 2, 2, c) + px(0, 5, 1, 1, d) + px(2, 3, 4, 3, c) + px(4, 1, 3, 3, c)
+        + px(4, 0, 1, 1, c) + px(6, 0, 1, 1, c) + px(7, 3, 1, 1, d) + px(5, 2, 1, 1, e) + px(3, 6, 1, 1, d);
+    case 4:   // Eule: aufrecht, große Augen
+      return px(2, 0, 1, 1, c) + px(5, 0, 1, 1, c) + px(2, 1, 4, 5, c) + px(3, 2, 1, 1, e)
+        + px(5, 2, 1, 1, e) + dith(3, 4, 2, 2, shade(c, 0.8)) + px(3, 6, 1, 1, d) + px(5, 6, 1, 1, d);
+    case 5:   // Drache: Flügel + Zackenschwanz
+      return px(0, 2, 1, 1, c) + px(0, 3, 1, 2, d) + px(1, 3, 5, 3, c) + px(2, 1, 2, 2, d)
+        + px(5, 1, 3, 2, c) + px(6, 2, 1, 1, e) + px(7, 3, 1, 1, d) + px(2, 6, 1, 1, d) + px(5, 6, 1, 1, d);
+    case 6:   // Schildkröte: Panzer + Kopf rechts
+      return px(1, 2, 5, 3, c) + dith(2, 3, 3, 1, shade(c, 0.8)) + px(6, 3, 2, 2, c)
+        + px(7, 3, 1, 1, e) + px(2, 5, 1, 2, d) + px(4, 5, 1, 2, d);
+    case 7:   // Vogel: Schnabel + Flügel
+      return px(2, 3, 4, 3, c) + px(4, 1, 3, 3, c) + px(7, 2, 1, 1, d) + px(5, 2, 1, 1, e)
+        + px(2, 4, 2, 1, d) + px(3, 6, 1, 1, d) + px(5, 6, 1, 1, d);
+    case 8:   // Frosch: Glupschaugen, hockend
+      return px(2, 1, 1, 1, c) + px(5, 1, 1, 1, c) + px(2, 2, 1, 1, e) + px(5, 2, 1, 1, e)
+        + px(1, 3, 6, 3, c) + px(1, 6, 2, 1, d) + px(5, 6, 2, 1, d);
+    default:  // Geist: schwebend, welliger Saum
+      return px(2, 1, 4, 4, c) + px(3, 0, 2, 1, c) + px(3, 2, 1, 1, e) + px(5, 2, 1, 1, e)
+        + px(2, 5, 1, 1, c) + px(4, 5, 1, 1, c);
+  }
+}
+// Eigenständiges Tier-SVG (Editor-Bühne + Varianten-Kacheln).
+export function petSVG(variant, color) {
+  return `<svg viewBox="0 0 8 7" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges" style="width:100%;height:100%;display:block;image-rendering:pixelated;">${petPixels(variant, color)}</svg>`;
+}
 
 function gearSVG(cfg, gear) {
   if (!gear) return '';
@@ -278,12 +323,10 @@ function gearSVG(cfg, gear) {
     s += weaponSVG(gear.weapon, arx + 3);
   }
   if (gear.companion) {
+    // Gewähltes Tier (cfg.pet) zu Füßen des Charakters, Farbe = Material.
     const c = col(gear.companion);
-    s += soft(26, 42, 5, 4, c)                                  // Körper
-      + px(27, 41, 1, 1, c) + px(29, 40, 1, 2, c)               // Ohren (asymmetrisch)
-      + px(31, 43, 1, 2, shade(c, 0.75))                        // Schwanz
-      + px(28, 43, 1, 1, G[5])                                  // Auge
-      + spark(gear.companion, 26, 41);
+    s += `<g transform="translate(24,40)">${petPixels(cfg.pet || 0, c)}</g>`
+      + spark(gear.companion, 24, 39);
   }
   return s;
 }
@@ -374,11 +417,41 @@ export function renderAvatarInto(elId, sd, opts = {}) {
 // ────────────────────────────────────────────────
 let _activeFeature = 'hair';
 
+// Bearbeitungs-Ziel der Bühne: Charakter oder Gefährte. Ob ein Gefährte
+// freigespielt ist (und welches Material er trägt), sagt ui.js über
+// setCharacterCompanion — avatar.js importiert die Schmiede bewusst nicht.
+let _editTarget = 'char';
+let _petInfo = { available: false, which: null };
+export function setCharacterCompanion(info) {
+  _petInfo = info || { available: false, which: null };
+  if (!_petInfo.available) _editTarget = 'char';
+}
+export function charEditTarget(t) {
+  if (t === 'pet' && !_petInfo.available) return;   // ausgegraut = nicht anwählbar
+  _editTarget = t === 'pet' ? 'pet' : 'char';
+  renderCharacter();
+}
+
 export function renderCharacter() {
   const sd = window.SD;
   if (!sd) return;
   const cfg = ensureAvatar(sd);
   renderAvatarInto('character-canvas', sd, { headOnly: false });
+
+  // Gefährten-Figur neben dem Charakter: Tier in Materialfarbe, ohne
+  // freigespielten Gefährten grau + gesperrt; Markierung unter der Figur.
+  const petBtn = document.getElementById('char-pick-pet');
+  const charBtn = document.getElementById('char-pick-char');
+  if (petBtn && charBtn) {
+    const petCv = document.getElementById('character-pet-canvas');
+    if (petCv) petCv.innerHTML = petSVG(cfg.pet, _petInfo.available ? (PET_COLOR[_petInfo.which] || G[2]) : G[2]);
+    petBtn.classList.toggle('locked', !_petInfo.available);
+    petBtn.classList.toggle('sel', _editTarget === 'pet');
+    charBtn.classList.toggle('sel', _editTarget === 'char');
+    petBtn.title = _petInfo.available ? 'Gefährte anpassen' : 'Noch kein Gefährte — spiele ihn in der ⚒️ Schmiede frei';
+  }
+
+  if (_editTarget === 'pet') return _renderPetEditor(cfg);
 
   // Name: Eingabefeld befüllen (nur wenn nicht gerade darin getippt wird)
   const nameIn = document.getElementById('char-name-input');
@@ -436,6 +509,30 @@ function _wireNameInput() {
   inp.addEventListener('blur', save);
 }
 
+// Gefährten-Editor: statt Merkmal-Slider nur ein Titel, das Grid zeigt die
+// 10 Tiere in der Materialfarbe des freigespielten Gefährten.
+function _renderPetEditor(cfg) {
+  const bar = document.getElementById('character-feature-chips');
+  if (bar) bar.innerHTML = `<div class="cg-featbar"><div class="cg-featlbl">🐾 Aussehen</div></div>`;
+  const grid = document.getElementById('character-variants');
+  if (grid) {
+    const color = PET_COLOR[_petInfo.which] || G[2];
+    grid.innerHTML = Array.from({ length: COUNT }, (_, v) =>
+      `<button class="cg-tile cg-pet${cfg.pet === v ? ' sel' : ''}" onclick="petSet(${v})" title="${PET_NAMES[v]}" aria-label="${PET_NAMES[v]}">${petSVG(v, color)}</button>`
+    ).join('');
+  }
+}
+
+// Tier wählen (Kachel im Gefährten-Grid).
+export function petSet(v) {
+  const cfg = ensureAvatar(window.SD);
+  if (!Number.isInteger(v)) return;
+  cfg.pet = wrap(v);
+  persist(window.SD);
+  if (window.currentUser) markDirty('profile');
+  renderCharacter();
+}
+
 // Merkmal auswählen (Punkt) → Varianten-Grid wechselt.
 export function avatarPick(key) {
   if (AVATAR_FEATURES.some(f => f.key === key)) _activeFeature = key;
@@ -469,8 +566,8 @@ export function avatarArrow(dir) {
   avatarSet(_activeFeature, wrap(cfg[_activeFeature] + dir));
 }
 
-// Beim Öffnen Standard-Merkmal setzen.
-export function resetCharacterFeature() { _activeFeature = 'hair'; }
+// Beim Öffnen Standard-Merkmal setzen (und wieder den Charakter anwählen).
+export function resetCharacterFeature() { _activeFeature = 'hair'; _editTarget = 'char'; }
 
 // Beim Verlassen des Screens Cloud-Sync anstoßen (gesammelt, nicht pro Klick).
 export function commitAvatar() {

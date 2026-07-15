@@ -223,14 +223,16 @@
 
   <div class="stats-panel">
     <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;">
-      <div id="prof-avatar" style="width:64px;height:64px;flex-shrink:0;"></div>
+      <button onclick="showCharacter()" class="prof-avatar-btn" title="Charakter anpassen">
+        <div id="prof-avatar" style="width:64px;height:64px;"></div>
+        <span class="prof-edit-badge">✏️</span>
+      </button>
       <div style="flex:1;min-width:0;">
         <div id="prof-name" style="font-family:'Fredoka One',cursive;font-size:1.3rem;color:var(--text);"></div>
         <div id="prof-since" style="font-size:.75rem;color:#888;font-weight:700;"></div>
       </div>
       <span style="align-self:flex-start;flex-shrink:0;background:linear-gradient(135deg,#fff8e0,#ffefc0);border-radius:50px;padding:5px 13px;font-family:'Fredoka One',cursive;font-size:.9rem;color:#a8720a;">🪙 <span id="prof-taler">0</span></span>
     </div>
-    <button onclick="showCharacter()" class="big-btn purple" style="width:100%;">🎨 Charakter anpassen</button>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
       <div style="background:linear-gradient(135deg,#fff8e0,#fff0c0);padding:12px;border-radius:14px;text-align:center;">
         <div style="font-size:1.6rem;">🏆</div>
@@ -269,9 +271,17 @@
     <input id="char-name-input" class="es-input" style="max-width:none;margin-bottom:0;" type="text" maxlength="20" placeholder="Dein Name…">
   </div>
 
-  <!-- Bühne: großer Charakter (Pixel-Sprite, 5×) -->
+  <!-- Bühne: Charakter + Gefährte, beide antippbar (Markierung unter der Figur).
+       Gefährte im Onboarding ausgeblendet, ohne freigespielten Gefährten ausgegraut. -->
   <div id="character-stage" style="width:100%;max-width:320px;">
-    <div id="character-canvas"></div>
+    <button id="char-pick-char" class="cg-fig sel" onclick="charEditTarget('char')">
+      <div id="character-canvas"></div>
+      <span class="cg-fig-lbl">🧍 Charakter</span>
+    </button>
+    <button id="char-pick-pet" class="cg-fig" onclick="charEditTarget('pet')">
+      <div id="character-pet-canvas"></div>
+      <span class="cg-fig-lbl">🐾 Gefährte</span>
+    </button>
   </div>
 
   <!-- Merkmal-Auswahl (Slider ‹ › + Punkte, gerendert von renderCharacter) -->

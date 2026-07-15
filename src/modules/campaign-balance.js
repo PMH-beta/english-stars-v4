@@ -55,7 +55,8 @@ export const EQUIP_EFFECT = {
 };
 export const TALISMAN_MULT = 1.5;          // Waffenschaden ×1.5 an 🌀-Knoten
 export const RING_POTION_BONUS = 1;        // 💍 je Ring: +1 Trank-Auswahl am 💎 (3→4→5)
-export const COMPANION_GUARDS = 1;         // 🐾 gefangene Fehlgriffe pro Kampf
+// 🐾 gefangene Fehlgriffe pro Kampf — nach Material (Gold besser als Stahl).
+export const COMPANION_GUARDS = { stahl: 1, gold: 2 };
 
 // Waffen-Typ-Vorteile (Objekt-Wahl in der Schmiede zeigt den Text an).
 export const WEAPON_PERK = {

@@ -8,9 +8,9 @@ import { signIn, signUp, signOut, resendConfirmation, requestPasswordReset, upda
 import { cloudLoad, cloudReset, saveDeck, saveWordStats, saveExam, markDirty, flushPendingSync, setCloudConfirmed, getPendingCount, setKnownSig, cloudChangedRemotely, deleteCloudPresetStats, deleteProbetest } from './sync.js';
 import { commitDirty } from './dialog.js';
 import { uvMap, uvLernstand, constellationWords, FORGE_DISC, SLOTS_PER_FORM, uvTrainProgress, uvTrainForms } from './irregular-game.js';
-import { renderAvatarInto, renderCharacter, commitAvatar, resetCharacterFeature } from './avatar.js';
+import { renderAvatarInto, renderCharacter, commitAvatar, resetCharacterFeature, setCharacterCompanion } from './avatar.js';
 import { IRREGULAR_PRESET_ID, uvAvailableVerbs, CONSTELLATION_SIZE, cefrOf, forgeObject, FORGE_OBJECTS, usedForgeObjects, getConstellations, allVerbsSorted, verbsByEns, UV_TRAIN_SUF } from './irregular-verbs.js';
-import { objectPerkText, renderEquipmentPanel } from './campaign-equipment.js';
+import { objectPerkText, renderEquipmentPanel, forgedItems, equippedGearMap } from './campaign-equipment.js';
 import { renderFriendsSection, refreshFriendBadge, friendProgress, subscribeFriendRealtime, unsubscribeFriendRealtime } from './friends.js';
 import { renderCampaign, updateTalerBadge, refreshClaimedTaler, talerAvailable } from './campaign.js';
 
@@ -1825,7 +1825,7 @@ export function showProfile() {
 
 // Charakter-Anpassung öffnen/schließen.
 function _setCharOnboarding(on) {
-  const ids = { 'char-back-btn': !on, 'char-heading': !on, 'char-name-row': !on, 'char-onboard-done': on };
+  const ids = { 'char-back-btn': !on, 'char-heading': !on, 'char-name-row': !on, 'char-pick-pet': !on, 'char-onboard-done': on };
   for (const [id, show] of Object.entries(ids)) {
     const el = document.getElementById(id);
     if (el) el.style.display = show ? '' : 'none';
@@ -1834,13 +1834,20 @@ function _setCharOnboarding(on) {
 export function showCharacter() {
   _setCharOnboarding(false);   // normaler Weg: Überschrift, Name, Zurück
   resetCharacterFeature();
+  // Gefährte neben dem Charakter: angelegter, sonst bester geschmiedeter
+  // (Gold vor Stahl); keiner → Figur ausgegraut (noch freispielbar).
+  const pets = forgedItems().filter((i) => i.slot === 'companion');
+  const pet = equippedGearMap().companion || pets.find((p) => p.which === 'pp') || pets[0] || null;
+  setCharacterCompanion({ available: !!pet, which: pet ? pet.which : null });
   showScreen('character-screen');
   renderCharacter();
 }
-// Erst-Login: Charakter-Anpassung ohne Überschrift/Name/Zurück, mit „Los geht's".
+// Erst-Login: Charakter-Anpassung ohne Überschrift/Name/Zurück, mit „Los geht's" —
+// und ohne Gefährten (der gehört zur Profilseite, nicht ins Onboarding).
 export function showCharacterOnboarding() {
   _setCharOnboarding(true);
   resetCharacterFeature();
+  setCharacterCompanion(null);
   showScreen('character-screen');
   renderCharacter();
 }

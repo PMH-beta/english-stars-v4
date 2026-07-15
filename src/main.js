@@ -7,7 +7,7 @@ import { _trackUrl, _discoverTracks, _playNext, _initAudio, startMusic, startMus
 import { effectivePct, isMastered } from './modules/stats.js';
 import { buildPool, toggleSchnell, syncSchnellForMode, startGame, confirmHome, goHomeSaving, nextQuestion, restartSame, checkMC, submitType, checkOrder, showSelfRateButtons, retryPronounce, evaluateWithClaude, setMicFinalStatus, _sfx, playSfx } from './modules/game.js';
 import { syncMirrorFromActiveDeck, activeDeck, switchDeck, createDeck, deleteDeck, renameDeck, deckProgress, renderDecks, toggleDeck, activateDeck, startGameWithDeck, newDeckPrompt, renameDeckPrompt, confirmDeleteDeck, resetDeckProgress, vmDeleteWord, vmEditWord, vmAddManual, openDeckStats } from './modules/decks.js';
-import { avatarPick, avatarPickStep, avatarArrow, avatarSet } from './modules/avatar.js';
+import { avatarPick, avatarPickStep, avatarArrow, avatarSet, charEditTarget, petSet } from './modules/avatar.js';
 import { showScreen, saveName, showMenu, saveApiKey, skipApiKey, showProfile, editPlayerName, showCharacter, showCharacterOnboarding, finishCharacterOnboarding, closeCharacter, showStats, showFriendStats, closeFriendStats, confirmReset, showFeedback, hideFeedback, exportData, importData, showAuth, authToggleMode, authSubmit, authResend, authLogout, authGoogleSignIn, handleLogin, handleLogout, showPasswordReset, submitPasswordReset, showNewPasswordScreen, submitNewPassword, cancelNewPassword, setActiveMode, renderModeContent, openProbetestPicker, toggleProbetestHistory, deleteProbetestEntry, uvFlip, uvSlide, uvSetForm, uvInfo, uvOpenFill, uvDeleteStation, uvTestForge, toggleUvTraining, uvTrainOpenCreate, uvTrainDelete, uvTrainToggleDeck, uvTrainChooseForms, uvTrainReset, uvTrainOpenStats, onAppResume, checkForRemoteChange } from './modules/ui.js';
 import { pwaInstall } from './modules/pwa.js';
 import { startConstellationStar, startConstellationForm, startUvTraining, uvProgress } from './modules/irregular-game.js';
@@ -148,6 +148,8 @@ window.avatarPick = avatarPick;
 window.avatarPickStep = avatarPickStep;
 window.avatarArrow = avatarArrow;
 window.avatarSet = avatarSet;
+window.charEditTarget = charEditTarget;
+window.petSet = petSet;
 window.showStats = showStats;
 window.confirmReset = confirmReset;
 window.showFeedback = showFeedback;
