@@ -1172,28 +1172,14 @@ function _cstBlock(m, isActive) {
 }
 
 
-// Setzt den gesamten UV-Fortschritt zurück (alle Verb-Stats des irregular-Presets):
-// lokal sofort, Cloud per deleteCloudPresetStats (kein Retry — wie resetDeckProgress).
-async function _resetUvProgress() {
-  const gps = window.SD && window.SD.globalPresetStats;
-  const keys = (gps && gps.wordStats)
-    ? Object.keys(gps.wordStats).filter((k) => k.includes('|' + IRREGULAR_PRESET_ID))
-    : [];
-  keys.forEach((k) => { delete gps.wordStats[k]; });
-  if (gps && gps.categoryProgress) delete gps.categoryProgress[IRREGULAR_PRESET_ID];
-  if (window.currentUser && keys.length) {
-    try { await deleteCloudPresetStats(keys, [IRREGULAR_PRESET_ID], window.currentUser.id); }
-    catch (e) { console.error('[uvReset] Cloud-Delete fehlgeschlagen:', e.message); }
-  }
-}
-
-// Erstinitialisierung des Befüllen-Systems: GENAU EINMAL den alten UV-Fortschritt
-// zurücksetzen und leer starten (SD.uvFills = []). Danach ist uvFills ein Array →
-// Guard greift, kein erneuter Reset.
+// Erstinitialisierung des Befüllen-Systems: fehlt uvFills (kein Array), wird es
+// leer angelegt — es wird NICHTS mehr gelöscht. Der frühere Einmal-Migrations-
+// Reset (Juni 26) ist abgeschlossen und war als stehender Stolperdraht
+// gefährlich: ein Profil, das ohne uv_fills aus der Cloud kam, verlor beim
+// ersten UV-Open den GESAMTEN Verb-Fortschritt lokal + in der Cloud.
 function _uvEnsureInit() {
   if (!window.SD || Array.isArray(window.SD.uvFills)) return;
   window.SD.uvFills = [];
-  _resetUvProgress();                  // lokal sofort wirksam, Cloud async
   persist(window.SD);
   if (window.currentUser) { markDirty('profile'); commitDirty(); }
 }

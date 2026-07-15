@@ -277,10 +277,21 @@ export async function saveProfile(sd, userId) {
     total_points:   sd.totalPoints || 0,
     active_deck_id: isUUID(sd.activeDeckId) ? sd.activeDeckId : null,
     active_mode:    sd.activeMode || 'free',
-    uv_fills:       Array.isArray(sd.uvFills) ? sd.uvFills : null,
-    avatar:         (sd.avatar && typeof sd.avatar === 'object') ? sd.avatar : null,
-    campaign:       (sd.campaign && typeof sd.campaign === 'object') ? sd.campaign : null,
   };
+  // Überschreib-Schutz für die jsonb-Stände: fehlende/leere Werte werden
+  // AUSGELASSEN statt als null geschrieben — ein Gerät mit frischem Stand kann
+  // so nie gefüllte Cloud-Daten (Aufträge, Ausrüstung, Taler, Avatar) löschen.
+  // Ein echtes leeres Array (uvFills = [], z.B. letzte Station gelöscht) bleibt
+  // ein gültiger Schreibwert; ein „trivialer" Default-campaign (nichts verdient,
+  // nichts angelegt, kein Run) muss nie geschrieben werden — die Defaults
+  // rekonstruiert _camp() beim Laden ohnehin.
+  if (Array.isArray(sd.uvFills)) payload.uv_fills = sd.uvFills;
+  if (sd.avatar && typeof sd.avatar === 'object') payload.avatar = sd.avatar;
+  const c = sd.campaign;
+  const campTrivial = !c || typeof c !== 'object'
+    || (!(Array.isArray(c.claimed) && c.claimed.length) && !c.talerSpent && !c.run
+        && !c.bossWins && !Object.keys(c.equipment || {}).length);
+  if (!campTrivial) payload.campaign = c;
   const { data, error } = await fetchWithRetry(() => supabase
     .from('profiles')
     .update(payload)
