@@ -1384,8 +1384,8 @@ body.in-game .mode-progress{display:block;}
 
 /* ── Charakter-Editor: Bühne + Varianten-Grid ── */
 #character-stage{display:flex;align-items:flex-end;justify-content:center;gap:12px;}
-#character-canvas{width:160px;height:240px;}   /* 5× von 32×48 */
-#character-pet-canvas{width:72px;height:63px;margin-bottom:10px;}   /* 9× von 8×7 */
+#character-canvas{width:160px;height:240px;}   /* 2.5× von 64×96 */
+#character-pet-canvas{width:88px;height:88px;margin-bottom:10px;}   /* ~3.7× von 24×24 */
 /* Figur-Knöpfe: antippen wählt an, Markierung als Strich UNTER der Figur */
 .cg-fig{background:none;border:none;padding:0 0 4px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;}
 .cg-fig-lbl{
