@@ -296,7 +296,13 @@ function curls(x, y, w, h, c) {
   for (let j = 1; j < h; j += 3) for (let i = 1 + (j % 2); i < w; i += 4) s += px(x + i, y + j, 1, 1, lt);
   return s;
 }
-function _capBase(c) { return roundO(18, 6, 28, 12, c) + px(22, 7, 8, 1, shade(c, 1.22)); }
+function _capBase(c) {
+  const d = shade(c, 0.62);
+  return roundO(18, 6, 28, 12, c) + px(22, 7, 8, 1, shade(c, 1.22))
+    + px(18, 17, 2, 7, c) + px(44, 17, 2, 7, c)          // Schläfenhaar bis zu den Ohren
+    + px(18, 24, 1, 2, c) + px(45, 24, 1, 2, c)          // Koteletten-Spitzen
+    + px(17, 17, 1, 6, d) + px(46, 17, 1, 6, d);         // Outline außen
+}
 function _cap(c) { return _capBase(c) + strands(20, 8, 24, 8, c); }
 // Gezackter Pony: abwechselnd 2/3px tiefe Zacken + einzelne Strähnchen-Spitzen.
 function _fringe(c) {
@@ -367,6 +373,30 @@ function hairSVG(i, colIdx) {
   const draw = HAIR[i];
   if (!draw) return '';
   return draw(HAIR_COLORS[colIdx] || HAIR_COLORS[5]);
+}
+
+// ── Rückenhaar: eigene Ebene HINTER Hals/Körper (wird als erste Schicht
+//    gezeichnet) — schließt bei langen Frisuren die Lücke am Nacken.
+//    Leicht abgedunkelt (liegt im Schatten), Zack-Saum unten, Strähnen/Locken
+//    im sichtbaren Bereich unterhalb des Kopfes. ──
+function _back(c, bottom, curly) {
+  const b = shade(c, 0.9), d = shade(c, 0.62);
+  let s = px(17, 14, 30, bottom - 14, b)
+    + px(16, 16, 1, bottom - 18, d) + px(47, 16, 1, bottom - 18, d);
+  for (let x = 17; x < 47; x += 3) s += px(x, bottom, 3, (((x - 17) / 3) % 2 === 0) ? 2 : 1, b);
+  const texH = bottom - 43;
+  if (texH >= 3) s += curly ? curls(18, 42, 28, texH, b) : strands(18, 42, 28, texH, b);
+  return s;
+}
+const HAIR_BACK = {
+  2:  (c) => _back(c, 54),         // lang
+  9:  (c) => _back(c, 72),         // sehr lang
+  13: (c) => _back(c, 50, true),   // Locken lang
+  16: (c) => _back(c, 68),         // Mittelscheitel lang
+};
+function hairBackSVG(i, colIdx) {
+  const f = HAIR_BACK[i];
+  return f ? f(HAIR_COLORS[colIdx] || HAIR_COLORS[5]) : '';
 }
 
 // ── Körper / Statur ──
@@ -883,13 +913,14 @@ export function petSVG(cfg, opts = {}) {
 
 // ────────────────────────────────────────────────
 //  GESAMT-SVG (64×96)
-//  Reihenfolge (hinten→vorne): Körper · Hals · Kopf · Ohren · Gesicht · Haare ·
-//  Ausrüstung (opts.gear — Paperdoll: Helm über Haar, Waffe in der Hand …).
+//  Reihenfolge (hinten→vorne): Rückenhaar · Körper · Hals · Kopf · Ohren ·
+//  Gesicht · Haare · Ausrüstung (opts.gear — Helm über Haar, Waffe in der Hand …).
 // ────────────────────────────────────────────────
 export function avatarSVG(cfg, opts = {}) {
   const headOnly = !!opts.headOnly;
   const skin = SKIN[cfg.skin] || SKIN[0];
   const inner =
+    hairBackSVG(cfg.hair, cfg.hairColor) +
     (headOnly ? '' : bodySVG(cfg, skin)) +
     neckSVG(skin) +
     headSVG(skin) +
