@@ -412,6 +412,12 @@ function _onPanelClick(e) {
       if (sel && sel.slot !== (SLOT_TYPE[key] || key)) _selId = null;   // Auswahl passt nicht mehr
     }
     renderEquipmentPanel();
+    return;
+  }
+  // Klick ins Leere (kein Item, kein Slot, keine Karte) = Auswahl aufheben.
+  if (_selId && !e.target.closest('.pd-preview')) {
+    _selId = null;
+    renderEquipmentPanel();
   }
 }
 
