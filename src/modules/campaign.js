@@ -49,6 +49,18 @@ function _camp() {
 
 // Anzahl besiegter Bosse (Anzeige im Profil + auf der Startseite).
 export function bossWinCount() { return _camp().bossWins || 0; }
+
+// Debug-Helfer (nur Konsole, kein UI): Test-Taler gutschreiben, indem
+// talerSpent negativ gesetzt wird (echte claimed-Taler bleiben unberührt).
+// Synct sofort in die Cloud. Aufruf in DevTools: talerTest(50)
+export function talerTest(n = 50) {
+  const c = _camp();
+  c.talerSpent = -Math.abs(n);
+  _saveCampaign();
+  updateTalerBadge();
+  console.log('[talerTest] verfügbar:', talerAvailable());
+  return talerAvailable();
+}
 function _saveCampaign() {
   persist(window.SD);
   if (window.currentUser) { markDirty('profile'); commitDirty(); }

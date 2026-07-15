@@ -1262,13 +1262,16 @@ export async function uvDeleteStation(idx) {
 // Debug-Helfer (nur Konsole, kein UI): legt n zufällige, KOMPLETT fertige
 // Schmiede-Aufträge an (alle 5 Teile × Stahl/Gold gemeistert = „verzaubert")
 // und synct Profil + Stats in die Cloud. Aufruf in DevTools: uvTestForge(4)
-export function uvTestForge(n = 4) {
+// Optional gezielt ein Objekt zuerst: uvTestForge(1, 'gefaehrte')
+export function uvTestForge(n = 4, want) {
   const SD = window.SD;
   if (!SD) return [];
   if (!Array.isArray(SD.uvFills)) SD.uvFills = [];
   const used = new Set(usedForgeObjects());
-  const objs = FORGE_OBJECTS.map((o) => o.type).filter((t) => !used.has(t))
-    .sort(() => Math.random() - 0.5).slice(0, n);
+  const free = FORGE_OBJECTS.map((o) => o.type).filter((t) => !used.has(t))
+    .sort(() => Math.random() - 0.5);
+  if (want && free.includes(want)) free.unshift(...free.splice(free.indexOf(want), 1));
+  const objs = free.slice(0, n);
   const gps = SD.globalPresetStats = SD.globalPresetStats || {};
   const ws = gps.wordStats = gps.wordStats || {};
   const done = [];
