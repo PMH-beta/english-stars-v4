@@ -174,6 +174,7 @@
       <div class="player-name" id="menu-player-name">Hallo!</div>
       <div class="player-stats">
         <span class="pstat">🪙 <span id="menu-taler">0</span></span>
+        <span class="pstat" title="Besiegte Bosse">👑 <span id="menu-bosses">0</span></span>
       </div>
     </div>
     <button class="back-btn" style="margin:0" onclick="event.stopPropagation();showStats()">📊 Fortschritt</button>
@@ -231,7 +232,10 @@
         <div id="prof-name" style="font-family:'Fredoka One',cursive;font-size:1.3rem;color:var(--text);"></div>
         <div id="prof-since" style="font-size:.75rem;color:#888;font-weight:700;"></div>
       </div>
-      <span style="align-self:flex-start;flex-shrink:0;background:linear-gradient(135deg,#fff8e0,#ffefc0);border-radius:50px;padding:5px 13px;font-family:'Fredoka One',cursive;font-size:.9rem;color:#a8720a;">🪙 <span id="prof-taler">0</span></span>
+      <span style="align-self:flex-start;flex-shrink:0;display:flex;flex-direction:column;gap:5px;align-items:flex-end;">
+        <span style="background:linear-gradient(135deg,#fff8e0,#ffefc0);border-radius:50px;padding:5px 13px;font-family:'Fredoka One',cursive;font-size:.9rem;color:#a8720a;">🪙 <span id="prof-taler">0</span></span>
+        <span title="Besiegte Bosse" style="background:linear-gradient(135deg,#f3e8ff,#e2d0f7);border-radius:50px;padding:5px 13px;font-family:'Fredoka One',cursive;font-size:.9rem;color:#7a4ba8;">👑 <span id="prof-bosses">0</span></span>
+      </span>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
       <div style="background:linear-gradient(135deg,#fff8e0,#fff0c0);padding:12px;border-radius:14px;text-align:center;">

@@ -43,8 +43,12 @@ function _camp() {
   if (!SD.campaign || typeof SD.campaign !== 'object') SD.campaign = { claimed: [], talerSpent: 0, run: null };
   if (!Array.isArray(SD.campaign.claimed)) SD.campaign.claimed = [];
   if (typeof SD.campaign.talerSpent !== 'number') SD.campaign.talerSpent = 0;
+  if (typeof SD.campaign.bossWins !== 'number') SD.campaign.bossWins = 0;
   return SD.campaign;
 }
+
+// Anzahl besiegter Bosse (Anzeige im Profil + auf der Startseite).
+export function bossWinCount() { return _camp().bossWins || 0; }
 function _saveCampaign() {
   persist(window.SD);
   if (window.currentUser) { markDirty('profile'); commitDirty(); }
@@ -114,6 +118,8 @@ export async function refreshClaimedTaler() {
 export function updateTalerBadge() {
   const el = document.getElementById('menu-taler');
   if (el) el.textContent = talerAvailable();
+  const b = document.getElementById('menu-bosses');
+  if (b) b.textContent = bossWinCount();
 }
 
 // ── Kartengenerierung (prozedural, DAG von unten nach oben) ──
@@ -250,6 +256,7 @@ function _startFight(node) {
     save: _saveCampaign,
     onEnd: (result) => {
       const bossWin = result === 'victory' && node.type === 'boss';
+      if (bossWin) c.bossWins = (c.bossWins || 0) + 1;
       if (bossWin || result === 'death') c.run = null;
       _saveCampaign();
       renderCampaign();

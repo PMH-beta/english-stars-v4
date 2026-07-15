@@ -21,7 +21,8 @@ import { commitDirty } from './dialog.js';
 // Reihenfolge + Beschriftung der Einstell-Zeilen; anchor = vertikale Position der
 // Pfeile (% der Sprite-Höhe, 96 Rasterzeilen) am jeweils veränderten Körperteil.
 export const AVATAR_FEATURES = [
-  { key: 'hair',  icon: '💇', label: 'Haare',     anchor: 8 },
+  { key: 'hair',      icon: '💇', label: 'Haare',     anchor: 8 },
+  { key: 'hairColor', icon: '🎨', label: 'Haarfarbe', anchor: 8 },
   { key: 'eyes',  icon: '👀', label: 'Augen',     anchor: 25 },
   { key: 'ears',  icon: '👂', label: 'Ohren',     anchor: 28 },
   { key: 'nose',  icon: '👃', label: 'Nase',      anchor: 31 },
@@ -44,7 +45,7 @@ export const PET_FEATURES = [
 
 // Varianten pro Merkmal: Charakter je 20, Gefährten-Teile je 10.
 const COUNTS = {
-  skin: 20, hair: 20, eyes: 20, ears: 20, nose: 20, mouth: 20,
+  skin: 20, hair: 20, hairColor: 20, eyes: 20, ears: 20, nose: 20, mouth: 20,
   build: 20, top: 20, pants: 20,
   pet: 10, petEars: 10, petTail: 10, petEyes: 10, petPattern: 10, petColor: 10,
 };
@@ -62,7 +63,7 @@ const INK = '#2c2c34';   // Augen/Mund-Tinte (dunkles Blaugrau statt Schwarz)
 
 export function defaultAvatar() {
   return {
-    skin: 0, build: 4, hair: 0, eyes: 0, nose: 0, mouth: 0, ears: 2,
+    skin: 0, build: 4, hair: 0, hairColor: 5, eyes: 0, nose: 0, mouth: 0, ears: 2,
     top: 0, pants: 0,
     pet: 0, petEars: 0, petTail: 0, petEyes: 0, petPattern: 0, petColor: 0,
   };
@@ -269,60 +270,103 @@ function mouthSVG(i) {
   return '';
 }
 
-// ── Frisuren: Kappe + Varianten, Outline im dunkleren Haarton, Dither-Pony ──
-function _cap(c) {
-  return roundO(18, 6, 28, 12, c)
-    + px(22, 8, 10, 1, shade(c, 1.22))          // Glanz-Strähne oben links
-    + dith(26, 10, 16, 4, shade(c, 0.85));      // Kappen-Schattierung
+// ── Frisuren: Strähnen-Textur statt flacher Flächen, gezackter Pony,
+//    auslaufende Spitzen. Die FARBE ist ein eigenes Merkmal (hairColor). ──
+export const HAIR_COLORS = [
+  '#1e1b1a', '#2b2b33', '#33302e', '#4a3423', '#5B3A1E', '#6B4423', '#7a4526', '#8a5a30',
+  '#a04a28', '#C0502A', '#d97b29', '#D9B84A', '#E3C45A', '#f0dc82', '#c9ccd6', '#f2f0ea',
+  '#e07ba8', '#8a5fc9', '#4a7fd1', '#3f9d4e',
+];
+// Strähnen: unregelmäßige dunkle + helle 1px-Linien über der Grundfläche.
+function strands(x, y, w, h, c) {
+  if (w < 3 || h < 2) return '';
+  let s = '';
+  const dk = shade(c, 0.78), lt = shade(c, 1.18);
+  for (let i = 1; i < w; i += 3) {
+    const o = (i % 2) ? 1 : 0;
+    s += px(x + i, y + o, 1, Math.max(1, h - o - (i % 3 ? 2 : 0)), dk);
+  }
+  for (let i = 3; i < w; i += 6) s += px(x + i, y + 1, 1, Math.max(2, h - 3), lt);
+  return s;
 }
-function _fringe(c) { return dith(20, 18, 24, 2, c); }
+// Locken: dunkles Dither + versetzte helle Punkt-Reflexe (Kringel-Eindruck).
+function curls(x, y, w, h, c) {
+  let s = dith(x, y, w, h, shade(c, 0.8));
+  const lt = shade(c, 1.2);
+  for (let j = 1; j < h; j += 3) for (let i = 1 + (j % 2); i < w; i += 4) s += px(x + i, y + j, 1, 1, lt);
+  return s;
+}
+function _capBase(c) { return roundO(18, 6, 28, 12, c) + px(22, 7, 8, 1, shade(c, 1.22)); }
+function _cap(c) { return _capBase(c) + strands(20, 8, 24, 8, c); }
+// Gezackter Pony: abwechselnd 2/3px tiefe Zacken + einzelne Strähnchen-Spitzen.
+function _fringe(c) {
+  let s = '';
+  for (let x = 20; x < 44; x += 3) s += px(x, 18, 3, (((x - 20) / 3) % 2 === 0) ? 3 : 2, c);
+  return s + px(22, 21, 1, 1, c) + px(31, 21, 1, 1, c) + px(40, 21, 1, 1, c);
+}
+// Seitliche Haarpartien mit Strähnen und spitz auslaufenden Enden.
 function _sides(c, len) {
-  return softO(15, 16, 5, len, c) + softO(44, 16, 5, len, c)
-    + dith(16, 20, 2, Math.max(4, len - 10), shade(c, 0.82))
-    + dith(46, 20, 2, Math.max(4, len - 10), shade(c, 0.82));
+  let s = '';
+  for (const x of [15, 44]) {
+    s += softO(x, 16, 5, len, c) + strands(x, 17, 5, len - 3, c)
+      + px(x + 1, 16 + len, 3, 1, c) + px(x + 2, 17 + len, 1, 2, c);
+  }
+  return s;
 }
 function _braid(x, c, tie) {
   return softO(x, 18, 4, 5, c) + softO(x, 24, 4, 5, shade(c, 0.85)) + softO(x, 30, 4, 5, c)
+    + px(x + 1, 21, 2, 1, shade(c, 0.7)) + px(x + 1, 27, 2, 1, shade(c, 0.7))   // Flecht-Rillen
     + px(x + 1, 35, 2, 2, tie);
 }
+// Mittelscheitel: dunkle Scheitellinie + nach außen gelegter Pony.
+function _part(c) {
+  return px(31, 6, 2, 5, shade(c, 0.68))
+    + px(20, 18, 10, 2, c) + px(20, 20, 5, 1, c)
+    + px(34, 18, 10, 2, c) + px(39, 20, 5, 1, c);
+}
 const HAIR = [
-  { c: '#6B4423', draw: (c) => _cap(c) + _fringe(c) },                                     // 0 kurz braun
-  { c: '#2b2b33', draw: (c) => px(20, 3, 2, 3, c) + px(25, 2, 2, 4, c) + px(30, 1, 2, 5, c)
-      + px(35, 2, 2, 4, c) + px(40, 3, 2, 3, c) + _cap(c) },                               // 1 dunkel Stachel
-  { c: '#E3C45A', draw: (c) => _cap(c) + _fringe(c) + _sides(c, 36) },                     // 2 blond lang
-  { c: '#5B3A1E', draw: (c) => _cap(c) + roundO(26, 0, 12, 6, c) + px(26, 5, 12, 1, GOLD) },   // 3 braun Dutt
-  { c: '#33302e', draw: (c) => _cap(c) + px(19, 4, 4, 2, c) + px(25, 3, 4, 2, c) + px(31, 3, 4, 2, c)
-      + px(37, 4, 4, 2, c) + px(16, 14, 2, 8, c) + px(46, 14, 2, 8, c) + dith(20, 8, 24, 6, shade(c, 0.8)) },   // 4 dunkel lockig
+  (c) => _cap(c) + _fringe(c),                                                             // 0 kurz
+  (c) => px(20, 3, 2, 3, c) + px(25, 2, 2, 4, c) + px(30, 1, 2, 5, c) + px(35, 2, 2, 4, c)
+    + px(40, 3, 2, 3, c) + px(25, 2, 1, 1, shade(c, 1.2)) + px(30, 1, 1, 1, shade(c, 1.2))
+    + px(35, 2, 1, 1, shade(c, 1.2)) + _cap(c),                                            // 1 stachelig
+  (c) => _cap(c) + _fringe(c) + _sides(c, 36),                                             // 2 lang
+  (c) => _cap(c) + _fringe(c) + roundO(26, 0, 12, 6, c) + strands(27, 1, 10, 4, c)
+    + px(26, 5, 12, 1, GOLD),                                                              // 3 Dutt
+  (c) => _capBase(c) + px(19, 4, 4, 2, c) + px(25, 3, 4, 2, c) + px(31, 3, 4, 2, c)
+    + px(37, 4, 4, 2, c) + px(16, 14, 2, 8, c) + px(46, 14, 2, 8, c) + curls(20, 8, 24, 9, c),   // 4 Locken
   null,                                                                                    // 5 Glatze
-  { c: '#C0502A', draw: (c) => roundO(17, 5, 30, 16, c) + softO(15, 16, 4, 14, c) + softO(45, 16, 4, 14, c)
-      + px(21, 7, 10, 1, shade(c, 1.22)) + dith(26, 10, 16, 5, shade(c, 0.85)) },          // 6 rot voll
-  { c: '#6B4423', draw: (c) => _cap(c) + _fringe(c) + softO(46, 12, 5, 26, c)
-      + px(46, 17, 5, 2, GOLD) + px(47, 36, 3, 2, shade(c, 0.8)) },                        // 7 Pferdeschwanz
-  { c: '#2b2b33', draw: (c) => roundO(14, 0, 36, 20, c) + softO(14, 16, 4, 12, c) + softO(46, 16, 4, 12, c)
-      + dith(18, 4, 28, 8, shade(c, 0.85)) },                                              // 8 Afro
-  { c: '#D9B84A', draw: (c) => _cap(c) + _fringe(c) + _sides(c, 54) },                     // 9 blond sehr lang
-  { c: '#8a5a30', draw: (c) => _cap(c) + _fringe(c) + _braid(14, c, '#d94f4f') + _braid(46, c, '#d94f4f') },   // 10 Zöpfe
-  { c: '#3f9d4e', draw: (c) => soft(19, 9, 26, 4, '#55504a') + roundO(28, 0, 8, 16, c)
-      + px(29, 2, 2, 1, shade(c, 1.22)) + dith(30, 4, 4, 10, shade(c, 0.85)) },            // 11 Irokese grün
-  { c: '#26262e', draw: (c) => roundO(16, 5, 32, 14, c) + softO(15, 14, 5, 14, c) + softO(44, 14, 5, 14, c)
-      + px(20, 16, 24, 3, c) + px(21, 7, 10, 1, shade(c, 1.3)) },                          // 12 Bob schwarz
-  { c: '#7a4526', draw: (c) => _cap(c) + softO(14, 14, 7, 26, c) + softO(43, 14, 7, 26, c)
-      + dith(15, 16, 5, 22, shade(c, 0.8)) + dith(44, 16, 5, 22, shade(c, 0.8)) },         // 13 Locken lang
-  { c: '#d8b74e', draw: (c) => soft(19, 10, 26, 5, '#5a5148') + roundO(20, 3, 26, 9, c)
-      + px(44, 6, 3, 3, c) + px(23, 5, 10, 1, shade(c, 1.2)) },                            // 14 Undercut blond
-  { c: '#e07ba8', draw: (c) => _cap(c) + _fringe(c) },                                     // 15 kurz rosa
-  { c: '#c9ccd6', draw: (c) => _cap(c) + _fringe(c) + _sides(c, 54) },                     // 16 silber lang
-  { c: '#4a7fd1', draw: (c) => px(20, 3, 2, 3, c) + px(25, 2, 2, 4, c) + px(30, 1, 2, 5, c)
-      + px(35, 2, 2, 4, c) + px(40, 3, 2, 3, c) + _cap(c) },                               // 17 blau Stachel
-  { c: '#6B4423', draw: (c) => _cap(c) + _fringe(c)
-      + px(18, 13, 28, 1, shade('#d94f4f', 0.7)) + px(18, 14, 28, 2, '#d94f4f') },         // 18 Stirnband
-  { c: '#a04a28', draw: (c) => _cap(c) + _fringe(c) + softO(43, 16, 4, 6, c)
-      + softO(42, 23, 4, 6, shade(c, 0.85)) + softO(41, 30, 4, 6, c) + px(42, 36, 2, 3, '#4a7fd1') },   // 19 Zopf vorn
+  (c) => roundO(17, 5, 30, 16, c) + px(21, 6, 8, 1, shade(c, 1.22)) + strands(19, 8, 26, 12, c)
+    + softO(15, 16, 4, 14, c) + softO(45, 16, 4, 14, c)
+    + px(16, 30, 2, 2, c) + px(46, 30, 2, 2, c),                                           // 6 voll/wuschelig
+  (c) => _cap(c) + _fringe(c) + softO(46, 12, 5, 26, c) + strands(46, 14, 5, 20, c)
+    + px(46, 17, 5, 2, GOLD) + px(47, 38, 3, 2, c) + px(48, 40, 1, 2, c),                  // 7 Pferdeschwanz
+  (c) => roundO(14, 0, 36, 20, c) + curls(16, 2, 32, 16, c)
+    + softO(14, 16, 4, 12, c) + softO(46, 16, 4, 12, c),                                   // 8 Afro
+  (c) => _cap(c) + _fringe(c) + _sides(c, 54),                                             // 9 sehr lang
+  (c) => _cap(c) + _fringe(c) + _braid(14, c, '#d94f4f') + _braid(46, c, '#d94f4f'),       // 10 Zöpfe
+  (c) => soft(19, 9, 26, 4, '#55504a') + roundO(28, 0, 8, 16, c)
+    + px(30, 1, 1, 13, shade(c, 0.78)) + px(33, 2, 1, 12, shade(c, 1.18)),                 // 11 Irokese
+  (c) => roundO(16, 5, 32, 14, c) + px(21, 6, 10, 1, shade(c, 1.22)) + strands(18, 7, 28, 10, c)
+    + softO(15, 14, 5, 14, c) + softO(44, 14, 5, 14, c) + px(20, 16, 24, 3, c)
+    + strands(20, 16, 24, 3, c),                                                           // 12 Bob
+  (c) => _capBase(c) + curls(20, 8, 24, 8, c) + softO(14, 14, 7, 26, c) + softO(43, 14, 7, 26, c)
+    + curls(15, 15, 5, 24, c) + curls(44, 15, 5, 24, c),                                   // 13 Locken lang
+  (c) => soft(19, 10, 26, 5, '#5a5148') + roundO(20, 3, 26, 9, c) + strands(21, 4, 24, 7, c)
+    + px(44, 6, 3, 3, c) + px(23, 4, 10, 1, shade(c, 1.2)),                                // 14 Undercut
+  (c) => _cap(c) + _part(c),                                                               // 15 Mittelscheitel kurz
+  (c) => _cap(c) + _part(c) + _sides(c, 50),                                               // 16 Mittelscheitel lang
+  (c) => roundO(16, 3, 32, 16, c) + curls(18, 5, 28, 12, c)
+    + px(15, 8, 1, 4, c) + px(48, 8, 1, 4, c) + px(19, 2, 3, 1, c) + px(30, 1, 4, 1, c)
+    + px(42, 2, 3, 1, c),                                                                  // 17 Wuschelkopf
+  (c) => _cap(c) + _fringe(c)
+    + px(18, 13, 28, 1, shade('#d94f4f', 0.7)) + px(18, 14, 28, 2, '#d94f4f'),             // 18 Stirnband
+  (c) => _cap(c) + _fringe(c) + softO(43, 16, 4, 6, c) + softO(42, 23, 4, 6, shade(c, 0.85))
+    + softO(41, 30, 4, 6, c) + px(42, 36, 2, 3, '#4a7fd1'),                                // 19 Seitenzopf
 ];
-function hairSVG(i) {
-  const h = HAIR[i];
-  if (!h) return '';
-  return h.draw(h.c);
+function hairSVG(i, colIdx) {
+  const draw = HAIR[i];
+  if (!draw) return '';
+  return draw(HAIR_COLORS[colIdx] || HAIR_COLORS[5]);
 }
 
 // ── Körper / Statur ──
@@ -461,12 +505,22 @@ function legsSVG(HIP, LW, skin, p) {
   const pc = p.c, pcD = shade(pc, 0.7), skinD = shade(skin, 0.7);
   let s = '';
   if (p.style === 'rock') {
-    s += roundO(32 - HIP - 2, 70, HIP * 2 + 4, 9, pc)
-      + px(32 - HIP - 1, 76, HIP * 2 + 2, 1, shade(pc, 0.85))          // Saum
+    // A-Linien-Rock: gerade Stufen statt runder Wölbungen.
+    s += px(32 - HIP, 70, HIP * 2, 3, pc)
+      + px(32 - HIP - 1, 73, HIP * 2 + 2, 3, pc)
+      + px(32 - HIP - 2, 76, HIP * 2 + 4, 2, pc)
+      + px(32 - HIP - 1, 70, 1, 3, pcD) + px(32 + HIP, 70, 1, 3, pcD)
+      + px(32 - HIP - 2, 73, 1, 3, pcD) + px(32 + HIP + 1, 73, 1, 3, pcD)
+      + px(32 - HIP - 3, 76, 1, 2, pcD) + px(32 + HIP + 2, 76, 1, 2, pcD)
+      + px(32 - HIP, 70, HIP * 2, 1, shade(pc, 0.8))                   // Bund
+      + px(32 - HIP - 2, 78, HIP * 2 + 4, 1, shade(pc, 0.85))          // Saum
       + px(lx1, 79, LW, 11, skin) + px(lx1 - 1, 79, 1, 11, skinD)
       + px(lx2, 79, LW, 11, skin) + px(lx2 + LW, 79, 1, 11, skinD);
   } else {
-    s += roundO(32 - HIP, 70, HIP * 2, 6, pc) + px(32 - HIP, 70, HIP * 2, 1, pcD);   // Hüfte + Bund
+    // Hüfte: gerade Kanten (keine runden Wölbungen), Bund als dunkle Linie.
+    s += px(32 - HIP, 70, HIP * 2, 6, pc)
+      + px(32 - HIP - 1, 70, 1, 6, pcD) + px(32 + HIP, 70, 1, 6, pcD)
+      + px(32 - HIP, 70, HIP * 2, 1, shade(pc, 0.8));
     const legH = p.style === 'shorts' ? 6 : 14;
     s += px(lx1, 76, LW, legH, pc) + px(lx1 - 1, 76, 1, legH, pcD);
     s += px(lx2, 76, LW, legH, pc) + px(lx2 + LW, 76, 1, legH, pcD);
@@ -558,7 +612,11 @@ function gearSVG(cfg, gear) {
       + px(20, 8, 1, 1, shade(c, 1.3)) + spark(gear.head, 40, 8);
   }
   if (gear.weapon && gear.weapon.type) {
-    s += weaponSVG(gear.weapon, arx + 6);
+    // Waffe IN der Hand: Griff läuft durch die Faust, die Hand wird danach
+    // wieder darübergezeichnet (Handschuh-Farbe, falls Panzerhandschuhe an).
+    s += weaponSVG(gear.weapon, arx + 1);
+    const handC = gear.arms ? col(gear.arms) : (SKIN[cfg.skin] || SKIN[0]);
+    s += px(arx, 62, 4, 4, handC) + px(arx, 65, 4, 1, shade(handC, 0.85));
   }
   if (gear.companion) {
     // Gefährte zu Füßen des Charakters — eigenes Aussehen (Teile/Farbe),
@@ -568,25 +626,27 @@ function gearSVG(cfg, gear) {
   return s;
 }
 
-// Waffe in der rechten Hand (senkrecht, Klinge nach oben), wx = Waffen-Spalte.
+// Waffe in der rechten Hand (senkrecht, Klinge nach oben), wx = Griff-Spalte
+// MITTEN in der Hand (Hand: y62..65 — Griff/Schaft laufen durch die Faust).
 function weaponSVG(w, wx) {
   wx = Math.min(wx, 58);
   const c = matColor(w.which, w.tier);
   const d = shade(c, 0.62), hl = shade(c, 1.25);
-  const grip = px(wx, 60, 2, 6, G[4]);
+  const grip = px(wx, 58, 2, 10, G[4]);                 // kurzer Griff: über + unter der Faust sichtbar
+  const shaft = px(wx, 28, 2, 42, G[4]);                // langer Schaft: bis neben das Bein
   let s = '';
   switch (w.type) {
-    case 'schwert': s = grip + px(wx - 2, 58, 6, 2, d) + px(wx, 34, 2, 24, c) + px(wx, 34, 1, 24, hl) + px(wx, 32, 2, 2, '#ffffff'); break;
-    case 'dolch':   s = grip + px(wx - 2, 58, 6, 2, d) + px(wx, 46, 2, 12, c) + px(wx, 46, 1, 12, hl); break;
-    case 'speer':   s = px(wx, 28, 2, 38, G[4]) + px(wx - 2, 24, 6, 2, c) + px(wx, 20, 2, 4, c) + px(wx, 26, 2, 2, c); break;
-    case 'axt':     s = px(wx, 32, 2, 34, G[4]) + px(wx - 6, 32, 6, 8, c) + px(wx - 8, 34, 2, 4, c) + px(wx - 8, 34, 1, 4, hl); break;
-    case 'hammer':  s = px(wx, 32, 2, 34, G[4]) + px(wx - 4, 30, 8, 8, c) + px(wx - 4, 33, 8, 1, d); break;
-    case 'stab':    s = px(wx, 30, 2, 36, G[4]) + px(wx - 2, 24, 6, 6, c) + px(wx - 1, 25, 2, 2, '#ffffff'); break;
-    case 'bogen':   s = grip + px(wx, 32, 2, 28, c) + px(wx - 2, 32, 4, 2, c) + px(wx - 2, 58, 4, 2, c) + px(wx - 2, 34, 1, 24, d); break;
-    case 'streitkolben': s = px(wx, 32, 2, 34, G[4]) + px(wx - 4, 24, 8, 8, c) + px(wx - 6, 26, 2, 4, c) + px(wx + 4, 26, 2, 4, c) + px(wx - 2, 22, 4, 2, c); break;
+    case 'schwert': s = grip + px(wx - 2, 56, 6, 2, d) + px(wx, 32, 2, 24, c) + px(wx, 32, 1, 24, hl) + px(wx, 30, 2, 2, '#ffffff'); break;
+    case 'dolch':   s = grip + px(wx - 2, 56, 6, 2, d) + px(wx, 44, 2, 12, c) + px(wx, 44, 1, 12, hl); break;
+    case 'speer':   s = px(wx, 24, 2, 46, G[4]) + px(wx - 2, 22, 6, 2, c) + px(wx, 18, 2, 4, c) + px(wx, 24, 2, 2, c); break;
+    case 'axt':     s = shaft + px(wx - 6, 28, 6, 8, c) + px(wx - 8, 30, 2, 4, c) + px(wx - 8, 30, 1, 4, hl); break;
+    case 'hammer':  s = shaft + px(wx - 4, 26, 8, 8, c) + px(wx - 4, 29, 8, 1, d); break;
+    case 'stab':    s = px(wx, 26, 2, 44, G[4]) + px(wx - 2, 20, 6, 6, c) + px(wx - 1, 21, 2, 2, '#ffffff'); break;
+    case 'bogen':   s = px(wx, 36, 2, 24, c) + px(wx - 2, 36, 4, 2, c) + px(wx - 2, 58, 4, 2, c) + px(wx - 2, 38, 1, 20, d); break;
+    case 'streitkolben': s = shaft + px(wx - 4, 20, 8, 8, c) + px(wx - 6, 22, 2, 4, c) + px(wx + 4, 22, 2, 4, c) + px(wx - 2, 18, 4, 2, c); break;
     default: return '';
   }
-  if (w.tier === 'verzaubert') s += px(wx + 3, 28, 1, 1, '#ffffff') + px(wx - 3, 42, 1, 1, '#ffffff');
+  if (w.tier === 'verzaubert') s += px(wx + 3, 26, 1, 1, '#ffffff') + px(wx - 3, 40, 1, 1, '#ffffff');
   return s;
 }
 
@@ -837,7 +897,7 @@ export function avatarSVG(cfg, opts = {}) {
     eyesSVG(cfg.eyes) +
     noseSVG(cfg.nose, skin) +
     mouthSVG(cfg.mouth) +
-    hairSVG(cfg.hair) +
+    hairSVG(cfg.hair, cfg.hairColor) +
     (headOnly ? '' : gearSVG(cfg, opts.gear));
   const vb = headOnly ? '10 0 44 44' : '0 0 64 96';
   return `<svg viewBox="${vb}" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges" style="width:100%;height:100%;display:block;image-rendering:pixelated;">${inner}</svg>`;
@@ -905,7 +965,7 @@ export function renderCharacter() {
   const grid = document.getElementById('character-variants');
   if (grid) {
     const key = _activeFeature;
-    const headKeys = ['hair', 'eyes', 'ears', 'nose', 'mouth', 'skin'];
+    const headKeys = ['hair', 'hairColor', 'eyes', 'ears', 'nose', 'mouth', 'skin'];
     grid.innerHTML = Array.from({ length: COUNTS[key] }, (_, v) => {
       const preview = avatarSVG({ ...cfg, [key]: v }, { headOnly: headKeys.includes(key) });
       const on = cfg[key] === v;

@@ -12,7 +12,7 @@ import { renderAvatarInto, renderCharacter, commitAvatar, resetCharacterFeature,
 import { IRREGULAR_PRESET_ID, uvAvailableVerbs, CONSTELLATION_SIZE, cefrOf, forgeObject, FORGE_OBJECTS, usedForgeObjects, getConstellations, allVerbsSorted, verbsByEns, UV_TRAIN_SUF } from './irregular-verbs.js';
 import { objectPerkText, renderEquipmentPanel, forgedItems, equippedGearMap } from './campaign-equipment.js';
 import { renderFriendsSection, refreshFriendBadge, friendProgress, subscribeFriendRealtime, unsubscribeFriendRealtime } from './friends.js';
-import { renderCampaign, updateTalerBadge, refreshClaimedTaler, talerAvailable } from './campaign.js';
+import { renderCampaign, updateTalerBadge, refreshClaimedTaler, talerAvailable, bossWinCount } from './campaign.js';
 
 const API_KEY_SK = 'es_apikey';
 
@@ -1795,6 +1795,7 @@ export function showProfile() {
   const ph = document.getElementById('prof-hs'); if (ph) ph.textContent = SD.highscore || 0;
   const pp = document.getElementById('prof-pts'); if (pp) pp.textContent = SD.totalPoints || 0;
   const pt = document.getElementById('prof-taler'); if (pt) pt.textContent = talerAvailable();
+  const pb = document.getElementById('prof-bosses'); if (pb) pb.textContent = bossWinCount();
 
   const cloudSection = document.getElementById('prof-cloud-section');
   if (cloudSection) {
@@ -2667,6 +2668,7 @@ function showMenuSkeleton() {
   showScreen('menu-screen');
   const nm = document.getElementById('menu-player-name'); if (nm) nm.textContent = 'Lädt…';
   const tl = document.getElementById('menu-taler');       if (tl) tl.textContent = '·';
+  const bs = document.getElementById('menu-bosses');      if (bs) bs.textContent = '·';
   const ft = document.getElementById('menu-footer');      if (ft) ft.style.display = 'flex';
   const c = document.getElementById('decks-container');
   if (c) c.innerHTML =
