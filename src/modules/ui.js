@@ -2233,7 +2233,7 @@ export function exportData() {
   const blob = new Blob([json], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'english_stars_fortschritt.json';
+  a.download = 'english-stars-backup-' + new Date().toISOString().slice(0, 10) + '.json';
   a.click();
 }
 
