@@ -1751,7 +1751,7 @@ export function showMenu() {
   window.isProbetest = false;   // Probetest beendet → wieder normale Wertung
   hideFeedback();
   showScreen('menu-screen');
-  document.getElementById('menu-player-name').textContent = 'Hallo, ' + window.SD.playerName + '! 👋';
+  document.getElementById('menu-player-name').textContent = window.SD.playerName;
   renderAvatarInto('menu-avatar', window.SD, { headOnly: true });
   updateTalerBadge();                          // Taler sofort aus lokalem Stand
   refreshClaimedTaler().catch(() => {});       // 100%-Teilabschnitte nachzählen (retroaktiv)
