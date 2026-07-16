@@ -534,6 +534,24 @@ function freshData(){
 }
 
 function migrateData(old){
+  // Moderner v4-Stand → 1:1 übernehmen, NICHTS verwerfen. Der Whitelist-Umbau
+  // unten gilt nur noch für ALT-Formate (pre-v4): er warf sonst bei JEDEM Boot
+  // avatar, campaign (Taler/Ausrüstung/Bosse), uvFills, activeMode und
+  // probetests weg — online sofort vom Cloud-Load überdeckt, offline blieb
+  // dann nur Name/Highscore/Punkte übrig ("alles weg").
+  if(old&&old._version>=4){
+    if(!old.decks)old.decks={};
+    Object.values(old.decks).forEach(deck=>{
+      if(!('lastExam' in deck))deck.lastExam=null;
+      if(!deck.deckPath){
+        const hasPreset=deck.vocab.some(v=>v._presetId);
+        const hasManual=deck.vocab.some(v=>!v._presetId);
+        deck.deckPath=(hasPreset&&!hasManual)?'preset':(hasManual&&!hasPreset)?'custom':'none';
+      }
+    });
+    if(!old.globalPresetStats)old.globalPresetStats={wordStats:{},categoryProgress:{}};
+    return old;
+  }
   const d=freshData();
   if(old.playerName)d.playerName=old.playerName;
   if(old.highscore)d.highscore=old.highscore;

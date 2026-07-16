@@ -206,7 +206,9 @@ function _renderOverlay() {
     </div>
     <div id="cf-potions" style="display:flex;gap:8px;justify-content:center;margin-bottom:8px;min-height:8px;"></div>
     <div id="cf-stage" style="flex:1;"></div>
-    <div style="display:flex;align-items:center;gap:10px;margin-top:12px;">
+    <!-- Lebens-Zeile STICKY am unteren Rand: bleibt auch sichtbar, wenn auf
+         kleinen Displays (oder mit offener Tastatur) gescrollt werden muss. -->
+    <div style="display:flex;align-items:center;gap:10px;margin-top:12px;position:sticky;bottom:0;z-index:2;background:#1a1533;box-shadow:0 -10px 14px rgba(26,21,51,.92);padding:8px 0;flex-shrink:0;">
       <div style="flex:1;min-width:0;">
         <div style="font-size:.75rem;font-weight:800;color:#ffc9c9;margin-bottom:2px;">❤️ <span id="cf-php">${run.hp}</span> / ${run.hpMax}</div>
         <div style="height:10px;background:rgba(255,255,255,.15);border-radius:6px;overflow:hidden;"><div id="cf-phpbar" style="height:100%;width:${run.hp / run.hpMax * 100}%;background:linear-gradient(90deg,#ff6b6b,#e03131);transition:width .4s;"></div></div>

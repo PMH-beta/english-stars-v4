@@ -1293,7 +1293,25 @@ body.in-game .mode-progress{display:block;}
 .cf-arena{
   position:relative;display:flex;align-items:flex-end;justify-content:space-between;
   background:#1a1533;border:2px solid rgba(255,255,255,.14);border-radius:14px;
-  padding:24px 26px 18px;margin-bottom:10px;min-height:clamp(200px,32vh,300px);overflow:hidden;
+  padding:24px 26px 18px;margin-bottom:10px;overflow:hidden;flex-shrink:0;
+  /* Höhe folgt dem SICHTBAREN Viewport (dvh schrumpft mit offener Tastatur),
+     damit Eingabefeld + Lebensbalken auf jedem Gerät im Bild bleiben. */
+  min-height:clamp(110px,22vh,300px);
+  min-height:clamp(110px,22dvh,300px);
+}
+/* Kleine Display-Höhen: Arena + Sprites schrumpfen, statt die Eingabe und den
+   Lebensbalken aus dem Bild zu drücken. */
+@media (max-height:700px){
+  .cf-arena{padding:14px 18px 14px;}
+  .cf-hero{width:64px;height:96px;}
+  .cf-enemy{width:96px;height:96px;}
+  .cf-enemy.boss{width:128px;height:128px;}
+}
+@media (max-height:480px){   /* z.B. Handy quer oder Tastatur offen */
+  .cf-arena{min-height:88px;padding:8px 12px 10px;}
+  .cf-hero{width:44px;height:66px;}
+  .cf-enemy{width:64px;height:64px;}
+  .cf-enemy.boss{width:80px;height:80px;}
 }
 .cf-scenery{position:absolute;inset:0 0 14px 0;overflow:hidden;}
 .cf-ground{
