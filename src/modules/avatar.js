@@ -327,14 +327,23 @@ function _fringe(c) {
   }
   return s + px(22, 21, 1, 1, c) + px(31, 21, 1, 1, c) + px(40, 21, 1, 1, c);
 }
-// Seitliche Haarpartien mit Strähnen und spitz auslaufenden Enden.
-function _sides(c, len) {
+// Herabfallende Haarpartie: gestufte Spalten mit unregelmäßig spitzem Auslauf,
+// Outline NUR an der Außenkante — ersetzt die alten softO-„Kapseln", die mit
+// Rundum-Outline wie Kopfhörer-Muscheln aussahen. outerLeft: Außenseite links.
+function _fall(x, y, w, len, c, outerLeft) {
   let s = '';
-  for (const x of [15, 44]) {
-    s += softO(x, 16, 5, len, c) + strands(x, 17, 5, len - 3, c)
-      + px(x + 1, 16 + len, 3, 1, c) + px(x + 2, 17 + len, 1, 2, c);
+  const d = shade(c, 0.62);
+  const CUT = [5, 2, 0, 1, 3, 2, 4];                  // Spalten-Kürzung: außen kürzer
+  for (let i = 0; i < w; i++) {
+    const t = outerLeft ? i : w - 1 - i;              // 0 = Außenspalte
+    s += px(x + i, y, 1, Math.max(3, len - CUT[t % 7]), c);
   }
-  return s;
+  s += px(outerLeft ? x - 1 : x + w, y + 1, 1, Math.max(3, len - 8), d);
+  return s + strands(x, y + 2, w, Math.max(2, len - 8), c);
+}
+// Seitliche Haarpartien beidseitig (fallen nahtlos aus der Kappe).
+function _sides(c, len) {
+  return _fall(15, 14, 5, len, c, true) + _fall(44, 14, 5, len, c, false);
 }
 function _braid(x, c, tie) {
   // Jedes Flecht-Segment mit eigenem Licht-/Schattenpixel (plastische Wülste).
@@ -355,7 +364,7 @@ const HAIR = [
   (c) => [[20, 3, 3], [25, 2, 4], [30, 1, 5], [35, 2, 4], [40, 3, 3]].map(([sx, sy, sh]) =>
     px(sx, sy, 2, sh, c) + px(sx + 1, sy + 1, 1, sh - 1, shade(c, 0.75))
     + px(sx, sy, 1, 1, shade(c, 1.2))).join('') + _cap(c),                                 // 1 stachelig
-  (c) => _cap(c) + _fringe(c) + _sides(c, 36),                                             // 2 lang
+  (c) => _cap(c) + _fringe(c) + _sides(c, 38),                                             // 2 lang
   (c) => _cap(c) + _fringe(c) + roundO(26, 0, 12, 6, c) + strands(27, 1, 10, 4, c)
     + px(26, 5, 12, 1, GOLD),                                                              // 3 Dutt
   (c) => _capBase(c) + px(19, 4, 4, 2, c) + px(25, 3, 4, 2, c) + px(31, 3, 4, 2, c)
@@ -364,29 +373,26 @@ const HAIR = [
     + px(46, 14, 2, 8, c) + px(46, 15, 1, 6, shade(c, 0.75)) + curls(20, 8, 24, 9, c),     // 4 Locken
   null,                                                                                    // 5 Glatze
   (c) => roundO(17, 5, 30, 16, c) + px(21, 6, 8, 1, shade(c, 1.22)) + strands(19, 8, 26, 12, c)
-    + softO(15, 16, 4, 14, c) + strands(15, 17, 4, 12, c)
-    + softO(45, 16, 4, 14, c) + strands(45, 17, 4, 12, c)
-    + px(16, 30, 2, 2, c) + px(46, 30, 2, 2, c),                                           // 6 voll/wuschelig
-  (c) => _cap(c) + _fringe(c) + softO(46, 12, 5, 26, c) + strands(46, 14, 5, 20, c)
-    + px(46, 17, 5, 2, GOLD) + px(47, 38, 3, 2, c) + px(48, 40, 1, 2, c),                  // 7 Pferdeschwanz
+    + _fall(15, 16, 4, 16, c, true) + _fall(45, 16, 4, 16, c, false),                      // 6 voll/wuschelig
+  (c) => _cap(c) + _fringe(c) + _fall(46, 12, 5, 30, c, false)
+    + px(46, 17, 5, 2, GOLD),                                                              // 7 Pferdeschwanz
   (c) => roundO(14, 0, 36, 20, c) + curls(16, 2, 32, 16, c)
-    + softO(14, 16, 4, 12, c) + curls(14, 17, 4, 10, c)
-    + softO(46, 16, 4, 12, c) + curls(46, 17, 4, 10, c),                                   // 8 Afro
-  (c) => _cap(c) + _fringe(c) + _sides(c, 54),                                             // 9 sehr lang
+    + _fall(14, 16, 4, 12, c, true) + curls(14, 17, 4, 9, c)
+    + _fall(46, 16, 4, 12, c, false) + curls(46, 17, 4, 9, c),                             // 8 Afro
+  (c) => _cap(c) + _fringe(c) + _sides(c, 56),                                             // 9 sehr lang
   (c) => _cap(c) + _fringe(c) + _braid(14, c, '#d94f4f') + _braid(46, c, '#d94f4f'),       // 10 Zöpfe
   (c) => soft(19, 9, 26, 4, '#55504a') + dith(20, 10, 24, 2, shade('#55504a', 1.2))
     + roundO(28, 0, 8, 16, c) + strands(28, 1, 8, 14, c),                                  // 11 Irokese
   (c) => roundO(16, 5, 32, 14, c) + px(21, 6, 10, 1, shade(c, 1.22)) + strands(18, 7, 28, 10, c)
-    + softO(15, 14, 5, 14, c) + strands(15, 15, 5, 12, c)
-    + softO(44, 14, 5, 14, c) + strands(44, 15, 5, 12, c)
+    + _fall(15, 14, 5, 15, c, true) + _fall(44, 14, 5, 15, c, false)
     + px(20, 16, 24, 3, c) + strands(20, 16, 24, 3, c),                                    // 12 Bob
-  (c) => _capBase(c) + curls(20, 8, 24, 8, c) + softO(14, 14, 7, 26, c) + softO(43, 14, 7, 26, c)
-    + curls(15, 15, 5, 24, c) + curls(44, 15, 5, 24, c),                                   // 13 Locken lang
+  (c) => _capBase(c) + curls(20, 8, 24, 8, c) + _fall(14, 14, 7, 27, c, true) + _fall(43, 14, 7, 27, c, false)
+    + curls(15, 15, 5, 23, c) + curls(44, 15, 5, 23, c),                                   // 13 Locken lang
   (c) => soft(19, 10, 26, 5, '#5a5148') + dith(20, 11, 24, 3, shade('#5a5148', 1.22))
     + roundO(20, 3, 26, 9, c) + strands(21, 4, 24, 7, c)
     + px(44, 6, 3, 3, c) + px(45, 7, 1, 2, shade(c, 0.75)) + px(23, 4, 10, 1, shade(c, 1.2)),   // 14 Undercut
   (c) => _cap(c) + _part(c),                                                               // 15 Mittelscheitel kurz
-  (c) => _cap(c) + _part(c) + _sides(c, 50),                                               // 16 Mittelscheitel lang
+  (c) => _cap(c) + _part(c) + _sides(c, 52),                                               // 16 Mittelscheitel lang
   (c) => roundO(16, 3, 32, 16, c) + curls(18, 5, 28, 12, c)
     + px(15, 8, 1, 4, c) + px(48, 8, 1, 4, c) + px(19, 2, 3, 1, c) + px(30, 1, 4, 1, c)
     + px(42, 2, 3, 1, c),                                                                  // 17 Wuschelkopf
@@ -703,7 +709,8 @@ function weaponSVG(w, wx) {
     case 'axt':     s = shaft + px(wx - 6, 28, 6, 8, c) + px(wx - 8, 30, 2, 4, c) + px(wx - 8, 30, 1, 4, hl); break;
     case 'hammer':  s = shaft + px(wx - 4, 26, 8, 8, c) + px(wx - 4, 29, 8, 1, d); break;
     case 'stab':    s = px(wx, 26, 2, 44, G[4]) + px(wx - 2, 20, 6, 6, c) + px(wx - 1, 21, 2, 2, '#ffffff'); break;
-    case 'bogen':   s = px(wx, 36, 2, 24, c) + px(wx - 2, 36, 4, 2, c) + px(wx - 2, 58, 4, 2, c) + px(wx - 2, 38, 1, 20, d); break;
+    case 'bogen':   s = px(wx, 44, 2, 36, c) + px(wx - 2, 44, 4, 2, c) + px(wx - 2, 78, 4, 2, c)
+      + px(wx - 2, 46, 1, 32, d) + px(wx, 60, 2, 6, G[4]); break;   // Bogen MITTIG in der Faust, Sehne links, Griffwicklung
     case 'streitkolben': s = shaft + px(wx - 4, 20, 8, 8, c) + px(wx - 6, 22, 2, 4, c) + px(wx + 4, 22, 2, 4, c) + px(wx - 2, 18, 4, 2, c); break;
     default: return '';
   }
