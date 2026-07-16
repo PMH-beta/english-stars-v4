@@ -19,3 +19,6 @@ PROJEKT-STATUS.md
 # Lokale Konzept-Notizen (nicht ins Repo)
 UEBERSICHT-FUER-KONZEPT-UNREGELMAESSIGE-WOERTER.md
 implementierung-gestaltwandler.md
+
+# Lokale DB-Backup-Kopien (Script scripts/db-backup.mjs)
+db-backups/
