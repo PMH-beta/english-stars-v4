@@ -67,7 +67,7 @@ export function startLetterstorm({ host, de, en, prompt, sub, timeLimitMs, guard
       </div>
       <div id="cf-secs" style="font-family:'Fredoka One',cursive;color:#fff;font-size:.9rem;min-width:34px;text-align:right;"></div>
     </div>
-    <div id="cf-field" style="position:relative;height:250px;border-radius:16px;background:rgba(255,255,255,.08);overflow:hidden;"></div>
+    <div id="cf-field" style="position:relative;height:min(30dvh,230px);min-height:140px;border-radius:16px;background:rgba(255,255,255,.08);overflow:hidden;"></div>
     <div id="cf-slots" style="display:flex;justify-content:center;gap:6px;margin-top:12px;flex-wrap:wrap;">${slotHtml}</div>`;
 
   host.querySelector('#cf-speak').onclick = () => { try { speakWord(target); } catch (e) {} };

@@ -18,7 +18,7 @@ export function startMeteors({ host, de, answer, choices, fallMs, onResult }) {
       <div style="font-size:1.5rem;font-weight:800;color:#fff;">🇩🇪 ${de}</div>
       <div style="font-size:.85rem;font-weight:700;color:rgba(255,255,255,.65);margin:2px 0 8px;">☄️ Fang die richtige Übersetzung!</div>
     </div>
-    <div id="cf-sky" style="position:relative;height:300px;border-radius:16px;background:rgba(255,255,255,.08);overflow:hidden;"></div>`;
+    <div id="cf-sky" style="position:relative;height:min(34dvh,270px);min-height:160px;border-radius:16px;background:rgba(255,255,255,.08);overflow:hidden;"></div>`;
 
   const sky = host.querySelector('#cf-sky');
   const skyH = 300;

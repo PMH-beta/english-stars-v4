@@ -28,7 +28,7 @@ export function startEcho({ host, answer, speakText, choices, timeLimitMs, onRes
       </div>
       <div id="cf-echosecs" style="font-family:'Fredoka One',cursive;color:#fff;font-size:.9rem;min-width:34px;text-align:right;"></div>
     </div>
-    <div id="cf-echofield" style="position:relative;height:250px;border-radius:16px;background:rgba(255,255,255,.08);overflow:hidden;"></div>`;
+    <div id="cf-echofield" style="position:relative;height:min(30dvh,230px);min-height:140px;border-radius:16px;background:rgba(255,255,255,.08);overflow:hidden;"></div>`;
 
   const speak = () => { try { speakWord(speakText || answer); } catch (e) {} };
   host.querySelector('#cf-replay').onclick = speak;
