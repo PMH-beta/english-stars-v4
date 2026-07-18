@@ -1199,6 +1199,14 @@ function _uvFill(ens, obj) {
   renderStudentUV();
 }
 
+// Anzeigename eines Auftrags: nach dem Gegenstand benannt, der geschmiedet wird
+// (Objekt-Wahl der Station — Stahl & Gold sind dasselbe Objekt). Legacy-Stationen
+// ohne Objekt-Wahl haben zwei verschiedene Zyklus-Waffen → dort bleibt „Auftrag n".
+function _auftragName(idx) {
+  const past = forgeObject(idx, 'past'), pp = forgeObject(idx, 'pp');
+  return past.type === pp.type ? `${past.icon} ${past.name}` : `Auftrag ${idx + 1}`;
+}
+
 // Auftrag (Station) löschen — nach Bestätigung mit Ausrüstungs-Warnung.
 // Räumt ALLES ab: Schmiede-Fortschritt der 10 Verben (lokal + Cloud via
 // deleteCloudPresetStats), angelegte Ausrüstung aus dieser Station und die
@@ -1210,7 +1218,7 @@ export async function uvDeleteStation(idx) {
   const c = getConstellations().find((x) => x.idx === idx);
   const ob = forgeObject(idx, 'past');
   const ok = await window.esConfirm({
-    icon: '🗑️', title: `Auftrag ${idx + 1} löschen?`,
+    icon: '🗑️', title: `${_auftragName(idx)} löschen?`,
     body: `${ob.icon} ${ob.name} (Stahl & Gold) wird eingeschmolzen — du verlierst auch diese Ausrüstung in der Kampagne! Der Schmiede-Fortschritt der Station ist weg, die ${CONSTELLATION_SIZE} Verben werden wieder frei.`,
     ok: 'Löschen', cancel: 'Behalten', danger: true,
   });
@@ -1522,7 +1530,7 @@ function _forgeStation(m) {
   const body = m.unlocked ? _forgeSlider(m) : _forgeItem(m, 'past');
   return `<div class="forge-station${m.unlocked ? '' : ' locked'}${m.complete ? ' complete' : ''}">
     <div class="forge-head">
-      <span class="forge-title">⚒️ Auftrag ${m.c.idx + 1}${m.complete ? ' 🌟' : ''}</span>
+      <span class="forge-title">⚒️ ${_auftragName(m.c.idx)}${m.complete ? ' 🌟' : ''}</span>
       <button class="forge-del" onclick="uvDeleteStation(${m.c.idx})" title="Auftrag löschen" aria-label="Auftrag löschen">🗑</button>
     </div>
     ${body}
@@ -2166,11 +2174,11 @@ function _uvLernstandBlock() {
   const L = uvLernstand();
   const pct = L.maxLit > 0 ? Math.round((L.totalLit / L.maxLit) * 100) : 0;
 
-  const rows = L.rows.map((r, i) => {
+  const rows = L.rows.map((r) => {
     const icon = r.complete ? '🌟' : (r.unlocked ? '⚒️' : '🔒');
     const aPct = r.total ? Math.round((r.lit / r.total) * 100) : 0;
     const sub = `${r.count} Verben · ⏱ Simple Past ${r.pastLit}/${r.formTotal} · ✓ Past Participle ${r.ppLit}/${r.formTotal}`;
-    const tile = _progressTile(`${icon} Auftrag ${i + 1}`, sub, aPct, r.complete);
+    const tile = _progressTile(`${icon} ${_auftragName(r.idx)}`, sub, aPct, r.complete);
     // Gesperrte oder leere Aufträge: nur die Kachel, keine Wortliste.
     if (!r.unlocked || !(r.words || []).length) return tile;
     const wordRows = r.words.map(w => {
