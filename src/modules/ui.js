@@ -12,7 +12,7 @@ import { renderAvatarInto, renderCharacter, commitAvatar, resetCharacterFeature,
 import { IRREGULAR_PRESET_ID, uvAvailableVerbs, CONSTELLATION_SIZE, cefrOf, forgeObject, FORGE_OBJECTS, usedForgeObjects, getConstellations, allVerbsSorted, verbsByEns, UV_TRAIN_SUF } from './irregular-verbs.js';
 import { objectPerkText, renderEquipmentPanel, forgedItems, equippedGearMap } from './campaign-equipment.js';
 import { renderFriendsSection, refreshFriendBadge, friendProgress, subscribeFriendRealtime, unsubscribeFriendRealtime } from './friends.js';
-import { renderCampaign, updateTalerBadge, refreshClaimedTaler, talerAvailable, bossWinCount } from './campaign.js';
+import { renderCampaign, updateTalerBadge, refreshClaimedTaler } from './campaign.js';
 
 const API_KEY_SK = 'es_apikey';
 
@@ -1784,11 +1784,6 @@ export function showProfile() {
       ps.textContent = '📅 Dabei seit ' + d.toLocaleDateString('de-DE', {day:'2-digit',month:'2-digit',year:'numeric'});
     } else ps.textContent = '';
   }
-  const ph = document.getElementById('prof-hs'); if (ph) ph.textContent = SD.highscore || 0;
-  const pp = document.getElementById('prof-pts'); if (pp) pp.textContent = SD.totalPoints || 0;
-  const pt = document.getElementById('prof-taler'); if (pt) pt.textContent = talerAvailable();
-  const pb = document.getElementById('prof-bosses'); if (pb) pb.textContent = bossWinCount();
-
   const cloudSection = document.getElementById('prof-cloud-section');
   if (cloudSection) {
     const user = window.currentUser;
@@ -1967,8 +1962,6 @@ export async function showStats() {
   }
   const sh = document.getElementById('stats-hs'); if (sh) sh.textContent = SD.highscore || 0;
   const sp = document.getElementById('stats-pts'); if (sp) sp.textContent = SD.totalPoints || 0;
-  const st = document.getElementById('stats-taler'); if (st) st.textContent = talerAvailable();
-  const sb = document.getElementById('stats-bosses'); if (sb) sb.textContent = bossWinCount();
 
   const host = document.getElementById('profile-decks-summary');
   if (!host) return;
