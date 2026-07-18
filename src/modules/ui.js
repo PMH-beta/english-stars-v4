@@ -44,7 +44,10 @@ export function showScreen(id) {
     const el = document.getElementById(s); if (el) el.style.display = 'none';
   });
   const el = document.getElementById(id);
-  el.style.display = ['loading-screen','menu-screen','game-screen','stats-screen','profile-screen','character-screen','scan-screen','review-screen'].includes(id) ? 'flex' : 'block';
+  // Immer 'flex': die .screen-Karten (Auth, Passwort-Reset, End-Screen …) zentrieren
+  // ihre Kinder per flex-Column; ein Inline-'block' hebelte das aus (Emoji-Kreis,
+  // Buttons und Trenner hingen linksbündig).
+  el.style.display = 'flex';
   window.scrollTo(0, 0);
   el.scrollTop = 0;
   if (id === 'game-screen') document.body.classList.add('in-game');
@@ -1924,6 +1927,10 @@ function _friendState(s) {
     highscore: s.highscore || 0,
     totalPoints: s.totalPoints || 0,
     avatar: s.avatar || null,
+    // Kampagne (Bosse/Taler/Lauf) + Anmeldedatum kommen seit dem RPC-Update mit;
+    // ältere RPC-Antworten ohne die Felder zeigen 0/leer (kein Fehler).
+    campaign: (s.campaign && typeof s.campaign === 'object') ? s.campaign : { claimed: [], talerSpent: 0, run: null },
+    createdAt: s.createdAt || null,
     activeMode: 'free',
     activeDeckId: null,
     decks: s.decks || {},
@@ -1948,10 +1955,20 @@ export async function showStats() {
   const heading = document.getElementById('stats-heading');
   if (backBtn) backBtn.setAttribute('onclick', _statsFriendMode ? 'closeFriendStats()' : 'showMenu()');
   if (heading) heading.textContent = _statsFriendMode ? ('📊 ' + (SD.playerName || 'Freund')) : '📊 Fortschritt';
+  // Kopf wie auf der Profilseite: Avatar, Name, Dabei-seit, Bosse/Taler, Highscore/Punkte.
+  renderAvatarInto('stats-avatar', SD, { headOnly: true });
   const pn = document.getElementById('profile-name');
   const pm = document.getElementById('profile-meta');
   if (pn) pn.textContent = SD.playerName || 'Spieler';
-  if (pm) pm.textContent = '🏆 Highscore: ' + SD.highscore + ' · ⭐ ' + SD.totalPoints + ' Pkt gesamt';
+  if (pm) {
+    // Eigenes Profil: ältestes Deck (wie Profilseite); Freund: echtes Anmeldedatum aus der Cloud.
+    const since = _statsFriendMode ? SD.createdAt : (Object.values(SD.decks || {})[0] || {}).createdAt;
+    pm.textContent = since ? '📅 Dabei seit ' + new Date(since).toLocaleDateString('de-DE', {day:'2-digit',month:'2-digit',year:'numeric'}) : '';
+  }
+  const sh = document.getElementById('stats-hs'); if (sh) sh.textContent = SD.highscore || 0;
+  const sp = document.getElementById('stats-pts'); if (sp) sp.textContent = SD.totalPoints || 0;
+  const st = document.getElementById('stats-taler'); if (st) st.textContent = talerAvailable();
+  const sb = document.getElementById('stats-bosses'); if (sb) sb.textContent = bossWinCount();
 
   const host = document.getElementById('profile-decks-summary');
   if (!host) return;
@@ -1965,8 +1982,7 @@ export async function showStats() {
   const catById = Object.fromEntries((categories || []).map(c => [c.id, c]));
 
   // Reihenfolge wie im Hauptmenü-Toggle: Kampagne · Vokabeln · Unregelmäßige.
-  const campSection = _statSection('🗺️ Kampagne',
-    '<div style="font-size:.82rem;color:#999;text-align:center;padding:14px;">Kommt bald!</div>');
+  const campSection = _statSection('🗺️ Kampagne', _campaignBlock());
 
   const vokabelnSection = _statSection('📚 Vokabeln',
     _activePresetsBlock(freeDecks, catById) + _customWordsBlock(freeDecks));
@@ -1986,11 +2002,75 @@ function _statSection(title, inner) {
   </div>`;
 }
 
-// „Eigene Wörter"-Fortschrittsbalken über die eigenen (nicht-Vorlage) Wörter einer
-// Deck-Menge. Im Schülermodus sind alle Wörter eigene → zählt die ganze Sammlung.
+// Eine Fortschritt-Kachel (Stil der „Aktive Vorlagen"): Titel + Unterzeile,
+// Balken-Hintergrund nach %, rechts %-Zahl bzw. ✓-erledigt-Chip.
+function _progressTile(title, sub, pct, done) {
+  const bg = done
+    ? 'background:linear-gradient(to right,rgba(58,170,92,.18) 100%,#fff 100%);box-shadow:inset 0 0 0 2px #3aaa5c;'
+    : 'background:linear-gradient(to right,rgba(168,108,219,.15) ' + pct + '%,#f7f7f7 ' + pct + '%);';
+  const right = done
+    ? '<span style="font-size:.72rem;font-weight:700;color:#2a8a4a;background:rgba(58,170,92,.15);padding:3px 9px;border-radius:20px;white-space:nowrap;">✓ erledigt</span>'
+    : '<span style="font-family:\'Fredoka One\',cursive;font-size:.95rem;color:#7a3aac;">' + pct + '%</span>';
+  return `<div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:12px;margin-bottom:6px;${bg}">
+    <div style="flex:1;min-width:0;">
+      <div style="font-weight:700;color:var(--text);font-size:.86rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${title}</div>
+      <div style="font-size:.68rem;color:#888;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${sub}</div>
+    </div>
+    ${right}
+  </div>`;
+}
+
+// Kampagnen-Stand: besiegte Bosse, verdiente Taler, Stand des aktuellen Laufs.
+function _campaignBlock() {
+  const c = (window.SD.campaign && typeof window.SD.campaign === 'object') ? window.SD.campaign : {};
+  const earned = Array.isArray(c.claimed) ? c.claimed.length : 0;
+  const bosses = c.bossWins || 0;
+  const tile = (icon, num, label, grad, col) => `
+    <div style="background:${grad};padding:12px;border-radius:14px;text-align:center;">
+      <div style="font-size:1.6rem;">${icon}</div>
+      <div style="font-family:'Fredoka One',cursive;font-size:1.4rem;color:${col};">${num}</div>
+      <div style="font-size:.7rem;color:#888;font-weight:700;">${label}</div>
+    </div>`;
+  let runHtml;
+  const run = c.run;
+  if (run && run.map) {
+    const rows = run.map.rows || 13;
+    const node = run.pos != null ? run.map.nodes[run.pos] : null;
+    const row = node ? node.row + 1 : 0;
+    const pct = Math.round((row / rows) * 100);
+    const hpPct = run.hpMax ? Math.round((run.hp / run.hpMax) * 100) : 0;
+    runHtml = `
+      <div style="display:flex;justify-content:space-between;font-size:.82rem;font-weight:700;color:var(--text);margin-bottom:6px;">
+        <span>⚔️ Aktueller Lauf: Reihe ${row} von ${rows}</span><span style="color:var(--purple);">${pct}%</span>
+      </div>
+      <div style="height:12px;background:#eee;border-radius:10px;overflow:hidden;margin-bottom:8px;">
+        <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--purple),var(--pink));border-radius:10px;"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:.82rem;font-weight:700;color:var(--text);margin-bottom:6px;">
+        <span>❤️ Leben</span><span style="color:#c0392b;">${run.hp}/${run.hpMax}</span>
+      </div>
+      <div style="height:12px;background:#eee;border-radius:10px;overflow:hidden;">
+        <div style="height:100%;width:${hpPct}%;background:linear-gradient(90deg,#e05a5a,#f08a8a);border-radius:10px;"></div>
+      </div>`;
+  } else {
+    runHtml = '<div style="font-size:.8rem;color:#999;font-weight:700;text-align:center;padding:6px;">Kein Lauf aktiv.</div>';
+  }
+  return `
+    <div style="margin-bottom:16px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+        ${tile('👑', bosses, 'Bosse besiegt', 'linear-gradient(135deg,#f3e8ff,#e2d0f7)', '#7a4ba8')}
+        ${tile('🪙', earned, 'Taler verdient', 'linear-gradient(135deg,#fff8e0,#ffefc0)', '#a8720a')}
+      </div>
+      ${runHtml}
+    </div>`;
+}
+
+// „Eigene Wörter": pro Sammlung mit selbst angelegten (nicht-Vorlage) Wörtern
+// eine Kachel im Stil der Aktiven Vorlagen — mit %-Wert der Sammlung.
 function _customWordsBlock(decks) {
-  let total = 0, done = 0;
+  const tiles = [];
   for (const deck of decks) {
+    let total = 0, done = 0;
     for (const v of deck.vocab || []) {
       if (v._presetId) continue;
       total++;
@@ -1998,17 +2078,17 @@ function _customWordsBlock(decks) {
         isStatMastered((deck.wordStats || {})[statKeyFor(v.de, v.en, suf)]));
       if (allDone) done++;
     }
+    if (!total) continue;
+    const pct = Math.round((done / total) * 100);
+    tiles.push(_progressTile(window.escHtml(deck.name),
+      `${done} von ${total} Wörtern gelöst`, pct, done === total));
   }
-  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
   return `
     <div style="margin-bottom:16px;">
       <h3 style="font-family:'Fredoka One',cursive;color:var(--purple);font-size:1rem;margin:0 0 8px;">✏️ Eigene Wörter</h3>
-      <div style="display:flex;justify-content:space-between;font-size:.85rem;font-weight:700;color:var(--text);margin-bottom:6px;">
-        <span>${done} von ${total} Wörtern gelöst</span><span style="color:var(--purple);">${pct}%</span>
-      </div>
-      <div style="height:14px;background:#eee;border-radius:10px;overflow:hidden;">
-        <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--purple),var(--pink));border-radius:10px;"></div>
-      </div>
+      ${tiles.length
+        ? tiles.join('')
+        : '<div style="font-size:.82rem;color:#999;text-align:center;padding:10px;">Keine eigenen Wörter angelegt.</div>'}
     </div>`;
 }
 
@@ -2084,55 +2164,33 @@ function _uvTrainStatsBlock() {
   </div>`;
 }
 
-// Schülermodus: Unregelmäßige Verben (Schmiede) — Lernstand-Übersicht je Auftrag:
-// pro Auftrag die ZWEI Waffen (🔩 Stahl = ⏱ Simple Past, 🥇 Gold = ✓ Past Participle)
-// mit Schmiede-Fortschritt, darunter die angelegten Wörter — je Wort getrennt der
-// %-Stand für Simple Past und Past Participle (beide zusammen = 100% des Wortes).
+// Schülermodus: Unregelmäßige Verben (Schmiede) — Lernstand als Auftrag-Kacheln
+// im Stil der Aktiven Vorlagen. Pro Auftrag eine Zeile mit Gesamt-% und den beiden
+// Form-Zählern (⏱ Simple Past · ✓ Past Participle); die angelegten Wörter stecken
+// vereinfacht (ein Balken je Wort) hinter einem Aufklapper. Schmiede-Details
+// (Waffen/Material) bleiben im Tab „Unregelmäßige".
 function _uvLernstandBlock() {
   const L = uvLernstand();
   const pct = L.maxLit > 0 ? Math.round((L.totalLit / L.maxLit) * 100) : 0;
-  const PAST_COL = '#3a6ea8', PP_COL = '#caa04a';
-
-  // Eine Waffe als Zeile: Name (Material-Gegenstand) + Schmiede-Balken + x/5.
-  const weaponRow = (idx, which, litN, totalN) => {
-    const mt = FORGE_MAT[which], ob = forgeObject(idx, which);
-    const wp = totalN ? Math.round((litN / totalN) * 100) : 0;
-    const color = which === 'past' ? PAST_COL : PP_COL;
-    return `<div class="uv-weapon">
-      <span class="uv-weapon-name">${ob.icon} ${mt.mat}-${ob.name} <span style="color:#aaa;font-weight:700;">${mt.label}</span></span>
-      <div class="uv-weapon-bar"><div class="uv-weapon-fill" style="width:${wp}%;background:${color};"></div></div>
-      <span class="uv-weapon-ct" style="color:${color};">${litN}/${totalN}</span>
-    </div>`;
-  };
 
   const rows = L.rows.map((r, i) => {
     const icon = r.complete ? '🌟' : (r.unlocked ? '⚒️' : '🔒');
-    const col = r.complete ? '#2a8a4a' : (r.unlocked ? 'var(--text)' : '#b9b9b9');
-    // Je angelegtem Wort: linke Hälfte = Simple Past, rechte Hälfte = Past Participle.
-    const wordRows = (r.words || []).map(w => {
-      const pPct = w.past.total ? Math.round((w.past.mastered / w.past.total) * 100) : 0;
-      const gPct = w.pp.total ? Math.round((w.pp.mastered / w.pp.total) * 100) : 0;
+    const aPct = r.total ? Math.round((r.lit / r.total) * 100) : 0;
+    const sub = `${r.count} Verben · ⏱ Simple Past ${r.pastLit}/${r.formTotal} · ✓ Past Participle ${r.ppLit}/${r.formTotal}`;
+    const tile = _progressTile(`${icon} Auftrag ${i + 1}`, sub, aPct, r.complete);
+    // Gesperrte oder leere Aufträge: nur die Kachel, keine Wortliste.
+    if (!r.unlocked || !(r.words || []).length) return tile;
+    const wordRows = r.words.map(w => {
+      const wPct = w.total ? Math.round((w.mastered / w.total) * 100) : 0;
       return `<div class="uvw">
         <span class="uvw-en">${window.escHtml(w.en)}</span>
-        <div class="uvw-bars">
-          <div class="uvw-half"><div class="uvw-fill" style="width:${pPct}%;background:${PAST_COL};"></div></div>
-          <div class="uvw-half"><div class="uvw-fill" style="width:${gPct}%;background:${PP_COL};"></div></div>
-        </div>
-        <span class="uvw-pct">⏱ ${pPct}% · ✓ ${gPct}%</span>
+        <div class="uvw-half"><div class="uvw-fill" style="width:${wPct}%;background:linear-gradient(90deg,var(--purple),var(--pink));"></div></div>
+        <span class="uvw-pct">${w.mastered}/${w.total}</span>
       </div>`;
     }).join('');
-    // Aktueller Auftrag (frei, aber noch nicht fertig) standardmäßig aufgeklappt.
-    const open = (r.unlocked && !r.complete) ? ' open' : '';
-    return `<details class="uv-cst"${open}>
-      <summary style="display:flex;align-items:center;gap:8px;font-size:.78rem;color:${col};">
-        <span>${icon}</span>
-        <span style="flex:1;font-weight:700;">Auftrag ${i + 1}</span>
-        <span style="font-size:.7rem;color:#a06a00;font-weight:800;white-space:nowrap;">🔨 ${r.lit}/${r.total}</span>
-        <span class="uv-cst-chev">▾</span>
-      </summary>
-      <div class="uv-cst-body">
-        ${weaponRow(r.idx, 'past', r.pastLit, r.formTotal)}
-        ${weaponRow(r.idx, 'pp', r.ppLit, r.formTotal)}
+    return `<details class="uv-auftrag">
+      <summary>${tile}</summary>
+      <div class="uv-auftrag-words">
         <div class="uv-words-head">Angelegte Wörter</div>
         ${wordRows}
       </div>

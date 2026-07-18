@@ -741,6 +741,10 @@ body.in-game .mode-progress{display:block;}
 .uv-weapon-fill{height:100%;border-radius:5px;transition:width .3s;}
 .uv-weapon-ct{font-weight:800;font-size:.66rem;white-space:nowrap;}
 .uv-words-head{font-size:.62rem;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#aaa;margin:8px 0 3px;}
+/* Fortschritt-Seite: Auftrag-Kacheln mit aufklappbarer Wortliste */
+.uv-auftrag summary{cursor:pointer;list-style:none;}
+.uv-auftrag summary::-webkit-details-marker{display:none;}
+.uv-auftrag-words{padding:0 8px 10px;}
 .uvw{display:flex;align-items:center;gap:8px;padding:3px 0;font-size:.7rem;}
 .uvw-en{font-weight:800;color:#444;min-width:78px;}
 .uvw-bars{display:flex;flex:1;gap:3px;}

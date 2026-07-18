@@ -398,6 +398,7 @@ BEGIN
   SELECT jsonb_build_object(
     'playerName',p.player_name,'avatar',p.avatar,'highscore',p.highscore,
     'totalPoints',p.total_points,'uvFills',p.uv_fills,
+    'campaign',p.campaign,'createdAt',p.created_at,
     'decks',COALESCE((SELECT jsonb_object_agg(d.id::text, jsonb_build_object(
         'id',d.id,'name',d.name,'vocab',d.vocab,'categoryProgress',d.category_progress,
         'presetCategories',d.preset_categories,'deckPath',d.deck_path,'mode',d.mode,
