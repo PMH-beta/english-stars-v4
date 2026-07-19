@@ -1283,6 +1283,50 @@ export function uvTestForge(n = 4, want) {
   return done;
 }
 
+// Debug-Helfer (nur Konsole, kein UI): legt n Aufträge mit ZUFÄLLIGEM Teil-
+// fortschritt an — je Form (Stahl/Gold) 0–4 fertige Schritte plus ein
+// angefangener Schritt mit gemischten Verb-Ständen. Zum Testen der %-Anzeigen
+// (Fortschritt-/Freund-Seite, Schmiede). Aufruf in DevTools: uvTestForgeRandom(3)
+export function uvTestForgeRandom(n = 3) {
+  const SD = window.SD;
+  if (!SD) return [];
+  if (!Array.isArray(SD.uvFills)) SD.uvFills = [];
+  const used = new Set(usedForgeObjects());
+  const free = FORGE_OBJECTS.map((o) => o.type).filter((t) => !used.has(t))
+    .sort(() => Math.random() - 0.5);
+  const objs = free.slice(0, n);
+  const gps = SD.globalPresetStats = SD.globalPresetStats || {};
+  const ws = gps.wordStats = gps.wordStats || {};
+  const done = [];
+  for (const obj of objs) {
+    const ten = uvAvailableVerbs().slice(0, CONSTELLATION_SIZE);
+    if (ten.length < CONSTELLATION_SIZE) break;
+    SD.uvFills.push({ ens: ten.map((v) => v.en), obj });
+    for (const w of ['past', 'pp']) {
+      const fertig = Math.floor(Math.random() * SLOTS_PER_FORM);   // 0..4 fertige Schritte
+      for (let i = 0; i < fertig; i++) for (const v of ten) {
+        ws[statKeyFor(v.de, v.en, `_${w}_s${i}`, IRREGULAR_PRESET_ID)] = { asked: 5, correct: 5, wrong: 0, recent: '11111' };
+      }
+      // Der angefangene Schritt: je Verb zufällig ungeübt / angefangen / gemeistert
+      // (Schritte dahinter bleiben leer — passt zur gestaffelten Freischaltung).
+      for (const v of ten) {
+        const r = Math.random();
+        if (r < 0.35) continue;
+        const s = r < 0.75
+          ? { asked: 2, correct: 1, wrong: 1, recent: '01' }
+          : { asked: 4, correct: 4, wrong: 0, recent: '1111' };
+        ws[statKeyFor(v.de, v.en, `_${w}_s${fertig}`, IRREGULAR_PRESET_ID)] = s;
+      }
+    }
+    done.push(obj);
+  }
+  persist(SD);
+  if (window.currentUser) { markDirty('profile'); markDirty('global_preset'); commitDirty(); }
+  renderStudentUV();
+  console.log('[uvTestForgeRandom] Aufträge mit Teilfortschritt:', done.join(', ') || 'nichts (keine freien Objekte/Verben)');
+  return done;
+}
+
 // Befüllen-Karte für das nächste, noch leere Sternbild.
 function _cstFillCard() {
   const remaining = uvAvailableVerbs().length;
