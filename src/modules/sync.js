@@ -522,6 +522,22 @@ export function markDirty(type, deckId = null) {
   writePending(filtered);
 }
 
+/**
+ * Cloud-Löschung von preset_stats-Keys über die Offline-Queue (statt fire-and-
+ * forget): schlägt der Delete fehl (offline), bleibt er in pending_sync und wird
+ * beim nächsten Flush nachgeholt. Sonst bleiben gemeisterte Slots in der Cloud
+ * stehen und die Freund-Ansicht zeigt gelöschte Schmiede-Stationen als fertig.
+ * Keys werden in EINEN Queue-Eintrag gemerged (dedupliziert).
+ */
+export function queuePresetStatDelete(statKeys) {
+  if (!window.currentUser || !statKeys?.length) return;
+  const pending = readPending();
+  const existing = pending.find(p => p.type === 'preset_delete');
+  if (existing) existing.keys = [...new Set([...(existing.keys || []), ...statKeys])];
+  else pending.push({ type: 'preset_delete', deckId: null, keys: statKeys.slice(), ts: Date.now() });
+  writePending(pending);
+}
+
 
 /** True, wenn eine Profil-Änderung (z.B. Namensänderung) auf Sync wartet. */
 export function hasPendingProfile() {
@@ -553,6 +569,8 @@ export async function flushPendingSync() {
         if (deck) await saveWordStats(deck.id, deck.wordStats, userId);
       } else if (item.type === 'global_preset') {
         await saveGlobalPresetStats(sd.globalPresetStats, userId);
+      } else if (item.type === 'preset_delete' && item.keys?.length) {
+        await deleteCloudPresetStats(item.keys, [], userId);
       }
       // 'exam': wird direkt in saveExam() gespeichert, nicht via Queue
     } catch(e) {

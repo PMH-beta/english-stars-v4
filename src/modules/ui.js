@@ -5,9 +5,9 @@ import { syncMirrorFromActiveDeck, deckProgress, presetProgressPct, renderDecks,
 import { getPresetCategories } from './vocab.js';
 import { releaseMicStream, stopVisualizer, voskStop, speakWord } from './speech.js';
 import { signIn, signUp, signOut, resendConfirmation, requestPasswordReset, updatePassword, signInWithGoogle } from './auth.js';
-import { cloudLoad, cloudReset, saveDeck, saveWordStats, saveExam, markDirty, flushPendingSync, setCloudConfirmed, getPendingCount, setKnownSig, cloudChangedRemotely, deleteCloudPresetStats, deleteProbetest } from './sync.js';
+import { cloudLoad, cloudReset, saveDeck, saveWordStats, saveExam, markDirty, flushPendingSync, setCloudConfirmed, getPendingCount, setKnownSig, cloudChangedRemotely, queuePresetStatDelete, deleteProbetest } from './sync.js';
 import { commitDirty } from './dialog.js';
-import { uvMap, uvLernstand, constellationWords, FORGE_DISC, SLOTS_PER_FORM, uvTrainProgress, uvTrainForms } from './irregular-game.js';
+import { uvMap, uvLernstand, constellationWords, FORGE_DISC, SLOTS_PER_FORM, uvTrainProgress, uvTrainForms, uvPruneOrphanSlotStats } from './irregular-game.js';
 import { renderAvatarInto, renderCharacter, commitAvatar, resetCharacterFeature, setCharacterCompanion } from './avatar.js';
 import { IRREGULAR_PRESET_ID, uvAvailableVerbs, CONSTELLATION_SIZE, cefrOf, forgeObject, FORGE_OBJECTS, usedForgeObjects, getConstellations, allVerbsSorted, verbsByEns, UV_TRAIN_SUF } from './irregular-verbs.js';
 import { objectPerkText, renderEquipmentPanel, forgedItems, equippedGearMap } from './campaign-equipment.js';
@@ -658,11 +658,9 @@ export async function uvTrainReset(id) {
   persist(window.SD);
   renderUvTrainingSection();
   if (window.currentUser) {
-    try {
-      await deleteCloudPresetStats(statKeys, [], window.currentUser.id);
-    } catch (e) {
-      console.error('[uvTrainReset] Cloud-Delete fehlgeschlagen:', e.message);
-    }
+    // Über die Offline-Queue: schlägt der Delete fehl, wird er beim nächsten
+    // Flush nachgeholt (sonst blieben gemeisterte Stände in der Cloud stehen).
+    queuePresetStatDelete(statKeys);
     markDirty('deck', id);
     commitDirty();
   }
@@ -696,8 +694,8 @@ export async function uvTrainDelete(id) {
   }
   deleteDeck(id);
   if (window.currentUser && statKeys.length) {
-    deleteCloudPresetStats(statKeys, [], window.currentUser.id)
-      .catch((e) => console.error('[uvTrainDelete] Cloud-Delete Stats fehlgeschlagen:', e.message));
+    queuePresetStatDelete(statKeys);   // via Offline-Queue (mit Nachhol-Retry)
+    commitDirty();
   }
   renderUvTrainingSection();
 }
@@ -1209,7 +1207,7 @@ function _auftragName(idx) {
 
 // Auftrag (Station) löschen — nach Bestätigung mit Ausrüstungs-Warnung.
 // Räumt ALLES ab: Schmiede-Fortschritt der 10 Verben (lokal + Cloud via
-// deleteCloudPresetStats), angelegte Ausrüstung aus dieser Station und die
+// queuePresetStatDelete/Offline-Queue), angelegte Ausrüstung aus dieser Station und die
 // f:<idx>:<form>-Ids HÖHERER Stationen (rutschen nach, weil der Array-Index
 // die Stations-Nummer ist). uvFills + campaign syncen über profile.
 export async function uvDeleteStation(idx) {
@@ -1245,12 +1243,9 @@ export async function uvDeleteStation(idx) {
   fills.splice(idx, 1);
   persist(window.SD);
   if (window.currentUser) {
+    if (keys.length) queuePresetStatDelete(keys);   // via Offline-Queue (mit Nachhol-Retry)
     markDirty('profile');
     commitDirty();
-    if (keys.length) {
-      deleteCloudPresetStats(keys, [], window.currentUser.id)
-        .catch((e) => console.error('[uvDelete] Cloud-Delete fehlgeschlagen:', e.message));
-    }
   }
   renderStudentUV();
   renderEquipmentPanel();
@@ -2069,10 +2064,33 @@ function _campaignBlock() {
     </div>`;
 }
 
+// Aufklappbare Wortliste unter einer Fortschritt-Kachel — GLEICHER Stil wie die
+// Schmiede-Aufträge (details/summary + .uvw-Zeilen): je Wort ein Balken über die
+// drei Übungsarten (MC/Schreiben/Sprechen) mit x/3-Zähler.
+function _vocabWordRows(words, ws, presetId, head) {
+  const rows = words.map(v => {
+    let m = 0;
+    for (const suf of ['_mc', '_sp', '_pr']) {
+      if (isStatMastered(ws[statKeyFor(v.de, v.en, suf, presetId)])) m++;
+    }
+    const wPct = Math.round((m / 3) * 100);
+    return `<div class="uvw">
+      <span class="uvw-en">${window.escHtml(v.en)}</span>
+      <div class="uvw-half"><div class="uvw-fill" style="width:${wPct}%;background:linear-gradient(90deg,var(--purple),var(--pink));"></div></div>
+      <span class="uvw-pct">${m}/3</span>
+    </div>`;
+  }).join('');
+  return `<div class="uv-auftrag-words">
+    <div class="uv-words-head">${head}</div>
+    ${rows}
+  </div>`;
+}
+
 // „Eigene Wörter": pro Sammlung mit selbst angelegten (nicht-Vorlage) Wörtern
-// eine Kachel im Stil der Aktiven Vorlagen. %-Wert mit DERSELBEN Score-Formel
-// wie presetProgressPct (Teilpunkte je Wort × 3 Übungsarten), nicht mehr nur
-// ganz-oder-gar-nicht je Wort — sonst zeigen beide Blöcke verschiedene Prozente.
+// eine aufklappbare Kachel (Stil der Schmiede-Aufträge) mit Wortliste. %-Wert mit
+// DERSELBEN Score-Formel wie presetProgressPct (Teilpunkte je Wort × 3 Übungs-
+// arten), nicht ganz-oder-gar-nicht je Wort — sonst zeigen die Blöcke
+// verschiedene Prozente.
 function _customWordsBlock(decks) {
   const tiles = [];
   for (const deck of decks) {
@@ -2093,8 +2111,12 @@ function _customWordsBlock(decks) {
       if (allDone) done++;
     }
     const pct = Math.min(100, Math.round((totalScore / 3 / words.length) * 100));
-    tiles.push(_progressTile(window.escHtml(deck.name),
-      `${done} von ${words.length} Wörtern gelöst`, pct, done === words.length));
+    const tile = _progressTile(window.escHtml(deck.name),
+      `${done} von ${words.length} Wörtern gelöst`, pct, done === words.length);
+    tiles.push(`<details class="uv-auftrag">
+      <summary>${tile}</summary>
+      ${_vocabWordRows(words, ws, null, 'Angelegte Wörter')}
+    </details>`);
   }
   return `
     <div style="margin-bottom:16px;">
@@ -2105,8 +2127,10 @@ function _customWordsBlock(decks) {
     </div>`;
 }
 
-// „Aktive Vorlagen"-Kacheln (Freier Modus): je aktive Vorlage Balken + %.
+// „Aktive Vorlagen" (Freier Modus): je aktive Vorlage eine aufklappbare Kachel
+// (Stil der Schmiede-Aufträge) mit Balken + % und der Wortliste der Vorlage.
 function _activePresetsBlock(decks, catById) {
+  const presetWs = window.SD?.globalPresetStats?.wordStats || {};
   const activePresets = [];
   for (const deck of decks) {
     const ids = deck.presetCategories || [];
@@ -2115,8 +2139,10 @@ function _activePresetsBlock(decks, catById) {
     for (const pid of ids) {
       const cat = catById[pid];
       activePresets.push({
+        id: pid,
         name: cat ? cat.name : 'Vorlage',
         deck: deck.name,
+        words: (deck.vocab || []).filter(v => v._presetId === pid),
         pct: presetProgressPct(deck, pid),
         done: deckComplete,
       });
@@ -2128,19 +2154,12 @@ function _activePresetsBlock(decks, catById) {
       ${activePresets.length === 0
         ? '<div style="font-size:.82rem;color:#999;text-align:center;padding:10px;">Keine aktiven Vorlagen.</div>'
         : activePresets.map(p => {
-            const bg = p.done
-              ? 'background:linear-gradient(to right,rgba(58,170,92,.18) 100%,#fff 100%);box-shadow:inset 0 0 0 2px #3aaa5c;'
-              : 'background:linear-gradient(to right,rgba(168,108,219,.15) ' + p.pct + '%,#f7f7f7 ' + p.pct + '%);';
-            const right = p.done
-              ? '<span style="font-size:.72rem;font-weight:700;color:#2a8a4a;background:rgba(58,170,92,.15);padding:3px 9px;border-radius:20px;white-space:nowrap;">✓ erledigt</span>'
-              : '<span style="font-family:\'Fredoka One\',cursive;font-size:.95rem;color:#7a3aac;">' + p.pct + '%</span>';
-            return `<div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:12px;margin-bottom:6px;${bg}">
-              <div style="flex:1;min-width:0;">
-                <div style="font-weight:700;color:var(--text);font-size:.86rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${window.escHtml(p.name)}</div>
-                <div style="font-size:.68rem;color:#888;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${window.escHtml(p.deck)}</div>
-              </div>
-              ${right}
-            </div>`;
+            const tile = _progressTile(window.escHtml(p.name), window.escHtml(p.deck), p.pct, p.done);
+            if (!p.words.length) return tile;
+            return `<details class="uv-auftrag">
+              <summary>${tile}</summary>
+              ${_vocabWordRows(p.words, presetWs, p.id, 'Wörter der Vorlage')}
+            </details>`;
           }).join('')}
     </div>`;
 }
@@ -2673,6 +2692,15 @@ function adoptCloudState(state, signature) {
   // Einmalige Migration: Schüler-Vokabelsammlungen → „Vokabeln" (Freier Modus).
   // Geänderte Decks zurück in die Cloud schreiben, sonst kippt's beim Hard-Load.
   if (migrateDeckModes() && window.currentUser) commitDirty();
+  // Selbstheilung: verwaiste Schmiede-Slot-Stats (liegengebliebene Cloud-Deletes
+  // gelöschter Aufträge) lokal entfernen und Cloud-Delete in die Queue legen —
+  // sonst steht ein neuer Auftrag mit denselben Verben sofort auf „fertig".
+  const orphans = uvPruneOrphanSlotStats();
+  if (orphans.length && window.currentUser) {
+    console.log('[adoptCloudState] verwaiste UV-Slot-Stats entfernt:', orphans.length);
+    queuePresetStatDelete(orphans);
+    commitDirty();
+  }
   persist(window.SD);
   syncMirrorFromActiveDeck();
 }

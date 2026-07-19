@@ -253,6 +253,30 @@ export function constellationWords(c) {
   });
 }
 
+// ── Selbstheilung: verwaiste Stations-Slot-Stats ─────────────────────────────
+// Slot-Stats (…|irregular-verbs_past_s0 … _pp_s4) von Verben, die in KEINER
+// aktuellen Station stecken, sind Waisen: Beim Auftrag-Löschen älterer Versionen
+// war der Cloud-Delete fire-and-forget — schlug er fehl, blieben gemeisterte
+// Slots in der Cloud. Ein neuer Auftrag mit denselben Verben stünde sofort auf
+// „fertig" (auch in der Freund-Ansicht). Räumt lokal auf und liefert die Keys
+// für den Cloud-Delete. Trainingsplatz-Stats (_tr_…) bleiben unberührt.
+export function uvPruneOrphanSlotStats() {
+  const SD = window.SD;
+  if (!SD || !Array.isArray(SD.uvFills)) return [];
+  const ws = SD.globalPresetStats?.wordStats;
+  if (!ws) return [];
+  const valid = new Set();
+  for (const c of getConstellations())
+    for (const v of c.verbs)
+      for (const which of ['past', 'pp'])
+        for (let i = 0; i < SLOTS_PER_FORM; i++)
+          valid.add(statKeyFor(v.de, v.en, _slotSuf(which, i), IRREGULAR_PRESET_ID));
+  const slotSuffix = new RegExp('\\|' + IRREGULAR_PRESET_ID + '_(past|pp)_s\\d+$');
+  const orphans = Object.keys(ws).filter((k) => slotSuffix.test(k) && !valid.has(k));
+  for (const k of orphans) delete ws[k];
+  return orphans;
+}
+
 // ── Lernstand-Übersicht (Kopfzeile der Schmiede) ─────────────────────────────
 export function uvLernstand() {
   const map = uvMap();
