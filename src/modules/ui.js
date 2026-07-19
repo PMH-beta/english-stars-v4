@@ -2203,11 +2203,12 @@ function _uvTrainStatsBlock() {
 // (Waffen/Material) bleiben im Tab „Unregelmäßige".
 function _uvLernstandBlock() {
   const L = uvLernstand();
-  const pct = L.maxLit > 0 ? Math.round((L.totalLit / L.maxLit) * 100) : 0;
+  // Score-basierte % (Teilpunkte je Verb, wie Deck-%) — nicht nur fertige Schritte.
+  const pct = L.scorePct;
 
   const rows = L.rows.map((r) => {
     const icon = r.complete ? '🌟' : (r.unlocked ? '⚒️' : '🔒');
-    const aPct = r.total ? Math.round((r.lit / r.total) * 100) : 0;
+    const aPct = r.scorePct;
     const sub = `${r.count} Verben · ⏱ Simple Past ${r.pastLit}/${r.formTotal} · ✓ Past Participle ${r.ppLit}/${r.formTotal}`;
     const tile = _progressTile(`${icon} ${_auftragName(r.idx)}`, sub, aPct, r.complete);
     // Gesperrte oder leere Aufträge: nur die Kachel, keine Wortliste.

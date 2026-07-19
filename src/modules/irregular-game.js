@@ -280,14 +280,22 @@ export function uvPruneOrphanSlotStats() {
 // ── Lernstand-Übersicht (Kopfzeile der Schmiede) ─────────────────────────────
 export function uvLernstand() {
   const map = uvMap();
-  let complete = 0, totalLit = 0;
+  let complete = 0, totalLit = 0, scoreSum = 0, scoreMax = 0;
   const rows = map.map((m) => {
     const lit = m.stars.filter((s) => s.lit).length;   // 0..10
     const pastLit = m.stars.filter((s) => s.which === 'past' && s.lit).length;   // 0..5
     const ppLit = m.stars.filter((s) => s.which === 'pp' && s.lit).length;       // 0..5
     totalLit += lit;
     if (m.complete) complete++;
-    return { idx: m.c.idx, name: m.c.name, cefr: m.c.cefr, count: m.c.verbs.length, lit, pastLit, ppLit, formTotal: SLOTS_PER_FORM, total: 2 * SLOTS_PER_FORM, complete: m.complete, unlocked: m.unlocked, words: constellationWords(m.c) };
+    // %-Wert über die SCORE-Teilpunkte aller 10 Slots (wie die Deck-%): so wächst
+    // die Anzeige mit jedem geübten Verb, statt erst zu springen, wenn ein ganzer
+    // Schritt (= alle Verben gemeistert) fertig ist.
+    const score = m.stars.reduce((s, st) => s + ((st.prog && st.prog.score) || 0), 0);
+    const smax = m.stars.reduce((s, st) => s + ((st.prog && st.prog.total) || 0), 0);
+    scoreSum += score; scoreMax += smax;
+    const scorePct = smax > 0 ? Math.min(100, Math.round((score / smax) * 100)) : 0;
+    return { idx: m.c.idx, name: m.c.name, cefr: m.c.cefr, count: m.c.verbs.length, lit, pastLit, ppLit, formTotal: SLOTS_PER_FORM, total: 2 * SLOTS_PER_FORM, scorePct, complete: m.complete, unlocked: m.unlocked, words: constellationWords(m.c) };
   });
-  return { total: map.length, complete, totalLit, maxLit: map.length * 2 * SLOTS_PER_FORM, rows };
+  const scorePct = scoreMax > 0 ? Math.min(100, Math.round((scoreSum / scoreMax) * 100)) : 0;
+  return { total: map.length, complete, totalLit, maxLit: map.length * 2 * SLOTS_PER_FORM, scorePct, rows };
 }
