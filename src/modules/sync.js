@@ -426,6 +426,21 @@ export async function saveGlobalPresetStats(stats, userId) {
       .upsert(wordRows, { onConflict: 'user_id,stat_key' }));
     if (error) throw new Error('[sync] saveGlobalPresetStats words: ' + error.message);
   }
+  // Cloud = SPIEGEL des lokalen Stands: Keys, die lokal nicht (mehr) existieren,
+  // auch in der Cloud entfernen. Ein Upsert allein lässt lokal gelöschte Stände
+  // (eingeschmolzene Schmiede-Aufträge, uvTestForge-Reste, fehlgeschlagene
+  // Delete-Aufrufe) ewig in der Cloud liegen — die Freund-Ansicht liest NUR die
+  // Cloud und zeigt sonst längst gelöschten Fortschritt als „fertig".
+  const { data: cloudKeys, error: keyErr } = await fetchWithRetry(() => supabase
+    .from('preset_stats').select('stat_key').eq('user_id', userId));
+  if (!keyErr && Array.isArray(cloudKeys)) {
+    const localKeys = new Set(Object.keys(stats.wordStats || {}));
+    const extra = cloudKeys.map(r => r.stat_key).filter(k => !localKeys.has(k));
+    if (extra.length) {
+      await deleteCloudPresetStats(extra, [], userId);
+      console.log('[sync] saveGlobalPresetStats: Spiegel-Delete', extra.length, 'verwaiste Cloud-Keys');
+    }
+  }
   const catRows = Object.entries(stats.categoryProgress || {}).map(([presetId, cp]) => ({
     user_id:     userId,
     preset_id:   presetId,
