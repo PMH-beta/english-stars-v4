@@ -16,20 +16,6 @@ html,body{
   user-select:none;
   overscroll-behavior:none;
 }
-/* Handy quer: Hinweis-Overlay — die App ist Hochformat. Das Manifest
-   (orientation: portrait) sperrt nur die INSTALLIERTE App; im Browser-Tab
-   legt sich dieses Overlay über die Seite. Nur Touch-Geräte (pointer:coarse),
-   Desktop-Fenster bleiben unberührt. */
-@media screen and (orientation: landscape) and (max-height: 500px) and (pointer: coarse) {
-  body::after {
-    content: '📱 Bitte drehe dein Gerät ins Hochformat';
-    position: fixed; inset: 0; z-index: 99999;
-    background: #a86cdb; color: #fff;
-    display: flex; align-items: center; justify-content: center;
-    font-family: 'Fredoka One', cursive; font-size: 1.15rem;
-    text-align: center; padding: 24px;
-  }
-}
 /* Pull-to-Refresh-Hinweis (main.js): erscheint beim Ziehen ganz oben */
 #ptr-bar{position:fixed;top:-48px;left:50%;transform:translateX(-50%);z-index:9999;
   background:#fff;color:var(--purple);font-family:'Fredoka One',cursive;font-size:.85rem;

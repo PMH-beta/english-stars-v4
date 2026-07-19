@@ -261,8 +261,8 @@ setInterval(() => { checkForRemoteChange().catch(() => {}); }, 60 * 1000);
 // ── Hochformat-Sperre ────────────────────────────────────────────────────────
 // Das Manifest (orientation: portrait) sperrt die installierte PWA; hier
 // zusätzlich best effort per API (greift z.B. im Standalone-Fenster auf
-// Android). Im Browser-Tab geht Sperren nicht → dort zeigt style.css bei
-// quergehaltenem Handy ein „Bitte drehen"-Overlay.
+// Android). Im Browser-Tab erlauben Browser kein Sperren — dort dreht die
+// Seite weiterhin mit (bewusst kein Hinweis-Overlay).
 try { screen.orientation?.lock?.('portrait').catch(() => {}); } catch (e) {}
 
 // ── Pull-to-Refresh ──────────────────────────────────────────────────────────
