@@ -2021,10 +2021,13 @@ function _progressTile(title, sub, pct, done) {
   </div>`;
 }
 
-// Kampagnen-Stand: besiegte Bosse, verdiente Taler, Stand des aktuellen Laufs.
+// Kampagnen-Stand: besiegte Bosse, aktueller Taler-Stand, Stand des aktuellen Laufs.
 function _campaignBlock() {
   const c = (window.SD.campaign && typeof window.SD.campaign === 'object') ? window.SD.campaign : {};
-  const earned = Array.isArray(c.claimed) ? c.claimed.length : 0;
+  // Gleiche Rechnung wie talerAvailable() (claimed − ausgegeben), aber über das
+  // aktuelle window.SD — funktioniert so auch in der Freund-Ansicht.
+  const claimed = Array.isArray(c.claimed) ? c.claimed.length : 0;
+  const taler = Math.max(0, claimed - (typeof c.talerSpent === 'number' ? c.talerSpent : 0));
   const bosses = c.bossWins || 0;
   const tile = (icon, num, label, grad, col) => `
     <div style="background:${grad};padding:12px;border-radius:14px;text-align:center;">
@@ -2060,29 +2063,38 @@ function _campaignBlock() {
     <div style="margin-bottom:16px;">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
         ${tile('👑', bosses, 'Bosse besiegt', 'linear-gradient(135deg,#f3e8ff,#e2d0f7)', '#7a4ba8')}
-        ${tile('🪙', earned, 'Taler verdient', 'linear-gradient(135deg,#fff8e0,#ffefc0)', '#a8720a')}
+        ${tile('🪙', taler, 'Taler', 'linear-gradient(135deg,#fff8e0,#ffefc0)', '#a8720a')}
       </div>
       ${runHtml}
     </div>`;
 }
 
 // „Eigene Wörter": pro Sammlung mit selbst angelegten (nicht-Vorlage) Wörtern
-// eine Kachel im Stil der Aktiven Vorlagen — mit %-Wert der Sammlung.
+// eine Kachel im Stil der Aktiven Vorlagen. %-Wert mit DERSELBEN Score-Formel
+// wie presetProgressPct (Teilpunkte je Wort × 3 Übungsarten), nicht mehr nur
+// ganz-oder-gar-nicht je Wort — sonst zeigen beide Blöcke verschiedene Prozente.
 function _customWordsBlock(decks) {
   const tiles = [];
   for (const deck of decks) {
-    let total = 0, done = 0;
-    for (const v of deck.vocab || []) {
-      if (v._presetId) continue;
-      total++;
-      const allDone = ['_mc', '_sp', '_pr'].every(suf =>
-        isStatMastered((deck.wordStats || {})[statKeyFor(v.de, v.en, suf)]));
+    const words = (deck.vocab || []).filter(v => !v._presetId);
+    if (!words.length) continue;
+    const ws = deck.wordStats || {};
+    let totalScore = 0, done = 0;
+    for (const v of words) {
+      let allDone = true;
+      for (const suffix of ['_mc', '_sp', '_pr']) {
+        const s = ws[statKeyFor(v.de, v.en, suffix)];
+        if (!isStatMastered(s)) allDone = false;
+        if (!s || !s.asked) continue;
+        const asked = s.asked, pct = effectivePct(s);
+        if (Math.floor(asked) >= 3 && pct >= 0.9) totalScore += 1;
+        else if (asked >= 1) totalScore += Math.max(0, (pct - 0.5) * 2) * Math.min(asked / 3, 1) * 0.85;
+      }
       if (allDone) done++;
     }
-    if (!total) continue;
-    const pct = Math.round((done / total) * 100);
+    const pct = Math.min(100, Math.round((totalScore / 3 / words.length) * 100));
     tiles.push(_progressTile(window.escHtml(deck.name),
-      `${done} von ${total} Wörtern gelöst`, pct, done === total));
+      `${done} von ${words.length} Wörtern gelöst`, pct, done === words.length));
   }
   return `
     <div style="margin-bottom:16px;">

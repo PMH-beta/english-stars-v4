@@ -402,6 +402,7 @@ BEGIN
     'decks',COALESCE((SELECT jsonb_object_agg(d.id::text, jsonb_build_object(
         'id',d.id,'name',d.name,'vocab',d.vocab,'categoryProgress',d.category_progress,
         'presetCategories',d.preset_categories,'deckPath',d.deck_path,'mode',d.mode,
+        'uvForms',d.uv_forms,'sortOrder',d.sort_order,'createdAt',d.created_at,
         'wordStats',COALESCE((SELECT jsonb_object_agg(ws.stat_key,jsonb_build_object(
             'asked',ws.asked,'correct',ws.correct,'wrong',ws.wrong,'recent',ws.recent))
           FROM word_stats ws WHERE ws.deck_id=d.id),'{}'::jsonb)))

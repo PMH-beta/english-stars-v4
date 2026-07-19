@@ -61,20 +61,19 @@ function _save() {
 }
 
 // ── Geschmiedete Items (live abgeleitet, keine Persistenz) ───────────────────
-// Pro Station × Form ein Item, sobald ≥1 Teil fertig ist. Stufe: Stahl (past) /
-// Gold (pp), Verzaubert wenn alle 5 Teile fertig. Waffen: Schaden = Basis + Teile
-// (+ Schwert-Vorteil).
+// Pro Station × Form ein Item — erst wenn ALLE 5 Teile fertig geschmiedet sind
+// (halbfertige Werkstücke sind noch keine Ausrüstung). Fertig = Stufe
+// „verzaubert" (Stahl = past / Gold = pp steckt im which). Waffen: Schaden =
+// Basis + Teile (+ Schwert-Vorteil).
 export function forgedItems() {
   const out = [];
   for (const c of getConstellations()) {
     for (const which of ['past', 'pp']) {
       let lit = 0;
       for (let i = 0; i < SLOTS_PER_FORM; i++) if (starLit(c.verbs, `_${which}_s${i}`)) lit++;
-      if (!lit) continue;
+      if (lit < SLOTS_PER_FORM) continue;
       const ob = forgeObject(c.idx, which);
-      // Gefährten gibt es erst KOMPLETT: alle 5 Teile fertig, vorher kein Item.
-      if (ob.slot === 'companion' && lit < SLOTS_PER_FORM) continue;
-      const tier = lit >= SLOTS_PER_FORM ? 'verzaubert' : (which === 'past' ? 'stahl' : 'gold');
+      const tier = 'verzaubert';
       // Name trägt IMMER das Material (Stahl/Gold = Form) — „Verzaubert" ist nur
       // die Ausbaustufe (✨-Suffix), sonst wären zwei fertige Teile ununterscheidbar.
       const item = {
