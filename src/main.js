@@ -258,6 +258,54 @@ document.addEventListener('visibilitychange', () => {
 // Begrenzt den „last-write-wins"-Worst-Case auf ~1 Min. Läuft nur im Menü/sichtbar.
 setInterval(() => { checkForRemoteChange().catch(() => {}); }, 60 * 1000);
 
+// ── Hochformat-Sperre ────────────────────────────────────────────────────────
+// Das Manifest (orientation: portrait) sperrt die installierte PWA; hier
+// zusätzlich best effort per API (greift z.B. im Standalone-Fenster auf
+// Android). Im Browser-Tab geht Sperren nicht → dort zeigt style.css bei
+// quergehaltenem Handy ein „Bitte drehen"-Overlay.
+try { screen.orientation?.lock?.('portrait').catch(() => {}); } catch (e) {}
+
+// ── Pull-to-Refresh ──────────────────────────────────────────────────────────
+// overscroll-behavior:none (style.css) deaktiviert den nativen Browser-Refresh
+// → eigener: ganz oben auf der Seite nach unten ziehen lädt die App neu (holt
+// dabei auch eine neue Version). Nicht im Spiel (versehentlicher Reload =
+// Runde weg) und nicht, wenn ein inneres Scroll-Element (z.B. eine Wortliste)
+// selbst gescrollt ist.
+(function initPullToRefresh() {
+  const THRESHOLD = 90;   // px Zugweg bis zum Auslösen
+  const bar = document.createElement('div');
+  bar.id = 'ptr-bar';
+  document.body.appendChild(bar);
+  let startY = 0, dist = 0, active = false;
+  const innerScrolled = (t) => {
+    for (let n = t; n && n !== document.body; n = n.parentElement) if (n.scrollTop > 0) return true;
+    return false;
+  };
+  document.addEventListener('touchstart', (e) => {
+    active = window.scrollY <= 0 && !document.body.classList.contains('in-game')
+      && !innerScrolled(e.target);
+    startY = e.touches[0].clientY;
+    dist = 0;
+  }, { passive: true });
+  document.addEventListener('touchmove', (e) => {
+    if (!active) return;
+    if (window.scrollY > 0) { active = false; bar.classList.remove('show'); return; }
+    dist = e.touches[0].clientY - startY;
+    if (dist <= 10) { bar.classList.remove('show'); return; }
+    bar.classList.add('show');
+    bar.textContent = dist > THRESHOLD ? '🔄 Loslassen zum Neuladen' : '⬇️ Ziehen zum Aktualisieren';
+  }, { passive: true });
+  document.addEventListener('touchend', () => {
+    if (active && dist > THRESHOLD) {
+      bar.textContent = '🔄 Lädt neu …';
+      location.reload();
+    } else {
+      bar.classList.remove('show');
+    }
+    active = false; dist = 0;
+  }, { passive: true });
+})();
+
 // Supabase-Verbindung testen (kann später raus)
 testConnection();
 window.supabase = supabase; // temporär für Debugging in DevTools
