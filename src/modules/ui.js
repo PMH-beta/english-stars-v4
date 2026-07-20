@@ -2785,6 +2785,38 @@ export async function onAppResume() {
   }
 }
 
+// Ziehen zum Neuladen (Geste liegt in main.js): holt NUR die Daten frisch aus
+// der Cloud und baut den sichtbaren Screen neu auf — statt location.reload(),
+// das die App komplett neu bootet und dadurch auf dem Ladescreen mit „Los
+// geht's" bzw. bei abgelaufener Sitzung im Anmeldescreen landet.
+// loadFromCloud → adoptCloudState ersetzt window.SD 1:1; die Unterseiten
+// (Profil, Kampagne, Schmiede) lesen den frischen Stand beim nächsten Rendern.
+// Rückgabe: 'ok' | 'new' | 'failed' | 'skipped'.
+let _softRefreshInFlight = false;
+export async function softRefresh() {
+  if (!window.currentUser || _loginInFlight || _resumeInFlight || _softRefreshInFlight) return 'skipped';
+  if (_statsFriendMode) return 'skipped';   // Freund-Ansicht zeigt fremde Daten
+  // Nur die Übersichts-Screens: in Spiel/Scan/Charakter würde ein Datentausch
+  // unter der Hand einen laufenden Entwurf bzw. eine Runde zerreißen.
+  if (!['menu-screen', 'profile-screen', 'stats-screen'].includes(_currentScreen)) return 'skipped';
+  _softRefreshInFlight = true;
+  try {
+    const r = await loadFromCloud();
+    // 'new'/'failed' bewusst OHNE Navigation: der lokale Stand bleibt gültig,
+    // sonst stünde man nach einer Wischgeste im Namens- oder Anmeldescreen.
+    if (r !== 'ok') return r;
+    if (_currentScreen === 'profile-screen') showProfile();
+    else if (_currentScreen === 'stats-screen') showStats();
+    else showMenu();
+    return 'ok';
+  } catch (e) {
+    console.warn('[softRefresh] fehlgeschlagen:', e?.message);
+    return 'failed';
+  } finally {
+    _softRefreshInFlight = false;
+  }
+}
+
 // Skeleton-Menü (Instagram-Stil): Menü-Shell mit grauen Platzhalter-Kacheln während
 // des harten Loads. Nach dem Load ersetzt showMenu() das durch echte Daten.
 function _ensureSkeletonStyle() {
