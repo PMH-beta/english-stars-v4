@@ -2107,6 +2107,7 @@ function _campaignBlock() {
           ${statRow('🌀', 'Unregelmäßige besiegt', st.irregular || 0)}
           ${statRow('🏁', 'Läufe geschafft', st.runsWon || 0)}
           ${statRow('💀', 'Läufe gescheitert', st.runsLost || 0)}
+          ${statRow('🏔️', 'Beste Reihe', st.bestRow || 0)}
         </tbody>
       </table>
       ${runHtml}

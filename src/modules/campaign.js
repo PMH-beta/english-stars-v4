@@ -37,8 +37,9 @@ const NODE = {
 const _rand = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
 const _pick = (arr) => arr[_rand(0, arr.length - 1)];
 
-// fight/irregular/boss = gewonnene Kämpfe je Gegner-Art (= Knoten-Typ).
-export const CAMP_STAT_KEYS = ['fight', 'irregular', 'boss', 'runsWon', 'runsLost'];
+// fight/irregular/boss = gewonnene Kämpfe je Gegner-Art (= Knoten-Typ). bestRow = höchste
+// je in einem einzelnen Lauf erreichte Reihe (Highscore, kein Zähler).
+export const CAMP_STAT_KEYS = ['fight', 'irregular', 'boss', 'runsWon', 'runsLost', 'bestRow'];
 
 // ── SD-Zugriff (mit Default-Reparatur) ──
 function _camp() {
@@ -229,6 +230,7 @@ export function campaignNode(id) {
   if (run.fight) { resumeCampaignFight(); return; }   // offener Kampf geht vor
   const node = run.map.nodes[id];
   if (!node || !_isReachable(run, node)) return;
+  c.stats.bestRow = Math.max(c.stats.bestRow, node.row + 1);
   if (node.type === 'fight' || node.type === 'boss' || node.type === 'irregular') {
     if (!fightPoolReady()) { window.esToast?.('📭 Keine Vokabeln in deinen Decks — der Kampf braucht Wörter'); return; }
     run.pos = id;
