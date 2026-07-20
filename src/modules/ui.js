@@ -2071,12 +2071,8 @@ function _campaignBlock() {
   const bosses = c.bossWins || 0;
   // Zählt erst ab Einführung der Statistik — ältere Läufe sind nicht nachrechenbar.
   const st = (c.stats && typeof c.stats === 'object') ? c.stats : {};
-  const tile = (icon, num, label, grad, col) => `
-    <div style="background:${grad};padding:12px;border-radius:14px;text-align:center;">
-      <div style="font-size:1.6rem;">${icon}</div>
-      <div style="font-family:'Fredoka One',cursive;font-size:1.4rem;color:${col};">${num}</div>
-      <div style="font-size:.7rem;color:#888;font-weight:700;">${label}</div>
-    </div>`;
+  const statRow = (icon, label, num) => `
+    <tr><td>${icon} ${label}</td><td style="text-align:right;font-family:'Fredoka One',cursive;color:var(--purple);">${num}</td></tr>`;
   let runHtml;
   const run = c.run;
   if (run && run.map) {
@@ -2103,18 +2099,16 @@ function _campaignBlock() {
   }
   return `
     <div style="margin-bottom:16px;">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
-        ${tile('👑', bosses, 'Bosse besiegt', 'linear-gradient(135deg,#f3e8ff,#e2d0f7)', '#7a4ba8')}
-        ${tile('🪙', taler, 'Taler', 'linear-gradient(135deg,#fff8e0,#ffefc0)', '#a8720a')}
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
-        ${tile('⚔️', st.fight || 0, 'Übungs-Gegner', 'linear-gradient(135deg,#e8f0ff,#d2e0f7)', '#3a5ba8')}
-        ${tile('🌀', st.irregular || 0, 'Unregelmäßige', 'linear-gradient(135deg,#e0f7f4,#c6ece6)', '#0a8a7d')}
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
-        ${tile('🏁', st.runsWon || 0, 'Läufe geschafft', 'linear-gradient(135deg,#e6f7e8,#cceccf)', '#2a7a35')}
-        ${tile('💀', st.runsLost || 0, 'Läufe gescheitert', 'linear-gradient(135deg,#ffe8e8,#f7d0d0)', '#b03030')}
-      </div>
+      <table class="word-table" style="margin-bottom:12px;">
+        <tbody>
+          ${statRow('👑', 'Bosse besiegt', bosses)}
+          ${statRow('🪙', 'Taler', taler)}
+          ${statRow('⚔️', 'Übungs-Gegner besiegt', st.fight || 0)}
+          ${statRow('🌀', 'Unregelmäßige besiegt', st.irregular || 0)}
+          ${statRow('🏁', 'Läufe geschafft', st.runsWon || 0)}
+          ${statRow('💀', 'Läufe gescheitert', st.runsLost || 0)}
+        </tbody>
+      </table>
       ${runHtml}
     </div>`;
 }
