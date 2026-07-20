@@ -10,7 +10,7 @@ import { commitDirty } from './dialog.js';
 import { uvMap, uvLernstand, constellationWords, FORGE_DISC, SLOTS_PER_FORM, uvTrainProgress, uvTrainForms, uvPruneOrphanSlotStats } from './irregular-game.js';
 import { renderAvatarInto, renderCharacter, commitAvatar, resetCharacterFeature, setCharacterCompanion } from './avatar.js';
 import { IRREGULAR_PRESET_ID, uvAvailableVerbs, CONSTELLATION_SIZE, cefrOf, forgeObject, FORGE_OBJECTS, usedForgeObjects, getConstellations, allVerbsSorted, verbsByEns, UV_TRAIN_SUF } from './irregular-verbs.js';
-import { objectPerkText, renderEquipmentPanel, forgedItems, equippedGearMap } from './campaign-equipment.js';
+import { objectPerkText, renderEquipmentPanel, resetEquipmentSelection, forgedItems, equippedGearMap } from './campaign-equipment.js';
 import { renderFriendsSection, refreshFriendBadge, friendProgress, subscribeFriendRealtime, unsubscribeFriendRealtime } from './friends.js';
 import { renderCampaign, updateTalerBadge, refreshClaimedTaler } from './campaign.js';
 
@@ -1817,8 +1817,9 @@ export function showMenu() {
 // ────────────────────────────────────────────────
 export function showProfile() {
   showScreen('profile-screen');
-  renderFriendsSection();   // FREUNDE-Sektion (Suche, Anfragen, Liste) füllen
-  renderEquipmentPanel();   // AUSRÜSTUNG: Paperdoll + Inventar (WoW-artig)
+  renderFriendsSection();       // FREUNDE-Sektion (Suche, Anfragen, Liste) füllen
+  resetEquipmentSelection();    // Ausrüstung startet ohne angewählten Slot
+  renderEquipmentPanel();       // AUSRÜSTUNG: Paperdoll + Inventar (WoW-artig)
   const SD = window.SD;
   renderAvatarInto('prof-avatar', SD, { headOnly: true });
   const pn = document.getElementById('prof-name');
@@ -2068,6 +2069,8 @@ function _campaignBlock() {
   const claimed = Array.isArray(c.claimed) ? c.claimed.length : 0;
   const taler = Math.max(0, claimed - (typeof c.talerSpent === 'number' ? c.talerSpent : 0));
   const bosses = c.bossWins || 0;
+  // Zählt erst ab Einführung der Statistik — ältere Läufe sind nicht nachrechenbar.
+  const st = (c.stats && typeof c.stats === 'object') ? c.stats : {};
   const tile = (icon, num, label, grad, col) => `
     <div style="background:${grad};padding:12px;border-radius:14px;text-align:center;">
       <div style="font-size:1.6rem;">${icon}</div>
@@ -2100,9 +2103,17 @@ function _campaignBlock() {
   }
   return `
     <div style="margin-bottom:16px;">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
         ${tile('👑', bosses, 'Bosse besiegt', 'linear-gradient(135deg,#f3e8ff,#e2d0f7)', '#7a4ba8')}
         ${tile('🪙', taler, 'Taler', 'linear-gradient(135deg,#fff8e0,#ffefc0)', '#a8720a')}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+        ${tile('⚔️', st.fight || 0, 'Übungs-Gegner', 'linear-gradient(135deg,#e8f0ff,#d2e0f7)', '#3a5ba8')}
+        ${tile('🌀', st.irregular || 0, 'Unregelmäßige', 'linear-gradient(135deg,#e0f7f4,#c6ece6)', '#0a8a7d')}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+        ${tile('🏁', st.runsWon || 0, 'Läufe geschafft', 'linear-gradient(135deg,#e6f7e8,#cceccf)', '#2a7a35')}
+        ${tile('💀', st.runsLost || 0, 'Läufe gescheitert', 'linear-gradient(135deg,#ffe8e8,#f7d0d0)', '#b03030')}
       </div>
       ${runHtml}
     </div>`;

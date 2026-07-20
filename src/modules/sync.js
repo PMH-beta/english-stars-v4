@@ -250,6 +250,9 @@ async function _cloudLoadOnce(userId) {
 // campaign jsonb → SD.campaign (mit Default-Reparatur), analog uv_fills.
 // equipment = angelegte Schmiede-Items (Item-Ids); Tränke reiten im run mit.
 function _campaignFrom(profile) {
+  // ACHTUNG: Diese Liste ist eine Whitelist — was hier fehlt, geht bei JEDEM
+  // Cloud-Load verloren, obwohl saveProfile das ganze campaign-Objekt schreibt.
+  // (bossWins fehlte und wurde deshalb bei jedem Laden auf 0 zurückgesetzt.)
   const c = profile.campaign;
   if (c && typeof c === 'object' && !Array.isArray(c)) {
     return {
@@ -257,9 +260,11 @@ function _campaignFrom(profile) {
       talerSpent: Number(c.talerSpent) || 0,
       run:        (c.run && typeof c.run === 'object') ? c.run : null,
       equipment:  (c.equipment && typeof c.equipment === 'object') ? c.equipment : {},
+      bossWins:   Number(c.bossWins) || 0,
+      stats:      (c.stats && typeof c.stats === 'object') ? c.stats : {},
     };
   }
-  return { claimed: [], talerSpent: 0, run: null, equipment: {} };
+  return { claimed: [], talerSpent: 0, run: null, equipment: {}, bossWins: 0, stats: {} };
 }
 
 
@@ -288,9 +293,11 @@ export async function saveProfile(sd, userId) {
   if (Array.isArray(sd.uvFills)) payload.uv_fills = sd.uvFills;
   if (sd.avatar && typeof sd.avatar === 'object') payload.avatar = sd.avatar;
   const c = sd.campaign;
+  const statsAny = !!c && !!c.stats && typeof c.stats === 'object'
+    && Object.values(c.stats).some(v => Number(v) > 0);
   const campTrivial = !c || typeof c !== 'object'
     || (!(Array.isArray(c.claimed) && c.claimed.length) && !c.talerSpent && !c.run
-        && !c.bossWins && !Object.keys(c.equipment || {}).length);
+        && !c.bossWins && !statsAny && !Object.keys(c.equipment || {}).length);
   if (!campTrivial) payload.campaign = c;
   const { data, error } = await fetchWithRetry(() => supabase
     .from('profiles')

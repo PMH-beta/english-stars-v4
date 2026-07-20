@@ -37,6 +37,9 @@ const NODE = {
 const _rand = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
 const _pick = (arr) => arr[_rand(0, arr.length - 1)];
 
+// fight/irregular/boss = gewonnene Kämpfe je Gegner-Art (= Knoten-Typ).
+export const CAMP_STAT_KEYS = ['fight', 'irregular', 'boss', 'runsWon', 'runsLost'];
+
 // ── SD-Zugriff (mit Default-Reparatur) ──
 function _camp() {
   const SD = window.SD;
@@ -44,6 +47,12 @@ function _camp() {
   if (!Array.isArray(SD.campaign.claimed)) SD.campaign.claimed = [];
   if (typeof SD.campaign.talerSpent !== 'number') SD.campaign.talerSpent = 0;
   if (typeof SD.campaign.bossWins !== 'number') SD.campaign.bossWins = 0;
+  // Laufende Statistik (Fortschritt-Seite). Zählt ab Einführung — ältere Läufe
+  // lassen sich nicht nachrechnen, die Zähler starten daher bei 0.
+  if (!SD.campaign.stats || typeof SD.campaign.stats !== 'object') SD.campaign.stats = {};
+  for (const k of CAMP_STAT_KEYS) {
+    if (typeof SD.campaign.stats[k] !== 'number') SD.campaign.stats[k] = 0;
+  }
   return SD.campaign;
 }
 
@@ -269,6 +278,11 @@ function _startFight(node) {
     onEnd: (result) => {
       const bossWin = result === 'victory' && node.type === 'boss';
       if (bossWin) c.bossWins = (c.bossWins || 0) + 1;
+      // Gewonnener Kampf zählt auf die Gegner-Art (Knoten-Typ); ein Boss-Sieg
+      // beendet den Lauf erfolgreich, der Tod lässt ihn scheitern.
+      if (result === 'victory' && CAMP_STAT_KEYS.includes(node.type)) c.stats[node.type]++;
+      if (bossWin) c.stats.runsWon++;
+      else if (result === 'death') c.stats.runsLost++;
       if (bossWin || result === 'death') c.run = null;
       _saveCampaign();
       renderCampaign();
@@ -289,7 +303,9 @@ export function resumeCampaignFight() {
 export function campaignGiveUp() {
   const c = _camp();
   if (!c.run) return;
-  const finish = () => { c.run = null; _saveCampaign(); renderCampaign(); };
+  // Aufgeben beendet den Lauf ohne Boss-Sieg → zählt wie gescheitert, sonst
+  // verschwänden aufgegebene Läufe spurlos aus der Statistik.
+  const finish = () => { c.stats.runsLost++; c.run = null; _saveCampaign(); renderCampaign(); };
   if (window.esConfirm) {
     window.esConfirm({
       icon: '🏳️', title: 'Aufgeben?',

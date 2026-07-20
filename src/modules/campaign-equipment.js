@@ -209,9 +209,10 @@ function _gearMap(c) {
 // Angelegte Ausrüstung als gear-Map von außen (Kampf-Szene: Spieler-Sprite).
 export function equippedGearMap() { return _gearMap(_eq()); }
 
-// Immer genau EIN Slot ist angewählt (Start: Waffe) — die Liste unten zeigt
-// dann alle schmiedbaren Teile für genau diesen Slot.
-let _selSlot = 'weapon';
+// Angewählter Slot — zu Beginn KEINER: die Startansicht ist nur der Charakter
+// mit seinen Feldern. Erst ein Antippen zeigt die Tasche mit den passenden
+// Teilen darunter; nochmal antippen (oder ein Klick ins Leere) hebt das auf.
+let _selSlot = null;
 
 // Getragenes Item eines Slots (Waffe inkl. Auto-Beste), sonst null.
 function _wornItem(c, key) {
@@ -274,13 +275,25 @@ function _previewEquipment(c, it) {
 function _statsHtml(c) {
   const cur = _statVals(c.equipment);
   const sel = _selectedItem();
-  // Getragene Items zeigen KEINE Änderung — sie stecken ja schon in den Werten.
-  const prev = sel && !_wornKeyOf(c, sel) ? _statVals(_previewEquipment(c, sel)) : null;
+  const wornKey = sel ? _wornKeyOf(c, sel) : null;
+  // _previewEquipment liefert den Stand MIT dem Teil (noch nicht angelegt) bzw.
+  // OHNE es (schon angelegt) — beides ist der Vergleichswert.
+  const other = sel ? _statVals(_previewEquipment(c, sel)) : null;
   const rows = STAT_DEFS.map(d => {
-    const a = cur[d.key], b = prev ? prev[d.key] : a;
-    const chg = prev && b !== a;
-    const cls = chg ? (b > a ? ' chg up' : ' chg down') : '';
-    const val = chg ? `${d.fmt(a)} → ${d.fmt(b)}` : d.fmt(a);
+    const a = cur[d.key];
+    const o = other ? other[d.key] : a;
+    let cls = '', val = d.fmt(a);
+    if (other && o !== a) {
+      if (wornKey) {
+        // Schon angelegt: die Zahl ändert sich nicht (sie steckt ja drin), aber
+        // sie wird eingefärbt — grün, wo DIESES Teil den Wert hebt, rot, wo es
+        // ihn senkt. Vorher zeigte ein getragenes Teil gar keine Wirkung an.
+        cls = a > o ? ' chg up' : ' chg down';
+      } else {
+        cls = o > a ? ' chg up' : ' chg down';
+        val = `${d.fmt(a)} → ${d.fmt(o)}`;
+      }
+    }
     return `<div class="pd-stat${cls}"><span class="lbl">${d.icon} ${d.label}</span><span class="dots"></span><b>${val}</b></div>`;
   }).join('');
   return `<div class="pd-stats">${rows}</div>`;
@@ -325,6 +338,10 @@ function _previewHtml(c) {
   </div>`;
 }
 
+// Auswahl verwerfen — beim Öffnen der Profilseite, damit dort IMMER die leere
+// Startansicht steht (Modul-Zustand überlebt sonst den Seitenwechsel).
+export function resetEquipmentSelection() { _selSlot = null; _selId = null; }
+
 export function renderEquipmentPanel() {
   const host = document.getElementById('prof-equip-section');
   if (!host) return;
@@ -335,18 +352,27 @@ export function renderEquipmentPanel() {
   // Tasche unten: nur UNANGELEGTE Teile für den angewählten Slot (getragene
   // stecken in den Feldern am Charakter). Immer volle Zeilen à BAG_COLS Plätze
   // (muss zu .pd-inv im CSS passen) — überschreitet ein Teil die Zeile, kommt
-  // die nächste angefangene Zeile dazu.
-  const BAG_COLS = 6;
-  const slotType = SLOT_TYPE[_selSlot] || _selSlot;
-  const allOfSlot = forgedItems().filter(i => i.slot === slotType);
-  const bagItems = allOfSlot.filter(i => !equippedIds.has(i.id) && i.id !== autoWeaponId);
-  const capacity = Math.max(BAG_COLS, Math.ceil(bagItems.length / BAG_COLS) * BAG_COLS);
-  let inv = bagItems.map(it => `<button class="pd-item${it.id === _selId ? ' sel' : ''}" data-item="${it.id}"
-      title="${it.name} (${it.parts}/${SLOTS_PER_FORM} Teile, ${it.station})">
-      ${itemSpriteSVG(it.type, it.tier, it.which)}
-    </button>`).join('');
-  for (let i = bagItems.length; i < capacity; i++) inv += `<div class="pd-item empty" title="Leerer Platz — schmiede etwas in der ⚒️ Schmiede"></div>`;
-  const emptyHint = allOfSlot.length ? '' : `<div class="pd-empty">Noch kein ${SLOTS[_selSlot].name}-Teil geschmiedet — wähle in der ⚒️ Schmiede beim Befüllen ein passendes Objekt und übe seine Verben, dann taucht es hier auf.</div>`;
+  // die nächste angefangene Zeile dazu. Ohne angewählten Slot bleibt der ganze
+  // Teil unter dem Charakter weg (die Kampf-Werte stehen weiter darüber).
+  let bagHtml = '';
+  if (_selSlot) {
+    const BAG_COLS = 6;
+    const slotType = SLOT_TYPE[_selSlot] || _selSlot;
+    const allOfSlot = forgedItems().filter(i => i.slot === slotType);
+    const bagItems = allOfSlot.filter(i => !equippedIds.has(i.id) && i.id !== autoWeaponId);
+    const capacity = Math.max(BAG_COLS, Math.ceil(bagItems.length / BAG_COLS) * BAG_COLS);
+    let inv = bagItems.map(it => `<button class="pd-item${it.id === _selId ? ' sel' : ''}" data-item="${it.id}"
+        title="${it.name} (${it.parts}/${SLOTS_PER_FORM} Teile, ${it.station})">
+        ${itemSpriteSVG(it.type, it.tier, it.which)}
+      </button>`).join('');
+    for (let i = bagItems.length; i < capacity; i++) inv += `<div class="pd-item empty" title="Leerer Platz — schmiede etwas in der ⚒️ Schmiede"></div>`;
+    const emptyHint = allOfSlot.length ? '' : `<div class="pd-empty">Noch kein ${SLOTS[_selSlot].name}-Teil geschmiedet — wähle in der ⚒️ Schmiede beim Befüllen ein passendes Objekt und übe seine Verben, dann taucht es hier auf.</div>`;
+    bagHtml = `
+      <div class="pd-inv-title">${SLOTS[_selSlot].icon} ${SLOTS[_selSlot].name}</div>
+      <div class="pd-inv">${inv}</div>
+      ${_previewHtml(c)}
+      ${emptyHint}`;
+  }
 
   host.innerHTML = `
     <h3 style="color:var(--purple);margin-top:0">🧰 Ausrüstung</h3>
@@ -358,10 +384,7 @@ export function renderEquipmentPanel() {
       <div class="pd-col">${PD_RIGHT.map(k => _slotTile(c, k)).join('')}</div>
     </div>
     ${_statsHtml(c)}
-    <div class="pd-inv-title">${SLOTS[_selSlot].icon} ${SLOTS[_selSlot].name}</div>
-    <div class="pd-inv">${inv}</div>
-    ${_previewHtml(c)}
-    ${emptyHint}`;
+    ${bagHtml}`;
 
   if (!host._pdWired) {
     host._pdWired = true;
@@ -403,20 +426,25 @@ function _onPanelClick(e) {
   if (slotBtn) {
     // Slot antippen = anwählen → Tasche zeigt die passenden Teile; trägt der
     // Slot ein Item, wird DAS angewählt (Karte unter der Tasche, „Ablegen").
+    // Denselben Slot nochmal antippen = abwählen → Tasche verschwindet wieder.
     const key = slotBtn.dataset.slot;
-    _selSlot = key;
-    const worn = _wornItem(c, key);
-    if (worn) _selId = worn.id;
+    if (_selSlot === key) { _selSlot = null; _selId = null; }
     else {
-      const sel = _selectedItem();
-      if (sel && sel.slot !== (SLOT_TYPE[key] || key)) _selId = null;   // Auswahl passt nicht mehr
+      _selSlot = key;
+      const worn = _wornItem(c, key);
+      if (worn) _selId = worn.id;
+      else {
+        const sel = _selectedItem();
+        if (sel && sel.slot !== (SLOT_TYPE[key] || key)) _selId = null;   // Auswahl passt nicht mehr
+      }
     }
     renderEquipmentPanel();
     return;
   }
   // Klick ins Leere (kein Item, kein Slot, keine Karte) = Auswahl aufheben.
-  if (_selId && !e.target.closest('.pd-preview')) {
+  if ((_selId || _selSlot) && !e.target.closest('.pd-preview')) {
     _selId = null;
+    _selSlot = null;
     renderEquipmentPanel();
   }
 }
@@ -501,7 +529,8 @@ function _onPointerUp(e) {
   const wornKey = Object.keys(SLOTS).find(k => c.equipment[k] === d.it.id);
   if (wornKey) c.equipment[wornKey] = null;
   _equipInto(c, d.it);
-  _selId = d.it.id;   // angelegtes Item bleibt angewählt → Werte bleiben sichtbar
+  _selSlot = s.dataset.slot;   // Ziel-Slot bleibt offen → Tasche bleibt sichtbar
+  _selId = d.it.id;            // angelegtes Item bleibt angewählt → Werte bleiben sichtbar
   _save();
   renderEquipmentPanel();
 }
