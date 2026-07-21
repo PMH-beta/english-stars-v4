@@ -1,7 +1,7 @@
 // src/modules/ui.js
 import { persist, freshData, clearStorage } from './storage.js';
 import { effectivePct, isStatMastered, statKeyFor } from './stats.js';
-import { syncMirrorFromActiveDeck, deckProgress, presetProgressPct, renderDecks, migrateStatKeys, migrateDeckModes, deckMode, activeDeckIdForMode, createDeck, deleteDeck } from './decks.js';
+import { syncMirrorFromActiveDeck, deckProgress, presetProgressPct, renderDecks, renderModeSubBy, migrateStatKeys, migrateDeckModes, deckMode, activeDeckIdForMode, createDeck, deleteDeck } from './decks.js';
 import { getPresetCategories } from './vocab.js';
 import { releaseMicStream, stopVisualizer, voskStop, speakWord } from './speech.js';
 import { signIn, signUp, signOut, resendConfirmation, requestPasswordReset, updatePassword, signInWithGoogle } from './auth.js';
@@ -429,9 +429,6 @@ function _trainDeckCardHtml(deck) {
   // Taler wie bei Vokabel-Decks: 1 pro Disziplin, sobald sie 100 % erreicht (bleibt
   // ganz-oder-gar-nicht — Taler gibt's erst bei voller Meisterung, wie in der Kampagne).
   const talerEarned = per.filter((p) => p.total > 0 && p.mastered === p.total).length;
-  // % je Disziplin score-basiert (Teilpunkte, wie die Gesamt-%) statt nur ganz-oder-
-  // gar-nicht — sonst zeigt z. B. Erkennen nach ein paar Runden noch 0 %.
-  const sub = (p) => (p.total ? Math.round(p.score / p.total * 100) : 0) + '%';
   const id = deck.id;
   const open = id === _uvTrainExpandedId;
   const formsChips = deck.uvForms === 'open'
@@ -455,13 +452,13 @@ function _trainDeckCardHtml(deck) {
       ${formsChips}
       <div class="mode-buttons">
         <button class="big-btn blue" onclick="startUvTraining('${id}','erkennen')">
-          <span class="icon-btn">🔍</span><div><span>Erkennen</span><span class="btn-sub">${sub(per[0])}</span></div>
+          <span class="icon-btn">🔍</span><div><span>Erkennen</span><span class="btn-sub">${renderModeSubBy(per[0])}</span></div>
         </button>
         <button class="big-btn purple" onclick="startUvTraining('${id}','schmieden')">
-          <span class="icon-btn">🔨</span><div><span>Schmieden</span><span class="btn-sub">${sub(per[1])}</span></div>
+          <span class="icon-btn">🔨</span><div><span>Schmieden</span><span class="btn-sub">${renderModeSubBy(per[1])}</span></div>
         </button>
         <button class="big-btn pink" onclick="startUvTraining('${id}','verzaubern')">
-          <span class="icon-btn">🪄</span><div><span>Verzaubern</span><span class="btn-sub">${sub(per[2])}</span></div>
+          <span class="icon-btn">🪄</span><div><span>Verzaubern</span><span class="btn-sub">${renderModeSubBy(per[2])}</span></div>
         </button>
       </div>
       <div class="deck-actions">

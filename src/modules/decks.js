@@ -170,7 +170,7 @@ export function presetProgressPct(deck, presetId) {
   return Math.min(100, Math.round((totalScore / 3 / words.length) * 100));
 }
 
-function renderModeSubBy(p) {
+export function renderModeSubBy(p) {
   const total = p.total || 0;
   const pct = total > 0 ? Math.min(100, Math.round((p.score / total) * 100)) : 0;
   // Taler-Marker: 100 % (alle gemeistert) = Taler freigespielt, sonst Hinweis zum Freischalten.
