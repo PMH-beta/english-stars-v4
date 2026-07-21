@@ -1524,6 +1524,10 @@ body.in-game .mode-progress{display:block;}
 }
 @keyframes es-drop-pulse{0%,100%{box-shadow:0 0 0 2px rgba(126,217,87,.2);}50%{box-shadow:0 0 0 5px rgba(126,217,87,.4);}}
 
+/* Kampagnen-Karte: als Nächstes wählbare Punkte pulsieren (statt des zuletzt
+   besuchten Punkts) — macht sichtbar, wohin man als Nächstes tippen kann. */
+@keyframes campNodeGlow{0%,100%{box-shadow:0 2px 6px rgba(0,0,0,.12),0 0 0 0 rgba(240,165,0,.5);}50%{box-shadow:0 2px 6px rgba(0,0,0,.12),0 0 0 6px rgba(240,165,0,0);}}
+
 /* Merkmal-Slider im Charakter-Editor */
 .cg-featbar{display:flex;align-items:center;justify-content:center;gap:12px;}
 .cg-featarrow{

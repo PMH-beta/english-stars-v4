@@ -113,7 +113,8 @@ function _shuffle(a) {
 // ── Kampf-Lifecycle ──────────────────────────────────────────────────────────
 let _ctx = null;   // { run, node, enemy, weapon, save, onEnd, mg, lastEn }
 
-// onEnd(result): 'victory' | 'death' | null (Kampf verlassen, Zustand bleibt).
+// onEnd(result): 'victory' | 'death' (auch bei bewusstem „Kampf verlassen") | null
+// (interner Nicht-Fall, z. B. Wortpool beim Laden leer).
 export function openFight({ run, node, save, onEnd }) {
   const enemy = ENEMY[node.type] || ENEMY.fight;
   if (!run.fight || run.fight.nodeId !== node.id) {
@@ -187,7 +188,7 @@ function _renderOverlay() {
   ov.style.cssText = 'position:fixed;inset:0;z-index:8000;background:linear-gradient(180deg,#2b2350,#1a1533);display:flex;flex-direction:column;padding:14px;overflow-y:auto;';
   ov.innerHTML = `
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
-      <button id="cf-flee" title="Kampf verlassen (geht später weiter)" style="border:none;background:rgba(255,255,255,.15);color:#fff;border-radius:50%;width:36px;height:36px;font-size:1rem;cursor:pointer;flex-shrink:0;">✕</button>
+      <button id="cf-flee" title="Kampf verlassen (Fortschritt + Einsatz weg)" style="border:none;background:rgba(255,255,255,.15);color:#fff;border-radius:50%;width:36px;height:36px;font-size:1rem;cursor:pointer;flex-shrink:0;">✕</button>
       <div style="font-family:'Fredoka One',cursive;color:#fff;font-size:1rem;flex:1;">${_TITLE[node.type] || _TITLE.fight}</div>
       <div id="cf-wave" style="font-family:'Fredoka One',cursive;color:#ffd43b;font-size:.85rem;">Welle ${f.wave}</div>
     </div>
@@ -216,7 +217,18 @@ function _renderOverlay() {
       <div title="${weapon.name}" style="font-family:'Fredoka One',cursive;color:#fff;font-size:.85rem;background:rgba(255,255,255,.12);padding:8px 12px;border-radius:12px;flex-shrink:0;">${weapon.icon} ${weapon.dmg}</div>
     </div>`;
   document.body.appendChild(ov);
-  _el('cf-flee').onclick = () => _close(null);
+  _el('cf-flee').onclick = () => {
+    // Verlassen zählt wie Tod (verhindert Welle-neu-würfeln durch Fliehen+Fortsetzen) —
+    // deshalb vorher fragen, mit demselben Blur-Hintergrund-Dialog wie „Aufgeben".
+    const leave = () => _close('death');
+    if (window.esConfirm) {
+      window.esConfirm({
+        icon: '💀', title: 'Kampf verlassen?',
+        body: 'Dein Fortschritt in diesem Kampf und dein Einsatz sind weg — genau wie bei einer Niederlage.',
+        ok: 'Verlassen', cancel: 'Weiterkämpfen', danger: true,
+      }).then(ok => { if (ok) leave(); });
+    } else leave();
+  };
   _renderPotions();
 }
 

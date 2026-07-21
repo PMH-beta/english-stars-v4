@@ -214,6 +214,7 @@ export function startCampaignRun() {
   c.talerSpent += STAKE_COST;                        // Einsatz sofort gesetzt
   const hpMax = HP_MAX + equipEffects().hpBonus;     // 🛡️ Rüstung: mehr HP
   c.run = { map: generateMap(), pos: null, visited: [], hp: hpMax, hpMax, potions: [] };
+  _selectedNodeId = null;
   _saveCampaign();
   updateTalerBadge();
   renderCampaign();
@@ -223,6 +224,12 @@ export function startCampaignRun() {
 // darauf. Die max. HP eines laufenden Runs werden beim Karten-Render an die
 // Rüstung angeglichen (_renderCampaignNow).
 
+// Zwei-Klick-Bestätigung gegen Fehlklicks: 1. Klick auf einen erreichbaren Knoten
+// markiert ihn nur ("bewaffnet"), erst der 2. Klick auf denselben Knoten startet ihn.
+// Reines UI-Zwischenstand — nicht persistiert, heilt sich über Reachable-Check selbst
+// (siehe _mapHtml), falls die Karte/der Lauf wechselt.
+let _selectedNodeId = null;
+
 export function campaignNode(id) {
   const c = _camp();
   const run = c.run;
@@ -230,6 +237,13 @@ export function campaignNode(id) {
   if (run.fight) { resumeCampaignFight(); return; }   // offener Kampf geht vor
   const node = run.map.nodes[id];
   if (!node || !_isReachable(run, node)) return;
+  if (_selectedNodeId !== id) {                        // 1. Klick: nur markieren
+    _selectedNodeId = id;
+    const host = document.getElementById('mode-campaign');
+    if (host) _renderCampaignNow(host);
+    return;
+  }
+  _selectedNodeId = null;                               // 2. Klick: wirklich starten
   c.stats.bestRow = Math.max(c.stats.bestRow, node.row + 1);
   if (node.type === 'fight' || node.type === 'boss' || node.type === 'irregular') {
     if (!fightPoolReady()) { window.esToast?.('📭 Keine Vokabeln in deinen Decks — der Kampf braucht Wörter'); return; }
@@ -269,8 +283,9 @@ export function campaignNode(id) {
   renderCampaign();
 }
 
-// Kampf am Knoten öffnen. onEnd regelt die Run-Folgen: Boss-Sieg oder Tod beendet
-// den Run; „Kampf verlassen" (null) lässt run.fight stehen → Fortsetzen-Button.
+// Kampf am Knoten öffnen. onEnd regelt die Run-Folgen: Boss-Sieg oder Tod (auch durch
+// bewusstes „Kampf verlassen" — campaign-fight.js fragt vorher extra nach) beendet den
+// Run; null ist nur der interne Nicht-Fall (z. B. Wortpool beim Laden leer).
 function _startFight(node) {
   const c = _camp();
   openFight({
@@ -285,14 +300,14 @@ function _startFight(node) {
       if (result === 'victory' && CAMP_STAT_KEYS.includes(node.type)) c.stats[node.type]++;
       if (bossWin) c.stats.runsWon++;
       else if (result === 'death') c.stats.runsLost++;
-      if (bossWin || result === 'death') c.run = null;
+      if (bossWin || result === 'death') { c.run = null; _selectedNodeId = null; }
       _saveCampaign();
       renderCampaign();
     },
   });
 }
 
-// Offenen Kampf (run.fight) wieder öffnen — nach Reload oder „Kampf verlassen".
+// Offenen Kampf (run.fight) wieder öffnen — nach Reload/App-Neustart mitten im Kampf.
 export function resumeCampaignFight() {
   const c = _camp();
   const f = c.run?.fight;
@@ -307,7 +322,7 @@ export function campaignGiveUp() {
   if (!c.run) return;
   // Aufgeben beendet den Lauf ohne Boss-Sieg → zählt wie gescheitert, sonst
   // verschwänden aufgegebene Läufe spurlos aus der Statistik.
-  const finish = () => { c.stats.runsLost++; c.run = null; _saveCampaign(); renderCampaign(); };
+  const finish = () => { c.stats.runsLost++; c.run = null; _selectedNodeId = null; _saveCampaign(); renderCampaign(); };
   if (window.esConfirm) {
     window.esConfirm({
       icon: '🏳️', title: 'Aufgeben?',
@@ -403,16 +418,20 @@ function _mapHtml(run, preview) {
     const x = (n.col + 0.5) / COLS * 100;
     const y = (ROWS - 1 - n.row + 0.5) / ROWS * 100;
     const meta = NODE[n.type];
-    let bg, ring, opacity, click, cursor;
+    let bg, ring, opacity, click, cursor, glow;
     if (preview) {
-      bg = '#fff'; ring = '2px solid #e5e5e5'; opacity = '.9'; click = ''; cursor = 'default';
+      bg = '#fff'; ring = '2px solid #e5e5e5'; opacity = '.9'; click = ''; cursor = 'default'; glow = '';
     } else {
       const reachable = _isReachable(run, n);
       const isCur = run.pos === id;
       const visited = run.visited.includes(id);
-      bg = isCur ? '#fff3b0' : visited ? '#e9e2f5' : reachable ? '#fff' : '#f6f6f6';
-      ring = isCur ? '3px solid #f0a500' : reachable ? '3px solid var(--purple)' : '2px solid #e5e5e5';
+      const selected = reachable && _selectedNodeId === id;
+      // Glühen (Puls) zeigt jetzt an, was man ALS NÄCHSTES wählen kann — nicht mehr,
+      // wo man zuletzt war. Ausgewählt (2. Klick nötig) = ruhiges Grün statt Puls.
+      bg = selected ? '#f2fbec' : (isCur || visited) ? '#e9e2f5' : reachable ? '#fff' : '#f6f6f6';
+      ring = selected ? '3px solid #7ed957' : isCur ? '2px solid var(--purple)' : reachable ? '3px solid #f0a500' : '2px solid #e5e5e5';
       opacity = (reachable || visited || isCur) ? '1' : '.45';
+      glow = (reachable && !selected) ? 'animation:campNodeGlow 1.3s ease-in-out infinite;' : '';
       click = reachable ? `onclick="campaignNode('${id}')"` : '';
       cursor = reachable ? 'pointer' : 'default';
     }
@@ -420,13 +439,20 @@ function _mapHtml(run, preview) {
       style="position:absolute;left:${x}%;top:${y}%;transform:translate(-50%,-50%);
       width:44px;height:44px;border-radius:50%;border:${ring};background:${bg};opacity:${opacity};
       cursor:${cursor};font-size:1.3rem;line-height:1;display:flex;
-      align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.12);z-index:2;padding:0;">${meta.icon}</button>`;
+      align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.12);z-index:2;padding:0;${glow}">${meta.icon}</button>`;
   }
   let header;
   if (preview) {
     header = `<div style="font-size:.8rem;color:#8a83a5;font-weight:700;text-align:center;margin:4px 0 6px;">🔍 So sieht eine Karte aus — mit ${STAKE_COST} 🪙 geht's los</div>`;
   } else {
     const hpPct = Math.max(0, Math.round(run.hp / run.hpMax * 100));
+    const statusText = run.fight
+      ? '⚔️ Ein Kampf wartet auf dich — tippe einen Punkt an'
+      : run.pos == null
+        ? 'Wähle unten deinen Startpunkt ⬇️'
+        : _selectedNodeId
+          ? '☝️ Nochmal antippen zum Start'
+          : 'Wähle den nächsten Knoten';
     header = `
   <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
     <div style="flex:1;min-width:0;">
@@ -435,10 +461,7 @@ function _mapHtml(run, preview) {
     </div>
     <button onclick="campaignGiveUp()" class="back-btn" style="font-size:.72rem;padding:8px 12px;flex-shrink:0;color:#c0392b;">🏳️ Aufgeben</button>
   </div>
-  ${run.fight ? `<div style="text-align:center;margin-bottom:8px;">
-    <button onclick="resumeCampaignFight()" style="font-family:'Fredoka One',cursive;font-size:.85rem;padding:10px 20px;border:none;border-radius:50px;cursor:pointer;background:linear-gradient(135deg,#a86cdb,#c084fc);color:#fff;box-shadow:0 3px 0 #7d4bb0;">⚔️ Kampf fortsetzen</button>
-  </div>` : ''}
-  <div style="font-size:.8rem;color:#8a83a5;font-weight:700;text-align:center;margin-bottom:6px;">${run.fight ? 'Ein Kampf wartet auf dich ⬆️' : run.pos == null ? 'Wähle unten deinen Startpunkt ⬇️' : 'Wähle den nächsten Knoten'}</div>`;
+  <div style="font-size:.8rem;color:#8a83a5;font-weight:700;text-align:center;margin-bottom:6px;">${statusText}</div>`;
   }
   return `${header}
   <div id="camp-map" style="position:relative;width:100%;height:${_MAP_H}px;">
