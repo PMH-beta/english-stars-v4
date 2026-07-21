@@ -5,7 +5,8 @@
 // Ob TTS verfügbar ist, prüft der Kampf-Wrapper VOR der Wellen-Wahl.
 //
 // Schnittstelle: startEcho({host, answer, speakText, choices, timeLimitMs, onResult})
-// → {destroy}. choices enthält answer; onResult(success, timeLeftMs) genau einmal.
+// → {destroy, pause, resume}. choices enthält answer; onResult(success, timeLeftMs)
+// genau einmal. pause()/resume() frieren die Restzeit exakt ein.
 
 import { playSfx } from './game.js';
 import { speakWord } from './speech.js';
@@ -13,8 +14,8 @@ import { ensureStormStyle } from './minigame-letterstorm.js';
 
 export function startEcho({ host, answer, speakText, choices, timeLimitMs, onResult }) {
   ensureStormStyle();   // cfDrift-Keyframes
-  let done = false, timer = null;
-  const endAt = Date.now() + timeLimitMs;
+  let done = false, timer = null, pausedAt = null;
+  let endAt = Date.now() + timeLimitMs;
 
   host.innerHTML = `
     <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:2px;">
@@ -75,14 +76,19 @@ export function startEcho({ host, answer, speakText, choices, timeLimitMs, onRes
     field.appendChild(btn);
   });
 
-  timer = setInterval(() => {
+  function _tick() {
     const remain = endAt - Date.now();
     const bar = host.querySelector('#cf-echobar');
     const secs = host.querySelector('#cf-echosecs');
     if (bar) bar.style.width = Math.max(0, remain / timeLimitMs * 100) + '%';
     if (secs) secs.textContent = Math.max(0, Math.ceil(remain / 1000)) + 's';
     if (remain <= 0) { try { playSfx('wrong'); } catch (e) {} _finish(false); }
-  }, 100);
+  }
+  timer = setInterval(_tick, 100);
 
-  return { destroy() { done = true; if (timer) clearInterval(timer); } };
+  return {
+    destroy() { done = true; if (timer) clearInterval(timer); },
+    pause() { if (done || pausedAt) return; pausedAt = Date.now(); clearInterval(timer); timer = null; },
+    resume() { if (done || pausedAt == null) return; endAt += Date.now() - pausedAt; pausedAt = null; timer = setInterval(_tick, 100); },
+  };
 }

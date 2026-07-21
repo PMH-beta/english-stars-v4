@@ -4,14 +4,16 @@
 // Übersetzung des angezeigten deutschen Worts. Richtigen antippen = Erfolg; falscher
 // Tipp oder Einschlag (der richtige erreicht den Boden) = Welle verloren.
 //
-// Schnittstelle: startMeteors({host, de, answer, choices, fallMs, onResult}) → {destroy}.
-// choices enthält answer; onResult(success, timeLeftMs) wird genau einmal gerufen.
+// Schnittstelle: startMeteors({host, de, answer, choices, fallMs, onResult}) → {destroy,
+// pause, resume}. choices enthält answer; onResult(success, timeLeftMs) wird genau einmal
+// gerufen. pause()/resume() frieren auch den Fall (CSS-Transition, läuft unabhängig vom
+// JS-Timer) exakt an der aktuellen Stelle ein.
 
 import { playSfx } from './game.js';
 
 export function startMeteors({ host, de, answer, choices, fallMs, onResult }) {
-  let done = false, timer = null;
-  const endAt = Date.now() + fallMs;
+  let done = false, timer = null, pausedAt = null;
+  let endAt = Date.now() + fallMs;
 
   host.innerHTML = `
     <div style="text-align:center;margin-bottom:2px;">
@@ -75,12 +77,30 @@ export function startMeteors({ host, de, answer, choices, fallMs, onResult }) {
   setTimeout(() => { if (!done) btns.forEach(b => { b.style.top = (skyH + 10) + 'px'; }); }, 60);
 
   // Einschlag des richtigen Meteoriten = Welle verloren.
-  timer = setInterval(() => {
+  function _tick() {
     if (Date.now() >= endAt) {
       try { playSfx('wrong'); } catch (e) {}
       _finish(false);
     }
-  }, 100);
+  }
+  timer = setInterval(_tick, 100);
 
-  return { destroy() { done = true; if (timer) clearInterval(timer); } };
+  return {
+    destroy() { done = true; if (timer) clearInterval(timer); },
+    pause() {
+      if (done || pausedAt) return;
+      pausedAt = Date.now();
+      if (timer) { clearInterval(timer); timer = null; }
+      _freeze();   // hält auch den Fall an, der sonst per CSS-Transition weiterliefe
+    },
+    resume() {
+      if (done || pausedAt == null) return;
+      endAt += Date.now() - pausedAt;
+      pausedAt = null;
+      const ms = Math.max(0, endAt - Date.now());
+      btns.forEach(b => { b.style.pointerEvents = ''; b.style.transition = `top ${ms}ms linear`; });
+      setTimeout(() => { if (!done) btns.forEach(b => { b.style.top = (skyH + 10) + 'px'; }); }, 60);
+      timer = setInterval(_tick, 100);
+    },
+  };
 }

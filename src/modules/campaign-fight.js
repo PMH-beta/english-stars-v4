@@ -219,14 +219,17 @@ function _renderOverlay() {
   document.body.appendChild(ov);
   _el('cf-flee').onclick = () => {
     // Verlassen zählt wie Tod (verhindert Welle-neu-würfeln durch Fliehen+Fortsetzen) —
-    // deshalb vorher fragen, mit demselben Blur-Hintergrund-Dialog wie „Aufgeben".
+    // deshalb vorher fragen, mit demselben Blur-Hintergrund-Dialog wie „Aufgeben". Welle
+    // pausiert währenddessen (Minispiel-Timer liefe sonst im Hintergrund weiter). Der
+    // sichere Weg (Weiterkämpfen) ist der hervorgehobene ok-Button, nicht Verlassen.
+    if (_ctx?.mg?.pause) _ctx.mg.pause();
     const leave = () => _close('death');
     if (window.esConfirm) {
       window.esConfirm({
         icon: '💀', title: 'Kampf verlassen?',
         body: 'Dein Fortschritt in diesem Kampf und dein Einsatz sind weg — genau wie bei einer Niederlage.',
-        ok: 'Verlassen', cancel: 'Weiterkämpfen', danger: true,
-      }).then(ok => { if (ok) leave(); });
+        ok: 'Weiterkämpfen', cancel: 'Verlassen',
+      }).then(stay => { if (stay) { if (_ctx?.mg?.resume) _ctx.mg.resume(); } else leave(); });
     } else leave();
   };
   _renderPotions();

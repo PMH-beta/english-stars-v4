@@ -6,8 +6,9 @@
 // Touch-first, Drift über CSS-Transforms. KEIN Mastery/EMA-Schreiben — eine Welle
 // ist einmalig richtig oder falsch.
 //
-// Schnittstelle: startLetterstorm({host, de, en, timeLimitMs, onResult}) → {destroy}.
-// onResult(success, timeLeftMs) wird genau einmal gerufen.
+// Schnittstelle: startLetterstorm({host, de, en, timeLimitMs, onResult}) → {destroy,
+// pause, resume}. onResult(success, timeLeftMs) wird genau einmal gerufen. pause()/
+// resume() frieren die Restzeit exakt ein (z. B. während eines Bestätigungs-Dialogs).
 
 import { playSfx } from './game.js';
 import { speakWord } from './speech.js';
@@ -46,7 +47,7 @@ export function startLetterstorm({ host, de, en, prompt, sub, timeLimitMs, guard
   ensureStormStyle();
   const target = stormTarget(en);
   const chars = target.split('');
-  let done = false, timer = null;
+  let done = false, timer = null, pausedAt = null;
   let endAt = Date.now() + timeLimitMs;
 
   // Leerzeichen (Mehrwort-Antworten) sind in der Leiste vorgegeben — kein Tile.
@@ -135,14 +136,19 @@ export function startLetterstorm({ host, de, en, prompt, sub, timeLimitMs, guard
     field.appendChild(btn);
   });
 
-  timer = setInterval(() => {
+  function _tick() {
     const remain = endAt - Date.now();
     const bar = host.querySelector('#cf-timebar');
     const secs = host.querySelector('#cf-secs');
     if (bar) bar.style.width = Math.max(0, remain / timeLimitMs * 100) + '%';
     if (secs) secs.textContent = Math.max(0, Math.ceil(remain / 1000)) + 's';
     if (remain <= 0) _finish(false);
-  }, 100);
+  }
+  timer = setInterval(_tick, 100);
 
-  return { destroy() { done = true; if (timer) clearInterval(timer); } };
+  return {
+    destroy() { done = true; if (timer) clearInterval(timer); },
+    pause() { if (done || pausedAt) return; pausedAt = Date.now(); clearInterval(timer); timer = null; },
+    resume() { if (done || pausedAt == null) return; endAt += Date.now() - pausedAt; pausedAt = null; timer = setInterval(_tick, 100); },
+  };
 }
