@@ -66,16 +66,23 @@ export function starProgress(verbs, suf) {
   return { mastered: m, total: verbs.length };
 }
 
+// Teilpunkte EINER Stat aus dem EMA (0..1) + ob sie als gemeistert gilt — die
+// Kern-Rechnung hinter _slotScore, auch für Pro-Wort-Listen (uvTrainWords) genutzt.
+function _itemScore(s) {
+  if (!s || !s.asked) return { score: 0, mastered: false };
+  const asked = s.asked, pct = effectivePct(s);
+  if (Math.floor(asked) >= 3 && pct >= 0.9) return { score: 1, mastered: true };
+  if (asked >= 1) return { score: Math.max(0, (pct - 0.5) * 2) * Math.min(asked / 3, 1) * 0.85, mastered: false };
+  return { score: 0, mastered: false };
+}
+
 // Fortschritt eines Slots als SCORE (Teilpunkte je Verb aus dem EMA) — EXAKT die
 // Rechnung wie der In-Game-Balken, damit Übersicht und Spiel denselben % zeigen.
 function _slotScore(verbs, suf) {
   const ws = _ws(); let score = 0, mastered = 0;
   for (const v of verbs) {
-    const s = ws[statKeyFor(v.de, v.en, suf, IRREGULAR_PRESET_ID)];
-    if (!s || !s.asked) continue;
-    const asked = s.asked, pct = effectivePct(s);
-    if (Math.floor(asked) >= 3 && pct >= 0.9) { score += 1; mastered += 1; }
-    else if (asked >= 1) score += Math.max(0, (pct - 0.5) * 2) * Math.min(asked / 3, 1) * 0.85;
+    const r = _itemScore(ws[statKeyFor(v.de, v.en, suf, IRREGULAR_PRESET_ID)]);
+    score += r.score; if (r.mastered) mastered++;
   }
   return { score, mastered, total: verbs.length };
 }
@@ -196,18 +203,41 @@ export function startUvTraining(deckId, disc) {
 // Trainings-Fortschritt eines Decks je Disziplin — in FORM-Einheiten gerechnet
 // (total = Verben × gewählte Formen), damit die Prozente mathematisch stimmen:
 // ein „Beide Formen"-Deck mit fertigem Past steht bei 50 %, nicht bei 0 %.
+// score = Teilpunkte je Verb (EXAKT dieselbe _slotScore-Rechnung wie der Live-
+// Balken im Spiel, s. uvProgress) statt nur ganz-oder-gar-nicht — sonst steht die
+// Fortschritt-Seite nach ein paar Runden noch bei 0 %, obwohl schon geübt wurde.
 export function uvTrainProgress(deck, disc) {
   const sufs = UV_TRAIN_SUF[disc];
+  const forms = uvTrainForms(deck);
+  const verbs = verbsByEns(((deck && deck.vocab) || []).map((v) => v.en));
+  let score = 0, mastered = 0, total = 0;
+  for (const w of forms) {
+    const r = _slotScore(verbs, sufs[w]);
+    score += r.score; mastered += r.mastered; total += r.total;
+  }
+  return { score, mastered, total };
+}
+
+// Pro-Verb-Liste für den Trainingsplatz (Fortschritt-Seite, aufklappbar): score
+// (Teilpunkte, wie die Vokabel-Wortliste den Balken füllt) + gemeisterte Disziplinen
+// (Erkennen/Schmieden/Verzaubern) über die gewählten Formen je Verb als x/y-Text.
+export function uvTrainWords(deck) {
   const ws = _ws();
   const forms = uvTrainForms(deck);
   const verbs = verbsByEns(((deck && deck.vocab) || []).map((v) => v.en));
-  let mastered = 0;
-  for (const v of verbs) {
-    for (const w of forms) {
-      if (isStatMastered(ws[statKeyFor(v.de, v.en, sufs[w], IRREGULAR_PRESET_ID)])) mastered++;
+  const discs = Object.keys(FORGE_DISC);
+  const total = discs.length * forms.length;
+  return verbs.map((v) => {
+    let score = 0, mastered = 0;
+    for (const disc of discs) {
+      const sufs = UV_TRAIN_SUF[disc];
+      for (const w of forms) {
+        const r = _itemScore(ws[statKeyFor(v.de, v.en, sufs[w], IRREGULAR_PRESET_ID)]);
+        score += r.score; if (r.mastered) mastered++;
+      }
     }
-  }
-  return { mastered, total: verbs.length * forms.length };
+    return { de: v.de, en: v.en, score, mastered, total };
+  });
 }
 
 // ── Live-Fortschritt im Spiel (progressForCurrentMode in game.js) ────────────

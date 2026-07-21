@@ -7,7 +7,7 @@ import { releaseMicStream, stopVisualizer, voskStop, speakWord } from './speech.
 import { signIn, signUp, signOut, resendConfirmation, requestPasswordReset, updatePassword, signInWithGoogle } from './auth.js';
 import { cloudLoad, cloudReset, saveDeck, saveWordStats, saveExam, markDirty, flushPendingSync, setCloudConfirmed, getPendingCount, setKnownSig, cloudChangedRemotely, queuePresetStatDelete, deleteProbetest } from './sync.js';
 import { commitDirty } from './dialog.js';
-import { uvMap, uvLernstand, constellationWords, FORGE_DISC, SLOTS_PER_FORM, uvTrainProgress, uvTrainForms, uvPruneOrphanSlotStats } from './irregular-game.js';
+import { uvMap, uvLernstand, constellationWords, FORGE_DISC, SLOTS_PER_FORM, uvTrainProgress, uvTrainForms, uvTrainWords, uvPruneOrphanSlotStats } from './irregular-game.js';
 import { renderAvatarInto, renderCharacter, commitAvatar, resetCharacterFeature, setCharacterCompanion } from './avatar.js';
 import { IRREGULAR_PRESET_ID, uvAvailableVerbs, CONSTELLATION_SIZE, cefrOf, forgeObject, FORGE_OBJECTS, usedForgeObjects, getConstellations, allVerbsSorted, verbsByEns, UV_TRAIN_SUF } from './irregular-verbs.js';
 import { objectPerkText, renderEquipmentPanel, resetEquipmentSelection, forgedItems, equippedGearMap } from './campaign-equipment.js';
@@ -424,11 +424,14 @@ export function uvTrainToggleDeck(id) {
 function _trainDeckCardHtml(deck) {
   const per = ['erkennen', 'schmieden', 'verzaubern'].map((d) => uvTrainProgress(deck, d));
   const total = per.reduce((s, p) => s + p.total, 0);
-  const mastered = per.reduce((s, p) => s + p.mastered, 0);
-  const pct = total ? Math.round(mastered / total * 100) : 0;
-  // Taler wie bei Vokabel-Decks: 1 pro Disziplin, sobald sie 100 % erreicht.
+  const score = per.reduce((s, p) => s + p.score, 0);
+  const pct = total ? Math.round(score / total * 100) : 0;
+  // Taler wie bei Vokabel-Decks: 1 pro Disziplin, sobald sie 100 % erreicht (bleibt
+  // ganz-oder-gar-nicht — Taler gibt's erst bei voller Meisterung, wie in der Kampagne).
   const talerEarned = per.filter((p) => p.total > 0 && p.mastered === p.total).length;
-  const sub = (p) => `⭐ ${p.mastered}/${p.total} gemeistert`;
+  // % je Disziplin score-basiert (Teilpunkte, wie die Gesamt-%) statt nur ganz-oder-
+  // gar-nicht — sonst zeigt z. B. Erkennen nach ein paar Runden noch 0 %.
+  const sub = (p) => (p.total ? Math.round(p.score / p.total * 100) : 0) + '%';
   const id = deck.id;
   const open = id === _uvTrainExpandedId;
   const formsChips = deck.uvForms === 'open'
@@ -2214,35 +2217,46 @@ function _activePresetsBlock(decks, catById) {
     </div>`;
 }
 
-// Trainingsplatz auf der Fortschritt-Seite: EINE Zeile pro Trainings-Deck
-// (Balken + x/y gemeistert über die drei Disziplinen) — bewusst zusammengefasst,
-// keine Einzelwörter. Details stecken in der Deck-Statistik am Trainingsplatz.
+// Trainingsplatz auf der Fortschritt-Seite: EINE aufklappbare Kachel pro Trainings-
+// Deck (Stil der Schmiede-Aufträge/Aktiven Vorlagen) mit Wortliste dahinter. %-Wert
+// score-basiert (Teilpunkte je Verb, wie bei den Vokabel-Decks) statt nur ganz-oder-
+// gar-nicht — sonst steht die Anzeige nach ein paar Runden noch bei 0 %.
 function _uvTrainStatsBlock() {
   const decks = _trainingDecks();
-  if (!decks.length) return '';
-  const rows = decks.map((deck) => {
-    const per = ['erkennen', 'schmieden', 'verzaubern'].map((d) => uvTrainProgress(deck, d));
-    const total = per.reduce((s, p) => s + p.total, 0);
-    const mastered = per.reduce((s, p) => s + p.mastered, 0);
-    const pct = total ? Math.round(mastered / total * 100) : 0;
-    const done = total > 0 && mastered === total;
-    const bg = done
-      ? 'background:linear-gradient(to right,rgba(58,170,92,.18) 100%,#fff 100%);box-shadow:inset 0 0 0 2px #3aaa5c;'
-      : 'background:linear-gradient(to right,rgba(168,108,219,.15) ' + pct + '%,#f7f7f7 ' + pct + '%);';
-    const right = done
-      ? '<span style="font-size:.72rem;font-weight:700;color:#2a8a4a;background:rgba(58,170,92,.15);padding:3px 9px;border-radius:20px;white-space:nowrap;">✓ erledigt</span>'
-      : `<span style="font-family:'Fredoka One',cursive;font-size:.95rem;color:#7a3aac;">${pct}%</span>`;
-    return `<div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:12px;margin-bottom:6px;${bg}">
-      <div style="flex:1;min-width:0;">
-        <div style="font-weight:700;color:var(--text);font-size:.86rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">🎯 ${window.escHtml(deck.name)}</div>
-        <div style="font-size:.68rem;color:#888;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${(deck.vocab || []).length} Verben · ${_uvFormsLabel(deck)} · ⭐ ${mastered}/${total} gemeistert</div>
-      </div>
-      ${right}
-    </div>`;
-  }).join('');
+  const body = !decks.length
+    ? '<div style="font-size:.82rem;color:#999;text-align:center;padding:10px;">Noch kein Trainingsplatz angelegt.</div>'
+    : decks.map((deck) => {
+        const per = ['erkennen', 'schmieden', 'verzaubern'].map((d) => uvTrainProgress(deck, d));
+        const total = per.reduce((s, p) => s + p.total, 0);
+        const score = per.reduce((s, p) => s + p.score, 0);
+        const mastered = per.reduce((s, p) => s + p.mastered, 0);
+        const pct = total ? Math.round(score / total * 100) : 0;
+        const done = total > 0 && mastered === total;
+        // Taler wie auf der Trainingsplatz-Karte: 1 pro Disziplin bei 100 %.
+        const talerEarned = per.filter((p) => p.total > 0 && p.mastered === p.total).length;
+        const tile = _progressTile(`🎯 ${window.escHtml(deck.name)}`,
+          `${(deck.vocab || []).length} Verben · ${_uvFormsLabel(deck)} · ⭐ ${mastered}/${total} gemeistert · 🪙 ${talerEarned}/3`, pct, done);
+        const words = uvTrainWords(deck);
+        if (!words.length) return tile;
+        const wordRows = words.map(w => {
+          const wPct = w.total ? Math.round((w.score / w.total) * 100) : 0;
+          return `<div class="uvw">
+            <span class="uvw-en">${window.escHtml(w.en)}</span>
+            <div class="uvw-half"><div class="uvw-fill" style="width:${wPct}%;background:linear-gradient(90deg,var(--purple),var(--pink));"></div></div>
+            <span class="uvw-pct">${w.mastered}/${w.total}</span>
+          </div>`;
+        }).join('');
+        return `<details class="uv-auftrag">
+          <summary>${tile}</summary>
+          <div class="uv-auftrag-words">
+            <div class="uv-words-head">Verben im Trainingsplatz</div>
+            ${wordRows}
+          </div>
+        </details>`;
+      }).join('');
   return `<div style="margin-bottom:16px;">
     <h3 style="font-family:'Fredoka One',cursive;color:var(--purple);font-size:1rem;margin:14px 0 8px;">🎯 Trainingsplatz</h3>
-    ${rows}
+    ${body}
   </div>`;
 }
 
