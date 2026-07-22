@@ -16,7 +16,7 @@ import { uvTrainProgress } from './irregular-game.js';
 import { persist } from './storage.js';
 import { markDirty } from './sync.js';
 import { commitDirty } from './dialog.js';
-import { HP_MAX, REST_HEAL } from './campaign-balance.js';
+import { HP_MAX, REST_HEAL, BOSS_WIN_TALER } from './campaign-balance.js';
 import { openFight, fightPoolReady, verbsReady } from './campaign-fight.js';
 import { equipEffects, openPotionChoice, POTIONS } from './campaign-equipment.js';
 
@@ -48,6 +48,7 @@ function _camp() {
   if (!Array.isArray(SD.campaign.claimed)) SD.campaign.claimed = [];
   if (typeof SD.campaign.talerSpent !== 'number') SD.campaign.talerSpent = 0;
   if (typeof SD.campaign.bossWins !== 'number') SD.campaign.bossWins = 0;
+  if (typeof SD.campaign.freeStart !== 'boolean') SD.campaign.freeStart = false;
   // Laufende Statistik (Fortschritt-Seite). Zählt ab Einführung — ältere Läufe
   // lassen sich nicht nachrechnen, die Zähler starten daher bei 0.
   if (!SD.campaign.stats || typeof SD.campaign.stats !== 'object') SD.campaign.stats = {};
@@ -218,8 +219,9 @@ function _reachableCount(run) {
 export function startCampaignRun() {
   const c = _camp();
   if (c.run) { renderCampaign(); return; }
-  if (talerAvailable() < STAKE_COST) return;
-  c.talerSpent += STAKE_COST;                        // Einsatz sofort gesetzt
+  const free = c.freeStart;                           // Boss gerade besiegt → dieser Lauf ist gratis
+  if (!free && talerAvailable() < STAKE_COST) return;
+  if (free) c.freeStart = false; else c.talerSpent += STAKE_COST;   // Einsatz sofort gesetzt
   const hpMax = HP_MAX + equipEffects().hpBonus;     // 🛡️ Rüstung: mehr HP
   c.run = { map: generateMap(), pos: null, visited: [], hp: hpMax, hpMax, potions: [] };
   _selectedNodeId = null;
@@ -304,7 +306,11 @@ function _startFight(node) {
     save: _saveCampaign,
     onEnd: (result) => {
       const bossWin = result === 'victory' && node.type === 'boss';
-      if (bossWin) c.bossWins = (c.bossWins || 0) + 1;
+      if (bossWin) {
+        c.bossWins = (c.bossWins || 0) + 1;
+        c.talerSpent -= BOSS_WIN_TALER;   // Belohnung (wie Einsatz, nur umgekehrt)
+        c.freeStart = true;               // nächster Lauf startet ohne Einsatz
+      }
       // Gewonnener Kampf zählt auf die Gegner-Art (Knoten-Typ); ein Boss-Sieg
       // beendet den Lauf erfolgreich, der Tod lässt ihn scheitern.
       if (result === 'victory' && CAMP_STAT_KEYS.includes(node.type)) c.stats[node.type]++;
@@ -340,6 +346,29 @@ export function campaignGiveUp() {
       ok: 'Aufgeben', cancel: 'Weiter', danger: true,
     }).then(ok => { if (ok) finish(); });
   } else finish();
+}
+
+// Mini-Infoblase für einen Trank auf der Karte (Icon antippen). Nochmal auf dasselbe
+// Icon tippen schließt sie wieder, sonst verschwindet sie nach ein paar Sekunden.
+export function campPotionInfo(el, key) {
+  const old = document.getElementById('camp-potion-tip');
+  const already = old && old.dataset.key === key;
+  if (old) old.remove();
+  if (already) return;
+  const info = POTIONS[key];
+  if (!info || !el) return;
+  const r = el.getBoundingClientRect();
+  const tip = document.createElement('div');
+  tip.id = 'camp-potion-tip';
+  tip.dataset.key = key;
+  const left = Math.min(window.innerWidth - 16, Math.max(16, r.left + r.width / 2));
+  tip.style.cssText = `position:fixed;left:${left}px;top:${r.bottom + 6}px;transform:translateX(-50%);
+    background:#2b2350;color:#fff;font-family:'Nunito',sans-serif;font-size:.76rem;font-weight:700;
+    line-height:1.4;padding:9px 13px;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.32);
+    z-index:9000;max-width:200px;text-align:center;`;
+  tip.innerHTML = `<div style="font-family:'Fredoka One',cursive;font-size:.85rem;margin-bottom:2px;">${info.icon} ${info.name}</div>${info.desc}`;
+  document.body.appendChild(tip);
+  setTimeout(() => { if (tip.parentNode) tip.remove(); }, 3500);
 }
 
 // ── Rendering ──
@@ -406,16 +435,19 @@ function _startScreenHtml() {
       Bring erst <b>${UNLOCK_NEED} Übungsarten</b> (z. B. MC) in deinen Decks auf <b>100 %</b>, um die Kampagne freizuschalten.<br><br>
       Freigeschaltet: <b style="color:#a67c00;">${claimed} / ${UNLOCK_NEED}</b> 🪙</div>`);
   }
-  const canStart = avail >= STAKE_COST;
+  const free = c.freeStart;   // Boss gerade besiegt → dieser Lauf kostet nichts
+  const canStart = free || avail >= STAKE_COST;
   return box(`
     <div style="font-size:.9rem;color:#6f6889;font-weight:700;line-height:1.55;max-width:340px;margin:0 auto 16px;">
-      Setze <b>${STAKE_COST} 🪙</b> ein und kämpf dich über die Karte zum Boss.
+      ${free
+        ? '🎉 Boss besiegt! Dein <b>nächster Lauf ist kostenlos</b> — kämpf dich über die Karte zum nächsten Boss.'
+        : `Setze <b>${STAKE_COST} 🪙</b> ein und kämpf dich über die Karte zum Boss.`}
       <span style="color:#c0392b;">Fällst du (HP = 0), ist der Einsatz verloren.</span>
     </div>
     <div style="font-size:.95rem;font-weight:800;color:var(--text);margin-bottom:16px;">Deine Taler: <span style="color:#a67c00;">${avail} 🪙</span></div>
     <button onclick="startCampaignRun()" ${canStart ? '' : 'disabled'}
       style="font-family:'Fredoka One',cursive;font-size:1rem;padding:14px 26px;border:none;border-radius:14px;cursor:${canStart ? 'pointer' : 'not-allowed'};background:${canStart ? 'linear-gradient(135deg,#a86cdb,#c084fc)' : '#e5def2'};color:${canStart ? '#fff' : '#a79cc2'};box-shadow:${canStart ? '0 4px 0 #7d4bb0' : 'none'};">
-      ▶️ Kampagne starten (${STAKE_COST} 🪙)</button>
+      ▶️ Kampagne starten ${free ? '(kostenlos)' : `(${STAKE_COST} 🪙)`}</button>
     ${canStart ? '' : `<div style="font-size:.82rem;color:#8a83a5;font-weight:700;margin-top:12px;">Nicht genug Taler — bring weitere Übungsarten auf 100 %.</div>`}`);
 }
 
@@ -463,10 +495,11 @@ function _mapHtml(run, preview) {
         : _selectedNodeId
           ? '☝️ Nochmal antippen zum Start'
           : 'Wähle den nächsten Knoten';
-    // Mitgeführte Tränke über der Lebensanzeige (nur Anzeige — spielbar sind sie im Kampf).
+    // Mitgeführte Tränke über der Lebensanzeige (spielbar sind sie erst im Kampf — hier
+    // nur Anzeige; Antippen zeigt Name+Wirkung als kleine Sprechblase daneben).
     const potionsHtml = (run.potions && run.potions.length)
       ? `<div style="display:flex;gap:6px;justify-content:center;margin-bottom:8px;">${run.potions.map(k => POTIONS[k]
-          ? `<span title="${POTIONS[k].name}" style="font-size:1.25rem;">${POTIONS[k].icon}</span>` : '').join('')}</div>`
+          ? `<button onclick="campPotionInfo(this,'${k}')" style="font-size:1.25rem;background:none;border:none;padding:2px;cursor:pointer;line-height:1;">${POTIONS[k].icon}</button>` : '').join('')}</div>`
       : '';
     header = `
   ${potionsHtml}

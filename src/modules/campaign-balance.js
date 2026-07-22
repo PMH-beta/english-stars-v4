@@ -4,6 +4,10 @@
 // Spieler-HP pro Run.
 export const HP_MAX = 60;
 
+// Boss-Sieg: Belohnung obendrauf (zusätzlich zum nächsten Lauf ohne Einsatz — siehe
+// STAKE_COST/freeStart in campaign.js).
+export const BOSS_WIN_TALER = 1;
+
 // Gegner je Knotentyp. Wellen sind UNBEGRENZT — der Kampf endet erst bei Gegner-HP 0
 // (Sieg) oder Spieler-HP 0 (Tod). hp steuert also die Kampflänge (18 HP ≈ 2–3 gewonnene
 // Wellen je nach Waffe), dmg = Spieler-HP-Verlust pro verlorener Welle.

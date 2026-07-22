@@ -262,9 +262,10 @@ function _campaignFrom(profile) {
       equipment:  (c.equipment && typeof c.equipment === 'object') ? c.equipment : {},
       bossWins:   Number(c.bossWins) || 0,
       stats:      (c.stats && typeof c.stats === 'object') ? c.stats : {},
+      freeStart:  !!c.freeStart,
     };
   }
-  return { claimed: [], talerSpent: 0, run: null, equipment: {}, bossWins: 0, stats: {} };
+  return { claimed: [], talerSpent: 0, run: null, equipment: {}, bossWins: 0, stats: {}, freeStart: false };
 }
 
 

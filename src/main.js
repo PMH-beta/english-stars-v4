@@ -13,7 +13,7 @@ import { pwaInstall } from './modules/pwa.js';
 import { startConstellationStar, startConstellationForm, startUvTraining, uvProgress } from './modules/irregular-game.js';
 import { openVocabManager, openPresetDeckStats, vmTab, renderVocabList, parsePastedText, onScanFile, showReview, renderReviewList, removeReviewItem, addReviewItem, confirmAddVocab, renderPresetsTab, togglePresetCategory, vmBack, vmRenameActiveDeck, newDeckFlow, newDeckPreset, newDeckCustom, confirmAbortDraft } from './modules/vocab.js';
 import { onFriendSearchInput, onFriendSearchEnter, sendFriendRequest, respondFriendRequest, cancelFriendRequest, confirmRemoveFriend, openFriendStats, refreshFriendBadge, refreshFriendsLive } from './modules/friends.js';
-import { startCampaignRun, campaignNode, campaignGiveUp, talerTest } from './modules/campaign.js';
+import { startCampaignRun, campaignNode, campaignGiveUp, campPotionInfo, talerTest } from './modules/campaign.js';
 import './modules/dialog.js'; // registriert window.esAlert/esConfirm/esPrompt (App-Overlays statt nativer Dialoge)
 import { startupSequence, finishStartup } from './modules/startup.js';
 import { supabase, testConnection } from './modules/supabase.js';
@@ -141,6 +141,7 @@ window.confirmRemoveFriend = confirmRemoveFriend;
 window.startCampaignRun = startCampaignRun;
 window.campaignNode = campaignNode;
 window.campaignGiveUp = campaignGiveUp;
+window.campPotionInfo = campPotionInfo;
 window.talerTest = talerTest;   // Debug: Test-Taler in der Konsole (talerTest(50))
 window.openFriendStats = openFriendStats;
 window.refreshFriendBadge = refreshFriendBadge;
