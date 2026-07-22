@@ -286,6 +286,7 @@ export function campaignNode(id) {
         if (!Array.isArray(run.potions)) run.potions = [];
         run.potions.push(key);
         _saveCampaign();
+        renderCampaign();   // sonst zeigt die Kopfzeile den neuen Trank erst beim nächsten Klick
         window.esToast?.(`${POTIONS[key].icon} ${POTIONS[key].name} eingesteckt!`);
       },
     });
