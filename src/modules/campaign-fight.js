@@ -16,7 +16,7 @@
 // (reitet im profiles.campaign-jsonb mit) → Reload mitten im Kampf verliert nichts;
 // nur das aktuelle Wort der Welle wird neu gezogen.
 
-import { ENEMY, FORM_BONUS, TALISMAN_MULT, STORM_BASE_MS, STORM_PER_LETTER_MS, WEAK_TIME_BONUS, WEAK_EMA, METEOR_FALL_MS, METEOR_COUNT, ECHO_TIME_MS, ECHO_CHOICES, PERK_SPEER_BOSS, PERK_AXT_ELITE, PERK_HAMMER_MULT, PERK_BOGEN_FIGHT, POTION_HEAL, POTION_POWER, POTION_TIME_MS, POTION_TIME_WAVES } from './campaign-balance.js';
+import { ENEMY, FORM_BONUS, TALISMAN_MULT, STORM_BASE_MS, STORM_PER_LETTER_MS, STORM_MISS_DMG, WEAK_TIME_BONUS, WEAK_EMA, METEOR_FALL_MS, METEOR_COUNT, ECHO_TIME_MS, ECHO_CHOICES, PERK_SPEER_BOSS, PERK_AXT_ELITE, PERK_HAMMER_MULT, PERK_BOGEN_FIGHT, POTION_HEAL, POTION_POWER, POTION_TIME_MS, POTION_TIME_WAVES } from './campaign-balance.js';
 import { startLetterstorm, stormTarget } from './minigame-letterstorm.js';
 import { startMeteors } from './minigame-meteors.js';
 import { startEcho } from './minigame-echo.js';
@@ -205,8 +205,8 @@ function _renderOverlay() {
         <div style="height:10px;background:rgba(255,255,255,.15);border-radius:6px;overflow:hidden;"><div id="cf-ehpbar" style="height:100%;width:${f.enemyHp / f.enemyHpMax * 100}%;background:linear-gradient(90deg,#845ef7,#5f3dc4);transition:width .4s;"></div></div>
       </div>
     </div>
-    <div id="cf-potions" style="display:flex;gap:8px;justify-content:center;margin-bottom:8px;min-height:8px;"></div>
     <div id="cf-stage" style="flex:1;"></div>
+    <div id="cf-potions" style="display:flex;gap:8px;justify-content:center;margin:10px 0 2px;min-height:8px;"></div>
     <!-- Lebens-Zeile STICKY am unteren Rand: bleibt auch sichtbar, wenn auf
          kleinen Displays (oder mit offener Tastatur) gescrollt werden muss. -->
     <div style="display:flex;align-items:center;gap:10px;margin-top:12px;position:sticky;bottom:0;z-index:2;background:#1a1533;box-shadow:0 -10px 14px rgba(26,21,51,.92);padding:8px 0;flex-shrink:0;">
@@ -293,6 +293,23 @@ function _strike(attackerId, targetId, dmgText, color) {
   }, 160);
 }
 
+// Fehlklick im Buchstabensturm kostet jetzt auch direkt HP (zusätzlich zur
+// Zeitstrafe aus minigame-letterstorm.js) — kann mitten in der Welle zum Tod führen;
+// dann bricht der Kampf sofort ab statt erst am Wellenende.
+function _onStormMiss() {
+  if (!_ctx) return;
+  const { run, save } = _ctx;
+  run.hp = Math.max(0, run.hp - STORM_MISS_DMG);
+  _setBars();
+  _hitFlash('cf-hero');
+  _damagePop('cf-hero', '−' + STORM_MISS_DMG, '#ff8787');
+  save();
+  if (run.hp <= 0) {
+    if (_ctx.mg) _ctx.mg.destroy();
+    _endScreen(false);
+  }
+}
+
 function _feedback(t) { const el = _el('cf-feedback'); if (el) el.textContent = t; }
 
 // Deck-Wort EMA-gewichtet ziehen, direkte Wiederholung vermeiden.
@@ -355,7 +372,7 @@ function _startWave() {
       prompt: `🌀 ${v.en} → <span style="color:#ffd43b;">${label}</span>?`,
       sub: `(${v.de})`,
       timeLimitMs: _lettersMs(target) + tBonus,
-      guards, onGuardUsed,
+      guards, onGuardUsed, onMiss: _onStormMiss,
       onResult: _onWave,
     });
   } else if (type === 'meteors') {
@@ -370,7 +387,7 @@ function _startWave() {
     _ctx.mg = startEcho({ host, answer, speakText: answer, choices, timeLimitMs: ECHO_TIME_MS + tBonus, onResult: _onWave });
   } else {
     const item = _pickItem(pool);
-    _ctx.mg = startLetterstorm({ host, de: item.de, en: item.en, timeLimitMs: _timeLimit(item) + tBonus, guards, onGuardUsed, onResult: _onWave });
+    _ctx.mg = startLetterstorm({ host, de: item.de, en: item.en, timeLimitMs: _timeLimit(item) + tBonus, guards, onGuardUsed, onMiss: _onStormMiss, onResult: _onWave });
   }
 }
 

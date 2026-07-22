@@ -207,6 +207,14 @@ function _isReachable(run, node) {
   return !!cur && cur.next.includes(node.id);
 }
 
+// Wie viele Knoten von hier aus erreichbar sind — bei genau einem gibt es nichts
+// zum Verwählen, der Zwei-Klick-Schutz (siehe campaignNode) entfällt dann.
+function _reachableCount(run) {
+  let n = 0;
+  for (const id in run.map.nodes) if (_isReachable(run, run.map.nodes[id])) n++;
+  return n;
+}
+
 export function startCampaignRun() {
   const c = _camp();
   if (c.run) { renderCampaign(); return; }
@@ -224,10 +232,12 @@ export function startCampaignRun() {
 // darauf. Die max. HP eines laufenden Runs werden beim Karten-Render an die
 // Rüstung angeglichen (_renderCampaignNow).
 
-// Zwei-Klick-Bestätigung gegen Fehlklicks: 1. Klick auf einen erreichbaren Knoten
-// markiert ihn nur ("bewaffnet"), erst der 2. Klick auf denselben Knoten startet ihn.
-// Reines UI-Zwischenstand — nicht persistiert, heilt sich über Reachable-Check selbst
-// (siehe _mapHtml), falls die Karte/der Lauf wechselt.
+// Zwei-Klick-Bestätigung gegen Fehlklicks — nur wenn es überhaupt etwas zu verwählen
+// gibt (_reachableCount > 1): 1. Klick auf einen erreichbaren Knoten markiert ihn nur
+// ("bewaffnet"), erst der 2. Klick auf denselben Knoten startet ihn. Gibt es nur einen
+// erreichbaren Knoten, startet der erste Klick direkt. Reines UI-Zwischenstand — nicht
+// persistiert, heilt sich über Reachable-Check selbst (siehe _mapHtml), falls die
+// Karte/der Lauf wechselt.
 let _selectedNodeId = null;
 
 export function campaignNode(id) {
@@ -237,13 +247,13 @@ export function campaignNode(id) {
   if (run.fight) { resumeCampaignFight(); return; }   // offener Kampf geht vor
   const node = run.map.nodes[id];
   if (!node || !_isReachable(run, node)) return;
-  if (_selectedNodeId !== id) {                        // 1. Klick: nur markieren
+  if (_reachableCount(run) > 1 && _selectedNodeId !== id) {   // nur bei echter Wahl markieren
     _selectedNodeId = id;
     const host = document.getElementById('mode-campaign');
     if (host) _renderCampaignNow(host);
     return;
   }
-  _selectedNodeId = null;                               // 2. Klick: wirklich starten
+  _selectedNodeId = null;                               // 2. Klick (oder einziger Weg): starten
   c.stats.bestRow = Math.max(c.stats.bestRow, node.row + 1);
   if (node.type === 'fight' || node.type === 'boss' || node.type === 'irregular') {
     if (!fightPoolReady()) { window.esToast?.('📭 Keine Vokabeln in deinen Decks — der Kampf braucht Wörter'); return; }
@@ -453,7 +463,13 @@ function _mapHtml(run, preview) {
         : _selectedNodeId
           ? '☝️ Nochmal antippen zum Start'
           : 'Wähle den nächsten Knoten';
+    // Mitgeführte Tränke über der Lebensanzeige (nur Anzeige — spielbar sind sie im Kampf).
+    const potionsHtml = (run.potions && run.potions.length)
+      ? `<div style="display:flex;gap:6px;justify-content:center;margin-bottom:8px;">${run.potions.map(k => POTIONS[k]
+          ? `<span title="${POTIONS[k].name}" style="font-size:1.25rem;">${POTIONS[k].icon}</span>` : '').join('')}</div>`
+      : '';
     header = `
+  ${potionsHtml}
   <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
     <div style="flex:1;min-width:0;">
       <div style="font-family:'Fredoka One',cursive;font-size:.8rem;color:var(--text);margin-bottom:3px;">❤️ ${run.hp} / ${run.hpMax}</div>

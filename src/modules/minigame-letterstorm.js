@@ -9,6 +9,8 @@
 // Schnittstelle: startLetterstorm({host, de, en, timeLimitMs, onResult}) → {destroy,
 // pause, resume}. onResult(success, timeLeftMs) wird genau einmal gerufen. pause()/
 // resume() frieren die Restzeit exakt ein (z. B. während eines Bestätigungs-Dialogs).
+// onMiss (optional) wird bei JEDEM falschen Buchstaben gerufen (nicht nur einmal pro
+// Welle) — der Aufrufer entscheidet, was ein Fehlklick zusätzlich zur Zeitstrafe kostet.
 
 import { playSfx } from './game.js';
 import { speakWord } from './speech.js';
@@ -43,7 +45,7 @@ export function ensureStormStyle() {
 // („go → Simple Past?"); sub (optional): kleine Zusatzzeile darunter.
 // guards (optional): so viele Fehlgriffe fängt der 🐾 Gefährte ab (keine Strafe);
 // onGuardUsed wird je verbrauchtem Guard gerufen (Kampf merkt sich das pro Kampf).
-export function startLetterstorm({ host, de, en, prompt, sub, timeLimitMs, guards = 0, onGuardUsed, onResult }) {
+export function startLetterstorm({ host, de, en, prompt, sub, timeLimitMs, guards = 0, onGuardUsed, onMiss, onResult }) {
   ensureStormStyle();
   const target = stormTarget(en);
   const chars = target.split('');
@@ -131,6 +133,7 @@ export function startLetterstorm({ host, de, en, prompt, sub, timeLimitMs, guard
         endAt -= STORM_PENALTY_MS;
         const bar = host.querySelector('#cf-timebar');
         if (bar) { bar.style.background = '#e03131'; setTimeout(() => { bar.style.background = 'linear-gradient(90deg,#ffd43b,#f0a500)'; }, 350); }
+        if (onMiss) onMiss();
       }
     };
     field.appendChild(btn);
