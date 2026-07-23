@@ -37,9 +37,19 @@ const NODE = {
 const _rand = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
 const _pick = (arr) => arr[_rand(0, arr.length - 1)];
 
+// Tiefe (row+1) des Knotens, an dem ein Lauf gerade steht — 0, wenn noch kein Knoten
+// betreten wurde. Wird beim Lauf-Ende auf stats.runLength aufaddiert (siehe _startFight/
+// campaignGiveUp) — DORT und nicht bei jedem Schritt, sonst zählte jeder Zwischenknoten mit.
+function _runDepth(run) {
+  if (!run || run.pos == null) return 0;
+  const n = run.map.nodes[run.pos];
+  return n ? n.row + 1 : 0;
+}
+
 // fight/irregular/boss = gewonnene Kämpfe je Gegner-Art (= Knoten-Typ). bestRow = höchste
-// je in einem einzelnen Lauf erreichte Reihe (Highscore, kein Zähler).
-export const CAMP_STAT_KEYS = ['fight', 'irregular', 'boss', 'runsWon', 'runsLost', 'bestRow'];
+// je in einem einzelnen Lauf erreichte Reihe (Highscore, kein Zähler). runLength = SUMME
+// der je Lauf erreichten Tiefe über ALLE Läufe hinweg (wächst mit jedem beendeten Lauf).
+export const CAMP_STAT_KEYS = ['fight', 'irregular', 'boss', 'runsWon', 'runsLost', 'bestRow', 'runLength'];
 
 // ── SD-Zugriff (mit Default-Reparatur) ──
 function _camp() {
@@ -317,9 +327,9 @@ function _startFight(node) {
       if (result === 'victory' && CAMP_STAT_KEYS.includes(node.type)) c.stats[node.type]++;
       if (bossWin) c.stats.runsWon++;
       else if (result === 'death') c.stats.runsLost++;
-      if (bossWin || result === 'death') { c.run = null; _selectedNodeId = null; }
+      if (bossWin || result === 'death') { c.stats.runLength += _runDepth(c.run); c.run = null; _selectedNodeId = null; }
       _saveCampaign();
-      renderCampaign();
+      if (bossWin) startCampaignRun(); else renderCampaign();   // Boss-Sieg: sofort neuer (gratis) Lauf, kein Extra-Klick
     },
   });
 }
@@ -339,7 +349,7 @@ export function campaignGiveUp() {
   if (!c.run) return;
   // Aufgeben beendet den Lauf ohne Boss-Sieg → zählt wie gescheitert, sonst
   // verschwänden aufgegebene Läufe spurlos aus der Statistik.
-  const finish = () => { c.stats.runsLost++; c.run = null; _selectedNodeId = null; _saveCampaign(); renderCampaign(); };
+  const finish = () => { c.stats.runsLost++; c.stats.runLength += _runDepth(c.run); c.run = null; _selectedNodeId = null; _saveCampaign(); renderCampaign(); };
   if (window.esConfirm) {
     window.esConfirm({
       icon: '🏳️', title: 'Aufgeben?',
@@ -502,7 +512,16 @@ function _mapHtml(run, preview) {
       ? `<div style="display:flex;gap:6px;justify-content:center;margin-bottom:8px;">${run.potions.map(k => POTIONS[k]
           ? `<button onclick="campPotionInfo(this,'${k}')" style="font-size:1.25rem;background:none;border:none;padding:2px;cursor:pointer;line-height:1;">${POTIONS[k].icon}</button>` : '').join('')}</div>`
       : '';
+    // Runde = wievielter Lauf (1. Boss-Sieg schließt Runde 1 ab, danach läuft Runde 2 usw.);
+    // Run-Länge = SUMME der je Lauf erreichten Tiefe über ALLE bisherigen Läufe (wächst mit
+    // jedem beendeten Lauf, siehe stats.runLength in _startFight/campaignGiveUp) — derselbe
+    // Wert wie in Fortschritt, hier nur zusätzlich während des Spielens sichtbar.
+    const c = _camp();
+    const roundNum = (c.bossWins || 0) + 1;
+    const runLength = (c.stats.runLength || 0) + _runDepth(run);
+    const roundHtml = `<div style="text-align:center;font-size:.72rem;font-weight:800;color:#8a83a5;margin-bottom:6px;">🔄 Runde ${roundNum} · 🏔️ Run-Länge ${runLength}</div>`;
     header = `
+  ${roundHtml}
   ${potionsHtml}
   <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
     <div style="flex:1;min-width:0;">
