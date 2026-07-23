@@ -1296,47 +1296,72 @@ body.in-game .mode-progress{display:block;}
   max-width:580px;margin:14px auto 0;line-height:1.7;
 }
 
-/* ═══ KAMPF-SZENE: klassisches dunkles Overlay (Inline-Styles im JS) ═══
-   NUR der Show-Teil ist Pixel-Art: die Landschafts-Arena — Nachthimmel mit
-   Mond + Bergen als SVG-Szenerie, Spieler links, Gegner rechts auf dem
-   Pixel-Boden. Idle-Wackeln in 2 Frames, hartes Aufblinken bei Treffer. */
-.cf-arena{
-  position:relative;display:flex;align-items:flex-end;justify-content:space-between;
-  background:#1a1533;border:2px solid rgba(255,255,255,.14);border-radius:14px;
-  padding:24px 26px 18px;margin-bottom:10px;overflow:hidden;flex-shrink:0;
-  /* Höhe folgt dem SICHTBAREN Viewport (dvh schrumpft mit offener Tastatur),
-     damit Eingabefeld + Lebensbalken auf jedem Gerät im Bild bleiben. */
-  min-height:clamp(110px,22vh,300px);
-  min-height:clamp(110px,22dvh,300px);
+/* ═══ KAMPF-SZENE: freundliches helles Overlay (Inline-Styles im JS) ═══
+   NUR der Show-Teil ist Pixel-Art: der Taghimmel (Sonne + Wolken als SVG).
+   Idle-Wackeln in 2 Frames, hartes Aufblinken bei Treffer. */
+/* Himmel ist der fullscreen-Hintergrund des Kampfoverlays: liegt per
+   position:absolute HINTER Kopfzeile/Aufgabe/Spielfeld, die im normalen
+   Fluss darüber liegen (siehe campaign-fight.js _renderOverlay). */
+.cf-scenery{position:absolute;inset:0;overflow:hidden;z-index:1;}
+/* Boden-Bereich: EIN durchgehendes grünes Feld (kein Bruch zum Himmel-SVG),
+   enthält Figuren + Eingabefeld + Leben + Tränke. Ist immer der LETZTE
+   Flex-Kind des Overlays — dadurch reicht er bündig bis zum unteren Rand,
+   während #cf-stage (Himmel/Spielfeld) den Rest der Höhe bekommt. */
+.cf-ground-wrap{
+  position:relative;z-index:2;flex-shrink:0;display:flex;flex-direction:column;
+  justify-content:space-between;gap:6px;
+  padding-top:8px;
+  /* Mindestanteil am Bildschirm garantiert: schiebt die Figuren spürbar nach
+     oben (statt nur so groß wie ihr Inhalt zu sein) und verteilt den
+     restlichen Platz per justify-content, statt Eingabefeld/Leben/Tränke
+     zusammenzustauchen. Etwas knapper als zuvor, damit der Interaktionsbereich
+     (Himmel/Spielfeld) mehr Raum bekommt. */
+  min-height:44vh;
+  min-height:44dvh;
 }
-/* Kleine Display-Höhen: Arena + Sprites schrumpfen, statt die Eingabe und den
-   Lebensbalken aus dem Bild zu drücken. */
+/* Rasen: NICHT der ganze Boden-Bereich, sondern eine eigene, abgesetzte Ebene
+   dahinter (position:absolute, unter den Figuren im z-index) — reicht nur von
+   ~Schulterhöhe des Characters bis ganz unten. Figuren bleiben an ihrem Platz
+   (erstes Kind von .cf-ground-wrap, normaler Fluss); nur die grüne Fläche
+   selbst ist kürzer, Kopf/Schultern ragen sichtbar in den Himmel. */
+.cf-grass{
+  position:absolute;left:0;right:0;bottom:0;top:40px;z-index:0;
+  background-color:#6fae55;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3E%3Crect x='1' y='1' width='1' height='1' fill='%237dbb61'/%3E%3Crect x='5' y='2' width='1' height='1' fill='%235a9143'/%3E%3Crect x='3' y='4' width='1' height='1' fill='%237dbb61'/%3E%3Crect x='7' y='5' width='1' height='1' fill='%235a9143'/%3E%3Crect x='0' y='6' width='1' height='1' fill='%237dbb61'/%3E%3Crect x='6' y='0' width='1' height='1' fill='%235a9143'/%3E%3Crect x='4' y='7' width='1' height='1' fill='%237dbb61'/%3E%3C/svg%3E");
+  background-size:32px 32px;
+  image-rendering:pixelated;
+  border-radius:32px 32px 0 0;box-shadow:0 -6px 18px rgba(0,0,0,.12);
+}
+/* Figuren-Zone: Held/Gegner, oben im Boden-Bereich — knapper Abstand zum
+   Himmel, damit sie sichtbar auf dem Grün stehen statt am Rand zu kleben. */
+.cf-arena{
+  position:relative;z-index:3;display:flex;align-items:flex-end;justify-content:space-between;
+  flex-shrink:0;width:100%;max-width:420px;margin:0 auto;padding:0 24px;box-sizing:border-box;
+}
 @media (max-height:700px){
-  .cf-arena{padding:14px 18px 14px;}
-  .cf-hero{width:64px;height:96px;}
-  .cf-enemy{width:96px;height:96px;}
-  .cf-enemy.boss{width:128px;height:128px;}
+  .cf-hero{width:84px;height:126px;}
+  .cf-enemy{width:110px;height:110px;}
+  .cf-enemy.boss{width:148px;height:148px;}
+  .cf-grass{top:33px;}
 }
 @media (max-height:480px){   /* z.B. Handy quer oder Tastatur offen */
-  .cf-arena{min-height:88px;padding:8px 12px 10px;}
-  .cf-hero{width:44px;height:66px;}
-  .cf-enemy{width:64px;height:64px;}
-  .cf-enemy.boss{width:80px;height:80px;}
+  .cf-ground-wrap{padding-top:4px;}
+  .cf-hero{width:58px;height:87px;}
+  .cf-enemy{width:76px;height:76px;}
+  .cf-enemy.boss{width:100px;height:100px;}
+  .cf-grass{top:21px;}
 }
-.cf-scenery{position:absolute;inset:0 0 14px 0;overflow:hidden;}
-.cf-ground{
-  position:absolute;left:0;right:0;bottom:0;height:16px;background:#26223a;
-  border-top:2px solid #1a1826;
-  background-image:repeating-linear-gradient(90deg,rgba(232,232,232,.07) 0 4px,transparent 4px 8px);
-}
-.cf-hero{width:80px;height:120px;position:relative;z-index:1;}
+.cf-hero{width:108px;height:162px;position:relative;z-index:1;}
 .cf-hero svg{animation:enemyBob 1.8s steps(1,end) infinite;}
 .cf-hero.hit svg{animation:none;filter:brightness(2.2);}
-.cf-enemy{width:124px;height:124px;flex:none;position:relative;z-index:1;}
-.cf-enemy.boss{width:170px;height:170px;}
+.cf-enemy{width:142px;height:142px;flex:none;position:relative;z-index:1;}
+.cf-enemy.boss{width:192px;height:192px;}
 .cf-enemy svg{animation:enemyBob 1.4s steps(1,end) infinite;}
 @keyframes enemyBob{0%,100%{transform:translateY(0);}50%{transform:translateY(-3px);}}
 .cf-enemy.hit svg{animation:none;filter:brightness(2.2);}
+/* Pille für HUD-Text über dem hellen Himmel: dunkles Glas, damit weiße
+   Schrift lesbar bleibt. */
+.cf-pill{background:rgba(43,35,80,.6);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);border-radius:18px;}
 
 /* Kampf-Animationen: Ausfallschritt des Angreifers, Wackeln des Getroffenen,
    aufsteigende Schadenszahl — alles hart gesteppt (Pixel-Stil, kein Easing). */
@@ -1347,7 +1372,7 @@ body.in-game .mode-progress{display:block;}
 .cf-hero.shake,.cf-enemy.shake{animation:cfShake .32s steps(4,end);}
 @keyframes cfShake{0%,100%{transform:translateX(0);}25%{transform:translateX(-5px);}50%{transform:translateX(4px);}75%{transform:translateX(-3px);}}
 .cf-dmg{
-  position:absolute;transform:translateX(-50%);z-index:2;pointer-events:none;
+  position:absolute;transform:translateX(-50%);z-index:2;pointer-events:none;white-space:nowrap;
   font-family:'Fredoka One',cursive;font-size:1.15rem;text-shadow:0 2px 0 rgba(0,0,0,.5);
   animation:cfDmg .75s steps(5,end) forwards;
 }
@@ -1356,7 +1381,7 @@ body.in-game .mode-progress{display:block;}
 /* Tränke im Kampf */
 .cf-potion{
   border:2px solid var(--adv-line);background:var(--adv-card);border-radius:var(--r-md);
-  width:46px;height:46px;font-size:1.4rem;cursor:pointer;transition:border-color .15s,transform .1s;
+  width:54px;height:54px;font-size:1.6rem;cursor:pointer;transition:border-color .15s,transform .1s;
 }
 .cf-potion:hover{border-color:var(--adv-gold);}
 .cf-potion:active{transform:scale(.92);}

@@ -18,18 +18,22 @@ export function startEcho({ host, answer, speakText, choices, timeLimitMs, onRes
   let endAt = Date.now() + timeLimitMs;
 
   host.innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:2px;">
-      <div style="font-size:1.3rem;font-weight:800;color:#fff;">👂 Welches Wort hörst du?</div>
-      <button id="cf-replay" title="Nochmal anhören" style="border:none;background:rgba(255,255,255,.18);border-radius:50%;width:44px;height:44px;font-size:1.3rem;cursor:pointer;">🔊</button>
+    <div style="display:flex;justify-content:center;margin-bottom:16px;">
+      <div style="background:#fff;border-radius:16px;padding:8px 14px 10px 20px;box-shadow:0 3px 8px rgba(0,0,0,.2);">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="font-size:1.15rem;font-weight:800;color:#333;">👂 Welches Wort hörst du?</div>
+          <button id="cf-replay" title="Nochmal anhören" style="border:none;background:rgba(43,35,80,.12);color:#2b2350;border-radius:50%;width:40px;height:40px;font-size:1.2rem;cursor:pointer;flex-shrink:0;">🔊</button>
+        </div>
+        <div style="text-align:center;font-size:.8rem;font-weight:700;color:#777;margin-top:2px;">Tippe das gehörte Wort an</div>
+      </div>
     </div>
-    <div style="text-align:center;font-size:.85rem;font-weight:700;color:rgba(255,255,255,.65);margin-bottom:8px;">Tippe das gehörte Wort an</div>
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-      <div style="flex:1;height:10px;background:rgba(255,255,255,.2);border-radius:6px;overflow:hidden;">
+      <div style="flex:1;height:10px;background:rgba(43,35,80,.25);border-radius:6px;overflow:hidden;">
         <div id="cf-echobar" style="height:100%;width:100%;background:linear-gradient(90deg,#ffd43b,#f0a500);border-radius:6px;"></div>
       </div>
-      <div id="cf-echosecs" style="font-family:'Fredoka One',cursive;color:#fff;font-size:.9rem;min-width:34px;text-align:right;"></div>
+      <div id="cf-echosecs" style="font-family:'Fredoka One',cursive;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.4);font-size:.9rem;min-width:34px;text-align:right;"></div>
     </div>
-    <div id="cf-echofield" style="position:relative;height:min(30dvh,230px);min-height:140px;border-radius:16px;background:rgba(255,255,255,.08);overflow:hidden;"></div>`;
+    <div id="cf-echofield" style="position:relative;height:min(38dvh,320px);min-height:170px;overflow:hidden;"></div>`;
 
   const speak = () => { try { speakWord(speakText || answer); } catch (e) {} };
   host.querySelector('#cf-replay').onclick = speak;
@@ -56,8 +60,8 @@ export function startEcho({ host, answer, speakText, choices, timeLimitMs, onRes
     const x = (cell.c + 0.5) / cols * 76 + 12;
     const y = (cell.r + 0.5) / rows * 74 + 10;
     btn.style.cssText = `position:absolute;left:${x}%;top:${y}%;transform:translate(-50%,-50%);
-      border:none;background:#fff;color:#333;font-family:'Fredoka One',cursive;font-size:1rem;
-      padding:10px 16px;border-radius:14px;box-shadow:0 3px 8px rgba(0,0,0,.25);cursor:pointer;
+      border:none;background:#fff;color:#333;font-family:'Fredoka One',cursive;font-size:1.15rem;
+      padding:12px 18px;border-radius:16px;box-shadow:0 3px 8px rgba(0,0,0,.25);cursor:pointer;
       white-space:nowrap;z-index:2;animation:cfDrift ${(2.4 + Math.random() * 2).toFixed(2)}s ease-in-out infinite alternate;
       --dx:${(Math.random() * 36 - 18).toFixed(0)}px;--dy:${(Math.random() * 30 - 15).toFixed(0)}px;`;
     btn.textContent = word;

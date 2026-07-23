@@ -146,11 +146,19 @@ function _usePotion(i) {
   const p = POTIONS[key];
   if (!key || !p || !f) return;
   run.potions.splice(i, 1);
-  if (key === 'heal') { run.hp = Math.min(run.hpMax, run.hp + POTION_HEAL); _setBars(); }
-  else if (key === 'shield') f.shield = true;
-  else if (key === 'power') f.power = (f.power || 0) + POTION_POWER;
-  else if (key === 'time') f.timeBoost = (f.timeBoost || 0) + POTION_TIME_WAVES;
-  _feedback(`${p.icon} ${p.name}!`);
+  // Wirkung als Popup über dem eigenen Character (wie Schaden über dem Gegner) —
+  // beim Heiltrank die TATSÄCHLICH geheilte Menge (gedeckelt an hpMax).
+  if (key === 'heal') {
+    const before = run.hp;
+    run.hp = Math.min(run.hpMax, run.hp + POTION_HEAL);
+    _setBars();
+    _damagePop('cf-hero', '+' + (run.hp - before), '#69db7c');
+  } else {
+    if (key === 'shield') f.shield = true;
+    else if (key === 'power') f.power = (f.power || 0) + POTION_POWER;
+    else if (key === 'time') f.timeBoost = (f.timeBoost || 0) + POTION_TIME_WAVES;
+    _damagePop('cf-hero', `${p.icon} ${p.name}`, '#69db7c');
+  }
   try { playSfx('streak'); } catch (e) {}
   save();
   _renderPotions();
@@ -158,22 +166,22 @@ function _usePotion(i) {
 
 function _el(id) { return document.getElementById(id); }
 
-// Pixel-Landschaft hinter den Kämpfern (Art-Direction: dunkle Nacht-Szene,
-// Klotz-Mond, Sterne, zwei gezackte Berg-Silhouetten — dunkle Platzhalter-Töne,
-// Palette folgt). Anker unten (yMax), damit die Berge auf dem Boden aufsetzen.
+// Pixel-Himmel hinter dem Spielfeld (Art-Direction: freundliche Tag-Szene —
+// heller Himmelverlauf, Sonne, Wolken). Der grüne Boden ist KEIN Teil dieser
+// Szenerie mehr, sondern ein eigener durchgehender Bereich (.cf-ground-wrap,
+// siehe _renderOverlay) — so gibt es keine Bruchkante zwischen Himmel-SVG
+// und Boden mehr.
 function _arenaScene() {
   const px = (x, y, w, h, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${c}"/>`;
-  let s = '';
-  [[10, 6], [30, 3], [52, 8], [70, 4], [88, 7], [112, 5], [120, 12], [40, 12], [8, 14]]
-    .forEach(([x, y]) => { s += px(x, y, 1, 1, '#8f88b0'); });
-  s += px(102, 4, 6, 1, '#c4c4c4') + px(101, 5, 8, 1, '#c4c4c4') + px(100, 6, 10, 6, '#c4c4c4')
-    + px(101, 12, 8, 1, '#c4c4c4') + px(102, 13, 6, 1, '#c4c4c4')
-    + px(103, 7, 2, 2, '#9a9a9a') + px(106, 10, 1, 1, '#9a9a9a') + px(102, 10, 1, 2, '#9a9a9a');
-  const far = [54, 50, 56, 48, 52, 58, 51, 55, 49, 57, 53, 50, 55, 52, 48, 54];
-  far.forEach((t, i) => { s += px(i * 8, t, 8, 72 - t, '#221e33'); });
-  const near = [64, 60, 66, 62, 59, 65, 61, 63];
-  near.forEach((t, i) => { s += px(i * 16, t, 16, 72 - t, '#2a2540'); });
-  return `<svg viewBox="0 0 128 72" preserveAspectRatio="xMidYMax slice" shape-rendering="crispEdges" style="width:100%;height:100%;display:block;image-rendering:pixelated;" aria-hidden="true">${s}</svg>`;
+  let s = '<rect x="0" y="0" width="128" height="72" fill="url(#cfSky)"/>';
+  s += px(104, 8, 16, 8, '#ffe066') + px(106, 6, 12, 12, '#ffe066') + px(110, 4, 8, 16, '#ffe066')
+    + px(108, 8, 8, 8, '#fff3bf');                                              // Sonne
+  s += px(8, 8, 16, 4, '#ffffff') + px(4, 10, 24, 3, '#ffffff') + px(12, 6, 10, 3, '#ffffff');
+  s += px(88, 4, 14, 3, '#ffffff') + px(84, 6, 22, 3, '#ffffff');               // Wolken (rechts, weg von der Wort-Karte)
+  return `<svg viewBox="0 0 128 72" preserveAspectRatio="xMidYMax slice" shape-rendering="crispEdges" style="width:100%;height:100%;display:block;image-rendering:pixelated;" aria-hidden="true">
+    <defs><linearGradient id="cfSky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8ecfff"/><stop offset="1" stop-color="#eaf6ff"/>
+    </linearGradient></defs>${s}</svg>`;
 }
 
 // Kampf-Szene wie die ursprüngliche Kampagnen-Version: dunkler Violett-Verlauf,
@@ -185,36 +193,54 @@ function _renderOverlay() {
   const f = run.fight;
   const ov = document.createElement('div');
   ov.id = 'cf-overlay';
-  ov.style.cssText = 'position:fixed;inset:0;z-index:8000;background:linear-gradient(180deg,#2b2350,#1a1533);display:flex;flex-direction:column;padding:14px;overflow-y:auto;';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:8000;background:#bfe6ff;display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;';
   ov.innerHTML = `
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
-      <button id="cf-flee" title="Kampf verlassen (Fortschritt + Einsatz weg)" style="border:none;background:rgba(255,255,255,.15);color:#fff;border-radius:50%;width:36px;height:36px;font-size:1rem;cursor:pointer;flex-shrink:0;">✕</button>
-      <div style="font-family:'Fredoka One',cursive;color:#fff;font-size:1rem;flex:1;">${_TITLE[node.type] || _TITLE.fight}</div>
-      <div id="cf-wave" style="font-family:'Fredoka One',cursive;color:#ffd43b;font-size:.85rem;">Welle ${f.wave}</div>
-    </div>
-    <div class="cf-arena">
-      <div class="cf-scenery">${_arenaScene()}</div>
-      <div class="cf-hero" id="cf-hero">${avatarSVG(ensureAvatar(window.SD), { gear: equippedGearMap() })}</div>
-      <div class="cf-enemy${node.type === 'boss' ? ' boss' : ''}" id="cf-enemy">${enemySpriteSVG(node.type)}</div>
-      <div class="cf-ground"></div>
-    </div>
-    <div style="text-align:center;margin-bottom:10px;">
-      <div id="cf-feedback" style="height:24px;font-family:'Fredoka One',cursive;font-size:1rem;color:#ffd43b;"></div>
-      <div style="max-width:280px;margin:2px auto 0;">
-        <div style="font-size:.75rem;font-weight:800;color:#d0bfff;margin-bottom:2px;">${enemy.name}: <span id="cf-ehp">${f.enemyHp}</span> / ${f.enemyHpMax}</div>
-        <div style="height:10px;background:rgba(255,255,255,.15);border-radius:6px;overflow:hidden;"><div id="cf-ehpbar" style="height:100%;width:${f.enemyHp / f.enemyHpMax * 100}%;background:linear-gradient(90deg,#845ef7,#5f3dc4);transition:width .4s;"></div></div>
+    <!-- Himmel als fullscreen-Hintergrund, hinter allem anderen. -->
+    <div class="cf-scenery">${_arenaScene()}</div>
+    <!-- Kopfzeile: schwebt als Pille über dem Himmel — bleibt wie gehabt. -->
+    <div style="position:relative;z-index:3;display:flex;align-items:center;gap:10px;padding:14px 14px 0;flex-shrink:0;">
+      <button id="cf-flee" title="Kampf verlassen (Fortschritt + Einsatz weg)" style="border:none;background:rgba(43,35,80,.6);color:#fff;border-radius:50%;width:38px;height:38px;font-size:1.1rem;cursor:pointer;flex-shrink:0;">✕</button>
+      <div class="cf-pill" style="flex:1;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 16px;">
+        <span style="font-family:'Fredoka One',cursive;color:#fff;font-size:1rem;">${_TITLE[node.type] || _TITLE.fight}</span>
+        <span id="cf-wave" style="font-family:'Fredoka One',cursive;color:#ffd43b;font-size:.85rem;">Welle ${f.wave}</span>
       </div>
     </div>
-    <div id="cf-stage" style="flex:1;"></div>
-    <div id="cf-potions" style="display:flex;gap:8px;justify-content:center;margin:10px 0 2px;min-height:8px;"></div>
-    <!-- Lebens-Zeile STICKY am unteren Rand: bleibt auch sichtbar, wenn auf
-         kleinen Displays (oder mit offener Tastatur) gescrollt werden muss. -->
-    <div style="display:flex;align-items:center;gap:10px;margin-top:12px;position:sticky;bottom:0;z-index:2;background:#1a1533;box-shadow:0 -10px 14px rgba(26,21,51,.92);padding:8px 0;flex-shrink:0;">
-      <div style="flex:1;min-width:0;">
-        <div style="font-size:.75rem;font-weight:800;color:#ffc9c9;margin-bottom:2px;">❤️ <span id="cf-php">${run.hp}</span> / ${run.hpMax}</div>
-        <div style="height:10px;background:rgba(255,255,255,.15);border-radius:6px;overflow:hidden;"><div id="cf-phpbar" style="height:100%;width:${run.hp / run.hpMax * 100}%;background:linear-gradient(90deg,#ff6b6b,#e03131);transition:width .4s;"></div></div>
+    <!-- Kein Feedback-Text mehr: alle Ereignisse (Treffer/Heilung/Block) zeigen sich
+         als Popup direkt über dem betroffenen Character (_damagePop). -->
+    <!-- Spielfeld: die fliegenden/treibenden Elemente (Buchstaben/Meteore/Wörter),
+         auf dem Himmel, direkt über den Figuren. Zentrierte Spalte (max-width), damit
+         es auf breiten/Web-Bildschirmen nicht auseinandergezogen wirkt. -->
+    <!-- z-index deutlich über dem Rasen (2): treibende Buchstaben/Meteore/Wörter dürfen
+         nie hinter dem Boden-Bereich verschwinden, sonst sind sie nicht mehr antippbar. -->
+    <div id="cf-stage" style="position:relative;z-index:5;flex:1;min-height:100px;width:100%;max-width:440px;margin:0 auto;padding:18px 14px 0;box-sizing:border-box;"></div>
+    <!-- Boden-Bereich: enthält Figuren, Eingabefeld, Tränke, Leben. Der Rasen selbst
+         (.cf-grass) ist NUR eine Hintergrund-Ebene ab Schulterhöhe der Figuren — die
+         Figuren bleiben an ihrer normalen Position, Kopf/Schultern ragen in den Himmel. -->
+    <div class="cf-ground-wrap">
+      <div class="cf-grass"></div>
+      <div class="cf-arena">
+        <div class="cf-hero" id="cf-hero">${avatarSVG(ensureAvatar(window.SD), { gear: equippedGearMap() })}</div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+          <div class="cf-enemy${node.type === 'boss' ? ' boss' : ''}" id="cf-enemy">${enemySpriteSVG(node.type)}</div>
+          <div style="width:110px;">
+            <div style="font-size:.72rem;font-weight:800;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.35);text-align:center;margin-bottom:2px;">${enemy.name}: <span id="cf-ehp">${f.enemyHp}</span>/${f.enemyHpMax}</div>
+            <div style="height:9px;background:rgba(0,0,0,.18);border-radius:6px;overflow:hidden;"><div id="cf-ehpbar" style="height:100%;width:${f.enemyHp / f.enemyHpMax * 100}%;background:linear-gradient(90deg,#ff6b6b,#e03131);transition:width .4s;"></div></div>
+          </div>
+        </div>
       </div>
-      <div title="${weapon.name}" style="font-family:'Fredoka One',cursive;color:#fff;font-size:.85rem;background:rgba(255,255,255,.12);padding:8px 12px;border-radius:12px;flex-shrink:0;">${weapon.icon} ${weapon.dmg}</div>
+      <!-- Eingabefeld: zeigt die aktuelle Auswahl (z. B. Buchstaben-Leiste) — nur bei
+           Minispielen, die das brauchen; sonst leer. Zentrierte Spalte wie das Spielfeld. -->
+      <div id="cf-input" style="position:relative;z-index:2;width:100%;max-width:440px;margin:0 auto;padding:0 14px;box-sizing:border-box;flex-shrink:0;"></div>
+      <div id="cf-potions" style="position:relative;z-index:3;display:flex;gap:10px;justify-content:center;padding:10px 14px 0;min-height:10px;flex-shrink:0;"></div>
+      <div style="position:relative;z-index:3;padding:10px 14px 12px;flex-shrink:0;display:flex;justify-content:center;">
+        <div class="cf-pill" style="width:100%;max-width:320px;padding:9px 16px;display:flex;align-items:center;gap:12px;">
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:.8rem;font-weight:800;color:#ffc9c9;margin-bottom:4px;">❤️ <span id="cf-php">${run.hp}</span> / ${run.hpMax}</div>
+            <div style="height:12px;background:rgba(255,255,255,.2);border-radius:8px;overflow:hidden;"><div id="cf-phpbar" style="height:100%;width:${run.hp / run.hpMax * 100}%;background:linear-gradient(90deg,#ff6b6b,#e03131);transition:width .4s;"></div></div>
+          </div>
+          <div title="${weapon.name}" style="font-family:'Fredoka One',cursive;color:#fff;font-size:.9rem;background:rgba(255,255,255,.14);padding:8px 12px;border-radius:12px;flex-shrink:0;">${weapon.icon} ${weapon.dmg}</div>
+        </div>
+      </div>
     </div>`;
   document.body.appendChild(ov);
   _el('cf-flee').onclick = () => {
@@ -310,7 +336,6 @@ function _onStormMiss() {
   }
 }
 
-function _feedback(t) { const el = _el('cf-feedback'); if (el) el.textContent = t; }
 
 // Deck-Wort EMA-gewichtet ziehen, direkte Wiederholung vermeiden.
 function _pickItem(pool) {
@@ -345,8 +370,11 @@ function _startWave() {
 
   const w = _el('cf-wave');
   if (w) w.textContent = 'Welle ' + run.fight.wave;
-  _feedback('');
   const host = _el('cf-stage');
+  // Eingabefeld unter den Figuren: nur Buchstabensturm nutzt es (Auswahl-Leiste) —
+  // bei Meteoriten/Echo bleibt es leer, deshalb hier für JEDE Welle erst räumen.
+  const inputHost = _el('cf-input');
+  if (inputHost) inputHost.innerHTML = '';
   _ctx.waveForm = null;
 
   // Ausrüstungs-Effekte: 🧤/🪄 Zeitbonus auf jedes Minispiel (Meteoriten fallen
@@ -368,8 +396,8 @@ function _startWave() {
     const target = which === 'past' ? v.past : v.pp;
     const label = which === 'past' ? 'Simple Past' : 'Past Participle';
     _ctx.mg = startLetterstorm({
-      host, de: v.de, en: target,
-      prompt: `🌀 ${v.en} → <span style="color:#ffd43b;">${label}</span>?`,
+      host, inputHost, de: v.de, en: target,
+      prompt: `🌀 ${v.en} → <span style="color:#a67c00;">${label}</span>?`,
       sub: `(${v.de})`,
       timeLimitMs: _lettersMs(target) + tBonus,
       guards, onGuardUsed, onMiss: _onStormMiss,
@@ -387,7 +415,7 @@ function _startWave() {
     _ctx.mg = startEcho({ host, answer, speakText: answer, choices, timeLimitMs: ECHO_TIME_MS + tBonus, onResult: _onWave });
   } else {
     const item = _pickItem(pool);
-    _ctx.mg = startLetterstorm({ host, de: item.de, en: item.en, timeLimitMs: _timeLimit(item) + tBonus, guards, onGuardUsed, onMiss: _onStormMiss, onResult: _onWave });
+    _ctx.mg = startLetterstorm({ host, inputHost, de: item.de, en: item.en, timeLimitMs: _timeLimit(item) + tBonus, guards, onGuardUsed, onMiss: _onStormMiss, onResult: _onWave });
   }
 }
 
@@ -411,29 +439,30 @@ function _onWave(success) {
     if (tali) dmg = Math.round(dmg * TALISMAN_MULT);
     f.enemyHp = Math.max(0, f.enemyHp - dmg);
     _setBars();
-    _strike('cf-hero', 'cf-enemy', '−' + dmg, '#c084fc');
-    _feedback('💥 Treffer! −' + dmg + (bonus ? ' ✨' : '') + (hammer ? ' 🔨' : '') + (tali ? ' 🧿' : ''));
+    // Alle Zusatz-Effekte (Formen-Bonus/Hammer/Talisman) direkt in die Schadenszahl,
+    // die über dem Gegner aufsteigt — keine separate Text-Anzeige mehr nötig.
+    _strike('cf-hero', 'cf-enemy', '−' + dmg + (bonus ? ' ✨' : '') + (hammer ? ' 🔨' : '') + (tali ? ' 🧿' : ''), '#c084fc');
     try { playSfx('correct'); } catch (e) {}
     if (f.enemyHp <= 0) { run.fight = null; save(); _endScreen(true); return; }
   } else if (f.shield) {
-    // 🛡️ Schildtrank: wehrt genau eine verlorene Welle ab.
+    // 🛡️ Schildtrank: wehrt genau eine verlorene Welle ab. Popup über dem eigenen
+    // Character statt Text-Feedback — analog zu Schaden über dem Gegner.
     f.shield = false;
-    _feedback('🛡️ Schild hält!');
+    _damagePop('cf-hero', '🛡️ Block!', '#69db7c');
     try { playSfx('click'); } catch (e) {}
   } else if (eff.dodge && Math.random() < eff.dodge) {
     // 🥾 Stiefel / 🗡️ Dolch: der verlorenen Welle ausgewichen — kein HP-Verlust.
-    _feedback('🍃 Ausgewichen!');
+    _damagePop('cf-hero', '🍃 Ausgewichen!', '#69db7c');
     try { playSfx('click'); } catch (e) {}
   } else if ((f.headUsed || 0) < (eff.headGuards || 0)) {
     // 🪖 Helm: wehrt verlorene Wellen ab (Anzahl je Stufe).
     f.headUsed = (f.headUsed || 0) + 1;
-    _feedback('🪖 Der Helm hält!');
+    _damagePop('cf-hero', '🪖 Block!', '#69db7c');
     try { playSfx('click'); } catch (e) {}
   } else {
     run.hp = Math.max(0, run.hp - enemy.dmg);
     _setBars();
     _strike('cf-enemy', 'cf-hero', '−' + enemy.dmg, '#ff8787');
-    _feedback('💔 Daneben! −' + enemy.dmg + ' HP');
     try { playSfx('wrong'); } catch (e) {}
     if (run.hp <= 0) { save(); _endScreen(false); return; }
   }
@@ -446,14 +475,18 @@ function _endScreen(victory) {
   const { node } = _ctx;
   const boss = node.type === 'boss';
   const stage = _el('cf-stage');
+  const inputHost = _el('cf-input');
+  if (inputHost) inputHost.innerHTML = '';
   if (victory) try { playSfx('end'); } catch (e) {}
-  if (stage) stage.innerHTML = `<div style="text-align:center;padding:40px 16px;">
-    <div style="font-size:4rem;margin-bottom:12px;">${victory ? (boss ? '👑' : '🎉') : '💀'}</div>
-    <div style="font-family:'Fredoka One',cursive;font-size:1.3rem;color:#fff;margin-bottom:10px;">${victory ? (boss ? 'Boss besiegt!' : 'Gewonnen!') : 'Besiegt …'}</div>
-    <div style="font-size:.9rem;font-weight:700;color:rgba(255,255,255,.75);max-width:300px;margin:0 auto 22px;line-height:1.5;">${victory
-      ? (boss ? 'Du hast dich bis ganz nach oben gekämpft — der Lauf ist geschafft!' : 'Der Weg ist frei — wähle den nächsten Knoten.')
-      : 'Deine HP sind auf 0 — der Lauf ist vorbei und der Einsatz (2 🪙) weg.'}</div>
-    <button id="cf-endbtn" style="font-family:'Fredoka One',cursive;font-size:1rem;padding:14px 28px;border:none;border-radius:14px;cursor:pointer;background:linear-gradient(135deg,#a86cdb,#c084fc);color:#fff;box-shadow:0 4px 0 #7d4bb0;">Weiter</button>
+  if (stage) stage.innerHTML = `<div style="display:flex;justify-content:center;padding:20px 16px;">
+    <div style="background:#fff;border-radius:20px;padding:28px 24px;box-shadow:0 4px 14px rgba(0,0,0,.22);max-width:300px;text-align:center;">
+      <div style="font-size:4rem;margin-bottom:12px;">${victory ? (boss ? '👑' : '🎉') : '💀'}</div>
+      <div style="font-family:'Fredoka One',cursive;font-size:1.3rem;color:#333;margin-bottom:10px;">${victory ? (boss ? 'Boss besiegt!' : 'Gewonnen!') : 'Besiegt …'}</div>
+      <div style="font-size:.9rem;font-weight:700;color:#777;margin-bottom:22px;line-height:1.5;">${victory
+        ? (boss ? 'Du hast dich bis ganz nach oben gekämpft — der Lauf ist geschafft!' : 'Der Weg ist frei — wähle den nächsten Knoten.')
+        : 'Deine HP sind auf 0 — der Lauf ist vorbei und der Einsatz (2 🪙) weg.'}</div>
+      <button id="cf-endbtn" style="font-family:'Fredoka One',cursive;font-size:1rem;padding:14px 28px;border:none;border-radius:14px;cursor:pointer;background:linear-gradient(135deg,#a86cdb,#c084fc);color:#fff;box-shadow:0 4px 0 #7d4bb0;">Weiter</button>
+    </div>
   </div>`;
   const flee = _el('cf-flee');
   if (flee) flee.style.display = 'none';
