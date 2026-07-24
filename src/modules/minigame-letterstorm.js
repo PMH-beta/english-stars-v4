@@ -32,6 +32,11 @@ export function ensureStormStyle() {
   const st = document.createElement('style');
   st.textContent = `
     @keyframes cfDrift { from { transform: translate(0,0); } to { transform: translate(var(--dx), var(--dy)); } }
+    /* Zentrierte Variante für Elemente, die per transform:translate(-50%,-50%) auf
+       ihrem Ankerpunkt sitzen (z. B. Echo-Fang-Chips) — eine Animation auf transform
+       überschreibt sonst jeden inline gesetzten transform-Wert komplett, darum muss die
+       Zentrierung HIER mit eingebacken sein statt separat gesetzt zu werden. */
+    @keyframes cfDriftC { from { transform: translate(-50%,-50%); } to { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))); } }
     @keyframes cfShake { 0%,100% { translate: 0 0; } 25% { translate: -6px 0; } 75% { translate: 6px 0; } }
     .cf-tile { position:absolute; width:58px; height:58px; border-radius:14px; border:none;
       background:#fff; color:#333; font-family:'Fredoka One',cursive; font-size:1.6rem;

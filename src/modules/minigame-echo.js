@@ -59,10 +59,10 @@ export function startEcho({ host, answer, speakText, choices, timeLimitMs, onRes
     const btn = document.createElement('button');
     const x = (cell.c + 0.5) / cols * 76 + 12;
     const y = (cell.r + 0.5) / rows * 74 + 10;
-    btn.style.cssText = `position:absolute;left:${x}%;top:${y}%;transform:translate(-50%,-50%);
+    btn.style.cssText = `position:absolute;left:${x}%;top:${y}%;
       border:none;background:#fff;color:#333;font-family:'Fredoka One',cursive;font-size:1.15rem;
       padding:12px 18px;border-radius:16px;box-shadow:0 3px 8px rgba(0,0,0,.25);cursor:pointer;
-      white-space:nowrap;z-index:2;animation:cfDrift ${(2.4 + Math.random() * 2).toFixed(2)}s ease-in-out infinite alternate;
+      white-space:nowrap;z-index:2;animation:cfDriftC ${(2.4 + Math.random() * 2).toFixed(2)}s ease-in-out infinite alternate;
       --dx:${(Math.random() * 36 - 18).toFixed(0)}px;--dy:${(Math.random() * 30 - 15).toFixed(0)}px;`;
     btn.textContent = word;
     btn.onclick = () => {

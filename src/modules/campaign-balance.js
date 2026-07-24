@@ -12,9 +12,9 @@ export const BOSS_WIN_TALER = 1;
 // (Sieg) oder Spieler-HP 0 (Tod). hp steuert also die Kampflänge (18 HP ≈ 2–3 gewonnene
 // Wellen je nach Waffe), dmg = Spieler-HP-Verlust pro verlorener Welle.
 export const ENEMY = {
-  fight:     { hp: 22, dmg: 7, icon: '👾', name: 'Wortgeist' },
-  irregular: { hp: 36, dmg: 8, icon: '🌀', name: 'Gestaltwandler' },   // Phase 2
-  boss:      { hp: 58, dmg: 12, icon: '🐉', name: 'Boss' },
+  fight:     { hp: 22, dmg: 9, icon: '👾', name: 'Wortgeist' },
+  irregular: { hp: 36, dmg: 11, icon: '🌀', name: 'Gestaltwandler' },   // Phase 2
+  boss:      { hp: 58, dmg: 16, icon: '🐉', name: 'Boss' },
 };
 
 // Waffenschaden pro gewonnener Welle: ohne Schmiede-Waffe kämpft die Faust;
@@ -36,7 +36,7 @@ export const REST_HEAL = 15;
 export const STORM_BASE_MS = 20000;        // Grundzeit
 export const STORM_PER_LETTER_MS = 2000;   // +2 s je Buchstabe ab dem 6.
 export const STORM_PENALTY_MS = 2000;      // Zeitstrafe bei falschem Buchstaben
-export const STORM_MISS_DMG = 3;           // + direkter HP-Verlust bei falschem Buchstaben
+export const STORM_MISS_DMG = 6;           // + direkter HP-Verlust bei falschem Buchstaben
 export const WEAK_TIME_BONUS = 0.25;       // +25 % Zeit bei unsicheren Wörtern
 export const WEAK_EMA = 0.5;               // „unsicher" = EMA darunter (oder <3 Versuche)
 

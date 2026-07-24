@@ -1359,6 +1359,8 @@ body.in-game .mode-progress{display:block;}
 .cf-enemy svg{animation:enemyBob 1.4s steps(1,end) infinite;}
 @keyframes enemyBob{0%,100%{transform:translateY(0);}50%{transform:translateY(-3px);}}
 .cf-enemy.hit svg{animation:none;filter:brightness(2.2);}
+.cf-enemy.poof svg{animation:cfBossPoof .6s ease-in forwards;}
+@keyframes cfBossPoof{0%{transform:scale(1) rotate(0deg);opacity:1;}55%{transform:scale(1.18) rotate(-5deg);opacity:1;}100%{transform:scale(0) rotate(14deg);opacity:0;}}
 /* Pille für HUD-Text über dem hellen Himmel: dunkles Glas, damit weiße
    Schrift lesbar bleibt. */
 .cf-pill{background:rgba(43,35,80,.6);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);border-radius:18px;}

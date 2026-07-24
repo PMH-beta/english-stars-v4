@@ -55,7 +55,7 @@ export function startMeteors({ host, de, answer, choices, fallMs, onResult }) {
   choices.forEach((word, i) => {
     const isAnswer = word === answer;
     const btn = document.createElement('button');
-    btn.style.cssText = `position:absolute;top:-80px;left:${(lanes[i] + 0.5) / choices.length * 100}%;
+    btn.style.cssText = `position:absolute;top:-80px;left:${10 + (lanes[i] + 0.5) / choices.length * 80}%;
       transform:translateX(-50%);border:none;background:transparent;cursor:pointer;padding:6px;z-index:2;`;
     btn.innerHTML = `<div style="font-size:2.2rem;line-height:1;">☄️</div>
       <div style="background:#fff;color:#333;font-family:'Fredoka One',cursive;font-size:1.1rem;padding:7px 14px;border-radius:14px;box-shadow:0 3px 8px rgba(0,0,0,.25);margin-top:2px;white-space:nowrap;">${word}</div>`;

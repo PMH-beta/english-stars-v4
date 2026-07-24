@@ -16,7 +16,7 @@
 // (reitet im profiles.campaign-jsonb mit) → Reload mitten im Kampf verliert nichts;
 // nur das aktuelle Wort der Welle wird neu gezogen.
 
-import { ENEMY, FORM_BONUS, TALISMAN_MULT, STORM_BASE_MS, STORM_PER_LETTER_MS, STORM_MISS_DMG, WEAK_TIME_BONUS, WEAK_EMA, METEOR_FALL_MS, METEOR_COUNT, ECHO_TIME_MS, ECHO_CHOICES, PERK_SPEER_BOSS, PERK_AXT_ELITE, PERK_HAMMER_MULT, PERK_BOGEN_FIGHT, POTION_HEAL, POTION_POWER, POTION_TIME_MS, POTION_TIME_WAVES } from './campaign-balance.js';
+import { ENEMY, FORM_BONUS, TALISMAN_MULT, STORM_BASE_MS, STORM_PER_LETTER_MS, STORM_MISS_DMG, WEAK_TIME_BONUS, WEAK_EMA, METEOR_FALL_MS, METEOR_COUNT, ECHO_TIME_MS, ECHO_CHOICES, PERK_SPEER_BOSS, PERK_AXT_ELITE, PERK_HAMMER_MULT, PERK_BOGEN_FIGHT, POTION_HEAL, POTION_POWER, POTION_TIME_MS, POTION_TIME_WAVES, BOSS_WIN_TALER } from './campaign-balance.js';
 import { startLetterstorm, stormTarget } from './minigame-letterstorm.js';
 import { startMeteors } from './minigame-meteors.js';
 import { startEcho } from './minigame-echo.js';
@@ -115,14 +115,14 @@ let _ctx = null;   // { run, node, enemy, weapon, save, onEnd, mg, lastEn }
 
 // onEnd(result): 'victory' | 'death' (auch bei bewusstem „Kampf verlassen") | null
 // (interner Nicht-Fall, z. B. Wortpool beim Laden leer).
-export function openFight({ run, node, save, onEnd }) {
+export function openFight({ run, node, save, onEnd, bossNumber }) {
   const enemy = ENEMY[node.type] || ENEMY.fight;
   if (!run.fight || run.fight.nodeId !== node.id) {
     // headUsed/guardsUsed = Zähler; shield/power/timeBoost = aktive Trank-Effekte.
     run.fight = { nodeId: node.id, type: node.type, enemyHp: enemy.hp, enemyHpMax: enemy.hp, wave: 1, headUsed: 0, guardsUsed: 0, shield: false, power: 0, timeBoost: 0 };
     save();
   }
-  _ctx = { run, node, enemy, weapon: equippedWeapon(), eff: equipEffects(), save, onEnd, mg: null, lastEn: null };
+  _ctx = { run, node, enemy, weapon: equippedWeapon(), eff: equipEffects(), save, onEnd, mg: null, lastEn: null, bossNumber };
   _renderOverlay();
   _startWave();
 }
@@ -471,20 +471,51 @@ function _onWave(success) {
   setTimeout(() => { if (_ctx) _startWave(); }, 900);
 }
 
+// Konfetti-Regen beim Boss-Sieg — nutzt .confetti-wrap/.confetti-piece aus style.css
+// (bisher ungenutzt vorbereitet), Farben/Größen/Timing kommen per Inline-Style dazu.
+function _confettiBurst() {
+  const wrap = document.createElement('div');
+  wrap.className = 'confetti-wrap';
+  const colors = ['#ffd43b', '#c084fc', '#69db7c', '#ff8787', '#4dabf7'];
+  for (let i = 0; i < 26; i++) {
+    const p = document.createElement('div');
+    p.className = 'confetti-piece';
+    p.style.left = Math.random() * 100 + '%';
+    p.style.width = p.style.height = (6 + Math.random() * 6) + 'px';
+    p.style.background = colors[i % colors.length];
+    p.style.borderRadius = Math.random() < 0.5 ? '50%' : '2px';
+    p.style.animationDuration = (1.4 + Math.random() * 1.1) + 's';
+    p.style.animationDelay = (Math.random() * 0.3) + 's';
+    wrap.appendChild(p);
+  }
+  // An #cf-overlay hängen, nicht an <body>: der Kampf-Overlay liegt auf z-index:8000,
+  // das gemeinsame .confetti-wrap nur auf 999 — an body würde es dahinter verschwinden.
+  (_el('cf-overlay') || document.body).appendChild(wrap);
+  setTimeout(() => wrap.remove(), 2600);
+}
+
 function _endScreen(victory) {
-  const { node } = _ctx;
+  const { node, bossNumber } = _ctx;
   const boss = node.type === 'boss';
+  const bossWin = victory && boss;
   const stage = _el('cf-stage');
   const inputHost = _el('cf-input');
   if (inputHost) inputHost.innerHTML = '';
   if (victory) try { playSfx('end'); } catch (e) {}
+  if (bossWin) {
+    // Gegner-Sprite "zerplatzt" (siehe .cf-enemy.poof in style.css), dazu Konfetti.
+    const enemyEl = _el('cf-enemy');
+    if (enemyEl) enemyEl.classList.add('poof');
+    _confettiBurst();
+  }
   if (stage) stage.innerHTML = `<div style="display:flex;justify-content:center;padding:20px 16px;">
     <div style="background:#fff;border-radius:20px;padding:28px 24px;box-shadow:0 4px 14px rgba(0,0,0,.22);max-width:300px;text-align:center;">
       <div style="font-size:4rem;margin-bottom:12px;">${victory ? (boss ? '👑' : '🎉') : '💀'}</div>
-      <div style="font-family:'Fredoka One',cursive;font-size:1.3rem;color:#333;margin-bottom:10px;">${victory ? (boss ? 'Boss besiegt!' : 'Gewonnen!') : 'Besiegt …'}</div>
-      <div style="font-size:.9rem;font-weight:700;color:#777;margin-bottom:22px;line-height:1.5;">${victory
+      <div style="font-family:'Fredoka One',cursive;font-size:1.3rem;color:#333;margin-bottom:10px;">${bossWin ? `🐉 Boss Nr. ${bossNumber} besiegt!` : victory ? 'Gewonnen!' : 'Besiegt …'}</div>
+      <div style="font-size:.9rem;font-weight:700;color:#777;margin-bottom:${bossWin ? 14 : 22}px;line-height:1.5;">${victory
         ? (boss ? 'Du hast dich bis ganz nach oben gekämpft — der Lauf ist geschafft!' : 'Der Weg ist frei — wähle den nächsten Knoten.')
         : 'Deine HP sind auf 0 — der Lauf ist vorbei und der Einsatz (2 🪙) weg.'}</div>
+      ${bossWin ? `<div class="bounce-in" style="font-family:'Fredoka One',cursive;font-size:1.15rem;color:#a67c00;background:#fff3bf;border-radius:12px;padding:8px 14px;margin-bottom:22px;display:inline-block;">+${BOSS_WIN_TALER} 🪙</div>` : ''}
       <button id="cf-endbtn" style="font-family:'Fredoka One',cursive;font-size:1rem;padding:14px 28px;border:none;border-radius:14px;cursor:pointer;background:linear-gradient(135deg,#a86cdb,#c084fc);color:#fff;box-shadow:0 4px 0 #7d4bb0;">Weiter</button>
     </div>
   </div>`;

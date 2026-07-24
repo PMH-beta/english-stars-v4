@@ -218,14 +218,6 @@ function _isReachable(run, node) {
   return !!cur && cur.next.includes(node.id);
 }
 
-// Wie viele Knoten von hier aus erreichbar sind — bei genau einem gibt es nichts
-// zum Verwählen, der Zwei-Klick-Schutz (siehe campaignNode) entfällt dann.
-function _reachableCount(run) {
-  let n = 0;
-  for (const id in run.map.nodes) if (_isReachable(run, run.map.nodes[id])) n++;
-  return n;
-}
-
 export function startCampaignRun() {
   const c = _camp();
   if (c.run) { renderCampaign(); return; }
@@ -234,7 +226,6 @@ export function startCampaignRun() {
   if (free) c.freeStart = false; else c.talerSpent += STAKE_COST;   // Einsatz sofort gesetzt
   const hpMax = HP_MAX + equipEffects().hpBonus;     // 🛡️ Rüstung: mehr HP
   c.run = { map: generateMap(), pos: null, visited: [], hp: hpMax, hpMax, potions: [] };
-  _selectedNodeId = null;
   _saveCampaign();
   updateTalerBadge();
   renderCampaign();
@@ -244,14 +235,6 @@ export function startCampaignRun() {
 // darauf. Die max. HP eines laufenden Runs werden beim Karten-Render an die
 // Rüstung angeglichen (_renderCampaignNow).
 
-// Zwei-Klick-Bestätigung gegen Fehlklicks — nur wenn es überhaupt etwas zu verwählen
-// gibt (_reachableCount > 1): 1. Klick auf einen erreichbaren Knoten markiert ihn nur
-// ("bewaffnet"), erst der 2. Klick auf denselben Knoten startet ihn. Gibt es nur einen
-// erreichbaren Knoten, startet der erste Klick direkt. Reines UI-Zwischenstand — nicht
-// persistiert, heilt sich über Reachable-Check selbst (siehe _mapHtml), falls die
-// Karte/der Lauf wechselt.
-let _selectedNodeId = null;
-
 export function campaignNode(id) {
   const c = _camp();
   const run = c.run;
@@ -259,13 +242,6 @@ export function campaignNode(id) {
   if (run.fight) { resumeCampaignFight(); return; }   // offener Kampf geht vor
   const node = run.map.nodes[id];
   if (!node || !_isReachable(run, node)) return;
-  if (_reachableCount(run) > 1 && _selectedNodeId !== id) {   // nur bei echter Wahl markieren
-    _selectedNodeId = id;
-    const host = document.getElementById('mode-campaign');
-    if (host) _renderCampaignNow(host);
-    return;
-  }
-  _selectedNodeId = null;                               // 2. Klick (oder einziger Weg): starten
   c.stats.bestRow = Math.max(c.stats.bestRow, node.row + 1);
   if (node.type === 'fight' || node.type === 'boss' || node.type === 'irregular') {
     if (!fightPoolReady()) { window.esToast?.('📭 Keine Vokabeln in deinen Decks — der Kampf braucht Wörter'); return; }
@@ -315,6 +291,7 @@ function _startFight(node) {
     run: c.run,
     node,
     save: _saveCampaign,
+    bossNumber: node.type === 'boss' ? bossWinCount() + 1 : null,
     onEnd: (result) => {
       const bossWin = result === 'victory' && node.type === 'boss';
       if (bossWin) {
@@ -327,7 +304,7 @@ function _startFight(node) {
       if (result === 'victory' && CAMP_STAT_KEYS.includes(node.type)) c.stats[node.type]++;
       if (bossWin) c.stats.runsWon++;
       else if (result === 'death') c.stats.runsLost++;
-      if (bossWin || result === 'death') { c.stats.runLength += _runDepth(c.run); c.run = null; _selectedNodeId = null; }
+      if (bossWin || result === 'death') { c.stats.runLength += _runDepth(c.run); c.run = null; }
       _saveCampaign();
       if (bossWin) startCampaignRun(); else renderCampaign();   // Boss-Sieg: sofort neuer (gratis) Lauf, kein Extra-Klick
     },
@@ -349,7 +326,7 @@ export function campaignGiveUp() {
   if (!c.run) return;
   // Aufgeben beendet den Lauf ohne Boss-Sieg → zählt wie gescheitert, sonst
   // verschwänden aufgegebene Läufe spurlos aus der Statistik.
-  const finish = () => { c.stats.runsLost++; c.stats.runLength += _runDepth(c.run); c.run = null; _selectedNodeId = null; _saveCampaign(); renderCampaign(); };
+  const finish = () => { c.stats.runsLost++; c.stats.runLength += _runDepth(c.run); c.run = null; _saveCampaign(); renderCampaign(); };
   if (window.esConfirm) {
     window.esConfirm({
       icon: '🏳️', title: 'Aufgeben?',
@@ -478,13 +455,11 @@ function _mapHtml(run, preview) {
       const reachable = _isReachable(run, n);
       const isCur = run.pos === id;
       const visited = run.visited.includes(id);
-      const selected = reachable && _selectedNodeId === id;
-      // Glühen (Puls) zeigt jetzt an, was man ALS NÄCHSTES wählen kann — nicht mehr,
-      // wo man zuletzt war. Ausgewählt (2. Klick nötig) = ruhiges Grün statt Puls.
-      bg = selected ? '#f2fbec' : (isCur || visited) ? '#e9e2f5' : reachable ? '#fff' : '#f6f6f6';
-      ring = selected ? '3px solid #7ed957' : isCur ? '2px solid var(--purple)' : reachable ? '3px solid #f0a500' : '2px solid #e5e5e5';
+      // Glühen (Puls) zeigt an, was man als Nächstes wählen kann.
+      bg = (isCur || visited) ? '#e9e2f5' : reachable ? '#fff' : '#f6f6f6';
+      ring = isCur ? '2px solid var(--purple)' : reachable ? '3px solid #f0a500' : '2px solid #e5e5e5';
       opacity = (reachable || visited || isCur) ? '1' : '.45';
-      glow = (reachable && !selected) ? 'animation:campNodeGlow 1.3s ease-in-out infinite;' : '';
+      glow = reachable ? 'animation:campNodeGlow 1.3s ease-in-out infinite;' : '';
       click = reachable ? `onclick="campaignNode('${id}')"` : '';
       cursor = reachable ? 'pointer' : 'default';
     }
@@ -503,9 +478,7 @@ function _mapHtml(run, preview) {
       ? '⚔️ Ein Kampf wartet auf dich — tippe einen Punkt an'
       : run.pos == null
         ? 'Wähle unten deinen Startpunkt ⬇️'
-        : _selectedNodeId
-          ? '☝️ Nochmal antippen zum Start'
-          : 'Wähle den nächsten Knoten';
+        : 'Wähle den nächsten Knoten';
     // Mitgeführte Tränke über der Lebensanzeige (spielbar sind sie erst im Kampf — hier
     // nur Anzeige; Antippen zeigt Name+Wirkung als kleine Sprechblase daneben).
     const potionsHtml = (run.potions && run.potions.length)
