@@ -263,9 +263,10 @@ function _campaignFrom(profile) {
       bossWins:   Number(c.bossWins) || 0,
       stats:      (c.stats && typeof c.stats === 'object') ? c.stats : {},
       freeStart:  !!c.freeStart,
+      carryPotions: Array.isArray(c.carryPotions) ? c.carryPotions : null,
     };
   }
-  return { claimed: [], talerSpent: 0, run: null, equipment: {}, bossWins: 0, stats: {}, freeStart: false };
+  return { claimed: [], talerSpent: 0, run: null, equipment: {}, bossWins: 0, stats: {}, freeStart: false, carryPotions: null };
 }
 
 

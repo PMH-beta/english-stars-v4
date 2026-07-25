@@ -241,7 +241,10 @@ export function startCampaignRun() {
   if (!free && talerAvailable() < STAKE_COST) return;
   if (free) c.freeStart = false; else c.talerSpent += STAKE_COST;   // Einsatz sofort gesetzt
   const hpMax = HP_MAX + equipEffects().hpBonus;     // 🛡️ Rüstung: mehr HP
-  c.run = { map: generateMap(), pos: null, visited: [], hp: hpMax, hpMax, potions: [] };
+  // Unverbrauchte Tränke aus einem Boss-Sieg wandern in die neue Runde mit
+  // (siehe _startFight/onEnd) — bei Tod/Aufgeben gibt es kein carryPotions, dann 0.
+  c.run = { map: generateMap(), pos: null, visited: [], hp: hpMax, hpMax, potions: c.carryPotions || [] };
+  c.carryPotions = null;
   _saveCampaign();
   updateTalerBadge();
   renderCampaign();
@@ -320,7 +323,11 @@ function _startFight(node) {
       if (result === 'victory' && CAMP_STAT_KEYS.includes(node.type)) c.stats[node.type]++;
       if (bossWin) c.stats.runsWon++;
       else if (result === 'death') c.stats.runsLost++;
-      if (bossWin || result === 'death') { c.stats.runLength += _runDepth(c.run); c.run = null; }
+      if (bossWin || result === 'death') {
+        c.stats.runLength += _runDepth(c.run);
+        if (bossWin) c.carryPotions = c.run.potions || [];   // unverbrauchte Tränke: Belohnung wie freeStart
+        c.run = null;
+      }
       _saveCampaign();
       // „🔄 Neue Runde starten" ist der cf-endbtn im Sieges-Popup selbst (campaign-fight.js
       // _endScreen) — der Klick darauf landet hier UND startet direkt den neuen Lauf.
