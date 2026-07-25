@@ -34,8 +34,14 @@ const NODE = {
   boss:      { icon: '👑', label: 'Boss' },
 };
 
-const _rand = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
-const _pick = (arr) => arr[_rand(0, arr.length - 1)];
+// Gewichtete Zufallswahl: höheres Gewicht = wahrscheinlicher, aber nie ausgeschlossen.
+function _weightedPick(arr, weightFn) {
+  const weights = arr.map(weightFn);
+  const total = weights.reduce((a, b) => a + b, 0);
+  let x = Math.random() * total;
+  for (let i = 0; i < arr.length; i++) { x -= weights[i]; if (x <= 0) return arr[i]; }
+  return arr[arr.length - 1];
+}
 
 // Tiefe (row+1) des Knotens, an dem ein Lauf gerade steht — 0, wenn noch kein Knoten
 // betreten wurde. Wird beim Lauf-Ende auf stats.runLength aufaddiert (siehe _startFight/
@@ -164,8 +170,17 @@ function generateMap() {
   };
   const link = (a, b) => { if (!a.next.includes(b.id)) a.next.push(b.id); };
 
+  // Wie oft die PATHS-Läufe eine Spalte je Reihe schon besucht haben — spätere Läufe
+  // meiden dadurch schon volle Spalten (gewichtet, nicht hart ausgeschlossen). Ohne das
+  // klumpt ein reiner Zufallslauf leicht auf 1-2 Spalten und lässt Ränder leer; die
+  // Gewichtung sorgt für gleichmäßigere Verteilung, ohne die Wege deterministisch/gleich
+  // aussehen zu lassen. Anzahl der Läufe (PATHS) bleibt unverändert.
+  const load = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+  const pickCol = (cands, row) => _weightedPick(cands, c => 1 / (1 + load[row][c]));
+
   for (let p = 0; p < PATHS; p++) {
-    let col = _rand(0, COLS - 1);
+    let col = pickCol([0, 1, 2, 3, 4], 0);
+    load[0][col]++;
     for (let r = 0; r < ROWS - 2; r++) {
       const cur = ensure(r, col);
       let cands = [col - 1, col, col + 1].filter(c => c >= 0 && c < COLS);
@@ -176,8 +191,9 @@ function generateMap() {
         const sib = grid[r][nc];
         return !sib || !sib.next.includes((r + 1) + '_' + col);
       });
-      const nc = _pick(cands.length ? cands : [col]);
+      const nc = pickCol(cands.length ? cands : [col], r + 1);
       link(cur, ensure(r + 1, nc));
+      load[r + 1][nc]++;
       col = nc;
     }
   }
@@ -306,7 +322,9 @@ function _startFight(node) {
       else if (result === 'death') c.stats.runsLost++;
       if (bossWin || result === 'death') { c.stats.runLength += _runDepth(c.run); c.run = null; }
       _saveCampaign();
-      renderCampaign();   // Boss-Sieg: Startbildschirm mit „🔄 Neue Runde starten" (freeStart) — erst der Klick beginnt den neuen Lauf
+      // „🔄 Neue Runde starten" ist der cf-endbtn im Sieges-Popup selbst (campaign-fight.js
+      // _endScreen) — der Klick darauf landet hier UND startet direkt den neuen Lauf.
+      if (bossWin) startCampaignRun(); else renderCampaign();
     },
   });
 }
@@ -435,7 +453,7 @@ function _startScreenHtml() {
     <div style="font-size:.95rem;font-weight:800;color:var(--text);margin-bottom:16px;">Deine Taler: <span style="color:#a67c00;">${avail} 🪙</span></div>
     <button onclick="startCampaignRun()" ${canStart ? '' : 'disabled'}
       style="font-family:'Fredoka One',cursive;font-size:1rem;padding:14px 26px;border:none;border-radius:14px;cursor:${canStart ? 'pointer' : 'not-allowed'};background:${canStart ? 'linear-gradient(135deg,#a86cdb,#c084fc)' : '#e5def2'};color:${canStart ? '#fff' : '#a79cc2'};box-shadow:${canStart ? '0 4px 0 #7d4bb0' : 'none'};">
-      ${free ? '🔄 Neue Runde starten' : `▶️ Kampagne starten (${STAKE_COST} 🪙)`}</button>
+      ▶️ Kampagne starten ${free ? '(kostenlos)' : `(${STAKE_COST} 🪙)`}</button>
     ${canStart ? '' : `<div style="font-size:.82rem;color:#8a83a5;font-weight:700;margin-top:12px;">Nicht genug Taler — bring weitere Übungsarten auf 100 %.</div>`}`);
 }
 
