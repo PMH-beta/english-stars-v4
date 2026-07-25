@@ -17,6 +17,15 @@ export const ENEMY = {
   boss:      { hp: 58, dmg: 16, icon: '🐉', name: 'Boss' },
 };
 
+// Schwierigkeit steigt mit jeder abgeschlossenen Runde (= Boss-Siege bisher, round=0
+// in der allerersten Runde): +15 % HP/Schaden pro Runde.
+export const ROUND_SCALE = 0.15;
+export function scaledEnemy(type, round) {
+  const base = ENEMY[type] || ENEMY.fight;
+  const mult = 1 + ROUND_SCALE * Math.max(0, round || 0);
+  return { ...base, hp: Math.round(base.hp * mult), dmg: Math.round(base.dmg * mult) };
+}
+
 // Waffenschaden pro gewonnener Welle: ohne Schmiede-Waffe kämpft die Faust;
 // mit Waffe = WEAPON_BASE_DMG + fertige Teile (1–5 → 4–8). „Verzaubert" (alle
 // 5 Teile inkl. Verzaubern-Slot) ist damit automatisch die 8er-Stufe.

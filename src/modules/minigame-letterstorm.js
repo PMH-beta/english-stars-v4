@@ -6,11 +6,10 @@
 // Touch-first, Drift über CSS-Transforms. KEIN Mastery/EMA-Schreiben — eine Welle
 // ist einmalig richtig oder falsch.
 //
-// Schnittstelle: startLetterstorm({host, inputHost, de, en, timeLimitMs, onResult}) →
-// {destroy, pause, resume}. host bekommt Prompt/Timer/Spielfeld (treibende Buchstaben),
-// inputHost bekommt NUR die Wortleiste (zeigt die bereits getroffenen Buchstaben) —
-// getrennt, weil die Kampf-Ansicht das Eingabefeld unter den Figuren zeigt, das
-// Spielfeld aber darüber. Fehlt inputHost, landet die Leiste im host (Fallback).
+// Schnittstelle: startLetterstorm({host, de, en, timeLimitMs, onResult}) →
+// {destroy, pause, resume}. host bekommt Prompt/Timer/Wortleiste/Spielfeld — die
+// Wortleiste (zeigt die bereits getroffenen Buchstaben) sitzt direkt unter der
+// Zeitanzeige, darunter erst das Spielfeld mit den treibenden Buchstaben-Kacheln.
 // onResult(success, timeLeftMs) wird genau einmal gerufen. pause()/resume() frieren
 // die Restzeit exakt ein (z. B. während eines Bestätigungs-Dialogs). onMiss (optional)
 // wird bei JEDEM falschen Buchstaben gerufen (nicht nur einmal pro Welle) — der
@@ -60,13 +59,12 @@ export function ensureStormStyle() {
 // („go → Simple Past?"); sub (optional): kleine Zusatzzeile darunter.
 // guards (optional): so viele Fehlgriffe fängt der 🐾 Gefährte ab (keine Strafe);
 // onGuardUsed wird je verbrauchtem Guard gerufen (Kampf merkt sich das pro Kampf).
-export function startLetterstorm({ host, inputHost, de, en, prompt, sub, timeLimitMs, guards = 0, onGuardUsed, onMiss, onResult }) {
+export function startLetterstorm({ host, de, en, prompt, sub, timeLimitMs, guards = 0, onGuardUsed, onMiss, onResult }) {
   ensureStormStyle();
   const target = stormTarget(en);
   const chars = target.split('');
   let done = false, timer = null, pausedAt = null;
   let endAt = Date.now() + timeLimitMs;
-  const slotsRoot = inputHost || host;
 
   // Leerzeichen (Mehrwort-Antworten) sind in der Leiste vorgegeben — kein Tile.
   const tappable = chars.map((ch, i) => ({ ch, i })).filter(x => x.ch !== ' ');
@@ -87,8 +85,8 @@ export function startLetterstorm({ host, inputHost, de, en, prompt, sub, timeLim
       </div>
       <div id="cf-secs" style="font-family:'Fredoka One',cursive;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.4);font-size:.9rem;min-width:34px;text-align:right;"></div>
     </div>
+    <div id="cf-slots" style="display:flex;justify-content:center;gap:6px;flex-wrap:wrap;padding:0 0 12px;">${slotHtml}</div>
     <div id="cf-field" style="position:relative;height:min(38dvh,320px);min-height:170px;overflow:hidden;"></div>`;
-  slotsRoot.innerHTML = `<div id="cf-slots" style="display:flex;justify-content:center;gap:6px;flex-wrap:wrap;padding:10px 0;">${slotHtml}</div>`;
 
   // Tiles auf gemischtem Gitter platzieren (kein Anfangs-Überlappen), dann driften.
   const field = host.querySelector('#cf-field');
@@ -126,7 +124,7 @@ export function startLetterstorm({ host, inputHost, de, en, prompt, sub, timeLim
         // Richtig: Tile poppt weg, Slot füllt sich. Bei doppelten Buchstaben gilt
         // JEDES passende Tile (w-e-e-k: jedes „e" zählt fürs nächste „e").
         btn.classList.add('cf-hit');
-        const slot = slotsRoot.querySelector(`.cf-slot[data-i="${nextIdx}"]`);
+        const slot = host.querySelector(`.cf-slot[data-i="${nextIdx}"]`);
         if (slot) { slot.textContent = t.ch; slot.classList.add('cf-filled'); }
         advance();
         try { playSfx('click'); } catch (e) {}

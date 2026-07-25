@@ -16,7 +16,7 @@
 // (reitet im profiles.campaign-jsonb mit) → Reload mitten im Kampf verliert nichts;
 // nur das aktuelle Wort der Welle wird neu gezogen.
 
-import { ENEMY, FORM_BONUS, TALISMAN_MULT, STORM_BASE_MS, STORM_PER_LETTER_MS, STORM_MISS_DMG, WEAK_TIME_BONUS, WEAK_EMA, METEOR_FALL_MS, METEOR_COUNT, ECHO_TIME_MS, ECHO_CHOICES, PERK_SPEER_BOSS, PERK_AXT_ELITE, PERK_HAMMER_MULT, PERK_BOGEN_FIGHT, POTION_HEAL, POTION_POWER, POTION_TIME_MS, POTION_TIME_WAVES, BOSS_WIN_TALER } from './campaign-balance.js';
+import { scaledEnemy, FORM_BONUS, TALISMAN_MULT, STORM_BASE_MS, STORM_PER_LETTER_MS, STORM_MISS_DMG, WEAK_TIME_BONUS, WEAK_EMA, METEOR_FALL_MS, METEOR_COUNT, ECHO_TIME_MS, ECHO_CHOICES, PERK_SPEER_BOSS, PERK_AXT_ELITE, PERK_HAMMER_MULT, PERK_BOGEN_FIGHT, POTION_HEAL, POTION_POWER, POTION_TIME_MS, POTION_TIME_WAVES, BOSS_WIN_TALER } from './campaign-balance.js';
 import { startLetterstorm, stormTarget } from './minigame-letterstorm.js';
 import { startMeteors } from './minigame-meteors.js';
 import { startEcho } from './minigame-echo.js';
@@ -115,14 +115,14 @@ let _ctx = null;   // { run, node, enemy, weapon, save, onEnd, mg, lastEn }
 
 // onEnd(result): 'victory' | 'death' (auch bei bewusstem „Kampf verlassen") | null
 // (interner Nicht-Fall, z. B. Wortpool beim Laden leer).
-export function openFight({ run, node, save, onEnd, bossNumber }) {
-  const enemy = ENEMY[node.type] || ENEMY.fight;
+export function openFight({ run, node, save, onEnd, round }) {
+  const enemy = scaledEnemy(node.type, round);
   if (!run.fight || run.fight.nodeId !== node.id) {
     // headUsed/guardsUsed = Zähler; shield/power/timeBoost = aktive Trank-Effekte.
     run.fight = { nodeId: node.id, type: node.type, enemyHp: enemy.hp, enemyHpMax: enemy.hp, wave: 1, headUsed: 0, guardsUsed: 0, shield: false, power: 0, timeBoost: 0 };
     save();
   }
-  _ctx = { run, node, enemy, weapon: equippedWeapon(), eff: equipEffects(), save, onEnd, mg: null, lastEn: null, bossNumber };
+  _ctx = { run, node, enemy, weapon: equippedWeapon(), eff: equipEffects(), save, onEnd, mg: null, lastEn: null, round };
   _renderOverlay();
   _startWave();
 }
@@ -228,9 +228,6 @@ function _renderOverlay() {
           </div>
         </div>
       </div>
-      <!-- Eingabefeld: zeigt die aktuelle Auswahl (z. B. Buchstaben-Leiste) — nur bei
-           Minispielen, die das brauchen; sonst leer. Zentrierte Spalte wie das Spielfeld. -->
-      <div id="cf-input" style="position:relative;z-index:2;width:100%;max-width:440px;margin:0 auto;padding:0 14px;box-sizing:border-box;flex-shrink:0;"></div>
       <div id="cf-potions" style="position:relative;z-index:3;display:flex;gap:10px;justify-content:center;padding:10px 14px 0;min-height:10px;flex-shrink:0;"></div>
       <div style="position:relative;z-index:3;padding:10px 14px 12px;flex-shrink:0;display:flex;justify-content:center;">
         <div class="cf-pill" style="width:100%;max-width:320px;padding:9px 16px;display:flex;align-items:center;gap:12px;">
@@ -371,10 +368,6 @@ function _startWave() {
   const w = _el('cf-wave');
   if (w) w.textContent = 'Welle ' + run.fight.wave;
   const host = _el('cf-stage');
-  // Eingabefeld unter den Figuren: nur Buchstabensturm nutzt es (Auswahl-Leiste) —
-  // bei Meteoriten/Echo bleibt es leer, deshalb hier für JEDE Welle erst räumen.
-  const inputHost = _el('cf-input');
-  if (inputHost) inputHost.innerHTML = '';
   _ctx.waveForm = null;
 
   // Ausrüstungs-Effekte: 🧤/🪄 Zeitbonus auf jedes Minispiel (Meteoriten fallen
@@ -396,7 +389,7 @@ function _startWave() {
     const target = which === 'past' ? v.past : v.pp;
     const label = which === 'past' ? 'Simple Past' : 'Past Participle';
     _ctx.mg = startLetterstorm({
-      host, inputHost, de: v.de, en: target,
+      host, de: v.de, en: target,
       prompt: `🌀 ${v.en} → <span style="color:#a67c00;">${label}</span>?`,
       sub: `(${v.de})`,
       timeLimitMs: _lettersMs(target) + tBonus,
@@ -415,7 +408,7 @@ function _startWave() {
     _ctx.mg = startEcho({ host, answer, speakText: answer, choices, timeLimitMs: ECHO_TIME_MS + tBonus, onResult: _onWave });
   } else {
     const item = _pickItem(pool);
-    _ctx.mg = startLetterstorm({ host, inputHost, de: item.de, en: item.en, timeLimitMs: _timeLimit(item) + tBonus, guards, onGuardUsed, onMiss: _onStormMiss, onResult: _onWave });
+    _ctx.mg = startLetterstorm({ host, de: item.de, en: item.en, timeLimitMs: _timeLimit(item) + tBonus, guards, onGuardUsed, onMiss: _onStormMiss, onResult: _onWave });
   }
 }
 
@@ -495,12 +488,10 @@ function _confettiBurst() {
 }
 
 function _endScreen(victory) {
-  const { node, bossNumber } = _ctx;
+  const { node, round } = _ctx;
   const boss = node.type === 'boss';
   const bossWin = victory && boss;
   const stage = _el('cf-stage');
-  const inputHost = _el('cf-input');
-  if (inputHost) inputHost.innerHTML = '';
   if (victory) try { playSfx('end'); } catch (e) {}
   if (bossWin) {
     // Gegner-Sprite "zerplatzt" (siehe .cf-enemy.poof in style.css), dazu Konfetti.
@@ -511,7 +502,7 @@ function _endScreen(victory) {
   if (stage) stage.innerHTML = `<div style="display:flex;justify-content:center;padding:20px 16px;">
     <div style="background:#fff;border-radius:20px;padding:28px 24px;box-shadow:0 4px 14px rgba(0,0,0,.22);max-width:300px;text-align:center;">
       <div style="font-size:4rem;margin-bottom:12px;">${victory ? (boss ? '👑' : '🎉') : '💀'}</div>
-      <div style="font-family:'Fredoka One',cursive;font-size:1.3rem;color:#333;margin-bottom:10px;">${bossWin ? `🐉 Boss Nr. ${bossNumber} besiegt!` : victory ? 'Gewonnen!' : 'Besiegt …'}</div>
+      <div style="font-family:'Fredoka One',cursive;font-size:1.3rem;color:#333;margin-bottom:10px;">${bossWin ? `🐉 Boss Nr. ${round + 1} besiegt!` : victory ? 'Gewonnen!' : 'Besiegt …'}</div>
       <div style="font-size:.9rem;font-weight:700;color:#777;margin-bottom:${bossWin ? 14 : 22}px;line-height:1.5;">${victory
         ? (boss ? 'Du hast dich bis ganz nach oben gekämpft — der Lauf ist geschafft!' : 'Der Weg ist frei — wähle den nächsten Knoten.')
         : 'Deine HP sind auf 0 — der Lauf ist vorbei und der Einsatz (2 🪙) weg.'}</div>

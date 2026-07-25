@@ -291,7 +291,7 @@ function _startFight(node) {
     run: c.run,
     node,
     save: _saveCampaign,
-    bossNumber: node.type === 'boss' ? bossWinCount() + 1 : null,
+    round: bossWinCount(),
     onEnd: (result) => {
       const bossWin = result === 'victory' && node.type === 'boss';
       if (bossWin) {
@@ -306,7 +306,7 @@ function _startFight(node) {
       else if (result === 'death') c.stats.runsLost++;
       if (bossWin || result === 'death') { c.stats.runLength += _runDepth(c.run); c.run = null; }
       _saveCampaign();
-      if (bossWin) startCampaignRun(); else renderCampaign();   // Boss-Sieg: sofort neuer (gratis) Lauf, kein Extra-Klick
+      renderCampaign();   // Boss-Sieg: Startbildschirm mit „🔄 Neue Runde starten" (freeStart) — erst der Klick beginnt den neuen Lauf
     },
   });
 }
@@ -435,7 +435,7 @@ function _startScreenHtml() {
     <div style="font-size:.95rem;font-weight:800;color:var(--text);margin-bottom:16px;">Deine Taler: <span style="color:#a67c00;">${avail} 🪙</span></div>
     <button onclick="startCampaignRun()" ${canStart ? '' : 'disabled'}
       style="font-family:'Fredoka One',cursive;font-size:1rem;padding:14px 26px;border:none;border-radius:14px;cursor:${canStart ? 'pointer' : 'not-allowed'};background:${canStart ? 'linear-gradient(135deg,#a86cdb,#c084fc)' : '#e5def2'};color:${canStart ? '#fff' : '#a79cc2'};box-shadow:${canStart ? '0 4px 0 #7d4bb0' : 'none'};">
-      ▶️ Kampagne starten ${free ? '(kostenlos)' : `(${STAKE_COST} 🪙)`}</button>
+      ${free ? '🔄 Neue Runde starten' : `▶️ Kampagne starten (${STAKE_COST} 🪙)`}</button>
     ${canStart ? '' : `<div style="font-size:.82rem;color:#8a83a5;font-weight:700;margin-top:12px;">Nicht genug Taler — bring weitere Übungsarten auf 100 %.</div>`}`);
 }
 
