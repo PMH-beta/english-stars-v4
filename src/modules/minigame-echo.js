@@ -10,7 +10,7 @@
 
 import { playSfx } from './game.js';
 import { speakWord } from './speech.js';
-import { ensureStormStyle } from './minigame-letterstorm.js';
+import { ensureStormStyle, setDrift } from './minigame-letterstorm.js';
 
 export function startEcho({ host, answer, speakText, choices, timeLimitMs, onResult }) {
   ensureStormStyle();   // cfDrift-Keyframes
@@ -54,6 +54,9 @@ export function startEcho({ host, answer, speakText, choices, timeLimitMs, onRes
   for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) cells.push({ r, c });
   for (let i = cells.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [cells[i], cells[j]] = [cells[j], cells[i]]; }
 
+  const cellW = field.clientWidth * 0.76 / cols;
+  const cellH = field.clientHeight * 0.74 / rows;
+
   choices.forEach((word, k) => {
     const cell = cells[k];
     const btn = document.createElement('button');
@@ -62,8 +65,7 @@ export function startEcho({ host, answer, speakText, choices, timeLimitMs, onRes
     btn.style.cssText = `position:absolute;left:${x}%;top:${y}%;
       border:none;background:#fff;color:#333;font-family:'Fredoka One',cursive;font-size:1.15rem;
       padding:12px 18px;border-radius:16px;box-shadow:0 3px 8px rgba(0,0,0,.25);cursor:pointer;
-      white-space:nowrap;z-index:2;animation:cfDriftC ${(2.4 + Math.random() * 2).toFixed(2)}s ease-in-out infinite alternate;
-      --dx:${(Math.random() * 36 - 18).toFixed(0)}px;--dy:${(Math.random() * 30 - 15).toFixed(0)}px;`;
+      white-space:nowrap;z-index:2;animation:cfDriftC var(--dur,9s) ease-in-out var(--del,0s) infinite;`;
     btn.textContent = word;
     btn.onclick = () => {
       if (done) return;
@@ -78,6 +80,12 @@ export function startEcho({ host, answer, speakText, choices, timeLimitMs, onRes
       }
     };
     field.appendChild(btn);
+    // Drift so weit, wie in der Zelle wirklich Platz ist — dafür muss der Chip schon im
+    // DOM hängen (offsetWidth). Kurze Wörter schweben dadurch weit, lange Wort-Chips
+    // weniger, sonst schieben sie sich übereinander und sind nicht mehr lesbar.
+    setDrift(btn,
+      Math.max(10, Math.min(40, (cellW - btn.offsetWidth) / 2 - 4)),
+      Math.max(10, Math.min(34, (cellH - btn.offsetHeight) / 2 - 4)), 7, 12);
   });
 
   function _tick() {

@@ -30,10 +30,14 @@ export function startMeteors({ host, de, answer, choices, fallMs, onResult }) {
 
   const sky = host.querySelector('#cf-sky');
   const skyH = 300;
+  const TOP0 = -80;    // Startpunkt der untersten Stufe, oberhalb des Himmels
+  const STEP = 115;    // Höhe einer Versatz-Stufe (größer als ein Meteor hoch ist)
+  const GAP  = 8;      // Mindest-Luft je Seite zwischen zwei Meteoren nebeneinander
+
+  const _shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
   // Bahnen mischen, damit der richtige Meteor nicht immer an derselben Stelle fällt.
-  const lanes = choices.map((_, i) => i);
-  for (let i = lanes.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [lanes[i], lanes[j]] = [lanes[j], lanes[i]]; }
+  const lanes = _shuffle(choices.map((_, i) => i));
 
   const btns = [];
   function _freeze() {
@@ -55,14 +59,11 @@ export function startMeteors({ host, de, answer, choices, fallMs, onResult }) {
   choices.forEach((word, i) => {
     const isAnswer = word === answer;
     const btn = document.createElement('button');
-    btn.style.cssText = `position:absolute;top:-80px;left:${10 + (lanes[i] + 0.5) / choices.length * 80}%;
+    btn._answer = isAnswer;
+    btn.style.cssText = `position:absolute;top:${TOP0}px;left:${10 + (lanes[i] + 0.5) / choices.length * 80}%;
       transform:translateX(-50%);border:none;background:transparent;cursor:pointer;padding:6px;z-index:2;`;
     btn.innerHTML = `<div style="font-size:2.2rem;line-height:1;">☄️</div>
       <div style="background:#fff;color:#333;font-family:'Fredoka One',cursive;font-size:1.1rem;padding:7px 14px;border-radius:14px;box-shadow:0 3px 8px rgba(0,0,0,.25);margin-top:2px;white-space:nowrap;">${word}</div>`;
-    // Falsche Meteoriten fallen leicht unterschiedlich schnell (nur Optik) —
-    // die Fallzeit des RICHTIGEN ist das Zeitlimit der Welle.
-    const dur = isAnswer ? fallMs : Math.round(fallMs * (0.9 + Math.random() * 0.25));
-    btn.style.transition = `top ${dur}ms linear`;
     btn.onclick = () => {
       if (done) return;
       if (isAnswer) {
@@ -77,6 +78,41 @@ export function startMeteors({ host, de, answer, choices, fallMs, onResult }) {
     };
     sky.appendChild(btn);
     btns.push(btn);
+  });
+
+  // Überlappung auflösen: ein langes Wort ist breiter als seine Bahn, nebeneinander auf
+  // gleicher Höhe verdecken sich die Meteore dann gegenseitig. Deshalb hier die ECHTEN
+  // Chip-Breiten messen (die Buttons hängen schon im DOM) und nur die Meteore, die sich
+  // wirklich schneiden, eine Stufe höher starten lassen — kurze Wörter passen nebenein-
+  // ander und bleiben auf einer Höhe. Damit daraus kein lesbares Muster wird, ist die
+  // Prüfreihenfolge zufällig und die belegten Stufen werden am Ende durchgetauscht:
+  // welcher Meteor oben ansetzt, hängt so weder an der Bahn noch an der Antwort.
+  const levels = new Array(btns.length).fill(0);
+  const taken = [];   // taken[stufe] = schon belegte x-Bereiche auf dieser Stufe
+  _shuffle(btns.map((b, i) => i)).forEach(i => {
+    const r = btns[i].getBoundingClientRect();
+    const box = { l: r.left - GAP, r: r.right + GAP };
+    let lv = 0;
+    while ((taken[lv] || []).some(o => box.l < o.r && box.r > o.l)) lv++;
+    (taken[lv] = taken[lv] || []).push(box);
+    levels[i] = lv;
+  });
+  const perm = _shuffle(taken.map((_, k) => k));   // Kollisionsfreiheit hängt nur daran,
+                                                   // WER sich eine Stufe teilt — nicht an deren Höhe
+  const baseDist = skyH + 10 - TOP0;
+  btns.forEach((b, i) => {
+    // Streuung obendrauf, damit die Meteore nicht auf exakt zwei Höhen einrasten; sie
+    // bleibt klar unter STEP, damit zwei Stufen sich nie berühren.
+    const top0 = TOP0 - perm[levels[i]] * STEP - Math.round(Math.random() * 16);
+    const dist = skyH + 10 - top0;
+    b.style.top = top0 + 'px';   // noch ohne transition → springt, animiert nicht
+    // Alle fallen exakt gleich schnell; unterschiedliche Fallzeiten würden den Versatz
+    // während des Fallens wieder zulaufen lassen. Die Fallzeit des RICHTIGEN (durch den
+    // Versatz ggf. länger als fallMs) ist das Zeitlimit der Welle.
+    const dur = Math.round(dist / baseDist * fallMs);
+    b.style.transition = `top ${dur}ms linear`;
+    b._v = dist / dur;           // px pro ms — hält die Geschwindigkeit über eine Pause hinweg
+    if (b._answer) endAt = Date.now() + dur;
   });
 
   // Fall starten (nach Layout-Tick, damit die Transition greift). Kein JS-Fade nötig —
@@ -104,8 +140,14 @@ export function startMeteors({ host, de, answer, choices, fallMs, onResult }) {
       if (done || pausedAt == null) return;
       endAt += Date.now() - pausedAt;
       pausedAt = null;
-      const ms = Math.max(0, endAt - Date.now());
-      btns.forEach(b => { b.style.pointerEvents = ''; b.style.transition = `top ${ms}ms linear`; });
+      // Jeder Meteor bekommt SEINE Restzeit (aus eigener Position + eigener Geschwindig-
+      // keit) — eine gemeinsame Restzeit würde den Höhenversatz nach einer Pause zunichte
+      // machen und die Meteore wieder auf gleiche Höhe zusammenlaufen lassen.
+      btns.forEach(b => {
+        const ms = Math.max(0, (skyH + 10 - (parseFloat(b.style.top) || 0)) / b._v);
+        b.style.pointerEvents = '';
+        b.style.transition = `top ${Math.round(ms)}ms linear`;
+      });
       setTimeout(() => { if (!done) btns.forEach(b => { b.style.top = (skyH + 10) + 'px'; }); }, 60);
       timer = setInterval(_tick, 100);
     },

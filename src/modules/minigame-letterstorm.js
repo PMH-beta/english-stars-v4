@@ -30,17 +30,31 @@ export function ensureStormStyle() {
   _styleDone = true;
   const st = document.createElement('style');
   st.textContent = `
-    @keyframes cfDrift { from { transform: translate(0,0); } to { transform: translate(var(--dx), var(--dy)); } }
+    /* Drift: vier Wegpunkte je Kachel (--x1/--y1 … --x4/--y4, gesetzt von setDrift) statt
+       eines Hin und Her auf einer Geraden — jede Kachel wandert dadurch eine eigene
+       Schleife. 0 % und 100 % sind derselbe Punkt, damit die Schleife ohne Sprung
+       durchläuft; „alternate" wäre hier falsch (liefe die Schleife rückwärts wieder ab). */
+    @keyframes cfDrift {
+      0%,100% { transform: translate(var(--x4), var(--y4)); }
+      25%     { transform: translate(var(--x1), var(--y1)); }
+      50%     { transform: translate(var(--x2), var(--y2)); }
+      75%     { transform: translate(var(--x3), var(--y3)); }
+    }
     /* Zentrierte Variante für Elemente, die per transform:translate(-50%,-50%) auf
        ihrem Ankerpunkt sitzen (z. B. Echo-Fang-Chips) — eine Animation auf transform
        überschreibt sonst jeden inline gesetzten transform-Wert komplett, darum muss die
        Zentrierung HIER mit eingebacken sein statt separat gesetzt zu werden. */
-    @keyframes cfDriftC { from { transform: translate(-50%,-50%); } to { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))); } }
+    @keyframes cfDriftC {
+      0%,100% { transform: translate(calc(-50% + var(--x4)), calc(-50% + var(--y4))); }
+      25%     { transform: translate(calc(-50% + var(--x1)), calc(-50% + var(--y1))); }
+      50%     { transform: translate(calc(-50% + var(--x2)), calc(-50% + var(--y2))); }
+      75%     { transform: translate(calc(-50% + var(--x3)), calc(-50% + var(--y3))); }
+    }
     @keyframes cfShake { 0%,100% { translate: 0 0; } 25% { translate: -6px 0; } 75% { translate: 6px 0; } }
     .cf-tile { position:absolute; width:58px; height:58px; border-radius:14px; border:none;
       background:#fff; color:#333; font-family:'Fredoka One',cursive; font-size:1.6rem;
       box-shadow:0 3px 8px rgba(0,0,0,.25); cursor:pointer; padding:0; z-index:2;
-      animation: cfDrift var(--dur) ease-in-out infinite alternate; transition: opacity .25s, scale .25s; }
+      animation: cfDrift var(--dur,12s) ease-in-out var(--del,0s) infinite; transition: opacity .25s, scale .25s; }
     .cf-tile.cf-hit { opacity:0; scale:.3; pointer-events:none; }
     .cf-tile.cf-shake { background:#ffd6d6; }
     .cf-tile.cf-shake span { display:inline-block; animation: cfShake .3s ease; }
@@ -53,6 +67,23 @@ export function ensureStormStyle() {
     .cf-slot.cf-filled { border:2px solid transparent; background:#fff; color:#333; box-shadow:0 2px 6px rgba(0,0,0,.2); }
   `;
   document.head.appendChild(st);
+}
+
+// Drift-Wegpunkte einer Kachel/eines Chips setzen (auch von Echo-Fang genutzt): vier
+// Punkte reihum auf zufälligen Winkeln, Auslenkung 55–100 % von rx/ry. Vorher war es EIN
+// zufälliger Wert in ±22px — im Mittel also nur 11px, und viele Kacheln landeten nahe 0
+// und standen praktisch still. Zufällige Dauer + negativer Delay entkoppeln die Kacheln
+// voneinander, damit sie nicht im Gleichtakt schwingen.
+export function setDrift(el, rx, ry, durMin = 9, durMax = 15) {
+  let a = Math.random() * Math.PI * 2;
+  for (let i = 1; i <= 4; i++) {
+    a += Math.PI / 2 + (Math.random() - 0.5) * 1.1;   // grob im Kreis herum, aber unregelmäßig
+    const f = 0.55 + Math.random() * 0.45;
+    el.style.setProperty('--x' + i, Math.round(Math.cos(a) * rx * f) + 'px');
+    el.style.setProperty('--y' + i, Math.round(Math.sin(a) * ry * f) + 'px');
+  }
+  el.style.setProperty('--dur', (durMin + Math.random() * (durMax - durMin)).toFixed(1) + 's');
+  el.style.setProperty('--del', (-Math.random() * 12).toFixed(1) + 's');
 }
 
 // prompt (optional): eigener Kopf statt „🇩🇪 de" — für Verbform-Wellen
@@ -96,6 +127,14 @@ export function startLetterstorm({ host, de, en, prompt, sub, timeLimitMs, guard
   for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) cells.push({ r, c });
   for (let i = cells.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [cells[i], cells[j]] = [cells[j], cells[i]]; }
 
+  // Drift-Radius an die Gitterdichte koppeln: bei engem Gitter (langes Wort) kleiner,
+  // damit sich Kacheln nicht dauerhaft verdecken. Die +8 lassen leichtes Überlappen zu,
+  // die Untergrenze sorgt dafür, dass auch im engsten Gitter sichtbar Bewegung bleibt.
+  const cellW = field.clientWidth * 0.84 / cols;
+  const cellH = field.clientHeight * 0.74 / rows;
+  const driftX = Math.max(16, Math.min(30, (cellW - 58) / 2 + 8));
+  const driftY = Math.max(14, Math.min(26, (cellH - 58) / 2 + 8));
+
   let nextIdx = 0;   // nächster erwarteter Index in chars (Leerzeichen überspringen)
   const advance = () => { nextIdx++; while (nextIdx < chars.length && chars[nextIdx] === ' ') nextIdx++; };
 
@@ -115,9 +154,7 @@ export function startLetterstorm({ host, de, en, prompt, sub, timeLimitMs, guard
     const y = (cell.r + 0.5) / rows * 74 + 10;
     btn.style.left = `calc(${x}% - 23px)`;
     btn.style.top = `calc(${y}% - 23px)`;
-    btn.style.setProperty('--dx', (Math.random() * 44 - 22).toFixed(0) + 'px');
-    btn.style.setProperty('--dy', (Math.random() * 36 - 18).toFixed(0) + 'px');
-    btn.style.setProperty('--dur', (2.2 + Math.random() * 2).toFixed(2) + 's');
+    setDrift(btn, driftX, driftY);
     btn.onclick = () => {
       if (done || btn.classList.contains('cf-hit')) return;
       if (t.ch === chars[nextIdx]) {
