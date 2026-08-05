@@ -88,6 +88,37 @@ export function talerTest(n = 50) {
   console.log('[talerTest] verfügbar:', talerAvailable());
   return talerAvailable();
 }
+// Debug-Helfer (nur Konsole): schreibt n Deck-Übungsarten als fertig in claimed —
+// dieselben Keys, die refreshClaimedTaler bei echten 100 % einträgt (deckId|mc/sp/pr
+// bzw. |er/sc/vz). Die Taler kommen damit „aus den Decks" statt aus dem talerSpent-
+// Trick; ein Rest aus talerTest wird dabei zurückgesetzt. Aufruf: talerDeckTest(4)
+export function talerDeckTest(n = 4) {
+  const c = _camp();
+  if (c.talerSpent < 0) c.talerSpent = 0;   // negativer Rest aus talerTest raus
+  const decks = window.SD?.decks || {};
+  const done = [];
+  for (const id in decks) {
+    if (done.length >= n) break;
+    const deck = decks[id];
+    if (!deck?.vocab?.length) continue;
+    const mode = deck.mode || 'free';
+    let keys;
+    if (mode === 'free') keys = TALER_MODES.map(m => m.key);
+    else if (mode === 'training') keys = TALER_TRAIN_DISCS.map(t => t.key);
+    else continue;
+    for (const k of keys) {
+      if (done.length >= n) break;
+      const key = id + '|' + k;
+      if (c.claimed.includes(key)) continue;
+      c.claimed.push(key);
+      done.push((deck.name || id) + '|' + k);
+    }
+  }
+  _saveCampaign();
+  updateTalerBadge();
+  console.log('[talerDeckTest] gutgeschrieben:', done.join(', ') || 'nichts (alles schon claimed)', '→ verfügbar:', talerAvailable());
+  return talerAvailable();
+}
 function _saveCampaign() {
   persist(window.SD);
   if (window.currentUser) { markDirty('profile'); commitDirty(); }
