@@ -12,6 +12,7 @@
 // ab 2 erledigten Teilabschnitten; Start kostet 2 Taler Einsatz; Tod (HP=0) → Einsatz weg.
 
 import { deckProgress } from './decks.js';
+import { statKeyFor } from './stats.js';
 import { uvTrainProgress } from './irregular-game.js';
 import { persist } from './storage.js';
 import { markDirty } from './sync.js';
@@ -95,35 +96,45 @@ export function talerTest(n = 50) {
   console.log('[talerTest] verfügbar:', talerAvailable());
   return talerAvailable();
 }
-// Debug-Helfer (nur Konsole): schreibt n Deck-Übungsarten als fertig in claimed —
-// dieselben Keys, die refreshClaimedTaler bei echten 100 % einträgt (deckId|mc/sp/pr
-// bzw. |er/sc/vz). Die Taler kommen damit „aus den Decks" statt aus dem talerSpent-
-// Trick; ein Rest aus talerTest wird dabei zurückgesetzt. Aufruf: talerDeckTest(4)
-export function talerDeckTest(n = 4) {
+// Debug-Helfer (nur Konsole): schließt n Übungsarten in den Freier-Modus-Decks
+// WIRKLICH ab — jedes Wort der Art bekommt einen gemeisterten Lernstand
+// (asked 3 / 3× richtig), damit Deck-Prozente, Wortlisten und Fortschritt-Seite
+// 100 % zeigen. Die Taler holt danach refreshClaimedTaler auf dem normalen Weg.
+// Ein negativer Rest aus talerTest wird zurückgesetzt. Aufruf: talerDeckTest(4)
+const _TALER_SUF = { mc: '_mc', sp: '_sp', pr: '_pr' };
+export async function talerDeckTest(n = 4) {
   const c = _camp();
   if (c.talerSpent < 0) c.talerSpent = 0;   // negativer Rest aus talerTest raus
   const decks = window.SD?.decks || {};
+  const presetWs = window.SD?.globalPresetStats?.wordStats;
   const done = [];
+  const dirtyDecks = new Set();
+  let dirtyPreset = false;
   for (const id in decks) {
     if (done.length >= n) break;
     const deck = decks[id];
-    if (!deck?.vocab?.length) continue;
-    const mode = deck.mode || 'free';
-    let keys;
-    if (mode === 'free') keys = TALER_MODES.map(m => m.key);
-    else if (mode === 'training') keys = TALER_TRAIN_DISCS.map(t => t.key);
-    else continue;
-    for (const k of keys) {
+    if ((deck.mode || 'free') !== 'free' || !deck.vocab?.length) continue;
+    for (const m of TALER_MODES) {
       if (done.length >= n) break;
-      const key = id + '|' + k;
-      if (c.claimed.includes(key)) continue;
-      c.claimed.push(key);
-      done.push((deck.name || id) + '|' + k);
+      if (isModeComplete(m.prog(deckProgress(deck).perMode))) continue;   // schon fertig
+      for (const v of deck.vocab) {
+        const store = v._presetId ? presetWs : deck.wordStats;
+        if (!store) continue;
+        store[statKeyFor(v.de, v.en, _TALER_SUF[m.key], v._presetId || null)] =
+          { asked: 3, correct: 3, wrong: 0, recent: '111' };
+        if (v._presetId) dirtyPreset = true; else dirtyDecks.add(id);
+      }
+      done.push((deck.name || id) + '|' + m.key);
     }
   }
-  _saveCampaign();
-  updateTalerBadge();
-  console.log('[talerDeckTest] gutgeschrieben:', done.join(', ') || 'nichts (alles schon claimed)', '→ verfügbar:', talerAvailable());
+  if (window.currentUser) {
+    if (dirtyPreset) markDirty('global_preset');
+    for (const id of dirtyDecks) markDirty('word_stats', id);
+  }
+  await refreshClaimedTaler();     // claimed füllen — läuft den normalen Weg
+  _saveCampaign();                 // speichert + schiebt die neuen Wort-Stats hoch
+  window.renderModeContent?.();    // Vokabeln-Tab sofort mit den neuen Prozenten
+  console.log('[talerDeckTest] abgeschlossen:', done.join(', ') || 'nichts (alles schon auf 100 %)', '→ verfügbar:', talerAvailable());
   return talerAvailable();
 }
 function _saveCampaign() {
