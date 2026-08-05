@@ -1,7 +1,11 @@
 -- backend/preset-categories-60.sql
--- 29 neue Vorlagen-Sammlungen (31 vorhanden -> 60 gesamt).
--- Einmalig im Supabase-SQL-Editor ausfuehren. ON CONFLICT (slug) DO NOTHING:
--- mehrfaches Ausfuehren legt nichts doppelt an.
+-- 29 neue Vorlagen-Sammlungen (31 vorhanden -> 60 gesamt) + Umbau der zwei alten
+-- Satz-Sammlungen auf Woerter.
+--
+-- AUSFUEHREN: komplette Datei markieren, in den Supabase-SQL-Editor pasten, Run.
+-- Das ist EIN Durchlauf; die letzte Anweisung gibt die Kontrollzahlen aus.
+-- Mehrfaches Ausfuehren ist unschaedlich (ON CONFLICT (slug) DO NOTHING, die
+-- UPDATEs schreiben immer denselben Stand).
 --
 -- sort_order sitzt bewusst ZWISCHEN den bestehenden Zehnerschritten (15, 25, 45 …),
 -- damit die neuen Sammlungen im Vokabeln-Tab thematisch neben den passenden alten
@@ -455,7 +459,13 @@ UPDATE preset_categories SET name = 'Im Restaurant', words = '[
   {"de":"Serviette","en":"napkin"}
 ]'::jsonb WHERE slug = 'restaurant';
 
--- Kontrolle nach dem Lauf:
--- select difficulty, count(*) from preset_categories group by difficulty order by 1;
--- select count(*) from preset_categories;   -- erwartet: 60
--- select name from preset_categories where name ilike '%Mini-S%';   -- erwartet: leer
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Kontrolle — läuft automatisch als letzte Anweisung mit. Der SQL-Editor zeigt
+-- dieses Ergebnis an; SOLL: 60 / 20 / 24 / 16 / 0.
+-- ─────────────────────────────────────────────────────────────────────────────
+SELECT
+  (SELECT count(*) FROM preset_categories)                                AS sammlungen_soll_60,
+  (SELECT count(*) FROM preset_categories WHERE difficulty = 'leicht')    AS leicht_soll_20,
+  (SELECT count(*) FROM preset_categories WHERE difficulty = 'mittel')    AS mittel_soll_24,
+  (SELECT count(*) FROM preset_categories WHERE difficulty = 'schwer')    AS schwer_soll_16,
+  (SELECT count(*) FROM preset_categories WHERE name ILIKE '%Mini-S%')    AS satz_sammlungen_soll_0;
