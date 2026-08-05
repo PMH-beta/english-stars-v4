@@ -105,23 +105,27 @@ const _TALER_SUF = { mc: '_mc', sp: '_sp', pr: '_pr' };
 export async function talerDeckTest(n = 4) {
   const c = _camp();
   if (c.talerSpent < 0) c.talerSpent = 0;   // negativer Rest aus talerTest raus
-  const decks = window.SD?.decks || {};
-  const presetWs = window.SD?.globalPresetStats?.wordStats;
+  const SD = window.SD;
+  const decks = SD?.decks || {};
+  if (!SD.globalPresetStats) SD.globalPresetStats = { wordStats: {}, categoryProgress: {} };
+  if (!SD.globalPresetStats.wordStats) SD.globalPresetStats.wordStats = {};
+  const presetWs = SD.globalPresetStats.wordStats;
   const done = [];
   const dirtyDecks = new Set();
-  let dirtyPreset = false;
+  let dirtyPreset = false, words = 0;
   for (const id in decks) {
     if (done.length >= n) break;
     const deck = decks[id];
     if ((deck.mode || 'free') !== 'free' || !deck.vocab?.length) continue;
+    if (!deck.wordStats) deck.wordStats = {};
     for (const m of TALER_MODES) {
       if (done.length >= n) break;
       if (isModeComplete(m.prog(deckProgress(deck).perMode))) continue;   // schon fertig
       for (const v of deck.vocab) {
         const store = v._presetId ? presetWs : deck.wordStats;
-        if (!store) continue;
         store[statKeyFor(v.de, v.en, _TALER_SUF[m.key], v._presetId || null)] =
           { asked: 3, correct: 3, wrong: 0, recent: '111' };
+        words++;
         if (v._presetId) dirtyPreset = true; else dirtyDecks.add(id);
       }
       done.push((deck.name || id) + '|' + m.key);
@@ -133,8 +137,9 @@ export async function talerDeckTest(n = 4) {
   }
   await refreshClaimedTaler();     // claimed füllen — läuft den normalen Weg
   _saveCampaign();                 // speichert + schiebt die neuen Wort-Stats hoch
-  window.renderModeContent?.();    // Vokabeln-Tab sofort mit den neuen Prozenten
-  console.log('[talerDeckTest] abgeschlossen:', done.join(', ') || 'nichts (alles schon auf 100 %)', '→ verfügbar:', talerAvailable());
+  try { window.renderModeContent?.(); } catch (e) {}   // Vokabeln-Tab sofort neu zeichnen
+  console.log('[talerDeckTest] abgeschlossen:', done.join(', ') || 'nichts (alles schon auf 100 %)',
+    '| Wort-Stats geschrieben:', words, '| claimed:', _camp().claimed.length, '→ verfügbar:', talerAvailable());
   return talerAvailable();
 }
 function _saveCampaign() {
