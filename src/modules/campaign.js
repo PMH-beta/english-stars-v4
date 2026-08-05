@@ -17,7 +17,7 @@ import { persist } from './storage.js';
 import { markDirty } from './sync.js';
 import { commitDirty } from './dialog.js';
 import { HP_MAX, REST_HEAL, BOSS_WIN_TALER } from './campaign-balance.js';
-import { openFight, fightPoolReady, verbsReady } from './campaign-fight.js';
+import { openFight, fightPoolReady, verbsReady, loadPresetSupply } from './campaign-fight.js';
 import { equipEffects, openPotionChoice, POTIONS } from './campaign-equipment.js';
 
 const ROWS = 13;            // Reihe 0 = Start (unten), Reihe ROWS-1 = Boss (oben)
@@ -396,6 +396,9 @@ function _preview() {
 export function renderCampaign() {
   const host = document.getElementById('mode-campaign');
   if (!host) return;
+  // Vorlagen-Nachschub im Hintergrund holen (einmal pro Session), damit der Kampf
+  // nachfüllen kann, sobald das erste Wort gelernt ist.
+  loadPresetSupply().catch(() => {});
   _renderCampaignNow(host);
   // Bestehende 100%-Teilabschnitte (auch aus früherem Fortschritt) nachzählen; wenn dadurch
   // neue Taler dazukommen und keine Runde läuft, die Startansicht neu rendern.

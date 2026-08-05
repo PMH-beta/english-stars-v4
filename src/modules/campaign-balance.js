@@ -57,6 +57,31 @@ export const METEOR_COUNT = 4;             // 1 richtig + 3 falsch
 export const ECHO_TIME_MS = 15000;
 export const ECHO_CHOICES = 5;             // 1 richtig + 4 falsch
 
+// ── Wortauswahl im Kampf: Vorrat mit Nachschub ──
+// Der Kampf führt einen EIGENEN Lernstand je Wort (Stat-Suffix _cf) — getrennt von
+// den Vokabel-Stats, ohne Einfluss auf Taler, Deck-Prozente oder Statistik-Seiten.
+// Ein Wort gilt als „gelernt", wenn es CF_MIN_ASKED-mal dran war und sein EMA über
+// CF_MASTER liegt. Für JEDES gelernte Wort rückt genau EIN Vorlagen-Wort nach (1:1),
+// mindestens aber so viele, dass immer CF_MIN_OPEN noch offene Wörter im Vorrat
+// stehen — er leert sich also nie.
+export const CF_MIN_ASKED = 3;
+export const CF_MASTER = 0.9;
+export const CF_MIN_OPEN = 8;
+export const CF_LEARNED_WEIGHT = 0.35;     // gelernte Wörter: seltener, aber nie ganz weg
+export const CF_OWN_SHARE = 0.2;           // jede 5. Welle garantiert ein eigenes Deck-Wort
+// Wiederholungs-Anteil als FESTE Quote statt über das Gewicht: sonst wächst er mit der
+// Zahl gelernter Wörter mit (bei 300 gelernten wären 75 % der Wellen Wiederholung).
+export const CF_REVIEW_SHARE = 0.2;
+
+// 🌀-Verben: der Schwerpunkt der Stufe (tier 1–5) wandert pro abgeschlossener Runde
+// nach oben. Bewusst als Glockenkurve statt als Schwelle — leichte Stufen bleiben
+// immer möglich, die Steigerung ist stetig statt sprunghaft.
+export const VERB_TIER_START = 1.0;
+export const VERB_TIER_PER_ROUND = 0.45;
+export const VERB_TIER_SPREAD = 1.6;       // Breite der Glocke (größer = flacher)
+export const VERB_TIER_FLOOR = 0.08;       // Mindestgewicht: leichte Stufen fallen nie ganz weg
+export const VERB_FILLED_BONUS = 1.6;      // selbst befüllte Sternbild-Verben bevorzugt
+
 // ── Ausrüstung (alles wird in der Schmiede gebaut) ──
 // Rüstungs-Wirkung nach MATERIAL (stahl = Past-Form, gold = PP-Form) plus
 // verzaubert-Bonus OBENDRAUF (alle 5 Teile fertig) — so ist Gold auf jeder

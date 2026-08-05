@@ -10,22 +10,27 @@
 // sonst fällt die Welle auf den Buchstabensturm zurück. Formen-Wellen geben der
 // passenden Waffe +FORM_BONUS (Stahl = Past, Gold = PP).
 //
-// KEIN Mastery/EMA-Schreiben: eine Welle ist einmalig richtig oder falsch. EMA wird
-// nur GELESEN — für die Wortauswahl (unsichere Wörter bevorzugt, weightedPickUnique)
-// und den Zeitbonus (+25 % bei unsicheren Wörtern). Zwischenstand lebt in run.fight
-// (reitet im profiles.campaign-jsonb mit) → Reload mitten im Kampf verliert nichts;
-// nur das aktuelle Wort der Welle wird neu gezogen.
+// Der Kampf führt einen EIGENEN Lernstand je Wort (Stat-Suffix _cf, siehe _record):
+// pro Welle ein Eintrag richtig/falsch. Er steuert NUR die Wortauswahl hier und hat
+// keinen Einfluss auf Taler, Deck-Prozente oder die Statistik-Seiten — analog zu den
+// _tr_-Stats des Trainingsplatzes. Die Vokabel-Stats (_sp) werden weiterhin nur
+// GELESEN: als Startwert für die Gewichtung und für den Zeitbonus (+25 % bei
+// unsicheren Wörtern). Zwischenstand lebt in run.fight (reitet im profiles.campaign-
+// jsonb mit) → Reload mitten im Kampf verliert nichts; nur das aktuelle Wort der
+// Welle wird neu gezogen.
 
-import { scaledEnemy, FORM_BONUS, TALISMAN_MULT, STORM_BASE_MS, STORM_PER_LETTER_MS, STORM_MISS_DMG, WEAK_TIME_BONUS, WEAK_EMA, METEOR_FALL_MS, METEOR_COUNT, ECHO_TIME_MS, ECHO_CHOICES, PERK_SPEER_BOSS, PERK_AXT_ELITE, PERK_HAMMER_MULT, PERK_BOGEN_FIGHT, POTION_HEAL, POTION_POWER, POTION_TIME_MS, POTION_TIME_WAVES, BOSS_WIN_TALER } from './campaign-balance.js';
+import { scaledEnemy, FORM_BONUS, TALISMAN_MULT, STORM_BASE_MS, STORM_PER_LETTER_MS, STORM_MISS_DMG, WEAK_TIME_BONUS, WEAK_EMA, METEOR_FALL_MS, METEOR_COUNT, ECHO_TIME_MS, ECHO_CHOICES, PERK_SPEER_BOSS, PERK_AXT_ELITE, PERK_HAMMER_MULT, PERK_BOGEN_FIGHT, POTION_HEAL, POTION_POWER, POTION_TIME_MS, POTION_TIME_WAVES, BOSS_WIN_TALER, CF_MIN_ASKED, CF_MASTER, CF_MIN_OPEN, CF_LEARNED_WEIGHT, CF_OWN_SHARE, CF_REVIEW_SHARE, VERB_TIER_START, VERB_TIER_PER_ROUND, VERB_TIER_SPREAD, VERB_TIER_FLOOR, VERB_FILLED_BONUS } from './campaign-balance.js';
 import { startLetterstorm, stormTarget } from './minigame-letterstorm.js';
 import { startMeteors } from './minigame-meteors.js';
 import { startEcho } from './minigame-echo.js';
 import { equippedWeapon, equipEffects, equippedGearMap, POTIONS } from './campaign-equipment.js';
 import { enemySpriteSVG } from './pixel-enemies.js';
 import { avatarSVG, ensureAvatar } from './avatar.js';
-import { weightedPickUnique, playSfx } from './game.js';
+import { playSfx } from './game.js';
 import { effectivePct, statKeyFor } from './stats.js';
-import { getConstellations } from './irregular-verbs.js';
+import { getConstellations, IRREGULAR_VERBS, IRREGULAR_PRESET_ID } from './irregular-verbs.js';
+import { getPresetCategories } from './vocab.js';
+import { markDirty } from './sync.js';
 
 const _TITLE = {
   fight:     '⚔️ Übung',
@@ -53,8 +58,9 @@ function _verbPool() {
 export function verbsReady() { return _verbPool().length > 0; }
 
 // ── Wortpool: alle eigenen Freier-Modus-Decks gemischt ───────────────────────
-// Stats werden nur GELESEN: Vorlagen-Wörter aus globalPresetStats, manuelle aus dem
-// jeweiligen Deck (SD.wordStats spiegelt nur das AKTIVE Deck → hier direkt ans Deck).
+// Vorlagen-Wörter aus globalPresetStats, manuelle aus dem jeweiligen Deck
+// (SD.wordStats ist nur eine REFERENZ auf das aktive Deck → ein Schreiben ins Deck
+// wirkt dort automatisch mit).
 function _pool() {
   const out = [];
   const decks = window.SD?.decks || {};
@@ -65,12 +71,102 @@ function _pool() {
   }
   return out;
 }
-// Buchstabensturm = Schreib-Kompetenz → _sp-Stat.
+// Buchstabensturm = Schreib-Kompetenz → _sp-Stat aus dem Vokabel-Üben (nur gelesen).
 function _statOf(item) {
   const key = statKeyFor(item.de, item.en, '_sp', item._presetId);
-  return item._presetId ? window.SD?.globalPresetStats?.wordStats?.[key] : item._deck.wordStats?.[key];
+  return item._presetId ? window.SD?.globalPresetStats?.wordStats?.[key] : item._deck?.wordStats?.[key];
 }
-export function fightPoolReady() { return _pool().length >= 1; }
+
+// ── Nachschub: alle Vorlagen-Sammlungen als eine flache Wortliste ────────────
+// Sortiert leicht → mittel → schwer, darin nach sort_order — in genau dieser
+// Reihenfolge rücken die Wörter nach. Einmal geladen beim Öffnen der Kampagne
+// (renderCampaign); solange nichts da ist, kämpft man nur mit den eigenen Wörtern.
+let _supply = null;
+const _DIFF_RANK = { leicht: 0, mittel: 1, schwer: 2 };
+export async function loadPresetSupply() {
+  if (_supply) return _supply;
+  let cats = [];
+  try { cats = await getPresetCategories(); } catch (e) { cats = []; }
+  const out = [];
+  const seen = new Set();
+  const sorted = [...cats].sort((a, b) =>
+    ((_DIFF_RANK[a.difficulty] ?? 1) - (_DIFF_RANK[b.difficulty] ?? 1)) || ((a.sort_order || 0) - (b.sort_order || 0)));
+  for (const c of sorted) {
+    for (const w of (c.words || [])) {
+      const key = (w.en || '').trim().toLowerCase();
+      if (!w.de || !key || seen.has(key)) continue;
+      seen.add(key);
+      out.push({ de: w.de, en: w.en, _presetId: c.id, _deck: null });
+    }
+  }
+  if (out.length) _supply = out;   // leer = nicht cachen, nächster Versuch lädt neu
+  return out;
+}
+// campaign.js prüft das vor dem Kampfstart: ohne eigene Wörter reicht auch der
+// Vorlagen-Nachschub, damit der Kampf überhaupt Wörter hat.
+export function fightPoolReady() { return _pool().length + (_supply?.length || 0) >= 1; }
+
+// ── Kampf-eigener Lernstand (_cf) ────────────────────────────────────────────
+// Getrennt von den Vokabel-Stats: dieselbe Struktur ({asked,correct,wrong,recent}),
+// aber eigener Suffix. Verbformen bekommen zusätzlich _past/_pp, damit beide Formen
+// eines Verbs einzeln zählen.
+const CF_SUF = '_cf';
+function _cfKey(item, suf) { return statKeyFor(item.de, item.en, suf || CF_SUF, item._presetId || null); }
+function _cfStore(item) {
+  return item._presetId ? window.SD?.globalPresetStats?.wordStats : item._deck?.wordStats;
+}
+function _cfStat(item, suf) { return _cfStore(item)?.[_cfKey(item, suf)]; }
+// „Gelernt" = im KAMPF oft genug richtig. Diese Wörter kommen nur noch selten
+// (CF_LEARNED_WEIGHT) und ziehen je ein neues Vorlagen-Wort nach.
+function _learned(item, suf) {
+  const s = _cfStat(item, suf);
+  return !!s && Math.floor(s.asked || 0) >= CF_MIN_ASKED && effectivePct(s) >= CF_MASTER;
+}
+// Wellenergebnis auf das gezogene Wort schreiben. Lokal gespeichert wird über das
+// save() der Welle (läuft in jedem Zweig von _onWave); für die Cloud wird nur
+// vorgemerkt und erst am Kampfende gemeldet (_markCfDirty) — ein markDirty pro Welle
+// würde über dasselbe save() jedes Mal einen Komplett-Upsert ALLER Stat-Zeilen
+// auslösen. Bricht die Sitzung mitten im Kampf ab, ist der Stand lokal trotzdem da
+// und geht beim nächsten Kampfende mit hoch (Upsert schreibt immer die ganze Map).
+function _record(item, ok, suf) {
+  if (!item || !_ctx) return;
+  const store = _cfStore(item);
+  if (!store) return;
+  const key = _cfKey(item, suf);
+  if (!store[key]) store[key] = { asked: 0, correct: 0, wrong: 0, recent: '' };
+  const s = store[key];
+  s.asked += 1;
+  if (ok) s.correct += 1; else s.wrong += 1;
+  s.recent = ((s.recent || '') + (ok ? '1' : '0')).slice(-8);
+  if (item._presetId) _ctx.cfPreset = true;
+  else if (item._deck) _ctx.cfDecks.add(item._deck.id);
+}
+// Am Kampfende in die Sync-Queue legen; geleert wird sie vom _saveCampaign des
+// Aufrufers (onEnd → commitDirty).
+function _markCfDirty() {
+  if (!_ctx || !window.currentUser) return;
+  if (_ctx.cfPreset) markDirty('global_preset');
+  for (const id of _ctx.cfDecks) markDirty('word_stats', id);
+}
+
+// ── Vorrat = eigene Wörter + nachgerückte Vorlagen-Wörter ────────────────────
+// 1:1-Nachschub: jedes gelernte Wort zieht genau ein Vorlagen-Wort nach — auch ein
+// gelerntes Vorlagen-Wort zieht wieder eines nach. Dazu ein Sicherheitsnetz, damit
+// immer mindestens CF_MIN_OPEN offene Wörter bereitstehen.
+function _stock() {
+  const own = _pool();
+  const supply = _supply || [];
+  let take = 0, open = 0;
+  for (const v of own) { if (_learned(v)) take++; else open++; }
+  for (let i = 0; i < supply.length && i < take; i++) {
+    if (_learned(supply[i])) take++; else open++;
+  }
+  while (open < CF_MIN_OPEN && take < supply.length) {
+    if (!_learned(supply[take])) open++;
+    take++;
+  }
+  return { own, preset: supply.slice(0, Math.min(take, supply.length)) };
+}
 
 // Zeitlimit: Grundzeit + Zuschlag pro Buchstabe ab dem 6.; unsichere Deck-Wörter
 // (nie/kaum geübt oder EMA < 0.5) bekommen +25 %. Verb-Wellen nutzen nur die
@@ -122,7 +218,9 @@ export function openFight({ run, node, save, onEnd, round }) {
     run.fight = { nodeId: node.id, type: node.type, enemyHp: enemy.hp, enemyHpMax: enemy.hp, wave: 1, headUsed: 0, guardsUsed: 0, shield: false, power: 0, timeBoost: 0 };
     save();
   }
-  _ctx = { run, node, enemy, weapon: equippedWeapon(), eff: equipEffects(), save, onEnd, mg: null, lastEn: null, round };
+  // cfPreset/cfDecks merken sich, welche Stat-Töpfe der Kampf angefasst hat (siehe
+  // _record/_markCfDirty).
+  _ctx = { run, node, enemy, weapon: equippedWeapon(), eff: equipEffects(), save, onEnd, mg: null, lastEn: null, round, cfPreset: false, cfDecks: new Set() };
   _renderOverlay();
   _startWave();
 }
@@ -334,20 +432,77 @@ function _onStormMiss() {
 }
 
 
-// Deck-Wort EMA-gewichtet ziehen, direkte Wiederholung vermeiden.
-function _pickItem(pool) {
-  let item = weightedPickUnique(pool, _statOf, 1)[0];
-  if (pool.length > 1 && _ctx.lastEn === item.en) {
-    item = weightedPickUnique(pool.filter(v => v.en !== item.en), _statOf, 1)[0] || item;
+// Gewichtsleiter wie in weightedPickUnique (game.js), damit sich die Auswahl gleich
+// anfühlt — mit zwei Zusätzen: gelernte Wörter fallen auf CF_LEARNED_WEIGHT, und
+// gezählt wird der Kampf-Stat; solange der leer ist, hilft der Vokabel-Stat aus.
+function _weightOf(item) {
+  if (_learned(item)) return CF_LEARNED_WEIGHT;
+  const s = _cfStat(item) || _statOf(item);
+  if (!s || (s.asked || 0) < 3) return 3;
+  const ep = effectivePct(s);
+  if (ep >= 0.9) return 1;
+  if (ep >= 0.7) return 3;
+  if (ep >= 0.4) return 4;
+  return 5;
+}
+
+// Gewichtete Ziehung nach demselben Verfahren wie weightedPickUnique (kleinster
+// Schlüssel gewinnt), nur mit eigener Gewichtsfunktion.
+function _pickWeighted(list, weightFn) {
+  let best = null, bestKey = Infinity;
+  for (const item of list) {
+    const w = weightFn(item);
+    if (!(w > 0)) continue;
+    const k = -Math.pow(Math.random(), 1 / w);
+    if (k < bestKey) { bestKey = k; best = item; }
   }
-  _ctx.lastEn = item.en;
+  return best;
+}
+
+// Ein Wort aus dem Vorrat ziehen, direkte Wiederholung vermeiden. Zwei feste Quoten
+// davor, damit weder die eigenen Wörter noch der Stoff von gestern verschwinden:
+// jede fünfte Welle zieht aus dem eigenen Deck, und von den übrigen ist jede fünfte
+// eine Wiederholung eines schon gelernten Wortes.
+function _pickItem(stock) {
+  const all = stock.own.concat(stock.preset);
+  const done = all.filter((v) => _learned(v));
+  const open = all.filter((v) => !_learned(v));
+  let list;
+  if (stock.own.length && stock.preset.length && Math.random() < CF_OWN_SHARE) list = stock.own;
+  else if (done.length && open.length && Math.random() < CF_REVIEW_SHARE) list = done;
+  else list = open.length ? open : all;
+  let item = _pickWeighted(list, _weightOf);
+  if (item && list.length > 1 && _ctx.lastEn === item.en) {
+    item = _pickWeighted(list.filter(v => v.en !== item.en), _weightOf) || item;
+  }
+  _ctx.lastEn = item ? item.en : null;
   return item;
+}
+
+// 🌀-Verb ziehen: aus ALLEN Verben des Datensatzes, aber der Schwerpunkt der Stufe
+// wandert pro Runde nach oben (Glockenkurve → leichte Stufen bleiben immer möglich).
+// Selbst befüllte Sternbild-Verben sind bevorzugt, gelernte Formen fallen zurück.
+function _pickVerb(which) {
+  const filled = new Set(_verbPool().map((v) => v.en));
+  const center = Math.min(5, VERB_TIER_START + VERB_TIER_PER_ROUND * Math.max(0, _ctx.round || 0));
+  const suf = CF_SUF + (which === 'pp' ? '_pp' : '_past');
+  return _pickWeighted(IRREGULAR_VERBS, (v) => {
+    const d = (v.tier || 1) - center;
+    // Mindestgewicht nur nach UNTEN: schon abgehakte Stufen bleiben als Auflockerung
+    // immer möglich, während schwerere erst hochkommen, wenn der Schwerpunkt da ist.
+    let w = Math.exp(-(d * d) / VERB_TIER_SPREAD);
+    if (d < 0) w = Math.max(w, VERB_TIER_FLOOR);
+    if (filled.has(v.en)) w *= VERB_FILLED_BONUS;
+    if (_learned({ de: v.de, en: v.en, _presetId: IRREGULAR_PRESET_ID }, suf)) w *= CF_LEARNED_WEIGHT;
+    return w;
+  });
 }
 
 function _startWave() {
   const { run, node } = _ctx;
   if (!run.fight) { _close(null); return; }
-  const pool = _pool();
+  const stock = _stock();
+  const pool = stock.own.concat(stock.preset);
   const verbs = _verbPool();
 
   // Wellen-Typ wählen: 🌀 nur Verbformen; ⚔️ mischt Sturm/Meteoriten/Echo;
@@ -369,6 +524,8 @@ function _startWave() {
   if (w) w.textContent = 'Welle ' + run.fight.wave;
   const host = _el('cf-stage');
   _ctx.waveForm = null;
+  _ctx.cfItem = null;    // Wort dieser Welle — bekommt in _onWave seinen _cf-Eintrag
+  _ctx.cfSuf = null;
 
   // Ausrüstungs-Effekte: 🧤/🪄 Zeitbonus auf jedes Minispiel (Meteoriten fallen
   // langsamer), ⏳ Zeittrank für begrenzte Wellen, 🐾 Gefährte fängt Fehlgriffe
@@ -383,9 +540,11 @@ function _startWave() {
   if (type === 'verbstorm') {
     // Verbform zusammensetzen: „go → Simple Past?" → w-e-n-t. Formen-Welle →
     // passende Waffe (Stahl=past / Gold=pp) bekommt FORM_BONUS.
-    const v = verbs[Math.floor(Math.random() * verbs.length)];
     const which = Math.random() < 0.5 ? 'past' : 'pp';
+    const v = _pickVerb(which) || verbs[Math.floor(Math.random() * verbs.length)];
     _ctx.waveForm = which;
+    _ctx.cfItem = { de: v.de, en: v.en, _presetId: IRREGULAR_PRESET_ID, _deck: null };
+    _ctx.cfSuf = CF_SUF + (which === 'pp' ? '_pp' : '_past');
     const target = which === 'past' ? v.past : v.pp;
     const label = which === 'past' ? 'Simple Past' : 'Past Participle';
     _ctx.mg = startLetterstorm({
@@ -397,17 +556,17 @@ function _startWave() {
       onResult: _onWave,
     });
   } else if (type === 'meteors') {
-    const item = _pickItem(pool);
+    const item = _ctx.cfItem = _pickItem(stock);
     const answer = _displayEn(item.en);
     const choices = _shuffle([answer, ..._distractors(pool, answer, METEOR_COUNT - 1)]);
     _ctx.mg = startMeteors({ host, de: item.de, answer, choices, fallMs: METEOR_FALL_MS + tBonus, onResult: _onWave });
   } else if (type === 'echo') {
-    const item = _pickItem(pool);
+    const item = _ctx.cfItem = _pickItem(stock);
     const answer = _displayEn(item.en);
     const choices = _shuffle([answer, ..._distractors(pool, answer, ECHO_CHOICES - 1)]);
     _ctx.mg = startEcho({ host, answer, speakText: answer, choices, timeLimitMs: ECHO_TIME_MS + tBonus, onResult: _onWave });
   } else {
-    const item = _pickItem(pool);
+    const item = _ctx.cfItem = _pickItem(stock);
     _ctx.mg = startLetterstorm({ host, de: item.de, en: item.en, timeLimitMs: _timeLimit(item) + tBonus, guards, onGuardUsed, onMiss: _onStormMiss, onResult: _onWave });
   }
 }
@@ -417,6 +576,9 @@ function _onWave(success) {
   const { run, node, enemy, weapon, eff, save } = _ctx;
   const f = run.fight;
   if (!f) return;
+  // Lernstand des Wortes zuerst: er hängt an der Antwort, nicht daran, ob Schild/
+  // Helm/Ausweichen den Schaden abgefangen haben.
+  _record(_ctx.cfItem, success, _ctx.cfSuf);
   if (success) {
     // Schaden: Waffe + Formen-Bonus (Stahl=past / Gold=pp) + Typ-Vorteil
     // (Speer vs Boss, Axt vs Elite, Hammer verdoppelt Welle 1) + 💪 Krafttrank;
@@ -519,6 +681,7 @@ function _endScreen(victory) {
 function _close(result) {
   if (_ctx?.mg) _ctx.mg.destroy();
   const onEnd = _ctx?.onEnd;
+  _markCfDirty();
   _ctx = null;
   _removeOverlay();
   if (onEnd) onEnd(result);
