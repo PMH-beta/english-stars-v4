@@ -64,6 +64,10 @@ function _camp() {
   if (!Array.isArray(SD.campaign.claimed)) SD.campaign.claimed = [];
   if (typeof SD.campaign.talerSpent !== 'number') SD.campaign.talerSpent = 0;
   if (typeof SD.campaign.bossWins !== 'number') SD.campaign.bossWins = 0;
+  // Runde = Schwierigkeitsstufe des LAUFENDEN Aufstiegs (Slay-the-Spire-Ascension):
+  // +1 pro Boss-Sieg, bei Niederlage/Aufgeben zurück auf 0. bossWins bleibt davon
+  // unberührt (Lebenszähler fürs Profil). Altstände erben ihre bisherige Stufe.
+  if (typeof SD.campaign.round !== 'number') SD.campaign.round = SD.campaign.bossWins || 0;
   if (typeof SD.campaign.freeStart !== 'boolean') SD.campaign.freeStart = false;
   // Laufende Statistik (Fortschritt-Seite). Zählt ab Einführung — ältere Läufe
   // lassen sich nicht nachrechnen, die Zähler starten daher bei 0.
@@ -76,6 +80,9 @@ function _camp() {
 
 // Anzahl besiegter Bosse (Anzeige im Profil + auf der Startseite).
 export function bossWinCount() { return _camp().bossWins || 0; }
+
+// Aktuelle Runde (0 = erste). Steuert die Gegner-Skalierung und die Verb-Stufen.
+export function campRound() { return _camp().round || 0; }
 
 // Debug-Helfer (nur Konsole, kein UI): Test-Taler gutschreiben, indem
 // talerSpent negativ gesetzt wird (echte claimed-Taler bleiben unberührt).
@@ -341,11 +348,12 @@ function _startFight(node) {
     run: c.run,
     node,
     save: _saveCampaign,
-    round: bossWinCount(),
+    round: campRound(),
     onEnd: (result) => {
       const bossWin = result === 'victory' && node.type === 'boss';
       if (bossWin) {
         c.bossWins = (c.bossWins || 0) + 1;
+        c.round = (c.round || 0) + 1;     // nächste Runde ist schwerer
         c.talerSpent -= BOSS_WIN_TALER;   // Belohnung (wie Einsatz, nur umgekehrt)
         c.freeStart = true;               // nächster Lauf startet ohne Einsatz
       }
@@ -356,6 +364,7 @@ function _startFight(node) {
       else if (result === 'death') c.stats.runsLost++;
       if (bossWin || result === 'death') {
         c.stats.runLength += _runDepth(c.run);
+        if (result === 'death') c.round = 0;   // Niederlage → Aufstieg beginnt von vorn
         if (bossWin) c.carryPotions = c.run.potions || [];   // unverbrauchte Tränke: Belohnung wie freeStart
         c.run = null;
       }
@@ -382,11 +391,11 @@ export function campaignGiveUp() {
   if (!c.run) return;
   // Aufgeben beendet den Lauf ohne Boss-Sieg → zählt wie gescheitert, sonst
   // verschwänden aufgegebene Läufe spurlos aus der Statistik.
-  const finish = () => { c.stats.runsLost++; c.stats.runLength += _runDepth(c.run); c.run = null; _saveCampaign(); renderCampaign(); };
+  const finish = () => { c.stats.runsLost++; c.stats.runLength += _runDepth(c.run); c.round = 0; c.run = null; _saveCampaign(); renderCampaign(); };
   if (window.esConfirm) {
     window.esConfirm({
       icon: '🏳️', title: 'Aufgeben?',
-      body: 'Dein Einsatz (2 🪙) ist schon gesetzt und kommt nicht zurück.',
+      body: 'Dein Einsatz (2 🪙) ist schon gesetzt und kommt nicht zurück — und du fängst wieder bei Runde 1 an.',
       ok: 'Aufgeben', cancel: 'Weiter', danger: true,
     }).then(ok => { if (ok) finish(); });
   } else finish();
@@ -544,12 +553,13 @@ function _mapHtml(run, preview) {
       ? `<div style="display:flex;gap:6px;justify-content:center;margin-bottom:8px;">${run.potions.map(k => POTIONS[k]
           ? `<button onclick="campPotionInfo(this,'${k}')" style="font-size:1.25rem;background:none;border:none;padding:2px;cursor:pointer;line-height:1;">${POTIONS[k].icon}</button>` : '').join('')}</div>`
       : '';
-    // Runde = wievielter Lauf (1. Boss-Sieg schließt Runde 1 ab, danach läuft Runde 2 usw.);
+    // Runde = Stufe des laufenden Aufstiegs (1. Boss-Sieg schließt Runde 1 ab, danach läuft
+    // Runde 2 usw.; eine Niederlage setzt zurück auf Runde 1);
     // Run-Länge = SUMME der je Lauf erreichten Tiefe über ALLE bisherigen Läufe (wächst mit
     // jedem beendeten Lauf, siehe stats.runLength in _startFight/campaignGiveUp) — derselbe
     // Wert wie in Fortschritt, hier nur zusätzlich während des Spielens sichtbar.
     const c = _camp();
-    const roundNum = (c.bossWins || 0) + 1;
+    const roundNum = (c.round || 0) + 1;
     const runLength = (c.stats.runLength || 0) + _runDepth(run);
     const roundHtml = `<div style="text-align:center;font-size:.72rem;font-weight:800;color:#8a83a5;margin-bottom:6px;">🔄 Runde ${roundNum} · 🏔️ Run-Länge ${runLength}</div>`;
     header = `

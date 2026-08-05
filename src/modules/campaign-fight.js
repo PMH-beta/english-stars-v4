@@ -348,7 +348,7 @@ function _renderOverlay() {
     if (window.esConfirm) {
       window.esConfirm({
         icon: '💀', title: 'Kampf verlassen?',
-        body: 'Dein Fortschritt in diesem Kampf und dein Einsatz sind weg — genau wie bei einer Niederlage.',
+        body: 'Dein Fortschritt in diesem Kampf und dein Einsatz sind weg und du fängst wieder bei Runde 1 an — genau wie bei einer Niederlage.',
         ok: 'Weiterkämpfen', cancel: 'Verlassen',
       }).then(stay => { if (stay) { if (_ctx?.mg?.resume) _ctx.mg.resume(); } else leave(); });
     } else leave();
@@ -667,7 +667,7 @@ function _endScreen(victory) {
       <div style="font-family:'Fredoka One',cursive;font-size:1.3rem;color:#333;margin-bottom:10px;">${bossWin ? `🐉 Boss Nr. ${round + 1} besiegt!` : victory ? 'Gewonnen!' : 'Besiegt …'}</div>
       <div style="font-size:.9rem;font-weight:700;color:#777;margin-bottom:${bossWin ? 14 : 22}px;line-height:1.5;">${victory
         ? (boss ? 'Du hast dich bis ganz nach oben gekämpft — der Lauf ist geschafft!' : 'Der Weg ist frei — wähle den nächsten Knoten.')
-        : 'Deine HP sind auf 0 — der Lauf ist vorbei und der Einsatz (2 🪙) weg.'}</div>
+        : `Deine HP sind auf 0 — der Lauf ist vorbei und der Einsatz (2 🪙) weg.${round > 0 ? ' Der Aufstieg beginnt wieder bei Runde 1.' : ''}`}</div>
       ${bossWin ? `<div class="bounce-in" style="font-family:'Fredoka One',cursive;font-size:1.15rem;color:#a67c00;background:#fff3bf;border-radius:12px;padding:8px 14px;margin-bottom:22px;display:inline-block;">+${BOSS_WIN_TALER} 🪙</div>` : ''}
       <button id="cf-endbtn" style="font-family:'Fredoka One',cursive;font-size:1rem;padding:14px 28px;border:none;border-radius:14px;cursor:pointer;background:linear-gradient(135deg,#a86cdb,#c084fc);color:#fff;box-shadow:0 4px 0 #7d4bb0;">${bossWin ? '🔄 Neue Runde starten' : 'Weiter'}</button>
     </div>

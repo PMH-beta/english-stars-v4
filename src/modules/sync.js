@@ -261,12 +261,15 @@ function _campaignFrom(profile) {
       run:        (c.run && typeof c.run === 'object') ? c.run : null,
       equipment:  (c.equipment && typeof c.equipment === 'object') ? c.equipment : {},
       bossWins:   Number(c.bossWins) || 0,
+      // Runde = Stufe des laufenden Aufstiegs (Niederlage → 0). Fehlt sie (Altstand),
+      // erbt sie die bisherigen Boss-Siege, damit die Schwierigkeit nicht abrutscht.
+      round:      Number.isFinite(c.round) ? c.round : (Number(c.bossWins) || 0),
       stats:      (c.stats && typeof c.stats === 'object') ? c.stats : {},
       freeStart:  !!c.freeStart,
       carryPotions: Array.isArray(c.carryPotions) ? c.carryPotions : null,
     };
   }
-  return { claimed: [], talerSpent: 0, run: null, equipment: {}, bossWins: 0, stats: {}, freeStart: false, carryPotions: null };
+  return { claimed: [], talerSpent: 0, run: null, equipment: {}, bossWins: 0, round: 0, stats: {}, freeStart: false, carryPotions: null };
 }
 
 
