@@ -317,20 +317,46 @@ try { screen.orientation?.lock?.('portrait').catch(() => {}); } catch (e) {}
 })();
 
 // Wackelpudding-Effekt: jede angetippte Schaltfläche (Buttons, Deck-Karten, alles
-// mit onclick) wackelt kurz nach. Läuft delegiert am document, damit auch alles
-// mitmacht, was später per innerHTML nachgerendert wird. Die Animation selbst
-// steckt in style.css (.es-wobble) und fasst nur scale an, nie transform.
+// mit onclick) drückt sich beim Halten ein und federt beim Loslassen nach. Läuft
+// delegiert am document, damit auch alles mitmacht, was später per innerHTML
+// nachgerendert wird. Die Animation steckt in style.css (.es-press/.es-wobble)
+// und fasst nur scale an, nie transform.
 (function wobbleOnTap() {
   const SEL = 'button, .deck-card, .preset-row, [onclick]';
-  document.addEventListener('pointerdown', (e) => {
-    const el = e.target.closest?.(SEL);
-    if (!el || el.disabled) return;
-    el.classList.remove('es-wobble');
+  const FULL_MS = 550;              // ab dieser Haltezeit der volle Ausschlag
+  const WOB_MIN = 0.6, WOB_MAX = 1.9;
+  let pressed = null, pressedAt = 0;
+
+  const release = () => {
+    if (!pressed) return;
+    const el = pressed;
+    pressed = null;
+    // Haltezeit → Stärke: kurzer Tipp federt knapp, langes Drücken lässt es
+    // richtig ausschwingen (Ausschlag und Dauer hängen beide an --wob).
+    const held = Math.min((performance.now() - pressedAt) / FULL_MS, 1);
+    el.style.setProperty('--wob', (WOB_MIN + (WOB_MAX - WOB_MIN) * held).toFixed(2));
+    el.classList.remove('es-press', 'es-wobble');
     void el.offsetWidth;            // Reflow: feuert auch bei schnellem Doppeltippen
     el.classList.add('es-wobble');
+  };
+
+  document.addEventListener('pointerdown', (e) => {
+    if (e.button > 0) return;       // nur die Haupttaste
+    const el = e.target.closest?.(SEL);
+    if (!el || el.disabled) return;
+    release();                      // ein noch offenes Drücken sauber beenden
+    pressed = el;
+    pressedAt = performance.now();
+    el.classList.remove('es-wobble');
+    el.classList.add('es-press');
   }, true);
+  window.addEventListener('pointerup', release, true);
+  window.addEventListener('pointercancel', release, true);
+
   document.addEventListener('animationend', (e) => {
-    if (e.animationName === 'es-wobble') e.target.classList.remove('es-wobble');
+    if (e.animationName !== 'es-wobble') return;
+    e.target.classList.remove('es-wobble');
+    e.target.style.removeProperty('--wob');
   }, true);
 })();
 

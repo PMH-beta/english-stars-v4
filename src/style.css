@@ -1577,41 +1577,49 @@ body.in-game .mode-progress{display:block;}
 }
 .cg-dot.active{background:var(--purple);transform:scale(1.3);}
 
-/* ── Wackelpudding: kurzes Nachwackeln beim Antippen ──
+/* ── Wackelpudding: eindrücken und nachwackeln ──
    Animiert NUR die eigenständige scale-Eigenschaft (nicht transform), damit
    Elemente mit eigenem transform (Kampagnen-Knoten, Avatar-Slots …) nicht
-   verspringen. Die Klasse setzt main.js beim Antippen, animationend nimmt sie
-   wieder weg.
-   Ablauf wie bei echtem Wackelpudding: erst der Stoß (kurz breit + flach), dann
-   eine Feder, deren Ausschlag abklingt und dabei die Richtung wechselt. Die
-   Zeitfunktion ist sinusartig (cubic-bezier(.4,0,.6,1)), damit die Umkehrpunkte
-   weich sind — mit ease-out sieht jeder Ausschlag nach „Ruck" aus. */
+   verspringen.
+   Zwei Phasen, beide von main.js gesteuert:
+   1. .es-press — solange der Finger drauf ist, drückt sich das Element ein. Der
+      Weg dahin ist eine .55s-Transition, das Eindrücken wird also mit der Haltezeit
+      immer tiefer (kurzer Tipp = kaum, langes Halten = ganz flach).
+   2. .es-wobble — beim Loslassen federt es zurück. Wie stark, sagt --wob (aus der
+      Haltezeit berechnet, ~0.6 bis 1.9); Ausschlag UND Dauer hängen daran.
+   Der Ausschlag klingt von Umkehr zu Umkehr ab und x/y laufen gegenläufig
+   (breiter = flacher) — das ist es, was nach Masse statt nach Zappeln aussieht.
+   Zeitfunktion sinusartig, damit die Umkehrpunkte weich sind. */
+.es-press{scale:1.085 .875;transition:scale .55s cubic-bezier(.25,.7,.3,1);}
+.deck-card.es-press,.preset-row.es-press,.game-card.es-press{scale:1.035 .945;}
+
 @keyframes es-wobble{
-  0%{scale:1 1;}
-  8%{scale:1.055 .925;}
-  21%{scale:.955 1.055;}
-  35%{scale:1.028 .976;}
-  50%{scale:.984 1.022;}
-  64%{scale:1.011 .99;}
-  78%{scale:.995 1.007;}
-  90%{scale:1.003 .998;}
+  0%{scale:calc(1 + .085*var(--wob,1)) calc(1 - .125*var(--wob,1));}
+  15%{scale:calc(1 - .062*var(--wob,1)) calc(1 + .078*var(--wob,1));}
+  31%{scale:calc(1 + .038*var(--wob,1)) calc(1 - .048*var(--wob,1));}
+  47%{scale:calc(1 - .022*var(--wob,1)) calc(1 + .028*var(--wob,1));}
+  63%{scale:calc(1 + .012*var(--wob,1)) calc(1 - .015*var(--wob,1));}
+  79%{scale:calc(1 - .006*var(--wob,1)) calc(1 + .007*var(--wob,1));}
   100%{scale:1 1;}
 }
-/* Breite Flächen (Deck-Karten, Vorlagen-Zeilen): halber Ausschlag — dieselbe
+/* Breite Flächen (Deck-Karten, Vorlagen-Zeilen): knapp halber Ausschlag — dieselbe
    Prozentzahl bewegt dort viel mehr Pixel und sähe sonst nach Gummiband aus. */
 @keyframes es-wobble-soft{
-  0%{scale:1 1;}
-  8%{scale:1.022 .955;}
-  21%{scale:.984 1.03;}
-  35%{scale:1.011 .988;}
-  50%{scale:.994 1.012;}
-  64%{scale:1.004 .995;}
-  78%{scale:.998 1.003;}
+  0%{scale:calc(1 + .038*var(--wob,1)) calc(1 - .055*var(--wob,1));}
+  15%{scale:calc(1 - .028*var(--wob,1)) calc(1 + .036*var(--wob,1));}
+  31%{scale:calc(1 + .017*var(--wob,1)) calc(1 - .022*var(--wob,1));}
+  47%{scale:calc(1 - .010*var(--wob,1)) calc(1 + .013*var(--wob,1));}
+  63%{scale:calc(1 + .005*var(--wob,1)) calc(1 - .007*var(--wob,1));}
   100%{scale:1 1;}
 }
-.es-wobble{animation:es-wobble .58s cubic-bezier(.4,0,.6,1);}
+.es-wobble{
+  animation:es-wobble calc(.42s + .26s*var(--wob,1)) cubic-bezier(.4,0,.6,1);
+}
 .deck-card.es-wobble,.preset-row.es-wobble,.game-card.es-wobble{animation-name:es-wobble-soft;}
-@media(prefers-reduced-motion:reduce){.es-wobble{animation:none;}}
+@media(prefers-reduced-motion:reduce){
+  .es-wobble{animation:none;}
+  .es-press{scale:1 1;transition:none;}
+}
 
 /* ── Responsive-Feinschliff ── */
 @media(max-width:420px){
