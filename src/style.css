@@ -1581,16 +1581,36 @@ body.in-game .mode-progress{display:block;}
    Animiert NUR die eigenständige scale-Eigenschaft (nicht transform), damit
    Elemente mit eigenem transform (Kampagnen-Knoten, Avatar-Slots …) nicht
    verspringen. Die Klasse setzt main.js beim Antippen, animationend nimmt sie
-   wieder weg. */
+   wieder weg.
+   Ablauf wie bei echtem Wackelpudding: erst der Stoß (kurz breit + flach), dann
+   eine Feder, deren Ausschlag abklingt und dabei die Richtung wechselt. Die
+   Zeitfunktion ist sinusartig (cubic-bezier(.4,0,.6,1)), damit die Umkehrpunkte
+   weich sind — mit ease-out sieht jeder Ausschlag nach „Ruck" aus. */
 @keyframes es-wobble{
   0%{scale:1 1;}
-  22%{scale:1.07 .93;}
-  44%{scale:.95 1.06;}
-  64%{scale:1.03 .98;}
-  82%{scale:.99 1.01;}
+  8%{scale:1.055 .925;}
+  21%{scale:.955 1.055;}
+  35%{scale:1.028 .976;}
+  50%{scale:.984 1.022;}
+  64%{scale:1.011 .99;}
+  78%{scale:.995 1.007;}
+  90%{scale:1.003 .998;}
   100%{scale:1 1;}
 }
-.es-wobble{animation:es-wobble .42s cubic-bezier(.3,.9,.35,1);}
+/* Breite Flächen (Deck-Karten, Vorlagen-Zeilen): halber Ausschlag — dieselbe
+   Prozentzahl bewegt dort viel mehr Pixel und sähe sonst nach Gummiband aus. */
+@keyframes es-wobble-soft{
+  0%{scale:1 1;}
+  8%{scale:1.022 .955;}
+  21%{scale:.984 1.03;}
+  35%{scale:1.011 .988;}
+  50%{scale:.994 1.012;}
+  64%{scale:1.004 .995;}
+  78%{scale:.998 1.003;}
+  100%{scale:1 1;}
+}
+.es-wobble{animation:es-wobble .58s cubic-bezier(.4,0,.6,1);}
+.deck-card.es-wobble,.preset-row.es-wobble,.game-card.es-wobble{animation-name:es-wobble-soft;}
 @media(prefers-reduced-motion:reduce){.es-wobble{animation:none;}}
 
 /* ── Responsive-Feinschliff ── */
