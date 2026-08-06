@@ -18,7 +18,7 @@ import { persist } from './storage.js';
 import { markDirty } from './sync.js';
 import { commitDirty } from './dialog.js';
 import { HP_MAX, REST_HEAL, BOSS_WIN_TALER } from './campaign-balance.js';
-import { openFight, fightPoolReady, verbsReady, loadPresetSupply } from './campaign-fight.js';
+import { openFight, fightPoolReady, verbsReady, loadPresetSupply, setRunDecks } from './campaign-fight.js';
 import { equipEffects, openPotionChoice, POTIONS } from './campaign-equipment.js';
 
 const ROWS = 13;            // Reihe 0 = Start (unten), Reihe ROWS-1 = Boss (oben)
@@ -295,10 +295,19 @@ export function startCampaignRun() {
   if (!free && talerAvailable() < STAKE_COST) return;
   if (free) c.freeStart = false; else c.talerSpent += STAKE_COST;   // Einsatz sofort gesetzt
   const hpMax = HP_MAX + equipEffects().hpBonus;     // 🛡️ Rüstung: mehr HP
+  // Wort-Grundlage des Laufs: die Freier-Modus-Decks, wie sie JETZT dastehen. Damit
+  // wandern zwischendurch fertig geübte oder neu angelegte Decks erst mit dem
+  // nächsten Lauf in den Kampf-Vorrat (welche Wörter daraus taugen, entscheidet
+  // campaign-fight.js über den Deck-Lernstand).
+  const deckIds = Object.keys(window.SD?.decks || {}).filter(id => {
+    const d = window.SD.decks[id];
+    return (d.mode || 'free') === 'free' && d.vocab?.length;
+  });
   // Unverbrauchte Tränke aus einem Boss-Sieg wandern in die neue Runde mit
   // (siehe _startFight/onEnd) — bei Tod/Aufgeben gibt es kein carryPotions, dann 0.
-  c.run = { map: generateMap(), pos: null, visited: [], hp: hpMax, hpMax, potions: c.carryPotions || [] };
+  c.run = { map: generateMap(), pos: null, visited: [], hp: hpMax, hpMax, potions: c.carryPotions || [], deckIds };
   c.carryPotions = null;
+  setRunDecks(deckIds);
   _saveCampaign();
   updateTalerBadge();
   renderCampaign();
@@ -469,6 +478,8 @@ function _renderCampaignNow(host) {
   // Sicherheitsnetz: Run mit 0 HP (z. B. Reload genau zwischen Tod und Aufräumen)
   // gilt als beendet — Einsatz ist weg, Startansicht zeigen.
   if (c.run && c.run.hp <= 0) { c.run = null; _saveCampaign(); }
+  // Deck-Stand des laufenden Runs auch nach einem Reload wieder scharf stellen.
+  setRunDecks(c.run ? (c.run.deckIds || null) : null);
   // 🛡️-Rüstung kann sich im Profil geändert haben → max. HP des Runs angleichen.
   if (c.run) {
     const hpMax = HP_MAX + equipEffects().hpBonus;

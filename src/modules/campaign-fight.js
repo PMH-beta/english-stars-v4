@@ -19,7 +19,7 @@
 // jsonb mit) → Reload mitten im Kampf verliert nichts; nur das aktuelle Wort der
 // Welle wird neu gezogen.
 
-import { scaledEnemy, FORM_BONUS, TALISMAN_MULT, STORM_BASE_MS, STORM_PER_LETTER_MS, STORM_MISS_DMG, WEAK_TIME_BONUS, WEAK_EMA, METEOR_FALL_MS, METEOR_COUNT, ECHO_TIME_MS, ECHO_CHOICES, PERK_SPEER_BOSS, PERK_AXT_ELITE, PERK_HAMMER_MULT, PERK_BOGEN_FIGHT, POTION_HEAL, POTION_POWER, POTION_TIME_MS, POTION_TIME_WAVES, BOSS_WIN_TALER, CF_MIN_ASKED, CF_MASTER, CF_MIN_OPEN, CF_LEARNED_WEIGHT, CF_OWN_SHARE, CF_REVIEW_SHARE, VERB_TIER_START, VERB_TIER_PER_ROUND, VERB_TIER_SPREAD, VERB_TIER_FLOOR, VERB_FILLED_BONUS } from './campaign-balance.js';
+import { scaledEnemy, FORM_BONUS, TALISMAN_MULT, STORM_BASE_MS, STORM_PER_LETTER_MS, STORM_MISS_DMG, WEAK_TIME_BONUS, WEAK_EMA, METEOR_FALL_MS, METEOR_COUNT, ECHO_TIME_MS, ECHO_CHOICES, PERK_SPEER_BOSS, PERK_AXT_ELITE, PERK_HAMMER_MULT, PERK_BOGEN_FIGHT, POTION_HEAL, POTION_POWER, POTION_TIME_MS, POTION_TIME_WAVES, BOSS_WIN_TALER, CF_MIN_ASKED, CF_MASTER, CF_POOL_OPEN, CF_SEEN_MIN, CF_LEARNED_WEIGHT, CF_OWN_SHARE, CF_REVIEW_SHARE, VERB_TIER_START, VERB_TIER_PER_ROUND, VERB_TIER_SPREAD, VERB_TIER_FLOOR, VERB_FILLED_BONUS } from './campaign-balance.js';
 import { startLetterstorm, stormTarget } from './minigame-letterstorm.js';
 import { startMeteors } from './minigame-meteors.js';
 import { startEcho } from './minigame-echo.js';
@@ -61,13 +61,37 @@ export function verbsReady() { return _verbPool().length > 0; }
 // Vorlagen-Wörter aus globalPresetStats, manuelle aus dem jeweiligen Deck
 // (SD.wordStats ist nur eine REFERENZ auf das aktive Deck → ein Schreiben ins Deck
 // wirkt dort automatisch mit).
+//
+// Zwei Filter:
+// 1. Deck-Stand des LAUFS — beim Run-Start eingefroren (run.deckIds, gesetzt über
+//    setRunDecks). Decks, die mitten im Lauf entstehen, kommen erst im nächsten Run
+//    dazu; ohne laufenden Run (null) zählen alle.
+// 2. Nur Wörter, die im normalen Deck-Üben schon CF_SEEN_MIN-mal dran waren.
+let _runDecks = null;
+export function setRunDecks(ids) { _runDecks = Array.isArray(ids) ? new Set(ids) : null; }
+
+const _MODE_SUF = ['_mc', '_sp', '_pr'];
+function _seenEnough(item) {
+  const store = item._presetId ? window.SD?.globalPresetStats?.wordStats : item._deck?.wordStats;
+  if (!store) return false;
+  for (const suf of _MODE_SUF) {
+    const s = store[statKeyFor(item.de, item.en, suf, item._presetId || null)];
+    if (s && Math.floor(s.asked || 0) >= CF_SEEN_MIN) return true;
+  }
+  return false;
+}
+
 function _pool() {
   const out = [];
   const decks = window.SD?.decks || {};
   for (const id in decks) {
     const deck = decks[id];
     if ((deck.mode || 'free') !== 'free' || !deck.vocab?.length) continue;
-    for (const v of deck.vocab) out.push({ de: v.de, en: v.en, _presetId: v._presetId || null, _deck: deck });
+    if (_runDecks && !_runDecks.has(id)) continue;
+    for (const v of deck.vocab) {
+      const item = { de: v.de, en: v.en, _presetId: v._presetId || null, _deck: deck };
+      if (_seenEnough(item)) out.push(item);
+    }
   }
   return out;
 }
@@ -149,23 +173,30 @@ function _markCfDirty() {
   for (const id of _ctx.cfDecks) markDirty('word_stats', id);
 }
 
-// ── Vorrat = eigene Wörter + nachgerückte Vorlagen-Wörter ────────────────────
-// 1:1-Nachschub: jedes gelernte Wort zieht genau ein Vorlagen-Wort nach — auch ein
-// gelerntes Vorlagen-Wort zieht wieder eines nach. Dazu ein Sicherheitsnetz, damit
-// immer mindestens CF_MIN_OPEN offene Wörter bereitstehen.
+// ── Vorrat = eigene Wörter, mit Vorlagen aufgefüllt ──────────────────────────
+// Feste Grundzahl OFFENER Wörter (CF_POOL_OPEN) — hoch genug, dass sich die Ziehung
+// zufällig anfühlt. Die Plätze bekommen zuerst die eigenen Deck-Wörter (Deck-, dann
+// Wortreihenfolge), der Überhang wartet als Reserve; erst wenn keine eigenen mehr da
+// sind, füllen Vorlagen-Wörter auf. Ist ein Wort im Kampf gelernt, gibt es seinen
+// Platz frei und die Reserve rückt in derselben Reihenfolge nach — gelernte Wörter
+// bleiben aber im Vorrat, damit die Wiederholungs-Quote sie noch ziehen kann.
 function _stock() {
-  const own = _pool();
   const supply = _supply || [];
-  let take = 0, open = 0;
-  for (const v of own) { if (_learned(v)) take++; else open++; }
-  for (let i = 0; i < supply.length && i < take; i++) {
-    if (_learned(supply[i])) take++; else open++;
+  const own = [];
+  let open = 0;
+  for (const v of _pool()) {
+    // Gelernte bleiben im Vorrat (Wiederholungs-Quote), belegen aber keinen Platz.
+    if (_learned(v)) { own.push(v); continue; }
+    if (open >= CF_POOL_OPEN) continue;   // Rest wartet als Reserve auf einen freien Platz
+    own.push(v);
+    open++;
   }
-  while (open < CF_MIN_OPEN && take < supply.length) {
+  let take = 0;
+  while (open < CF_POOL_OPEN && take < supply.length) {
     if (!_learned(supply[take])) open++;
     take++;
   }
-  return { own, preset: supply.slice(0, Math.min(take, supply.length)) };
+  return { own, preset: supply.slice(0, take) };
 }
 
 // Zeitlimit: Grundzeit + Zuschlag pro Buchstabe ab dem 6.; unsichere Deck-Wörter

@@ -57,16 +57,22 @@ export const METEOR_COUNT = 4;             // 1 richtig + 3 falsch
 export const ECHO_TIME_MS = 15000;
 export const ECHO_CHOICES = 5;             // 1 richtig + 4 falsch
 
-// ── Wortauswahl im Kampf: Vorrat mit Nachschub ──
+// ── Wortauswahl im Kampf: Vorrat mit fester Grundzahl ──
 // Der Kampf führt einen EIGENEN Lernstand je Wort (Stat-Suffix _cf) — getrennt von
 // den Vokabel-Stats, ohne Einfluss auf Taler, Deck-Prozente oder Statistik-Seiten.
 // Ein Wort gilt als „gelernt", wenn es CF_MIN_ASKED-mal dran war und sein EMA über
-// CF_MASTER liegt. Für JEDES gelernte Wort rückt genau EIN Vorlagen-Wort nach (1:1),
-// mindestens aber so viele, dass immer CF_MIN_OPEN noch offene Wörter im Vorrat
-// stehen — er leert sich also nie.
+// CF_MASTER liegt.
+// Im Vorrat stehen immer CF_POOL_OPEN OFFENE Wörter (bewusst hoch, damit sich die
+// Ziehung zufällig anfühlt). Zuerst zählen die eigenen Deck-Wörter; erst wenn die
+// nicht reichen, füllen Vorlagen-Wörter auf. Wird ein Wort gelernt, wird sein Platz
+// in derselben Reihenfolge nachbesetzt — eigene zuerst, Vorlagen nur als Auffüllung.
+// Eigene Wörter kommen zudem erst in den Kampf, wenn sie im normalen Deck-Üben
+// mindestens CF_SEEN_MIN-mal dran waren (in EINER der drei Arten) — der Kampf ist
+// Wiederholung, keine Erstbegegnung.
 export const CF_MIN_ASKED = 3;
 export const CF_MASTER = 0.9;
-export const CF_MIN_OPEN = 8;
+export const CF_POOL_OPEN = 40;
+export const CF_SEEN_MIN = 2;
 export const CF_LEARNED_WEIGHT = 0.35;     // gelernte Wörter: seltener, aber nie ganz weg
 export const CF_OWN_SHARE = 0.2;           // jede 5. Welle garantiert ein eigenes Deck-Wort
 // Wiederholungs-Anteil als FESTE Quote statt über das Gewicht: sonst wächst er mit der
