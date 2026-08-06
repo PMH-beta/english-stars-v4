@@ -325,7 +325,19 @@ try { screen.orientation?.lock?.('portrait').catch(() => {}); } catch (e) {}
   const SEL = 'button, .deck-card, .preset-row, [onclick]';
   const FULL_MS = 550;              // ab dieser Haltezeit der volle Ausschlag
   const WOB_MIN = 0.6, WOB_MAX = 1.9;
-  let pressed = null, pressedAt = 0;
+  const MOVE_TOL = 10;              // ab so vielen px gilt die Geste als Ziehen/Scrollen
+  let pressed = null, pressedAt = 0, startX = 0, startY = 0;
+
+  // Abbruch ohne Nachfedern: beim Scrollen und beim Karten-Ziehen soll das Element
+  // sofort unverformt an Finger/Maus hängen. window.esWobbleCancel ruft decks.js,
+  // wenn der Long-Press-Drag startet (der beginnt ohne Fingerbewegung).
+  const cancel = () => {
+    if (!pressed) return;
+    pressed.classList.remove('es-press', 'es-wobble');
+    pressed.style.removeProperty('--wob');
+    pressed = null;
+  };
+  window.esWobbleCancel = cancel;
 
   const release = () => {
     if (!pressed) return;
@@ -347,11 +359,17 @@ try { screen.orientation?.lock?.('portrait').catch(() => {}); } catch (e) {}
     release();                      // ein noch offenes Drücken sauber beenden
     pressed = el;
     pressedAt = performance.now();
+    startX = e.clientX; startY = e.clientY;
     el.classList.remove('es-wobble');
     el.classList.add('es-press');
   }, true);
-  window.addEventListener('pointerup', release, true);
-  window.addEventListener('pointercancel', release, true);
+  const OPTS = { capture: true, passive: true };
+  window.addEventListener('pointermove', (e) => {
+    if (!pressed) return;
+    if (Math.abs(e.clientX - startX) > MOVE_TOL || Math.abs(e.clientY - startY) > MOVE_TOL) cancel();
+  }, OPTS);
+  window.addEventListener('pointerup', release, OPTS);
+  window.addEventListener('pointercancel', cancel, OPTS);
 
   document.addEventListener('animationend', (e) => {
     if (e.animationName !== 'es-wobble') return;
