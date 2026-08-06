@@ -582,13 +582,12 @@ function _mapHtml(run, preview) {
       : '';
     // Runde = Stufe des laufenden Aufstiegs (1. Boss-Sieg schließt Runde 1 ab, danach läuft
     // Runde 2 usw.; eine Niederlage setzt zurück auf Runde 1);
-    // Run-Länge = SUMME der je Lauf erreichten Tiefe über ALLE bisherigen Läufe (wächst mit
-    // jedem beendeten Lauf, siehe stats.runLength in _startFight/campaignGiveUp) — derselbe
-    // Wert wie in Fortschritt, hier nur zusätzlich während des Spielens sichtbar.
+    // Tiefe = wie weit DIESER Lauf gekommen ist (Reihe von ROWS). Bewusst nicht mehr die
+    // Gesamt-Run-Länge über alle Läufe: neben „Runde 2" wirkte eine dreistellige Summe
+    // wie ein Fehler. Der Lebenszähler steht weiter auf der Fortschritt-Seite.
     const c = _camp();
     const roundNum = (c.round || 0) + 1;
-    const runLength = (c.stats.runLength || 0) + _runDepth(run);
-    const roundHtml = `<div style="text-align:center;font-size:.72rem;font-weight:800;color:#8a83a5;margin-bottom:6px;">🔄 Runde ${roundNum} · 🏔️ Run-Länge ${runLength}</div>`;
+    const roundHtml = `<div style="text-align:center;font-size:.72rem;font-weight:800;color:#8a83a5;margin-bottom:6px;">🔄 Runde ${roundNum} · 🏔️ Tiefe ${_runDepth(run)}/${ROWS}</div>`;
     header = `
   ${roundHtml}
   ${potionsHtml}

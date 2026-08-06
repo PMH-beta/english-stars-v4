@@ -316,6 +316,24 @@ try { screen.orientation?.lock?.('portrait').catch(() => {}); } catch (e) {}
   }, { passive: true });
 })();
 
+// Wackelpudding-Effekt: jede angetippte Schaltfläche (Buttons, Deck-Karten, alles
+// mit onclick) wackelt kurz nach. Läuft delegiert am document, damit auch alles
+// mitmacht, was später per innerHTML nachgerendert wird. Die Animation selbst
+// steckt in style.css (.es-wobble) und fasst nur scale an, nie transform.
+(function wobbleOnTap() {
+  const SEL = 'button, .deck-card, .preset-row, [onclick]';
+  document.addEventListener('pointerdown', (e) => {
+    const el = e.target.closest?.(SEL);
+    if (!el || el.disabled) return;
+    el.classList.remove('es-wobble');
+    void el.offsetWidth;            // Reflow: feuert auch bei schnellem Doppeltippen
+    el.classList.add('es-wobble');
+  }, true);
+  document.addEventListener('animationend', (e) => {
+    if (e.animationName === 'es-wobble') e.target.classList.remove('es-wobble');
+  }, true);
+})();
+
 // Supabase-Verbindung testen (kann später raus)
 testConnection();
 window.supabase = supabase; // temporär für Debugging in DevTools
