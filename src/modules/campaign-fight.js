@@ -23,7 +23,7 @@ import { scaledEnemy, FORM_BONUS, TALISMAN_MULT, STORM_BASE_MS, STORM_PER_LETTER
 import { startLetterstorm, stormTarget } from './minigame-letterstorm.js';
 import { startMeteors } from './minigame-meteors.js';
 import { startEcho } from './minigame-echo.js';
-import { equippedWeapon, equipEffects, equippedGearMap, POTIONS } from './campaign-equipment.js';
+import { equippedWeapon, equipEffects, equippedGearMap, POTIONS, potionStacks } from './campaign-equipment.js';
 import { enemySpriteSVG } from './pixel-enemies.js';
 import { avatarSVG, ensureAvatar } from './avatar.js';
 import { playSfx } from './game.js';
@@ -62,14 +62,9 @@ export function verbsReady() { return _verbPool().length > 0; }
 // (SD.wordStats ist nur eine REFERENZ auf das aktive Deck → ein Schreiben ins Deck
 // wirkt dort automatisch mit).
 //
-// Zwei Filter:
-// 1. Deck-Stand des LAUFS — beim Run-Start eingefroren (run.deckIds, gesetzt über
-//    setRunDecks). Decks, die mitten im Lauf entstehen, kommen erst im nächsten Run
-//    dazu; ohne laufenden Run (null) zählen alle.
-// 2. Nur Wörter, die im normalen Deck-Üben schon CF_SEEN_MIN-mal dran waren.
-let _runDecks = null;
-export function setRunDecks(ids) { _runDecks = Array.isArray(ids) ? new Set(ids) : null; }
-
+// Ein Filter: nur Wörter, die im normalen Deck-Üben schon CF_SEEN_MIN-mal dran waren.
+// Der Deck-Stand wird NICHT eingefroren — wer mitten im Lauf neue Wörter anlegt und
+// zweimal übt, hat sie ab der nächsten Welle im Kampf dabei.
 const _MODE_SUF = ['_mc', '_sp', '_pr'];
 function _seenEnough(item) {
   const store = item._presetId ? window.SD?.globalPresetStats?.wordStats : item._deck?.wordStats;
@@ -87,7 +82,6 @@ function _pool() {
   for (const id in decks) {
     const deck = decks[id];
     if ((deck.mode || 'free') !== 'free' || !deck.vocab?.length) continue;
-    if (_runDecks && !_runDecks.has(id)) continue;
     for (const v of deck.vocab) {
       const item = { de: v.de, en: v.en, _presetId: v._presetId || null, _deck: deck };
       if (_seenEnough(item)) out.push(item);
@@ -241,8 +235,9 @@ function _shuffle(a) {
 let _ctx = null;   // { run, node, enemy, weapon, save, onEnd, mg, lastEn }
 
 // onEnd(result): 'victory' | 'death' (auch bei bewusstem „Kampf verlassen") | null
-// (interner Nicht-Fall, z. B. Wortpool beim Laden leer).
-export function openFight({ run, node, save, onEnd, round }) {
+// (interner Nicht-Fall, z. B. Wortpool beim Laden leer). stat(key) zählt einen
+// Kampagnen-Statistikwert hoch (die Zähler selbst liegen in campaign.js).
+export function openFight({ run, node, save, onEnd, round, stat }) {
   const enemy = scaledEnemy(node.type, round);
   if (!run.fight || run.fight.nodeId !== node.id) {
     // headUsed/guardsUsed = Zähler; shield/power/timeBoost = aktive Trank-Effekte.
@@ -251,19 +246,20 @@ export function openFight({ run, node, save, onEnd, round }) {
   }
   // cfPreset/cfDecks merken sich, welche Stat-Töpfe der Kampf angefasst hat (siehe
   // _record/_markCfDirty).
-  _ctx = { run, node, enemy, weapon: equippedWeapon(), eff: equipEffects(), save, onEnd, mg: null, lastEn: null, round, cfPreset: false, cfDecks: new Set() };
+  _ctx = { run, node, enemy, weapon: equippedWeapon(), eff: equipEffects(), save, onEnd, stat, mg: null, lastEn: null, round, cfPreset: false, cfDecks: new Set() };
   _renderOverlay();
   _startWave();
 }
 
 // ── Tränke im Kampf ──────────────────────────────────────────────────────────
+// Gleiche Tränke liegen als EIN Feld mit kleiner Anzahl in der Ecke; der Klick
+// verbraucht den ersten dieser Sorte (stack.index).
 function _renderPotions() {
   const el = _el('cf-potions');
   if (!el || !_ctx) return;
-  const potions = _ctx.run.potions || [];
-  el.innerHTML = potions.map((k, i) => POTIONS[k]
-    ? `<button class="cf-potion" data-pi="${i}" title="${POTIONS[k].name}: ${POTIONS[k].desc}">${POTIONS[k].icon}</button>`
-    : '').join('');
+  el.innerHTML = potionStacks(_ctx.run.potions).map(s =>
+    `<button class="cf-potion" data-pi="${s.index}" title="${POTIONS[s.key].name}: ${POTIONS[s.key].desc}">${POTIONS[s.key].icon}${
+      s.count > 1 ? `<span class="potion-n">${s.count}</span>` : ''}</button>`).join('');
   el.querySelectorAll('[data-pi]').forEach(btn => { btn.onclick = () => _usePotion(+btn.dataset.pi); });
 }
 
@@ -275,6 +271,7 @@ function _usePotion(i) {
   const p = POTIONS[key];
   if (!key || !p || !f) return;
   run.potions.splice(i, 1);
+  _ctx.stat?.('potions');   // Statistik: getrunkene Tränke (Fortschritt-Seite)
   // Wirkung als Popup über dem eigenen Character (wie Schaden über dem Gegner) —
   // beim Heiltrank die TATSÄCHLICH geheilte Menge (gedeckelt an hpMax).
   if (key === 'heal') {

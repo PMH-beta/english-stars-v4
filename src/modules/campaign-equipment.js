@@ -154,6 +154,20 @@ export const POTIONS = {
   time:   { icon: '⏳', name: 'Zeittrank',   desc: `+${POTION_TIME_MS / 1000} s Zeit für ${POTION_TIME_WAVES} Wellen` },
 };
 
+// Gleiche Tränke zu EINEM Feld zusammenfassen (Reihenfolge des ersten Auftretens),
+// damit die Leiste bei vielen Tränken nicht überläuft. index = Platz im Array, den
+// ein Klick verbraucht (der erste dieser Sorte).
+export function potionStacks(list) {
+  const out = [];
+  const at = {};
+  (Array.isArray(list) ? list : []).forEach((k, i) => {
+    if (!POTIONS[k]) return;
+    if (at[k] == null) { at[k] = out.length; out.push({ key: k, count: 1, index: i }); }
+    else out[at[k]].count++;
+  });
+  return out;
+}
+
 // 💎 Schatz: Wahl-Overlay mit 3 (+ Ring-Bonus) zufälligen Tränken. onPick(key)
 // bekommt die Wahl — Zustand (run.potions) verwaltet der Aufrufer (campaign.js).
 export function openPotionChoice({ onPick }) {

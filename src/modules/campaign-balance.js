@@ -62,16 +62,18 @@ export const ECHO_CHOICES = 5;             // 1 richtig + 4 falsch
 // den Vokabel-Stats, ohne Einfluss auf Taler, Deck-Prozente oder Statistik-Seiten.
 // Ein Wort gilt als „gelernt", wenn es CF_MIN_ASKED-mal dran war und sein EMA über
 // CF_MASTER liegt.
-// Im Vorrat stehen immer CF_POOL_OPEN OFFENE Wörter (bewusst hoch, damit sich die
-// Ziehung zufällig anfühlt). Zuerst zählen die eigenen Deck-Wörter; erst wenn die
-// nicht reichen, füllen Vorlagen-Wörter auf. Wird ein Wort gelernt, wird sein Platz
-// in derselben Reihenfolge nachbesetzt — eigene zuerst, Vorlagen nur als Auffüllung.
+// Im Vorrat stehen immer CF_POOL_OPEN OFFENE Wörter — ungefähr so viele, wie man
+// beim Freischalten (2 Taler) selbst geübt hat. Zuerst zählen die eigenen Deck-Wörter;
+// erst wenn die nicht reichen, füllen Vorlagen-Wörter auf. Wird ein Wort gelernt, wird
+// sein Platz in derselben Reihenfolge nachbesetzt — eigene zuerst, Vorlagen nur als
+// Auffüllung.
 // Eigene Wörter kommen zudem erst in den Kampf, wenn sie im normalen Deck-Üben
 // mindestens CF_SEEN_MIN-mal dran waren (in EINER der drei Arten) — der Kampf ist
-// Wiederholung, keine Erstbegegnung.
+// Wiederholung, keine Erstbegegnung. Neue Decks/Wörter rutschen dadurch auch mitten
+// im Lauf nach, sobald sie zweimal dran waren.
 export const CF_MIN_ASKED = 3;
 export const CF_MASTER = 0.9;
-export const CF_POOL_OPEN = 40;
+export const CF_POOL_OPEN = 20;
 export const CF_SEEN_MIN = 2;
 export const CF_LEARNED_WEIGHT = 0.35;     // gelernte Wörter: seltener, aber nie ganz weg
 export const CF_OWN_SHARE = 0.2;           // jede 5. Welle garantiert ein eigenes Deck-Wort

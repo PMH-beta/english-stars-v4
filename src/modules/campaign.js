@@ -18,8 +18,8 @@ import { persist } from './storage.js';
 import { markDirty } from './sync.js';
 import { commitDirty } from './dialog.js';
 import { HP_MAX, REST_HEAL, BOSS_WIN_TALER } from './campaign-balance.js';
-import { openFight, fightPoolReady, verbsReady, loadPresetSupply, setRunDecks } from './campaign-fight.js';
-import { equipEffects, openPotionChoice, POTIONS } from './campaign-equipment.js';
+import { openFight, fightPoolReady, verbsReady, loadPresetSupply } from './campaign-fight.js';
+import { equipEffects, openPotionChoice, POTIONS, potionStacks } from './campaign-equipment.js';
 
 const ROWS = 13;            // Reihe 0 = Start (unten), Reihe ROWS-1 = Boss (oben)
 const COLS = 5;
@@ -45,18 +45,35 @@ function _weightedPick(arr, weightFn) {
 }
 
 // Tiefe (row+1) des Knotens, an dem ein Lauf gerade steht — 0, wenn noch kein Knoten
-// betreten wurde. Wird beim Lauf-Ende auf stats.runLength aufaddiert (siehe _startFight/
-// campaignGiveUp) — DORT und nicht bei jedem Schritt, sonst zählte jeder Zwischenknoten mit.
+// betreten wurde. Fließt beim Karten-Ende in die Lauf-Länge (siehe _finishMap) — DORT
+// und nicht bei jedem Schritt, sonst zählte jeder Zwischenknoten mit.
 function _runDepth(run) {
   if (!run || run.pos == null) return 0;
   const n = run.map.nodes[run.pos];
   return n ? n.row + 1 : 0;
 }
 
+// Lauf-Länge = Tiefe ALLER Karten des laufenden Aufstiegs zusammen: ein Boss-Sieg
+// beendet nur die Karte, der Lauf geht in der nächsten Runde weiter (freeStart) —
+// erst Tod oder Aufgeben beendet ihn. c.runLen sammelt die abgeschlossenen Karten,
+// die aktuelle kommt über _runDepth dazu.
+function _runLength(c) { return (c.runLen || 0) + _runDepth(c.run); }
+// Karte zu Ende: Rekord festhalten (längster Lauf + wie viele Bosse dabei fielen) und
+// die Länge entweder weitertragen (Boss-Sieg) oder auf 0 zurücksetzen (Lauf vorbei).
+function _finishMap(c, keepRun) {
+  const total = _runLength(c);
+  if (total > (c.stats.bestRun || 0)) {
+    c.stats.bestRun = total;
+    c.stats.bestRunBosses = c.round || 0;
+  }
+  c.runLen = keepRun ? total : 0;
+}
+
 // fight/irregular/boss = gewonnene Kämpfe je Gegner-Art (= Knoten-Typ). bestRow = höchste
-// je in einem einzelnen Lauf erreichte Reihe (Highscore, kein Zähler). runLength = SUMME
-// der je Lauf erreichten Tiefe über ALLE Läufe hinweg (wächst mit jedem beendeten Lauf).
-export const CAMP_STAT_KEYS = ['fight', 'irregular', 'boss', 'runsWon', 'runsLost', 'bestRow', 'runLength'];
+// je auf EINER Karte erreichte Reihe (Highscore, kein Zähler). bestRun/bestRunBosses =
+// längster Lauf über alle Runden hinweg und die Bosse darin. potions/treasures = getrunkene
+// Tränke bzw. gefundene Schätze.
+export const CAMP_STAT_KEYS = ['fight', 'irregular', 'boss', 'runsWon', 'runsLost', 'bestRow', 'bestRun', 'bestRunBosses', 'potions', 'treasures'];
 
 // ── SD-Zugriff (mit Default-Reparatur) ──
 function _camp() {
@@ -70,6 +87,8 @@ function _camp() {
   // unberührt (Lebenszähler fürs Profil). Altstände erben ihre bisherige Stufe.
   if (typeof SD.campaign.round !== 'number') SD.campaign.round = SD.campaign.bossWins || 0;
   if (typeof SD.campaign.freeStart !== 'boolean') SD.campaign.freeStart = false;
+  // Länge der schon abgeschlossenen Karten des laufenden Aufstiegs (siehe _runLength).
+  if (typeof SD.campaign.runLen !== 'number') SD.campaign.runLen = 0;
   // Laufende Statistik (Fortschritt-Seite). Zählt ab Einführung — ältere Läufe
   // lassen sich nicht nachrechnen, die Zähler starten daher bei 0.
   if (!SD.campaign.stats || typeof SD.campaign.stats !== 'object') SD.campaign.stats = {};
@@ -295,19 +314,13 @@ export function startCampaignRun() {
   if (!free && talerAvailable() < STAKE_COST) return;
   if (free) c.freeStart = false; else c.talerSpent += STAKE_COST;   // Einsatz sofort gesetzt
   const hpMax = HP_MAX + equipEffects().hpBonus;     // 🛡️ Rüstung: mehr HP
-  // Wort-Grundlage des Laufs: die Freier-Modus-Decks, wie sie JETZT dastehen. Damit
-  // wandern zwischendurch fertig geübte oder neu angelegte Decks erst mit dem
-  // nächsten Lauf in den Kampf-Vorrat (welche Wörter daraus taugen, entscheidet
-  // campaign-fight.js über den Deck-Lernstand).
-  const deckIds = Object.keys(window.SD?.decks || {}).filter(id => {
-    const d = window.SD.decks[id];
-    return (d.mode || 'free') === 'free' && d.vocab?.length;
-  });
+  // Wort-Grundlage des Laufs sind immer die Freier-Modus-Decks, wie sie GERADE
+  // dastehen — auch mitten im Lauf neu angelegte Wörter rutschen nach, sobald sie
+  // im Üben zweimal dran waren (Filter in campaign-fight.js).
   // Unverbrauchte Tränke aus einem Boss-Sieg wandern in die neue Runde mit
   // (siehe _startFight/onEnd) — bei Tod/Aufgeben gibt es kein carryPotions, dann 0.
-  c.run = { map: generateMap(), pos: null, visited: [], hp: hpMax, hpMax, potions: c.carryPotions || [], deckIds };
+  c.run = { map: generateMap(), pos: null, visited: [], hp: hpMax, hpMax, potions: c.carryPotions || [] };
   c.carryPotions = null;
-  setRunDecks(deckIds);
   _saveCampaign();
   updateTalerBadge();
   renderCampaign();
@@ -347,6 +360,7 @@ export function campaignNode(id) {
   if (node.type === 'treasure') {
     // 💎 Schatz: kein Kampf — Wahl aus 3 Tränken (💍 Ringe geben mehr Auswahl).
     // Tränke gehören zum Run und sind im Kampf spielbar.
+    c.stats.treasures++;
     _saveCampaign();
     renderCampaign();
     openPotionChoice({
@@ -374,6 +388,7 @@ function _startFight(node) {
     node,
     save: _saveCampaign,
     round: campRound(),
+    stat: (key) => { if (CAMP_STAT_KEYS.includes(key)) c.stats[key]++; },
     onEnd: (result) => {
       const bossWin = result === 'victory' && node.type === 'boss';
       if (bossWin) {
@@ -388,7 +403,9 @@ function _startFight(node) {
       if (bossWin) c.stats.runsWon++;
       else if (result === 'death') c.stats.runsLost++;
       if (bossWin || result === 'death') {
-        c.stats.runLength += _runDepth(c.run);
+        // Boss-Sieg beendet nur die Karte — die Lauf-Länge läuft in der nächsten
+        // Runde weiter; der Tod beendet den Lauf und setzt sie zurück.
+        _finishMap(c, bossWin);
         if (result === 'death') c.round = 0;   // Niederlage → Aufstieg beginnt von vorn
         if (bossWin) c.carryPotions = c.run.potions || [];   // unverbrauchte Tränke: Belohnung wie freeStart
         c.run = null;
@@ -416,7 +433,7 @@ export function campaignGiveUp() {
   if (!c.run) return;
   // Aufgeben beendet den Lauf ohne Boss-Sieg → zählt wie gescheitert, sonst
   // verschwänden aufgegebene Läufe spurlos aus der Statistik.
-  const finish = () => { c.stats.runsLost++; c.stats.runLength += _runDepth(c.run); c.round = 0; c.run = null; _saveCampaign(); renderCampaign(); };
+  const finish = () => { c.stats.runsLost++; _finishMap(c, false); c.round = 0; c.run = null; _saveCampaign(); renderCampaign(); };
   if (window.esConfirm) {
     window.esConfirm({
       icon: '🏳️', title: 'Aufgeben?',
@@ -476,10 +493,9 @@ export function renderCampaign() {
 function _renderCampaignNow(host) {
   const c = _camp();
   // Sicherheitsnetz: Run mit 0 HP (z. B. Reload genau zwischen Tod und Aufräumen)
-  // gilt als beendet — Einsatz ist weg, Startansicht zeigen.
-  if (c.run && c.run.hp <= 0) { c.run = null; _saveCampaign(); }
-  // Deck-Stand des laufenden Runs auch nach einem Reload wieder scharf stellen.
-  setRunDecks(c.run ? (c.run.deckIds || null) : null);
+  // gilt als beendet — Einsatz ist weg, Startansicht zeigen. Die Lauf-Länge geht
+  // dabei zurück auf 0, sonst zählte sie in den nächsten Lauf hinein.
+  if (c.run && c.run.hp <= 0) { c.run = null; c.runLen = 0; _saveCampaign(); }
   // 🛡️-Rüstung kann sich im Profil geändert haben → max. HP des Runs angleichen.
   if (c.run) {
     const hpMax = HP_MAX + equipEffects().hpBonus;
@@ -576,18 +592,22 @@ function _mapHtml(run, preview) {
         : 'Wähle den nächsten Knoten';
     // Mitgeführte Tränke über der Lebensanzeige (spielbar sind sie erst im Kampf — hier
     // nur Anzeige; Antippen zeigt Name+Wirkung als kleine Sprechblase daneben).
-    const potionsHtml = (run.potions && run.potions.length)
-      ? `<div style="display:flex;gap:6px;justify-content:center;margin-bottom:8px;">${run.potions.map(k => POTIONS[k]
-          ? `<button onclick="campPotionInfo(this,'${k}')" style="font-size:1.25rem;background:none;border:none;padding:2px;cursor:pointer;line-height:1;">${POTIONS[k].icon}</button>` : '').join('')}</div>`
-      : '';
+    // Gleiche Tränke liegen auf EINEM Platz mit kleiner Anzahl in der Ecke; mindestens
+    // drei Plätze stehen immer da (leer gestrichelt), damit man sieht, wo etwas hinkommt.
+    const slots = potionStacks(run.potions).map(s =>
+      `<button onclick="campPotionInfo(this,'${s.key}')" class="camp-slot">${POTIONS[s.key].icon}${
+        s.count > 1 ? `<span class="potion-n">${s.count}</span>` : ''}</button>`);
+    while (slots.length < 3) slots.push('<div class="camp-slot empty"></div>');
+    const potionsHtml = `<div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-bottom:8px;">${slots.join('')}</div>`;
     // Runde = Stufe des laufenden Aufstiegs (1. Boss-Sieg schließt Runde 1 ab, danach läuft
     // Runde 2 usw.; eine Niederlage setzt zurück auf Runde 1);
-    // Tiefe = wie weit DIESER Lauf gekommen ist (Reihe von ROWS). Bewusst nicht mehr die
-    // Gesamt-Run-Länge über alle Läufe: neben „Runde 2" wirkte eine dreistellige Summe
-    // wie ein Fehler. Der Lebenszähler steht weiter auf der Fortschritt-Seite.
+    // Run-Länge = wie weit dieser Aufstieg insgesamt gekommen ist (alle Karten zusammen,
+    // siehe _runLength) — bewusst nicht die Gesamtsumme über ALLE Läufe: neben „Runde 2"
+    // wirkte eine dreistellige Summe wie ein Fehler. Der Rekord steht auf der
+    // Fortschritt-Seite („Längster Run").
     const c = _camp();
     const roundNum = (c.round || 0) + 1;
-    const roundHtml = `<div style="text-align:center;font-size:.72rem;font-weight:800;color:#8a83a5;margin-bottom:6px;">🔄 Runde ${roundNum} · 🏔️ Tiefe ${_runDepth(run)}/${ROWS}</div>`;
+    const roundHtml = `<div style="text-align:center;font-size:.72rem;font-weight:800;color:#8a83a5;margin-bottom:6px;">🔄 Runde ${roundNum} · 🏔️ Run-Länge ${_runLength(c)}</div>`;
     header = `
   ${roundHtml}
   ${potionsHtml}

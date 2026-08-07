@@ -1382,11 +1382,28 @@ body.in-game .mode-progress{display:block;}
 
 /* Tränke im Kampf */
 .cf-potion{
+  position:relative;
   border:2px solid var(--adv-line);background:var(--adv-card);border-radius:var(--r-md);
   width:54px;height:54px;font-size:1.6rem;cursor:pointer;transition:border-color .15s,transform .1s;
 }
 .cf-potion:hover{border-color:var(--adv-gold);}
 .cf-potion:active{transform:scale(.92);}
+
+/* Trank-Plätze auf der Kampagnen-Karte: gleiche Tränke stapeln sich auf einem Platz,
+   leere Plätze zeigen gestrichelt, dass da noch etwas hinkommt. */
+.camp-slot{
+  position:relative;width:38px;height:38px;flex-shrink:0;padding:0;line-height:1;
+  border:2px solid #e0d7f2;border-radius:11px;background:#fff;font-size:1.2rem;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+}
+.camp-slot.empty{border-style:dashed;border-color:#d9d0ec;background:#f7f4fc;cursor:default;}
+.camp-slot:active:not(.empty){transform:scale(.92);}
+/* Anzahl gestapelter Tränke (Karte + Kampf) */
+.potion-n{
+  position:absolute;right:-4px;bottom:-4px;min-width:17px;height:17px;padding:0 3px;
+  border-radius:9px;background:var(--purple);color:#fff;box-sizing:border-box;
+  font-family:'Fredoka One',cursive;font-size:.62rem;line-height:17px;text-align:center;
+}
 
 /* ── Objekt-Wahl im Befüllen-Popup ── */
 .uv-obj-row{

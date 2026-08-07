@@ -267,9 +267,12 @@ function _campaignFrom(profile) {
       stats:      (c.stats && typeof c.stats === 'object') ? c.stats : {},
       freeStart:  !!c.freeStart,
       carryPotions: Array.isArray(c.carryPotions) ? c.carryPotions : null,
+      // Länge der schon abgeschlossenen Karten des laufenden Aufstiegs (Anzeige
+      // „Run-Länge" + Rekord stats.bestRun).
+      runLen:     Number(c.runLen) || 0,
     };
   }
-  return { claimed: [], talerSpent: 0, run: null, equipment: {}, bossWins: 0, round: 0, stats: {}, freeStart: false, carryPotions: null };
+  return { claimed: [], talerSpent: 0, run: null, equipment: {}, bossWins: 0, round: 0, stats: {}, freeStart: false, carryPotions: null, runLen: 0 };
 }
 
 

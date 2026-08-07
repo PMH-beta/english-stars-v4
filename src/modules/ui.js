@@ -2106,7 +2106,9 @@ function _campaignBlock() {
           ${statRow('⚔️', 'Übungs-Gegner besiegt', st.fight || 0)}
           ${statRow('🌀', 'Unregelmäßige besiegt', st.irregular || 0)}
           ${statRow('💀', 'Läufe gescheitert', st.runsLost || 0)}
-          ${statRow('🏔️', 'Run-Länge', st.runLength || 0)}
+          ${statRow('🧪', 'Tränke getrunken', st.potions || 0)}
+          ${statRow('💎', 'Schätze gefunden', st.treasures || 0)}
+          ${statRow('🏔️', 'Längster Run', `${st.bestRun || 0} · ${st.bestRunBosses || 0} 👑`)}
         </tbody>
       </table>
       ${runHtml}
