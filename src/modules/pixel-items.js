@@ -728,6 +728,63 @@ function _rects(blocks) {
   return out;
 }
 
+// Materialpalette nach außen (Avatar zeichnet seine Rüstungsteile in denselben
+// Tönen wie die Schmiede — sonst hätte dasselbe Objekt zwei Farbwelten).
+export function matPalette(which) { return { ...(MAT[which] || MAT.past) }; }
+export function gemPalette(which) { return { ...(GEM[which] || GEM.past) }; }
+
+// Griff-Anker je Waffe: der Punkt im 32×48-Raster, der IN der Faust liegt.
+const GRIP = {
+  schwert: [16, 37], dolch: [16, 36], speer: [16, 30], axt: [16, 30],
+  hammer: [16, 30], stab: [16, 30], bogen: [8, 26], streitkolben: [16, 37],
+};
+// Objekte, deren Kopf im Icon nach links zeigt — in der Hand gespiegelt (nach vorn).
+const FLIP = new Set(['axt']);
+
+// Bounding-Box eines Objekts (einmal berechnet) — damit eine eingebettete Waffe
+// nicht über den Rand des Ziel-Rasters hinausrutscht und abgeschnitten wird.
+const _bbox = {};
+function bbox(type) {
+  if (_bbox[type]) return _bbox[type];
+  let x0 = 99, y0 = 99, x1 = -1, y1 = -1;
+  for (const blocks of (ITEM_ART[type] || ITEM_ART._default)) {
+    for (const r of _rects(blocks)) {
+      x0 = Math.min(x0, r.x); y0 = Math.min(y0, r.y);
+      x1 = Math.max(x1, r.x + r.w); y1 = Math.max(y1, r.y + r.h);
+    }
+  }
+  return (_bbox[type] = { x0, y0, x1, y1 });
+}
+
+// Fertiges Objekt als <g> IN einem anderen Sprite (z. B. die Waffe in der Faust
+// des 64×96-Avatars — beide Raster haben dieselbe Pixelgröße, also 1:1). atX/atY
+// ist die Faust; die Gruppe wird so verschoben, dass der Griff dort liegt, aber
+// nie über den Rand des Ziel-Rasters (w×h) hinaus.
+export function itemGroupSVG(type, which, atX, atY, w = 64, h = 96, cls = '') {
+  const parts = ITEM_ART[type] || ITEM_ART._default;
+  const grip = GRIP[type] || [16, 37];
+  const bb = bbox(type);
+  // Einseitige Objekte zeigen im Icon nach links (Axtblatt), in der Hand sollen sie
+  // nach VORNE zeigen — also gespiegelt an der Faust. Der Bogen zielt schon nach vorn.
+  const flip = FLIP.has(type);
+  const x0 = flip ? 2 * grip[0] - bb.x1 : bb.x0;
+  const x1 = flip ? 2 * grip[0] - bb.x0 : bb.x1;
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const dx = clamp(Math.round(atX - grip[0]), -x0, w - x1);
+  const dy = clamp(Math.round(atY - grip[1]), -bb.y0, h - bb.y1);
+  const rects = parts.map((blocks) => _rects(blocks)
+    .map((r) => `<rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" fill="${_color(r.ch, which)}"/>`)
+    .join('')).join('');
+  const inner = flip ? `<g transform="translate(${2 * grip[0]},0) scale(-1,1)">${rects}</g>` : rects;
+  // transform-origin = Faust: der Schwung im Kampf dreht um den Griff, nicht um die Ecke.
+  return `<g class="${cls}" transform="translate(${dx},${dy})" style="transform-origin:${grip[0]}px ${grip[1]}px;">${inner}</g>`;
+}
+
+// Fertiges Objekt als eigenes Icon (Ausrüstungs-Felder, Tasche, Vorschau).
+export function itemIconSVG(type, which, cls = 'it-icon') {
+  return itemPartsSVG(type, ['built', 'built', 'built', 'built', 'built'], which, cls);
+}
+
 // Ein Objekt als SVG. states[i] = 'built' | 'next' | 'ghost' für Teil i.
 // built/next bekommen ihre echten Farben (das nächste Teil pulsiert per CSS über
 // die Deckkraft — man sieht also, WAS man gerade freispielt); ghost bleibt eine
@@ -743,5 +800,6 @@ export function itemPartsSVG(type, states, which, cls = 'fw-weapon') {
     return `<g class="wp ${st}">${rects}</g>`;
   }).join('');
   return `<svg class="${cls}" viewBox="0 0 ${ART_W} ${ART_H}" preserveAspectRatio="xMidYMid meet"
-    shape-rendering="crispEdges" style="image-rendering:pixelated;" aria-hidden="true">${gs}</svg>`;
+    shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg"
+    style="width:100%;height:100%;display:block;image-rendering:pixelated;" aria-hidden="true">${gs}</svg>`;
 }

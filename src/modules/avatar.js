@@ -17,6 +17,7 @@
 import { persist } from './storage.js';
 import { markDirty } from './sync.js';
 import { commitDirty } from './dialog.js';
+import { itemGroupSVG, itemIconSVG, matPalette, gemPalette } from './pixel-items.js';
 
 // Reihenfolge + Beschriftung der Einstell-Zeilen; anchor = vertikale Position der
 // Pfeile (% der Sprite-Höhe, 96 Rasterzeilen) am jeweils veränderten Körperteil.
@@ -499,14 +500,20 @@ function armsSVG(SH, skin, top) {
   const alx = 32 - SH - 4, arx = 32 + SH;
   const c = top.c, short = SHORT_SLEEVE.has(top.style);
   const sleeveH = short ? 8 : 16;
-  const skinD = shade(skin, 0.7), cD = shade(c, 0.62);
+  const skinD = shade(skin, 0.7), skinH = shade(skin, 1.1), cD = shade(c, 0.62);
   let s = '';
-  for (const [x, ox] of [[alx, alx - 1], [arx, arx + 4]]) {
+  // Licht von oben links: linker Arm mit Glanzkante, rechter mit Schattenkante —
+  // dadurch wirkt die Figur rund statt wie ausgeschnittenes Papier.
+  for (const [x, ox, lit] of [[alx, alx - 1, true], [arx, arx + 4, false]]) {
     s += px(x, 46, 4, sleeveH, c) + px(ox, 46, 1, sleeveH, cD)
+      + px(lit ? x : x + 3, 47, 1, sleeveH - 2, shade(c, lit ? 1.18 : 0.82))
       + px(x, 45 + sleeveH, 4, 1, shade(c, 0.75));                     // Ärmelsaum
-    if (short) s += px(x, 54, 4, 8, skin) + px(ox, 54, 1, 8, skinD);   // Unterarm Haut
+    if (short) {
+      s += px(x, 54, 4, 8, skin) + px(ox, 54, 1, 8, skinD)             // Unterarm Haut
+        + px(lit ? x : x + 3, 55, 1, 6, lit ? skinH : skinD);
+    }
     s += px(x, 62, 4, 4, skin) + px(ox, 62, 1, 4, skinD)               // Hand
-      + px(x, 65, 4, 1, shade(skin, 0.85));
+      + px(x, 62, 4, 1, skinH) + px(x, 65, 4, 1, shade(skin, 0.85));
   }
   return s;
 }
@@ -604,9 +611,9 @@ function legsSVG(HIP, LW, skin, p) {
     }
   }
   // Schuhe (Zehen 1px nach außen), Sohle dunkler; Sneaker bekommen Schnürsenkel-Pixel.
-  const sh = p.shoe, shD = shade(sh, 0.6);
-  s += px(lx1 - 2, 90, LW + 2, 3, sh) + px(lx1 - 2, 93, LW + 2, 1, shD);
-  s += px(lx2, 90, LW + 2, 3, sh) + px(lx2, 93, LW + 2, 1, shD);
+  const sh = p.shoe, shD = shade(sh, 0.6), shH = shade(sh, 1.2);
+  s += px(lx1 - 2, 90, LW + 2, 3, sh) + px(lx1 - 2, 93, LW + 2, 1, shD) + px(lx1 - 2, 90, LW, 1, shH);
+  s += px(lx2, 90, LW + 2, 3, sh) + px(lx2, 93, LW + 2, 1, shD) + px(lx2 + 2, 90, LW, 1, shH);
   if (sh === '#f2f0ea') s += px(lx1, 90, 1, 1, '#9a9a9a') + px(lx2 + 2, 90, 1, 1, '#9a9a9a');
   return s;
 }
@@ -618,6 +625,8 @@ function bodySVG(cfg, skin) {
   let s = '';
   s += armsSVG(SH, skin, top);
   s += roundO(32 - SH, 46, SH * 2, 23, c)                             // Rumpf
+    + px(32 - SH + 1, 49, 2, 16, shade(c, 1.12))                      // Lichtkante links
+    + px(32 + SH - 3, 49, 2, 16, shade(c, 0.88))                      // Schattenkante rechts
     + px(28, 46, 8, 2, shade(c, 0.78))                                // Halsausschnitt
     + dith(32 + SH - 6, 60, 5, 6, shade(c, 0.85));                    // Schatten rechts unten
   s += topDetails(top, SH);
@@ -631,10 +640,12 @@ function bodySVG(cfg, skin) {
 //  mit je {type, tier, which}; Farbe = MATERIAL (which: past → Stahlblau,
 //  pp → Gold). Der weiße Funkel-Pixel hängt an der Stufe (tier).
 // ────────────────────────────────────────────────
-const MAT_C = { past: '#8fa2b8', pp: '#e3b341' };
-const TIER_G = { stahl: MAT_C.past, gold: MAT_C.pp, verzaubert: G[0] };   // Fallback ohne which
-const matColor = (which, tier) => MAT_C[which] || TIER_G[tier] || G[3];
-export const PET_COLOR = MAT_C;   // Alt-Export (Materialfarben), extern ungenutzt
+// Materialfarben kommen aus pixel-items.js — Schmiede, Ausrüstungs-Icons und
+// die Teile am Charakter zeigen damit garantiert denselben Ton.
+
+// Material eines Teils als Palette (o/d/b/h) — identisch mit der Schmiede.
+const gearPal = (it) => matPalette(it && it.which === 'pp' ? 'pp' : 'past');
+const gearGem = (it) => gemPalette(it && it.which === 'pp' ? 'pp' : 'past');
 
 function gearSVG(cfg, gear) {
   if (!gear) return '';
@@ -642,48 +653,82 @@ function gearSVG(cfg, gear) {
   const alx = 32 - SH - 4, arx = 32 + SH;
   const lx1 = 32 - HIP, lx2 = 32 + HIP - LW;
   let s = '';
-  const col = (it) => matColor(it.which, it.tier);
-  const spark = (it, x, y) => it.tier === 'verzaubert' ? px(x, y, 1, 1, '#ffffff') : '';
 
+  // 🛡️ Rüstung: Brustplatte mit Mittelgrat, Bauchband, Gürtel und Schulterstücken.
+  // Licht kommt wie beim ganzen Sprite von oben links → Glanzkante links, Schatten rechts.
   if (gear.body) {
-    const c = col(gear.body);
-    s += px(32 - SH, 46, SH * 2, 12, c) + px(32 - SH, 58, SH * 2, 2, shade(c, 0.62))
-      + px(28, 46, 8, 2, shade(c, 0.75))                            // Halsausschnitt
-      + dith(32 + SH - 8, 52, 6, 6, shade(c, 0.8))
-      + px(32 - SH + 2, 50, 1, 1, shade(c, 1.3)) + px(32 + SH - 3, 50, 1, 1, shade(c, 1.3))   // Nieten
-      + spark(gear.body, 32 - SH + 2, 48);
+    const P = gearPal(gear.body), L = 32 - SH, W = SH * 2;
+    s += round(L - 1, 45, W + 2, 24, P.o) + round(L, 46, W, 22, P.b)
+      + px(L + 1, 49, 2, 16, P.h)                                   // Glanzkante links
+      + px(L + W - 3, 49, 2, 16, P.d)                               // Schattenkante rechts
+      + px(31, 48, 2, 18, P.h) + px(33, 48, 1, 18, P.d)             // Mittelgrat
+      + px(28, 44, 8, 3, P.d) + px(28, 44, 8, 1, P.o)               // Halsausschnitt
+      + px(L + 1, 57, W - 2, 1, P.o) + px(L + 1, 58, W - 2, 1, P.d) // Bauchband
+      + px(L + 1, 63, W - 2, 3, P.d) + px(L + 1, 62, W - 2, 1, P.o) // Gürtel
+      + px(30, 62, 4, 4, P.h) + px(31, 63, 2, 2, P.o)               // Schnalle
+      + round(alx - 1, 43, 7, 9, P.o) + round(alx, 44, 5, 7, P.b) + px(alx, 45, 5, 1, P.h)
+      + round(arx - 2, 43, 7, 9, P.o) + round(arx - 1, 44, 5, 7, P.b) + px(arx - 1, 45, 5, 1, P.h)
+      + px(arx + 2, 46, 1, 4, P.d);                                 // Schatten rechte Schulter
   }
-  if (gear.arms) {
-    const c = col(gear.arms);
-    s += px(alx, 60, 4, 6, c) + px(arx, 60, 4, 6, c)
-      + px(alx, 60, 4, 1, shade(c, 0.62)) + px(arx, 60, 4, 1, shade(c, 0.62))
-      + spark(gear.arms, alx + 1, 62);
-  }
-  if (gear.legs) {
-    const c = col(gear.legs);
-    s += px(lx1 - 2, 86, LW + 2, 8, c) + px(lx2, 86, LW + 2, 8, c)
-      + px(lx1 - 2, 86, LW + 2, 1, shade(c, 0.62)) + px(lx2, 86, LW + 2, 1, shade(c, 0.62))
-      + spark(gear.legs, lx2 + LW - 1, 88);
-  }
-  if (gear.talisman) {
-    const c = col(gear.talisman);
-    s += px(28, 44, 2, 2, G[4]) + px(34, 44, 2, 2, G[4]) + px(30, 46, 4, 4, c)
-      + px(31, 47, 1, 1, '#ffffff') + spark(gear.talisman, 32, 46);
-  }
-  if (gear.ring) {
-    s += px(alx + 1, 62, 2, 2, col(gear.ring)) + spark(gear.ring, alx + 1, 61);
-  }
+  // 🪖 Helm: Kuppel über dem Haar, Krempe, Wangenplatten und Nasensteg — das
+  // Gesicht bleibt frei (Augen/Mund sind das Herzstück des Charakters).
   if (gear.head) {
-    const c = col(gear.head);
-    s += soft(18, 6, 28, 12, c) + px(18, 17, 28, 2, shade(c, 0.62)) + dith(22, 8, 20, 4, shade(c, 0.82))
-      + px(20, 8, 1, 1, shade(c, 1.3)) + spark(gear.head, 40, 8);
+    const P = gearPal(gear.head);
+    s += round(17, 7, 30, 16, P.o) + round(18, 8, 28, 14, P.b)
+      + px(21, 9, 20, 2, P.h)                                       // Lichtkante oben
+      + dith(36, 12, 9, 8, P.d)                                     // Schattierung rechts
+      + px(17, 20, 30, 2, P.d) + px(17, 22, 30, 1, P.o)             // Krempe
+      + px(18, 23, 4, 11, P.b) + px(18, 23, 1, 11, P.h) + px(21, 23, 1, 11, P.o)   // Wangenplatte links
+      + px(42, 23, 4, 11, P.b) + px(45, 23, 1, 11, P.o) + px(42, 23, 1, 11, P.d)   // rechts
+      + px(18, 33, 4, 1, P.o) + px(42, 33, 4, 1, P.o)
+      + px(31, 21, 2, 10, P.b) + px(30, 21, 1, 10, P.o) + px(33, 21, 1, 10, P.o)   // Nasensteg
+      + px(29, 3, 6, 1, P.o) + px(30, 4, 4, 5, P.b) + px(30, 4, 1, 5, P.h) + px(33, 4, 1, 5, P.d);  // Kamm
   }
+  // 🥾 Stiefel: Schaft über dem Bein, Sohle etwas breiter als der Fuß.
+  if (gear.legs) {
+    const P = gearPal(gear.legs);
+    for (const x of [lx1 - 2, lx2]) {
+      s += px(x, 82, LW + 2, 9, P.b) + px(x, 82, LW + 2, 1, P.o)
+        + px(x, 83, 1, 8, P.h) + px(x + LW + 1, 83, 1, 8, P.d)
+        + px(x, 86, LW + 2, 1, P.o)                                 // Schnalle/Naht
+        + px(x - 1, 91, LW + 4, 2, P.d) + px(x - 1, 93, LW + 4, 1, P.o);   // Sohle
+    }
+  }
+  // 🧿 Talisman: Kette am Hals, Medaillon mit Stein auf der Brust.
+  if (gear.talisman) {
+    const P = gearPal(gear.talisman), Gm = gearGem(gear.talisman);
+    s += px(27, 42, 1, 3, P.d) + px(28, 44, 1, 2, P.d)
+      + px(36, 42, 1, 3, P.d) + px(35, 44, 1, 2, P.d)
+      + soft(29, 46, 6, 7, P.o) + soft(30, 47, 4, 5, P.b)
+      + px(31, 48, 2, 3, Gm.G) + px(31, 48, 1, 1, Gm.S);
+  }
+  // 🧤 Handschuhe: Stulpe am Unterarm + Faust (die Faust kommt weiter unten
+  // NOCH EINMAL über die Waffe, damit der Griff wirklich in der Hand liegt).
+  if (gear.arms) {
+    const P = gearPal(gear.arms);
+    for (const [x, lit] of [[alx, true], [arx, false]]) {
+      s += px(x - 1, 56, 6, 6, P.b) + px(x - 1, 56, 6, 1, P.o) + px(x - 1, 61, 6, 1, P.o)
+        + px(x - 1, 57, 1, 4, lit ? P.h : P.d) + px(x + 4, 57, 1, 4, lit ? P.d : P.o);
+    }
+  }
+  // Waffe: das echte Schmiede-Objekt (pixel-items.js) in der rechten Faust, in
+  // eigener Gruppe — der Kampf lässt sie darüber schwingen (.av-weapon).
   if (gear.weapon && gear.weapon.type) {
-    // Waffe IN der Hand: Griff läuft durch die Faust, die Hand wird danach
-    // wieder darübergezeichnet (Handschuh-Farbe, falls Panzerhandschuhe an).
-    s += weaponSVG(gear.weapon, arx + 1);
-    const handC = gear.arms ? col(gear.arms) : (SKIN[cfg.skin] || SKIN[0]);
-    s += px(arx, 62, 4, 4, handC) + px(arx, 65, 4, 1, shade(handC, 0.85));
+    s += itemGroupSVG(gear.weapon.type, gear.weapon.which === 'pp' ? 'pp' : 'past',
+      arx + 2, 63, 64, 96, 'av-weapon');
+  }
+  // Faust über dem Griff — mit Panzerhandschuh in Materialfarbe, sonst Haut.
+  if (gear.arms || (gear.weapon && gear.weapon.type)) {
+    const P = gear.arms ? gearPal(gear.arms) : null;
+    const skin = SKIN[cfg.skin] || SKIN[0];
+    const b = P ? P.b : skin, o = P ? P.o : shade(skin, 0.7), h = P ? P.h : shade(skin, 1.08);
+    s += px(arx, 62, 4, 5, b) + px(arx, 62, 4, 1, h) + px(arx, 66, 4, 1, o) + px(arx + 3, 63, 1, 3, o);
+    if (gear.arms) s += px(arx + 1, 63, 1, 1, gearGem(gear.arms).G);   // Knöchel-Stein
+  }
+  // 💍 Ring an der freien (linken) Hand.
+  if (gear.ring) {
+    const Gm = gearGem(gear.ring), P = gearPal(gear.ring);
+    s += px(alx, 63, 4, 1, P.b) + px(alx + 1, 62, 2, 1, Gm.G) + px(alx + 1, 62, 1, 1, Gm.S);
   }
   if (gear.companion) {
     // Gefährte zu Füßen des Charakters — eigenes Aussehen (Teile/Farbe),
@@ -693,57 +738,11 @@ function gearSVG(cfg, gear) {
   return s;
 }
 
-// Waffe in der rechten Hand (senkrecht, Klinge nach oben), wx = Griff-Spalte
-// MITTEN in der Hand (Hand: y62..65 — Griff/Schaft laufen durch die Faust).
-function weaponSVG(w, wx) {
-  wx = Math.min(wx, 58);
-  const c = matColor(w.which, w.tier);
-  const d = shade(c, 0.62), hl = shade(c, 1.25);
-  const grip = px(wx, 58, 2, 10, G[4]);                 // kurzer Griff: über + unter der Faust sichtbar
-  const shaft = px(wx, 28, 2, 42, G[4]);                // langer Schaft: bis neben das Bein
-  let s = '';
-  switch (w.type) {
-    case 'schwert': s = grip + px(wx - 2, 56, 6, 2, d) + px(wx, 32, 2, 24, c) + px(wx, 32, 1, 24, hl) + px(wx, 30, 2, 2, '#ffffff'); break;
-    case 'dolch':   s = grip + px(wx - 2, 56, 6, 2, d) + px(wx, 44, 2, 12, c) + px(wx, 44, 1, 12, hl); break;
-    case 'speer':   s = px(wx, 24, 2, 46, G[4]) + px(wx - 2, 22, 6, 2, c) + px(wx, 18, 2, 4, c) + px(wx, 24, 2, 2, c); break;
-    case 'axt':     s = shaft + px(wx - 6, 28, 6, 8, c) + px(wx - 8, 30, 2, 4, c) + px(wx - 8, 30, 1, 4, hl); break;
-    case 'hammer':  s = shaft + px(wx - 4, 26, 8, 8, c) + px(wx - 4, 29, 8, 1, d); break;
-    case 'stab':    s = px(wx, 26, 2, 44, G[4]) + px(wx - 2, 20, 6, 6, c) + px(wx - 1, 21, 2, 2, '#ffffff'); break;
-    case 'bogen':   s = px(wx, 44, 2, 36, c) + px(wx - 2, 44, 4, 2, c) + px(wx - 2, 78, 4, 2, c)
-      + px(wx - 2, 46, 1, 32, d) + px(wx, 60, 2, 6, G[4]); break;   // Bogen MITTIG in der Faust, Sehne links, Griffwicklung
-    case 'streitkolben': s = shaft + px(wx - 4, 20, 8, 8, c) + px(wx - 6, 22, 2, 4, c) + px(wx + 4, 22, 2, 4, c) + px(wx - 2, 18, 4, 2, c); break;
-    default: return '';
-  }
-  if (w.tier === 'verzaubert') s += px(wx + 3, 26, 1, 1, '#ffffff') + px(wx - 3, 40, 1, 1, '#ffffff');
-  return s;
-}
-
-// 16×16-Pixel-Icon eines geschmiedeten Objekts (fürs Inventar) — gleiche
-// Stilregeln: weiche Silhouetten, Outline im dunkleren Ton, Stufen-Grau.
+// Icon eines geschmiedeten Objekts (Ausrüstungs-Felder, Tasche, Vorschau) — dieselbe
+// Pixel-Art wie in der Schmiede, nur mit allen fünf Teilen fertig. tier steckt schon
+// im fertigen Objekt (nur komplette Teile werden zu Ausrüstung), spielt hier keine Rolle.
 export function itemSpriteSVG(type, tier, which) {
-  const c = matColor(which, tier);
-  const d = shade(c, 0.62);
-  let s = '';
-  switch (type) {
-    case 'schwert':    s = px(7, 1, 2, 9, c) + px(7, 0, 2, 1, '#ffffff') + px(5, 10, 6, 1, d) + px(7, 11, 2, 4, G[4]); break;
-    case 'dolch':      s = px(7, 3, 2, 6, c) + px(5, 9, 6, 1, d) + px(7, 10, 2, 4, G[4]); break;
-    case 'speer':      s = px(7, 4, 2, 11, G[4]) + px(6, 2, 4, 2, c) + px(7, 0, 2, 2, c); break;
-    case 'axt':        s = px(8, 2, 2, 12, G[4]) + px(3, 2, 5, 5, c) + px(2, 3, 1, 3, c); break;
-    case 'hammer':     s = px(7, 4, 2, 10, G[4]) + px(4, 1, 8, 4, c); break;
-    case 'stab':       s = px(7, 4, 2, 11, G[4]) + px(6, 1, 4, 4, c) + px(7, 2, 2, 2, '#ffffff'); break;
-    case 'bogen':      s = px(5, 1, 2, 2, c) + px(4, 3, 2, 10, c) + px(5, 13, 2, 2, c) + px(9, 2, 1, 12, d) + px(5, 7, 5, 2, G[4]) + px(10, 6, 2, 4, c); break;
-    case 'streitkolben': s = px(7, 7, 2, 8, G[4]) + px(5, 2, 6, 5, c) + px(7, 0, 2, 2, c) + px(3, 3, 2, 3, c) + px(11, 3, 2, 3, c); break;
-    case 'helm':       s = soft(3, 4, 10, 6, c) + px(3, 10, 10, 1, d) + px(5, 7, 6, 1, shade(c, 0.8)); break;
-    case 'ruestung':   s = soft(3, 3, 10, 9, c) + px(6, 3, 4, 1, d) + px(3, 11, 10, 1, d) + dith(9, 8, 3, 3, shade(c, 0.8)); break;
-    case 'handschuhe': s = px(2, 5, 4, 6, c) + px(2, 5, 4, 1, d) + px(10, 5, 4, 6, c) + px(10, 5, 4, 1, d); break;
-    case 'stiefel':    s = px(3, 4, 3, 7, c) + px(2, 10, 5, 2, d) + px(10, 4, 3, 7, c) + px(9, 10, 5, 2, d); break;
-    case 'talisman':   s = px(5, 2, 1, 3, G[4]) + px(10, 2, 1, 3, G[4]) + px(6, 1, 4, 1, G[4]) + soft(5, 6, 6, 6, c); break;
-    case 'ring':       s = soft(4, 6, 8, 8, d) + px(6, 8, 4, 4, '#f4f1fc') + px(6, 2, 4, 4, c); break;
-    case 'gefaehrte':  s = soft(4, 7, 8, 6, c) + px(5, 5, 1, 2, c) + px(9, 4, 1, 3, c) + px(7, 9, 1, 1, G[5]); break;
-    default: s = px(5, 5, 6, 6, c);
-  }
-  if (tier === 'verzaubert') s += px(13, 1, 1, 1, '#ffffff') + px(2, 13, 1, 1, '#ffffff');
-  return `<svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges" style="width:100%;height:100%;display:block;image-rendering:pixelated;">${s}</svg>`;
+  return itemIconSVG(type, which === 'pp' ? 'pp' : 'past');
 }
 
 // ────────────────────────────────────────────────
@@ -922,12 +921,11 @@ function petCollar(A, c, which) {
   if (!which) return '';
   const [x, y, w] = A.collar;
   const [hx, hy] = A.head;
-  if (which === 'pp') {
-    return px(x, y, w, 2, GOLD) + px(x, y, w, 1, '#f0cf6e') + px(x + (w >> 1), y + 2, 1, 1, '#ffe9a8')
-      + px(2, 1, 1, 1, '#ffffff') + px(22, 3, 1, 1, '#ffffff') + px(20, 17, 1, 1, '#ffffff') + px(1, 15, 1, 1, '#ffffff')
-      + dith(hx + 1, hy + 1, 3, 2, shade(c, 1.35));
-  }
-  return px(x, y, w, 2, '#8fa2b8') + px(x, y, w, 1, '#a8b8ca') + px(x + (w >> 1), y + 2, 1, 1, '#c9ccd6');
+  const P = matPalette(which === 'pp' ? 'pp' : 'past');
+  const s = px(x, y, w, 2, P.b) + px(x, y, w, 1, P.h) + px(x + (w >> 1), y + 2, 1, 1, P.d);
+  if (which !== 'pp') return s;
+  return s + px(2, 1, 1, 1, '#ffffff') + px(22, 3, 1, 1, '#ffffff') + px(20, 17, 1, 1, '#ffffff') + px(1, 15, 1, 1, '#ffffff')
+    + dith(hx + 1, hy + 1, 3, 2, shade(c, 1.35));
 }
 
 // Gefährten-Pixel: Form + Teile + Farbe; which = Material (Halsband/Funkeln),
