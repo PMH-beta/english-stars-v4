@@ -441,13 +441,13 @@ function _hitFlash(id) {
 }
 // Kurze Kampf-Animation (attack = Ausfallschritt, shake = Wackeln) — Klasse
 // neu triggern über Reflow, damit sie auch direkt hintereinander feuert.
-function _anim(id, cls) {
+function _anim(id, cls, ms = 500) {
   const el = _el(id);
   if (!el) return;
   el.classList.remove(cls);
   void el.offsetWidth;
   el.classList.add(cls);
-  setTimeout(() => el.classList.remove(cls), 500);
+  setTimeout(() => el.classList.remove(cls), ms);
 }
 
 // Schadenszahl, die über dem Getroffenen aufsteigt und verblasst.
@@ -466,15 +466,40 @@ function _damagePop(overId, text, color) {
   setTimeout(() => s.remove(), 800);
 }
 
-// Schlag-Sequenz: Angreifer macht den Ausfallschritt, kurz darauf blinkt/wackelt
-// das Ziel und die Schadenszahl steigt auf.
+// Aufschlag-Splitter: ein paar Pixel fliegen vom Getroffenen weg (CSS .cf-spark,
+// Richtung/Weite je Splitter über --dx/--dy). Kurz, hart gesteppt, kein Glow.
+function _impactBurst(overId, color) {
+  const arena = document.querySelector('.cf-arena');
+  const over = _el(overId);
+  if (!arena || !over) return;
+  const a = arena.getBoundingClientRect(), o = over.getBoundingClientRect();
+  const cx = o.left - a.left + o.width / 2, cy = o.top - a.top + o.height * 0.45;
+  for (let i = 0; i < 7; i++) {
+    const ang = (Math.PI * 2 * i) / 7 + Math.random() * 0.5;
+    const dist = 16 + Math.random() * 18;
+    const s = document.createElement('span');
+    s.className = 'cf-spark';
+    s.style.background = color;
+    s.style.left = Math.round(cx) + 'px';
+    s.style.top = Math.round(cy) + 'px';
+    s.style.setProperty('--dx', Math.round(Math.cos(ang) * dist) + 'px');
+    s.style.setProperty('--dy', Math.round(Math.sin(ang) * dist - 10) + 'px');
+    arena.appendChild(s);
+    setTimeout(() => s.remove(), 460);
+  }
+}
+
+// Schlag-Sequenz: Angreifer holt aus und schlägt zu (Waffe schwingt mit), beim
+// Aufschlag blinkt und taumelt das Ziel, Splitter stieben weg und die Schadenszahl
+// steigt auf. Der Versatz passt zur Vorstoß-Phase der Angriffs-Animation (45 %).
 function _strike(attackerId, targetId, dmgText, color) {
-  _anim(attackerId, 'attack');
+  _anim(attackerId, 'attack', 500);
   setTimeout(() => {
     _hitFlash(targetId);
-    _anim(targetId, 'shake');
+    _anim(targetId, 'shake', 340);
+    _impactBurst(targetId, color);
     _damagePop(targetId, dmgText, color);
-  }, 160);
+  }, 210);
 }
 
 // Fehlklick im Buchstabensturm kostet jetzt auch direkt HP (zusätzlich zur
@@ -486,6 +511,8 @@ function _onStormMiss() {
   run.hp = Math.max(0, run.hp - STORM_MISS_DMG);
   _setBars();
   _hitFlash('cf-hero');
+  _anim('cf-hero', 'shake', 340);
+  _impactBurst('cf-hero', '#ff8787');
   _damagePop('cf-hero', '−' + STORM_MISS_DMG, '#ff8787');
   save();
   if (run.hp <= 0) {
@@ -759,11 +786,18 @@ function _endScreen(victory) {
   const bossWin = victory && boss;
   const stage = _el('cf-stage');
   if (victory) try { playSfx('end'); } catch (e) {}
-  if (bossWin) {
-    // Gegner-Sprite "zerplatzt" (siehe .cf-enemy.poof in style.css), dazu Konfetti.
+  if (victory) {
+    // Jeder besiegte Gegner zerplatzt (siehe .cf-enemy.poof), der Held reißt die
+    // Waffe hoch und hüpft (.cf-hero.cheer) — beim Boss zusätzlich Konfetti.
     const enemyEl = _el('cf-enemy');
     if (enemyEl) enemyEl.classList.add('poof');
-    _confettiBurst();
+    const heroEl = _el('cf-hero');
+    if (heroEl) heroEl.classList.add('cheer');
+    if (bossWin) _confettiBurst();
+  } else {
+    // Niederlage: der Held sackt zur Seite weg (.cf-hero.down).
+    const heroEl = _el('cf-hero');
+    if (heroEl) heroEl.classList.add('down');
   }
   if (stage) stage.innerHTML = `<div style="display:flex;justify-content:center;padding:20px 16px;">
     <div style="background:#fff;border-radius:20px;padding:28px 24px;box-shadow:0 4px 14px rgba(0,0,0,.22);max-width:300px;text-align:center;">

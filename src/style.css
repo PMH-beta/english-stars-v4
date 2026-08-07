@@ -1366,27 +1366,81 @@ body.in-game .mode-progress{display:block;}
   .cf-hills{height:21px;}
 }
 .cf-hero{width:108px;height:162px;position:relative;z-index:1;}
-.cf-hero svg{animation:enemyBob 1.8s steps(1,end) infinite;}
-.cf-hero.hit svg{animation:none;filter:brightness(2.2);}
+/* Ruhe-Animation: der Held atmet (2 Frames), der Gegner flackert als Flamme
+   (3 Frames, leichtes Zucken in der Höhe) — beide hart gesteppt, kein Easing. */
+.cf-hero svg{animation:cfIdleHero 2s steps(1,end) infinite;}
+.cf-hero.hit svg{animation:none;filter:brightness(2.4);}
+@keyframes cfIdleHero{0%,49%{transform:translateY(0);}50%,100%{transform:translateY(-2px);}}
 .cf-enemy{width:142px;height:142px;flex:none;position:relative;z-index:1;}
 .cf-enemy.boss{width:192px;height:192px;}
-.cf-enemy svg{animation:enemyBob 1.4s steps(1,end) infinite;}
-@keyframes enemyBob{0%,100%{transform:translateY(0);}50%{transform:translateY(-3px);}}
-.cf-enemy.hit svg{animation:none;filter:brightness(2.2);}
+.cf-enemy svg{animation:cfIdleEnemy 1.05s steps(1,end) infinite;transform-origin:50% 100%;}
+@keyframes cfIdleEnemy{
+  0%,32%{transform:translateY(0) scaleY(1);}
+  33%,65%{transform:translateY(-2px) scaleY(1.03);}
+  66%,100%{transform:translateY(-1px) scaleY(.98);}
+}
+.cf-enemy.hit svg{animation:none;filter:brightness(2.4);}
 .cf-enemy.poof svg{animation:cfBossPoof .6s ease-in forwards;}
 @keyframes cfBossPoof{0%{transform:scale(1) rotate(0deg);opacity:1;}55%{transform:scale(1.18) rotate(-5deg);opacity:1;}100%{transform:scale(0) rotate(14deg);opacity:0;}}
 /* Pille für HUD-Text über dem hellen Himmel: dunkles Glas, damit weiße
    Schrift lesbar bleibt. */
 .cf-pill{background:rgba(43,35,80,.6);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);border-radius:18px;}
 
-/* Kampf-Animationen: Ausfallschritt des Angreifers, Wackeln des Getroffenen,
-   aufsteigende Schadenszahl — alles hart gesteppt (Pixel-Stil, kein Easing). */
-.cf-hero.attack{animation:cfLungeR .35s steps(3,end);}
-.cf-enemy.attack{animation:cfLungeL .35s steps(3,end);}
-@keyframes cfLungeR{0%{transform:translateX(0);}40%{transform:translateX(22px);}100%{transform:translateX(0);}}
-@keyframes cfLungeL{0%{transform:translateX(0);}40%{transform:translateX(-22px);}100%{transform:translateX(0);}}
-.cf-hero.shake,.cf-enemy.shake{animation:cfShake .32s steps(4,end);}
-@keyframes cfShake{0%,100%{transform:translateX(0);}25%{transform:translateX(-5px);}50%{transform:translateX(4px);}75%{transform:translateX(-3px);}}
+/* Kampf-Animationen — alles hart gesteppt (Pixel-Stil, kein Easing).
+   Angriff des Helden in drei Phasen: Ausholen (zurück) · Vorstoß · Zurückfedern.
+   Die Waffe schwingt dabei um den Griff mit (.av-weapon, eigene Gruppe im Sprite),
+   sodass wirklich zugeschlagen wird statt nur zu rutschen. */
+.cf-hero.attack{animation:cfHeroAttack .5s steps(5,end);}
+.cf-hero.attack .av-weapon{animation:cfSwing .5s steps(6,end);}
+@keyframes cfHeroAttack{
+  0%{transform:translateX(0);}
+  20%{transform:translateX(-7px);}
+  45%{transform:translateX(26px);}
+  62%{transform:translateX(18px);}
+  100%{transform:translateX(0);}
+}
+@keyframes cfSwing{
+  0%{transform:rotate(0deg);}
+  20%{transform:rotate(-40deg);}
+  45%{transform:rotate(64deg);}
+  62%{transform:rotate(50deg);}
+  100%{transform:rotate(0deg);}
+}
+/* Gegner: zusammenziehen, dann als Flamme nach vorn schnellen (Squash & Stretch). */
+.cf-enemy.attack{animation:cfEnemyAttack .5s steps(5,end);transform-origin:50% 100%;}
+@keyframes cfEnemyAttack{
+  0%{transform:translateX(0) scale(1,1);}
+  22%{transform:translateX(9px) scale(.9,1.12);}
+  50%{transform:translateX(-26px) scale(1.14,.9);}
+  70%{transform:translateX(-14px) scale(1,1);}
+  100%{transform:translateX(0) scale(1,1);}
+}
+/* Treffer: der Getroffene wird vom Angreifer WEG geschleudert und fängt sich. */
+.cf-hero.shake{animation:cfHitL .34s steps(4,end);}
+.cf-enemy.shake{animation:cfHitR .34s steps(4,end);}
+@keyframes cfHitL{0%,100%{transform:translateX(0);}25%{transform:translateX(-10px);}50%{transform:translateX(4px);}75%{transform:translateX(-3px);}}
+@keyframes cfHitR{0%,100%{transform:translateX(0);}25%{transform:translateX(10px);}50%{transform:translateX(-4px);}75%{transform:translateX(3px);}}
+/* Sieg: Waffe hoch und hüpfen, bis der Weiter-Knopf kommt. */
+.cf-hero.cheer{animation:cfCheerHop .6s steps(2,end) infinite;}
+.cf-hero.cheer .av-weapon{animation:cfCheerArm .6s steps(2,end) infinite;}
+@keyframes cfCheerHop{0%,49%{transform:translateY(0);}50%,100%{transform:translateY(-6px);}}
+@keyframes cfCheerArm{0%,49%{transform:rotate(-24deg);}50%,100%{transform:rotate(-34deg);}}
+/* Niederlage: der Held kippt zur Seite weg und bleibt liegen. */
+.cf-hero.down{animation:cfDown .5s steps(3,end) forwards;transform-origin:50% 100%;}
+@keyframes cfDown{
+  0%{transform:rotate(0deg) translateY(0);opacity:1;}
+  60%{transform:rotate(-12deg) translateY(4px);opacity:.9;}
+  100%{transform:rotate(-22deg) translateY(10px);opacity:.55;}
+}
+/* Aufschlag-Splitter am Getroffenen (JS setzt --dx/--dy je Splitter). */
+.cf-spark{
+  position:absolute;width:3px;height:3px;pointer-events:none;z-index:4;
+  animation:cfSpark .42s steps(4,end) forwards;
+}
+@keyframes cfSpark{
+  0%{opacity:1;transform:translate(0,0);}
+  100%{opacity:0;transform:translate(var(--dx),var(--dy));}
+}
 .cf-dmg{
   position:absolute;transform:translateX(-50%);z-index:2;pointer-events:none;white-space:nowrap;
   font-family:'Fredoka One',cursive;font-size:1.15rem;text-shadow:0 2px 0 rgba(0,0,0,.5);

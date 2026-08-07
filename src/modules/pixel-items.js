@@ -776,8 +776,14 @@ export function itemGroupSVG(type, which, atX, atY, w = 64, h = 96, cls = '') {
     .map((r) => `<rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" fill="${_color(r.ch, which)}"/>`)
     .join('')).join('');
   const inner = flip ? `<g transform="translate(${2 * grip[0]},0) scale(-1,1)">${rects}</g>` : rects;
-  // transform-origin = Faust: der Schwung im Kampf dreht um den Griff, nicht um die Ecke.
-  return `<g class="${cls}" transform="translate(${dx},${dy})" style="transform-origin:${grip[0]}px ${grip[1]}px;">${inner}</g>`;
+  // ZWEI Gruppen: die äußere hält die Position (transform-Attribut), die innere ist
+  // frei für CSS-Animationen. Eine CSS-transform auf der äußeren würde das Attribut
+  // ersetzen — die Waffe spränge beim ersten Schwung aus der Hand.
+  // Drehpunkt = Griff. transform-box:fill-box misst vom EIGENEN Kasten der Gruppe,
+  // sonst bezöge sich transform-origin auf den Ursprung des ganzen Sprites.
+  const gx = grip[0] - x0, gy = grip[1] - bb.y0;
+  return `<g transform="translate(${dx},${dy})"><g class="${cls}"`
+    + ` style="transform-box:fill-box;transform-origin:${gx}px ${gy}px;">${inner}</g></g>`;
 }
 
 // Fertiges Objekt als eigenes Icon (Ausrüstungs-Felder, Tasche, Vorschau).
