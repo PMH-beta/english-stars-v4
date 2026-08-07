@@ -8,7 +8,7 @@ import { signIn, signUp, signOut, resendConfirmation, requestPasswordReset, upda
 import { cloudLoad, cloudReset, saveDeck, saveWordStats, saveExam, markDirty, flushPendingSync, setCloudConfirmed, getPendingCount, setKnownSig, cloudChangedRemotely, queuePresetStatDelete, deleteProbetest } from './sync.js';
 import { commitDirty } from './dialog.js';
 import { uvMap, uvLernstand, constellationWords, FORGE_DISC, SLOTS_PER_FORM, uvTrainProgress, uvTrainForms, uvTrainWords, uvPruneOrphanSlotStats } from './irregular-game.js';
-import { renderAvatarInto, renderCharacter, commitAvatar, resetCharacterFeature, setCharacterCompanion } from './avatar.js';
+import { renderAvatarInto, renderCharacter, commitAvatar, resetCharacterFeature, setCharacterCompanion, setCharacterGear } from './avatar.js';
 import { IRREGULAR_PRESET_ID, uvAvailableVerbs, CONSTELLATION_SIZE, cefrOf, forgeObject, FORGE_OBJECTS, usedForgeObjects, getConstellations, allVerbsSorted, verbsByEns, UV_TRAIN_SUF } from './irregular-verbs.js';
 import { objectPerkText, renderEquipmentPanel, resetEquipmentSelection, forgedItems, equippedGearMap } from './campaign-equipment.js';
 import { renderFriendsSection, refreshFriendBadge, friendProgress, subscribeFriendRealtime, unsubscribeFriendRealtime } from './friends.js';
@@ -1835,8 +1835,12 @@ export function showCharacter() {
   // Gefährte neben dem Charakter: angelegter, sonst bester geschmiedeter
   // (Gold vor Stahl); keiner → Figur ausgegraut (noch freispielbar).
   const pets = forgedItems().filter((i) => i.slot === 'companion');
-  const pet = equippedGearMap().companion || pets.find((p) => p.which === 'pp') || pets[0] || null;
+  const gear = equippedGearMap();
+  const pet = gear.companion || pets.find((p) => p.which === 'pp') || pets[0] || null;
   setCharacterCompanion({ available: !!pet, which: pet ? pet.which : null });
+  // Angelegte Teile auf der Bühne zeigen — der Gefährte steht dort schon als
+  // eigene Figur daneben, deshalb ohne ihn.
+  setCharacterGear({ ...gear, companion: null });
   showScreen('character-screen');
   renderCharacter();
 }
@@ -1846,6 +1850,7 @@ export function showCharacterOnboarding() {
   _setCharOnboarding(true);
   resetCharacterFeature();
   setCharacterCompanion(null);
+  setCharacterGear(null);        // Erst-Login: noch keine Ausrüstung im Spiel
   showScreen('character-screen');
   renderCharacter();
 }

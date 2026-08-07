@@ -994,6 +994,24 @@ export function setCharacterCompanion(info) {
   _petInfo = info || { available: false, which: null };
   if (!_petInfo.available) _editTarget = 'char';
 }
+
+// Angelegte Ausrüstung für die Bühne der Charakter-Anpassung. Reicht ui.js herein
+// (avatar.js kennt die Schmiede bewusst nicht — wie beim Gefährten).
+let _charGear = null;
+export function setCharacterGear(map) { _charGear = map || null; }
+// Teile, die das gerade bearbeitete Merkmal verdecken würden, bleiben weg — man
+// sieht also immer, was man gerade ändert, und trotzdem seine Ausrüstung.
+const GEAR_HIDDEN_BY = {
+  hair: ['head'], hairColor: ['head'], ears: ['head'],
+  top: ['body', 'arms'], pants: ['legs'], build: ['body', 'arms', 'legs'],
+};
+function _stageGear() {
+  if (!_charGear) return null;
+  const hide = GEAR_HIDDEN_BY[_activeFeature] || [];
+  const out = {};
+  for (const k in _charGear) if (!hide.includes(k)) out[k] = _charGear[k];
+  return out;
+}
 export function charEditTarget(t) {
   if (t === 'pet' && !_petInfo.available) return;   // ausgegraut = nicht anwählbar
   _editTarget = t === 'pet' ? 'pet' : 'char';
@@ -1004,7 +1022,7 @@ export function renderCharacter() {
   const sd = window.SD;
   if (!sd) return;
   const cfg = ensureAvatar(sd);
-  renderAvatarInto('character-canvas', sd, { headOnly: false });
+  renderAvatarInto('character-canvas', sd, { headOnly: false, gear: _stageGear() });
 
   // Gefährten-Figur neben dem Charakter: eigenes Aussehen, Halsband = Material;
   // ohne freigespielten Gefährten grau + gesperrt; Markierung unter der Figur.
