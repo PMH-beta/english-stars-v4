@@ -1188,18 +1188,17 @@ body.in-game .mode-progress{display:block;}
 .forge-weapon.locked{cursor:default;}
 
 /* Das Objekt als 5 PIXEL-Teile (Lo-Fi Pixel Art): built = solides Material,
-   next = pulsiert, ghost = angedeutet. Materialfarbe je Form (Stahl/Gold),
-   keine Strokes, keine weichen Kanten. */
+   next = pulsiert, ghost = angedeutet, keine Strokes, keine weichen Kanten.
+   Die Farben liegen jetzt pro Pixel im SVG (pixel-items.js, 32×48-Raster): fertige
+   und das gerade entstehende Teil tragen ihr echtes Material, das nächste pulsiert
+   nur über die Deckkraft. Hier darf deshalb KEIN fill mehr auf .built/.next stehen —
+   CSS würde die Pixel-Farben überschreiben. */
 .fw-weapon{width:100%;height:100%;overflow:visible;}
-.wp{transition:fill .45s,opacity .45s;}
-.wp.ghost{fill:rgba(120,120,140,.14);}
-.forge-weapon.past .wp.built{fill:#9fb2c8;}
-.forge-weapon.pp   .wp.built{fill:#e8bd3f;}
-.forge-weapon.past .wp.next{fill:rgba(111,154,208,.35);}
-.forge-weapon.pp   .wp.next{fill:rgba(230,178,58,.4);}
-.wp.next{animation:forgePulse 1.2s steps(2,end) infinite;}
+.wp{transition:opacity .45s;}
+.wp.ghost{fill:rgba(120,120,140,.16);}
+.wp.next{opacity:.7;animation:forgePulse 1.2s steps(2,end) infinite;}
 .forge-weapon.locked .fw-weapon{opacity:.5;}
-.forge-weapon.done .fw-weapon{filter:brightness(1.12);}
+.forge-weapon.done .fw-weapon{filter:brightness(1.06);}
 
 /* Fortschrittsbalken für den AKTUELLEN Schritt (das pulsierende Teil). */
 .fw-step{width:100%;max-width:280px;margin:2px auto 0;}

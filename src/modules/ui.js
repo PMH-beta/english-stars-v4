@@ -13,6 +13,7 @@ import { IRREGULAR_PRESET_ID, uvAvailableVerbs, CONSTELLATION_SIZE, cefrOf, forg
 import { objectPerkText, renderEquipmentPanel, resetEquipmentSelection, forgedItems, equippedGearMap } from './campaign-equipment.js';
 import { renderFriendsSection, refreshFriendBadge, friendProgress, subscribeFriendRealtime, unsubscribeFriendRealtime } from './friends.js';
 import { renderCampaign, updateTalerBadge, refreshClaimedTaler } from './campaign.js';
+import { itemPartsSVG } from './pixel-items.js';
 
 const API_KEY_SK = 'es_apikey';
 
@@ -1445,52 +1446,13 @@ const FORGE_MAT = {
   pp:   { label: '✓ Past Participle', mat: 'Gold' },
 };
 
-// ── Objekt-Geometrie (LO-FI PIXEL ART, Art-Direction) ────────────────────────
-// Jedes Objekt = 5 PIXEL-Teile in Schmiede-Reihenfolge (unten→oben) auf einem
-// gemeinsamen 16×24-Raster. Ein Teil = Liste von [x,y,w,h]-Rechtecken. Die
-// Zustands-Logik (built/next/ghost) färbt die <g>-Gruppen per CSS (.wp) —
-// Material Stahl/Gold über .forge-weapon.past/.pp wie gehabt.
-const PIXEL_PARTS = {
-  // Knauf · Griff · Parierstange · Klinge · Spitze
-  schwert:    [[[6, 21, 4, 2], [7, 23, 2, 1]], [[7, 17, 2, 4]], [[4, 15, 8, 2]], [[6, 5, 4, 10]], [[6, 3, 4, 2], [7, 1, 2, 2]]],
-  dolch:      [[[6, 20, 4, 2]], [[7, 17, 2, 3]], [[5, 15, 6, 2]], [[6, 8, 4, 7]], [[7, 5, 2, 3]]],
-  // Schaft ×3 · Tülle · Blattspitze
-  speer:      [[[7, 18, 2, 5]], [[7, 12, 2, 6]], [[7, 7, 2, 5]], [[6, 5, 4, 2]], [[6, 2, 4, 3], [7, 0, 2, 2]]],
-  axt:        [[[7, 18, 2, 5]], [[7, 12, 2, 6]], [[7, 7, 2, 5]], [[4, 5, 6, 5]], [[1, 4, 3, 7], [0, 5, 1, 5]]],
-  hammer:     [[[7, 18, 2, 5]], [[7, 12, 2, 6]], [[7, 7, 2, 5]], [[4, 4, 8, 5]], [[2, 5, 2, 4], [12, 5, 2, 4]]],
-  stab:       [[[7, 18, 2, 5]], [[7, 12, 2, 6]], [[7, 7, 2, 5]], [[6, 5, 4, 2]], [[6, 1, 4, 4], [7, 0, 2, 1]]],
-  // unterer Wurfarm · Griff · oberer Wurfarm · Sehne · Pfeil
-  bogen:      [[[5, 14, 2, 4], [6, 18, 2, 3], [8, 20, 2, 2]], [[4, 10, 3, 4]], [[5, 6, 2, 4], [6, 3, 2, 3], [8, 2, 2, 2]], [[10, 4, 1, 16]], [[3, 11, 8, 2], [11, 10, 2, 4], [13, 11, 1, 2]]],
-  // Knauf · Griff · Schaft · Kopf · Stacheln
-  streitkolben: [[[6, 21, 4, 2]], [[7, 17, 2, 4]], [[7, 10, 2, 7]], [[5, 4, 6, 6]], [[7, 1, 2, 3], [2, 5, 3, 2], [11, 5, 3, 2], [4, 2, 2, 2], [10, 2, 2, 2]]],
-  // Rand · linke Schale · rechte Schale · Kuppel · Kamm
-  helm:       [[[3, 18, 10, 2]], [[3, 10, 4, 8]], [[9, 10, 4, 8]], [[4, 7, 8, 3], [5, 5, 6, 2]], [[7, 2, 2, 4]]],
-  // Bauch · Brust links · Brust rechts · Schultern · Emblem
-  ruestung:   [[[4, 16, 8, 4]], [[3, 8, 5, 8]], [[8, 8, 5, 8]], [[1, 7, 4, 3], [11, 7, 4, 3]], [[7, 11, 2, 3], [6, 12, 4, 1]]],
-  // linke Stulpe · linke Hand · rechte Stulpe · rechte Hand · Knöchel
-  handschuhe: [[[2, 14, 5, 3]], [[2, 8, 5, 6]], [[9, 14, 5, 3]], [[9, 8, 5, 6]], [[3, 10, 3, 2], [10, 10, 3, 2]]],
-  // linke Sohle · linker Schaft · rechte Sohle · rechter Schaft · Borten
-  stiefel:    [[[1, 19, 6, 3]], [[2, 10, 4, 9]], [[9, 19, 6, 3]], [[10, 10, 4, 9]], [[2, 10, 4, 2], [10, 10, 4, 2]]],
-  // Kordel links · Kordel rechts · Fassung · Medaillon · Kernstein
-  talisman:   [[[4, 3, 2, 2], [3, 5, 2, 5]], [[10, 3, 2, 2], [11, 5, 2, 5]], [[6, 9, 4, 2]], [[5, 11, 6, 6]], [[7, 13, 2, 2]]],
-  // Bandbogen · Band links · Band rechts · Fassung · Edelstein
-  ring:       [[[5, 18, 6, 2]], [[3, 12, 2, 6]], [[11, 12, 2, 6]], [[5, 9, 6, 3]], [[6, 4, 4, 5], [7, 2, 2, 2]]],
-  // Körper · Kopf · Ohren · Schwanz · Augen
-  gefaehrte:  [[[4, 15, 8, 6]], [[5, 8, 7, 6]], [[5, 5, 2, 3], [10, 4, 2, 4]], [[12, 16, 3, 2], [14, 13, 2, 3]], [[7, 10, 1, 2], [10, 10, 1, 2]]],
-};
-PIXEL_PARTS._default = PIXEL_PARTS.schwert;
-
-// Das Objekt als 5-teiliges Pixel-SVG: gemeisterte Teile solide (built), das
-// nächste zu schmiedende Teil pulsiert (next), der Rest ist nur angedeutet
-// (ghost) — Teil-Index = Schritt-Reihenfolge (unten→oben).
-function _forgeWeaponSvg(type, steps, nextI) {
-  const parts = PIXEL_PARTS[type] || PIXEL_PARTS._default;
-  const gs = parts.map((rects, i) => {
-    const s = steps[i];
-    const cls = (s && s.lit) ? 'wp built' : (i === nextI ? 'wp next' : 'wp ghost');
-    return `<g class="${cls}">${rects.map(r => `<rect x="${r[0]}" y="${r[1]}" width="${r[2]}" height="${r[3]}"/>`).join('')}</g>`;
-  }).join('');
-  return `<svg class="fw-weapon" viewBox="0 0 16 24" preserveAspectRatio="xMidYMid meet" shape-rendering="crispEdges" style="image-rendering:pixelated;" aria-hidden="true">${gs}</svg>`;
+// Das Objekt als 5-teiliges Pixel-SVG (Geometrie + Farben: pixel-items.js, 32×48).
+// Gemeisterte Teile stehen in vollem Material (built), das nächste zu schmiedende
+// pulsiert in denselben Farben (next) — man sieht also, WAS gerade entsteht — und
+// der Rest bleibt eine farblose Andeutung (ghost).
+function _forgeWeaponSvg(type, steps, nextI, which) {
+  const states = steps.map((s, i) => (s && s.lit) ? 'built' : (i === nextI ? 'next' : 'ghost'));
+  return itemPartsSVG(type, states, which);
 }
 
 // Eine Waffe (Stahl-Past oder Gold-PP) groß als Mittelpunkt. KEINE Einzel-Schritte
@@ -1518,7 +1480,7 @@ function _forgeItem(m, which) {
   return `<div class="forge-weapon-wrap">
     <div class="fw-name">${mt.mat}-${ob.name}</div>
     <div class="forge-weapon ${which} ${state}"${tap} data-stage="${litN}" data-steps="${steps.length}">
-      ${_forgeWeaponSvg(ob.type, steps, nextI)}
+      ${_forgeWeaponSvg(ob.type, steps, nextI, which)}
     </div>
     <div class="fw-step ${state}">
       <div class="fw-step-top">
