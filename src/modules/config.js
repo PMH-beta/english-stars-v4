@@ -1,7 +1,7 @@
 // src/modules/config.js
 // Zentrale Konstanten und Konfiguration
 
-export const APP_VERSION = 'v4.0.355';
+export const APP_VERSION = 'v4.0.356';
 
 export const QPERROUND = 20;
 export const EXAM_QUESTIONS = 30;
@@ -23,6 +23,11 @@ export function gradeText(grade) {
 export const EMA_ALPHA = 0.45; // Faktor für gewichteten Durchschnitt der letzten Antworten
 export const MASTERY_THRESHOLD = 0.9; // 90% korrekt = gemeistert
 export const MASTERY_MIN_ATTEMPTS = 3; // mindestens 3 Versuche bevor Wort als gemeistert gilt
+// Schmiede/Trainingsplatz (unregelmäßige Verben): eigene, niedrigere Schwelle.
+// Ein Waffenteil braucht ALLE Verben des Auftrags in ALLEN 5 Teilen — mit 3
+// Abfragen je Verb wären das ~150 richtige Antworten pro Waffe. Die Quote
+// (MASTERY_THRESHOLD) bleibt gleich streng, nur die Anzahl sinkt.
+export const UV_MASTERY_MIN_ATTEMPTS = 2;
 
 // Gestaltwandler (UV): Methoden-Stufen werden aus dem EMA abgeleitet (kein
 // gespeicherter Zustand → kein Sync-Umbau). up2/up3 = Schwellen leicht→mittel

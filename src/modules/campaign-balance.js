@@ -81,8 +81,19 @@ export const CF_OWN_SHARE = 0.2;           // jede 5. Welle garantiert ein eigen
 // Zahl gelernter Wörter mit (bei 300 gelernten wären 75 % der Wellen Wiederholung).
 export const CF_REVIEW_SHARE = 0.2;
 
-// 🌀-Verben: der Schwerpunkt der Stufe (tier 1–5) wandert pro abgeschlossener Runde
-// nach oben. Bewusst als Glockenkurve statt als Schwelle — leichte Stufen bleiben
+// 🌀-Verben, Schritt 1: zuerst die EIGENEN, schon geübten Verben — die aus den
+// Schmiede-Aufträgen und den Trainingsplatz-Decks. Genau wie bei den Wörtern ist
+// der Kampf hier Wiederholung: eine Form zählt erst als „geübt", wenn sie in der
+// Schmiede/im Training mindestens VERB_OWN_SEEN_MIN-mal dran war.
+// Der Anteil sinkt pro Runde — danach übernimmt die Stufen-Glocke unten und die
+// Wellen werden Runde für Runde schwerer (fremde und höhere Stufen).
+export const VERB_OWN_SHARE_START = 0.85;
+export const VERB_OWN_SHARE_PER_ROUND = 0.10;
+export const VERB_OWN_SHARE_MIN = 0.30;
+export const VERB_OWN_SEEN_MIN = 2;
+
+// 🌀-Verben, Schritt 2: der Schwerpunkt der Stufe (tier 1–5) wandert pro abgeschlossener
+// Runde nach oben. Bewusst als Glockenkurve statt als Schwelle — leichte Stufen bleiben
 // immer möglich, die Steigerung ist stetig statt sprunghaft.
 export const VERB_TIER_START = 1.0;
 export const VERB_TIER_PER_ROUND = 0.45;

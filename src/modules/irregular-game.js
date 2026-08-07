@@ -11,7 +11,8 @@
 // (_past_s0 … _pp_s4) in SD.globalPresetStats (presetId 'irregular-verbs').
 
 import { startGame } from './game.js';
-import { effectivePct, isStatMastered, statKeyFor } from './stats.js';
+import { effectivePct, statKeyFor } from './stats.js';
+import { UV_MASTERY_MIN_ATTEMPTS, MASTERY_THRESHOLD } from './config.js';
 import { irregularAsVocab, getConstellations, IRREGULAR_PRESET_ID, UV_TRAIN_SUF, verbsByEns, forgeObject } from './irregular-verbs.js';
 
 export const SLOTS_PER_FORM = 5;
@@ -55,24 +56,49 @@ export function weaponSlots(cIdx, which) {
 }
 
 // ── Slot-Zustand ──────────────────────────────────────────────────────────────
+// Gemeistert in der SCHMIEDE/im TRAINING: eigene, niedrigere Abfrage-Schwelle
+// (UV_MASTERY_MIN_ATTEMPTS statt MASTERY_MIN_ATTEMPTS). Ein Waffenteil verlangt
+// alle 10 Verben × 5 Teile — mit der Vokabel-Schwelle wären das ~150 richtige
+// Antworten je Waffe; die Quote (EMA ≥ 90 %) bleibt unverändert streng.
+function _uvMastered(s) {
+  return !!s && Math.floor(s.asked || 0) >= UV_MASTERY_MIN_ATTEMPTS && effectivePct(s) >= MASTERY_THRESHOLD;
+}
+
 // Ein Slot „leuchtet", wenn jedes Verb der Gruppe in diesem Slot-Suffix sitzt.
 export function starLit(verbs, suf) {
   const ws = _ws();
-  return verbs.length > 0 && verbs.every((v) => isStatMastered(ws[statKeyFor(v.de, v.en, suf, IRREGULAR_PRESET_ID)]));
+  return verbs.length > 0 && verbs.every((v) => _uvMastered(ws[statKeyFor(v.de, v.en, suf, IRREGULAR_PRESET_ID)]));
 }
 export function starProgress(verbs, suf) {
   const ws = _ws(); let m = 0;
-  verbs.forEach((v) => { if (isStatMastered(ws[statKeyFor(v.de, v.en, suf, IRREGULAR_PRESET_ID)])) m++; });
+  verbs.forEach((v) => { if (_uvMastered(ws[statKeyFor(v.de, v.en, suf, IRREGULAR_PRESET_ID)])) m++; });
   return { mastered: m, total: verbs.length };
+}
+
+// Hat das Kind diese Verbform schon geübt? Schmiede-Slots (_past_s0…) UND
+// Trainingsplatz (_tr_…) zusammen — die Kampagne zieht ihre 🌀-Verben danach aus,
+// damit der Kampf Wiederholung bleibt und keine Erstbegegnung ist.
+export function uvFormPracticed(v, which, minAsked = 2) {
+  const ws = _ws();
+  for (let i = 0; i < SLOTS_PER_FORM; i++) {
+    const s = ws[statKeyFor(v.de, v.en, _slotSuf(which, i), IRREGULAR_PRESET_ID)];
+    if (s && Math.floor(s.asked || 0) >= minAsked) return true;
+  }
+  for (const disc in UV_TRAIN_SUF) {
+    const s = ws[statKeyFor(v.de, v.en, UV_TRAIN_SUF[disc][which], IRREGULAR_PRESET_ID)];
+    if (s && Math.floor(s.asked || 0) >= minAsked) return true;
+  }
+  return false;
 }
 
 // Teilpunkte EINER Stat aus dem EMA (0..1) + ob sie als gemeistert gilt — die
 // Kern-Rechnung hinter _slotScore, auch für Pro-Wort-Listen (uvTrainWords) genutzt.
 function _itemScore(s) {
   if (!s || !s.asked) return { score: 0, mastered: false };
-  const asked = s.asked, pct = effectivePct(s);
-  if (Math.floor(asked) >= 3 && pct >= 0.9) return { score: 1, mastered: true };
-  if (asked >= 1) return { score: Math.max(0, (pct - 0.5) * 2) * Math.min(asked / 3, 1) * 0.85, mastered: false };
+  const asked = s.asked;
+  if (_uvMastered(s)) return { score: 1, mastered: true };
+  const pct = effectivePct(s);
+  if (asked >= 1) return { score: Math.max(0, (pct - 0.5) * 2) * Math.min(asked / UV_MASTERY_MIN_ATTEMPTS, 1) * 0.85, mastered: false };
   return { score: 0, mastered: false };
 }
 
@@ -269,7 +295,7 @@ export function constellationWords(c) {
   const ws = _ws();
   const cnt = (v, which) => {
     let m = 0;
-    for (let i = 0; i < SLOTS_PER_FORM; i++) if (isStatMastered(ws[statKeyFor(v.de, v.en, _slotSuf(which, i), IRREGULAR_PRESET_ID)])) m++;
+    for (let i = 0; i < SLOTS_PER_FORM; i++) if (_uvMastered(ws[statKeyFor(v.de, v.en, _slotSuf(which, i), IRREGULAR_PRESET_ID)])) m++;
     return m;
   };
   return c.verbs.map((v) => {

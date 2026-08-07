@@ -19,7 +19,7 @@
 // jsonb mit) → Reload mitten im Kampf verliert nichts; nur das aktuelle Wort der
 // Welle wird neu gezogen.
 
-import { scaledEnemy, FORM_BONUS, TALISMAN_MULT, STORM_BASE_MS, STORM_PER_LETTER_MS, STORM_MISS_DMG, WEAK_TIME_BONUS, WEAK_EMA, METEOR_FALL_MS, METEOR_COUNT, ECHO_TIME_MS, ECHO_CHOICES, PERK_SPEER_BOSS, PERK_AXT_ELITE, PERK_HAMMER_MULT, PERK_BOGEN_FIGHT, POTION_HEAL, POTION_POWER, POTION_TIME_MS, POTION_TIME_WAVES, BOSS_WIN_TALER, CF_MIN_ASKED, CF_MASTER, CF_POOL_OPEN, CF_SEEN_MIN, CF_LEARNED_WEIGHT, CF_OWN_SHARE, CF_REVIEW_SHARE, VERB_TIER_START, VERB_TIER_PER_ROUND, VERB_TIER_SPREAD, VERB_TIER_FLOOR, VERB_FILLED_BONUS } from './campaign-balance.js';
+import { scaledEnemy, FORM_BONUS, TALISMAN_MULT, STORM_BASE_MS, STORM_PER_LETTER_MS, STORM_MISS_DMG, WEAK_TIME_BONUS, WEAK_EMA, METEOR_FALL_MS, METEOR_COUNT, ECHO_TIME_MS, ECHO_CHOICES, PERK_SPEER_BOSS, PERK_AXT_ELITE, PERK_HAMMER_MULT, PERK_BOGEN_FIGHT, POTION_HEAL, POTION_POWER, POTION_TIME_MS, POTION_TIME_WAVES, BOSS_WIN_TALER, CF_MIN_ASKED, CF_MASTER, CF_POOL_OPEN, CF_SEEN_MIN, CF_LEARNED_WEIGHT, CF_OWN_SHARE, CF_REVIEW_SHARE, VERB_OWN_SHARE_START, VERB_OWN_SHARE_PER_ROUND, VERB_OWN_SHARE_MIN, VERB_OWN_SEEN_MIN, VERB_TIER_START, VERB_TIER_PER_ROUND, VERB_TIER_SPREAD, VERB_TIER_FLOOR, VERB_FILLED_BONUS } from './campaign-balance.js';
 import { startLetterstorm, stormTarget } from './minigame-letterstorm.js';
 import { startMeteors } from './minigame-meteors.js';
 import { startEcho } from './minigame-echo.js';
@@ -28,7 +28,8 @@ import { enemySpriteSVG } from './pixel-enemies.js';
 import { avatarSVG, ensureAvatar } from './avatar.js';
 import { playSfx } from './game.js';
 import { effectivePct, statKeyFor } from './stats.js';
-import { getConstellations, IRREGULAR_VERBS, IRREGULAR_PRESET_ID } from './irregular-verbs.js';
+import { getConstellations, IRREGULAR_VERBS, IRREGULAR_PRESET_ID, verbsByEns } from './irregular-verbs.js';
+import { uvFormPracticed } from './irregular-game.js';
 import { getPresetCategories } from './vocab.js';
 import { markDirty } from './sync.js';
 
@@ -507,13 +508,54 @@ function _pickItem(stock) {
   return item;
 }
 
-// 🌀-Verb ziehen: aus ALLEN Verben des Datensatzes, aber der Schwerpunkt der Stufe
-// wandert pro Runde nach oben (Glockenkurve → leichte Stufen bleiben immer möglich).
-// Selbst befüllte Sternbild-Verben sind bevorzugt, gelernte Formen fallen zurück.
+// Eigene Verben einer Form: alles aus den Schmiede-Aufträgen (Sternbilder) und den
+// Trainingsplatz-Decks, das dort schon geübt wurde. Das ist der Vorrat, aus dem der
+// Wirbelsturm zuerst zieht — analog zu den eigenen Deck-Wörtern.
+function _ownVerbs(which) {
+  const seen = new Set();
+  const out = [];
+  const add = (v) => {
+    if (!v || seen.has(v.en)) return;
+    seen.add(v.en);
+    if (uvFormPracticed(v, which, VERB_OWN_SEEN_MIN)) out.push(v);
+  };
+  for (const c of getConstellations()) for (const v of c.verbs) add(v);
+  const decks = window.SD?.decks || {};
+  for (const id in decks) {
+    const d = decks[id];
+    if ((d.mode || 'free') !== 'training' || !d.vocab?.length) continue;
+    for (const v of verbsByEns(d.vocab.map((x) => x.en))) add(v);
+  }
+  return out;
+}
+
+// Form der Welle: hat das Kind nur EINE Form geübt (z. B. Trainingsplatz „nur
+// Simple Past"), fragt der Wirbelsturm auch nur die — sonst je zur Hälfte.
+function _pickForm() {
+  const past = _ownVerbs('past').length, pp = _ownVerbs('pp').length;
+  if (past && !pp) return 'past';
+  if (pp && !past) return 'pp';
+  return Math.random() < 0.5 ? 'past' : 'pp';
+}
+
+// 🌀-Verb ziehen — zwei Stufen:
+// 1. Zuerst die EIGENEN, schon geübten Verben (Anteil VERB_OWN_SHARE_*, sinkt pro
+//    Runde). Darin zählt nur der Kampf-Lernstand: offene Formen zuerst, gelernte
+//    seltener — genau wie bei den Deck-Wörtern.
+// 2. Sonst (und ab höheren Runden immer öfter) aus ALLEN Verben des Datensatzes,
+//    mit wanderndem Stufen-Schwerpunkt (Glockenkurve → es wird Runde für Runde
+//    schwerer, leichte Stufen bleiben aber immer möglich).
 function _pickVerb(which) {
+  const suf = CF_SUF + (which === 'pp' ? '_pp' : '_past');
+  const own = _ownVerbs(which);
+  const share = Math.max(VERB_OWN_SHARE_MIN, VERB_OWN_SHARE_START - VERB_OWN_SHARE_PER_ROUND * Math.max(0, _ctx.round || 0));
+  if (own.length && Math.random() < share) {
+    const v = _pickWeighted(own, (x) =>
+      _learned({ de: x.de, en: x.en, _presetId: IRREGULAR_PRESET_ID }, suf) ? CF_LEARNED_WEIGHT : 1);
+    if (v) return v;
+  }
   const filled = new Set(_verbPool().map((v) => v.en));
   const center = Math.min(5, VERB_TIER_START + VERB_TIER_PER_ROUND * Math.max(0, _ctx.round || 0));
-  const suf = CF_SUF + (which === 'pp' ? '_pp' : '_past');
   return _pickWeighted(IRREGULAR_VERBS, (v) => {
     const d = (v.tier || 1) - center;
     // Mindestgewicht nur nach UNTEN: schon abgehakte Stufen bleiben als Auflockerung
@@ -568,7 +610,7 @@ function _startWave() {
   if (type === 'verbstorm') {
     // Verbform zusammensetzen: „go → Simple Past?" → w-e-n-t. Formen-Welle →
     // passende Waffe (Stahl=past / Gold=pp) bekommt FORM_BONUS.
-    const which = Math.random() < 0.5 ? 'past' : 'pp';
+    const which = _pickForm();
     const v = _pickVerb(which) || verbs[Math.floor(Math.random() * verbs.length)];
     _ctx.waveForm = which;
     _ctx.cfItem = { de: v.de, en: v.en, _presetId: IRREGULAR_PRESET_ID, _deck: null };
