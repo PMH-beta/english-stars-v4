@@ -1323,6 +1323,10 @@ body.in-game .mode-progress{display:block;}
    ~Schulterhöhe des Characters bis ganz unten. Figuren bleiben an ihrem Platz
    (erstes Kind von .cf-ground-wrap, normaler Fluss); nur die grüne Fläche
    selbst ist kürzer, Kopf/Schultern ragen sichtbar in den Himmel. */
+/* Hügel-Ebenen zwischen Himmel und Rasen: exakt so hoch wie der Streifen über
+   der Rasenkante (siehe .cf-grass top) — dadurch sitzt der Horizont immer richtig,
+   egal wie hoch der Bildschirm ist. */
+.cf-hills{position:absolute;left:0;right:0;top:0;height:40px;z-index:0;overflow:hidden;}
 .cf-grass{
   position:absolute;left:0;right:0;bottom:0;top:40px;z-index:0;
   background-color:#6fae55;
@@ -1330,6 +1334,15 @@ body.in-game .mode-progress{display:block;}
   background-size:32px 32px;
   image-rendering:pixelated;
   border-radius:32px 32px 0 0;box-shadow:0 -6px 18px rgba(0,0,0,.12);
+}
+/* Grasnarbe an der Oberkante: heller Saum + kleine Büschel, damit die Kante
+   nicht wie ein aufgeklebter Balken wirkt. */
+.cf-grass::before{
+  content:'';position:absolute;left:0;right:0;top:0;height:7px;
+  border-radius:32px 32px 0 0;
+  background:
+    repeating-linear-gradient(90deg,#8ac96e 0 3px,transparent 3px 7px,#7dbb61 7px 9px,transparent 9px 14px),
+    linear-gradient(180deg,#8ac96e,#6fae55);
 }
 /* Figuren-Zone: Held/Gegner, oben im Boden-Bereich — knapper Abstand zum
    Himmel, damit sie sichtbar auf dem Grün stehen statt am Rand zu kleben. */
@@ -1342,6 +1355,7 @@ body.in-game .mode-progress{display:block;}
   .cf-enemy{width:110px;height:110px;}
   .cf-enemy.boss{width:148px;height:148px;}
   .cf-grass{top:33px;}
+  .cf-hills{height:33px;}
 }
 @media (max-height:480px){   /* z.B. Handy quer oder Tastatur offen */
   .cf-ground-wrap{padding-top:4px;}
@@ -1349,6 +1363,7 @@ body.in-game .mode-progress{display:block;}
   .cf-enemy{width:76px;height:76px;}
   .cf-enemy.boss{width:100px;height:100px;}
   .cf-grass{top:21px;}
+  .cf-hills{height:21px;}
 }
 .cf-hero{width:108px;height:162px;position:relative;z-index:1;}
 .cf-hero svg{animation:enemyBob 1.8s steps(1,end) infinite;}

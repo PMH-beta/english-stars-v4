@@ -299,16 +299,49 @@ function _el(id) { return document.getElementById(id); }
 // siehe _renderOverlay) — so gibt es keine Bruchkante zwischen Himmel-SVG
 // und Boden mehr.
 function _arenaScene() {
-  const px = (x, y, w, h, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${c}"/>`;
+  const px = (x, y, w, h, c, o) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${c}"${o ? ` opacity="${o}"` : ''}/>`;
   let s = '<rect x="0" y="0" width="128" height="72" fill="url(#cfSky)"/>';
-  s += px(104, 8, 16, 8, '#ffe066') + px(106, 6, 12, 12, '#ffe066') + px(110, 4, 8, 16, '#ffe066')
-    + px(108, 8, 8, 8, '#fff3bf');                                              // Sonne
-  s += px(8, 8, 16, 4, '#ffffff') + px(4, 10, 24, 3, '#ffffff') + px(12, 6, 10, 3, '#ffffff');
-  s += px(88, 4, 14, 3, '#ffffff') + px(84, 6, 22, 3, '#ffffff');               // Wolken (rechts, weg von der Wort-Karte)
+  // Sonne: harter Pixelkreis mit Korona-Stufe, dazu kurze Strahlen (keine weichen Glows).
+  s += px(102, 6, 20, 10, '#ffd84d') + px(104, 4, 16, 14, '#ffd84d') + px(106, 2, 12, 18, '#ffd84d')
+    + px(106, 6, 10, 8, '#fff3bf') + px(108, 4, 6, 3, '#fffbe6');
+  s += px(98, 10, 3, 1, '#ffe8a0') + px(122, 10, 4, 1, '#ffe8a0') + px(111, 0, 1, 2, '#ffe8a0');
+  // Licht als harte senkrechte Pixel-Streifen (Art-Direction: kein Glow).
+  s += px(96, 0, 2, 72, '#ffffff', '.10') + px(88, 0, 1, 72, '#ffffff', '.08')
+    + px(74, 0, 2, 72, '#ffffff', '.06');
+  // Wolken in zwei Ebenen: hinten kleiner/blasser, vorne größer (Tiefe).
+  s += px(30, 5, 12, 2, '#ffffff', '.55') + px(27, 6, 18, 2, '#ffffff', '.55');
+  s += px(60, 11, 10, 2, '#ffffff', '.45') + px(58, 12, 14, 2, '#ffffff', '.45');
+  s += px(8, 9, 16, 3, '#ffffff') + px(4, 11, 24, 3, '#ffffff') + px(12, 7, 10, 3, '#ffffff')
+    + px(6, 11, 20, 1, '#e8f4ff');
+  s += px(86, 16, 14, 3, '#ffffff') + px(82, 18, 22, 3, '#ffffff') + px(84, 18, 18, 1, '#e8f4ff');
+  // Vögel (zwei Striche, klassisch)
+  s += px(46, 16, 1, 1, '#7fa6c4') + px(47, 15, 2, 1, '#7fa6c4') + px(49, 16, 1, 1, '#7fa6c4');
+  s += px(54, 21, 1, 1, '#7fa6c4') + px(55, 20, 2, 1, '#7fa6c4') + px(57, 21, 1, 1, '#7fa6c4');
   return `<svg viewBox="0 0 128 72" preserveAspectRatio="xMidYMax slice" shape-rendering="crispEdges" style="width:100%;height:100%;display:block;image-rendering:pixelated;" aria-hidden="true">
     <defs><linearGradient id="cfSky" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#8ecfff"/><stop offset="1" stop-color="#eaf6ff"/>
+      <stop offset="0" stop-color="#6bbcf5"/><stop offset="0.55" stop-color="#a8dcff"/><stop offset="1" stop-color="#eaf6ff"/>
     </linearGradient></defs>${s}</svg>`;
+}
+
+// Hügel-Parallax direkt über der Rasenkante: hinten dunkler und flacher, vorne
+// heller und höher (Art-Direction: 2–3 Silhouetten-Ebenen, hinten detailärmer).
+// Sitzt in .cf-hills und ist damit IMMER an der Rasenkante verankert — unabhängig
+// von der Bildschirmhöhe.
+function _hillsScene() {
+  // [Ebene: Höhenprofil je 8px-Spalte, Grundfarbe, Kantenfarbe]
+  const layers = [
+    [[6, 9, 12, 10, 7, 5, 8, 11, 13, 10, 7, 9, 12, 8, 6, 9], '#6d93a8', '#7fa6bb'],
+    [[12, 15, 13, 17, 20, 16, 13, 15, 18, 21, 17, 14, 16, 19, 15, 13], '#4e7f57', '#5d9163'],
+    [[20, 23, 26, 22, 19, 22, 25, 27, 24, 21, 23, 26, 22, 20, 23, 25], '#5d9a4a', '#74b45c'],
+  ];
+  let s = '';
+  for (const [prof, base, edge] of layers) {
+    prof.forEach((top, i) => {
+      s += `<rect x="${i * 8}" y="${top}" width="8" height="${32 - top}" fill="${base}"/>`
+        + `<rect x="${i * 8}" y="${top}" width="8" height="1" fill="${edge}"/>`;
+    });
+  }
+  return `<svg viewBox="0 0 128 32" preserveAspectRatio="xMidYMax slice" shape-rendering="crispEdges" style="width:100%;height:100%;display:block;image-rendering:pixelated;" aria-hidden="true">${s}</svg>`;
 }
 
 // Kampf-Szene wie die ursprüngliche Kampagnen-Version: dunkler Violett-Verlauf,
@@ -344,6 +377,7 @@ function _renderOverlay() {
          (.cf-grass) ist NUR eine Hintergrund-Ebene ab Schulterhöhe der Figuren — die
          Figuren bleiben an ihrer normalen Position, Kopf/Schultern ragen in den Himmel. -->
     <div class="cf-ground-wrap">
+      <div class="cf-hills">${_hillsScene()}</div>
       <div class="cf-grass"></div>
       <div class="cf-arena">
         <div class="cf-hero" id="cf-hero">${avatarSVG(ensureAvatar(window.SD), { gear: equippedGearMap() })}</div>
