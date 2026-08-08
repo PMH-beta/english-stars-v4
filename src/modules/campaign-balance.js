@@ -57,6 +57,11 @@ export const METEOR_COUNT = 4;             // 1 richtig + 3 falsch
 export const ECHO_TIME_MS = 15000;
 export const ECHO_CHOICES = 5;             // 1 richtig + 4 falsch
 
+// Stimmt das? (Minispiel): mehrere Wortpaare hintereinander beurteilen. Ein Fehl-
+// urteil beendet die Welle sofort — die Zeit gilt für ALLE Paare zusammen.
+export const TF_PAIRS = 5;
+export const TF_TIME_MS = 17000;
+
 // ── Wortauswahl im Kampf: Vorrat mit fester Grundzahl ──
 // Der Kampf führt einen EIGENEN Lernstand je Wort (Stat-Suffix _cf) — getrennt von
 // den Vokabel-Stats, ohne Einfluss auf Taler, Deck-Prozente oder Statistik-Seiten.
@@ -71,9 +76,17 @@ export const ECHO_CHOICES = 5;             // 1 richtig + 4 falsch
 // mindestens CF_SEEN_MIN-mal dran waren (in EINER der drei Arten) — der Kampf ist
 // Wiederholung, keine Erstbegegnung. Neue Decks/Wörter rutschen dadurch auch mitten
 // im Lauf nach, sobald sie zweimal dran waren.
+// Der Vorrat WÄCHST pro abgeschlossener Runde (CF_POOL_PER_ROUND) — ohne das zieht
+// Runde 4 aus demselben 20er-Topf wie Runde 1 und es kommen gefühlt immer dieselben
+// Wörter. CF_PRESET_MIN hält zusätzlich immer ein paar Vorlagen-Wörter im Vorrat,
+// auch wenn die eigenen Decks die Plätze eigentlich schon füllen würden — sonst
+// tauchte der Nachschub bei einem gut gefüllten Deck nie auf.
 export const CF_MIN_ASKED = 3;
 export const CF_MASTER = 0.9;
 export const CF_POOL_OPEN = 20;
+export const CF_POOL_PER_ROUND = 12;
+export const CF_PRESET_MIN = 8;
+export const CF_NO_REPEAT = 6;             // so viele zuletzt gezogene Wörter bleiben gesperrt
 export const CF_SEEN_MIN = 2;
 export const CF_LEARNED_WEIGHT = 0.35;     // gelernte Wörter: seltener, aber nie ganz weg
 export const CF_OWN_SHARE = 0.2;           // jede 5. Welle garantiert ein eigenes Deck-Wort

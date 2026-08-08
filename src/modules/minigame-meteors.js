@@ -7,19 +7,19 @@
 // Schnittstelle: startMeteors({host, de, answer, choices, fallMs, onResult}) → {destroy,
 // pause, resume}. choices enthält answer; onResult(success, timeLeftMs) wird genau einmal
 // gerufen. pause()/resume() frieren auch den Fall (CSS-Transition, läuft unabhängig vom
-// JS-Timer) exakt an der aktuellen Stelle ein.
+// JS-Timer) exakt an der aktuellen Stelle ein. prompt (optional): eigener Kopf statt
+// „🇩🇪 de" — für die Verbform-Wellen der 🌀-Knoten („go → Simple Past?").
 
 import { playSfx } from './game.js';
 
-export function startMeteors({ host, de, answer, choices, fallMs, onResult }) {
+export function startMeteors({ host, de, answer, choices, prompt, fallMs, onResult }) {
   let done = false, timer = null, pausedAt = null;
   let endAt = Date.now() + fallMs;
 
   host.innerHTML = `
     <div style="display:flex;justify-content:center;margin-bottom:16px;">
       <div style="text-align:center;background:#fff;border-radius:16px;padding:8px 20px 10px;box-shadow:0 3px 8px rgba(0,0,0,.2);">
-        <div style="font-size:1.5rem;font-weight:800;color:#333;">🇩🇪 ${de}</div>
-        <div style="font-size:.8rem;font-weight:700;color:#777;margin-top:2px;">☄️ Fang die richtige Übersetzung!</div>
+        <div style="font-size:1.5rem;font-weight:800;color:#333;">${prompt || `🇩🇪 ${de}`}</div>
       </div>
     </div>
     <!-- Maske statt Hardcut: Meteore faden am oberen/unteren Rand des Himmels weich

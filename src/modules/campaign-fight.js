@@ -4,11 +4,12 @@
 // verliert HP. Kampf endet bei Gegner-HP 0 (Sieg) oder Spieler-HP 0 (Tod → Run vorbei,
 // Einsatz weg — Logik in campaign.js).
 //
-// Wellen-Mix: ⚔️ zieht zufällig aus Buchstabensturm / Meteoriten / Echo-Fang;
-// 🌀 nur Verbform-Buchstabensturm (befüllte Sternbild-Verben, SD.uvFills);
-// 👑 mischt alles. Meteoriten/Echo brauchen genug Wörter, Echo zusätzlich TTS —
-// sonst fällt die Welle auf den Buchstabensturm zurück. Formen-Wellen geben der
-// passenden Waffe +FORM_BONUS (Stahl = Past, Gold = PP).
+// Wellen-Mix: ⚔️ zieht zufällig aus Buchstabensturm / Meteoriten / Echo-Fang /
+// Stimmt-das; 🌀 aus den drei Verbform-Spielarten (Wirbelsturm = schreiben,
+// Formen-Meteoriten und Formen-Echo = auswählen, befüllte Sternbild-Verben aus
+// SD.uvFills); 👑 mischt alles. Meteoriten/Echo/Stimmt-das brauchen genug Wörter,
+// Echo zusätzlich TTS — sonst fällt die Welle auf den Buchstabensturm zurück.
+// Formen-Wellen geben der passenden Waffe +FORM_BONUS (Stahl = Past, Gold = PP).
 //
 // Der Kampf führt einen EIGENEN Lernstand je Wort (Stat-Suffix _cf, siehe _record):
 // pro Welle ein Eintrag richtig/falsch. Er steuert NUR die Wortauswahl hier und hat
@@ -19,10 +20,11 @@
 // jsonb mit) → Reload mitten im Kampf verliert nichts; nur das aktuelle Wort der
 // Welle wird neu gezogen.
 
-import { scaledEnemy, FORM_BONUS, TALISMAN_MULT, STORM_BASE_MS, STORM_PER_LETTER_MS, STORM_MISS_DMG, WEAK_TIME_BONUS, WEAK_EMA, METEOR_FALL_MS, METEOR_COUNT, ECHO_TIME_MS, ECHO_CHOICES, PERK_SPEER_BOSS, PERK_AXT_ELITE, PERK_HAMMER_MULT, PERK_BOGEN_FIGHT, POTION_HEAL, POTION_POWER, POTION_TIME_MS, POTION_TIME_WAVES, BOSS_WIN_TALER, CF_MIN_ASKED, CF_MASTER, CF_POOL_OPEN, CF_SEEN_MIN, CF_LEARNED_WEIGHT, CF_OWN_SHARE, CF_REVIEW_SHARE, VERB_OWN_SHARE_START, VERB_OWN_SHARE_PER_ROUND, VERB_OWN_SHARE_MIN, VERB_OWN_SEEN_MIN, VERB_TIER_START, VERB_TIER_PER_ROUND, VERB_TIER_SPREAD, VERB_TIER_FLOOR, VERB_FILLED_BONUS } from './campaign-balance.js';
+import { scaledEnemy, FORM_BONUS, TALISMAN_MULT, STORM_BASE_MS, STORM_PER_LETTER_MS, STORM_MISS_DMG, WEAK_TIME_BONUS, WEAK_EMA, METEOR_FALL_MS, METEOR_COUNT, ECHO_TIME_MS, ECHO_CHOICES, TF_PAIRS, TF_TIME_MS, PERK_SPEER_BOSS, PERK_AXT_ELITE, PERK_HAMMER_MULT, PERK_BOGEN_FIGHT, POTION_HEAL, POTION_POWER, POTION_TIME_MS, POTION_TIME_WAVES, BOSS_WIN_TALER, CF_MIN_ASKED, CF_MASTER, CF_POOL_OPEN, CF_POOL_PER_ROUND, CF_PRESET_MIN, CF_NO_REPEAT, CF_SEEN_MIN, CF_LEARNED_WEIGHT, CF_OWN_SHARE, CF_REVIEW_SHARE, VERB_OWN_SHARE_START, VERB_OWN_SHARE_PER_ROUND, VERB_OWN_SHARE_MIN, VERB_OWN_SEEN_MIN, VERB_TIER_START, VERB_TIER_PER_ROUND, VERB_TIER_SPREAD, VERB_TIER_FLOOR, VERB_FILLED_BONUS } from './campaign-balance.js';
 import { startLetterstorm, stormTarget } from './minigame-letterstorm.js';
 import { startMeteors } from './minigame-meteors.js';
 import { startEcho } from './minigame-echo.js';
+import { startTrueFalse } from './minigame-truefalse.js';
 import { equippedWeapon, equipEffects, equippedGearMap, POTIONS, potionStacks } from './campaign-equipment.js';
 import { enemySpriteSVG } from './pixel-enemies.js';
 import { avatarSVG, ensureAvatar } from './avatar.js';
@@ -169,29 +171,50 @@ function _markCfDirty() {
 }
 
 // ── Vorrat = eigene Wörter, mit Vorlagen aufgefüllt ──────────────────────────
-// Feste Grundzahl OFFENER Wörter (CF_POOL_OPEN) — hoch genug, dass sich die Ziehung
-// zufällig anfühlt. Die Plätze bekommen zuerst die eigenen Deck-Wörter (Deck-, dann
-// Wortreihenfolge), der Überhang wartet als Reserve; erst wenn keine eigenen mehr da
-// sind, füllen Vorlagen-Wörter auf. Ist ein Wort im Kampf gelernt, gibt es seinen
-// Platz frei und die Reserve rückt in derselben Reihenfolge nach — gelernte Wörter
-// bleiben aber im Vorrat, damit die Wiederholungs-Quote sie noch ziehen kann.
+// Grundzahl OFFENER Wörter (CF_POOL_OPEN), die pro abgeschlossener Runde um
+// CF_POOL_PER_ROUND wächst: der Aufstieg wird länger, also darf auch der Wortvorrat
+// mitwachsen — sonst kreist Runde 4 durch dieselbe Handvoll Wörter wie Runde 1.
+// Die Plätze bekommen zuerst die eigenen Deck-Wörter (Deck-, dann Wortreihenfolge),
+// der Überhang wartet als Reserve; Vorlagen-Wörter füllen die restlichen Plätze auf,
+// mindestens aber CF_PRESET_MIN Stück — sonst käme bei einem gut gefüllten Deck nie
+// Nachschub dazu. Ist ein Wort im Kampf gelernt, gibt es seinen Platz frei und die
+// Reserve rückt in derselben Reihenfolge nach — gelernte Wörter bleiben aber im
+// Vorrat, damit die Wiederholungs-Quote sie noch ziehen kann.
 function _stock() {
   const supply = _supply || [];
+  const openMax = CF_POOL_OPEN + CF_POOL_PER_ROUND * Math.max(0, _ctx?.round || 0);
   const own = [];
   let open = 0;
   for (const v of _pool()) {
     // Gelernte bleiben im Vorrat (Wiederholungs-Quote), belegen aber keinen Platz.
     if (_learned(v)) { own.push(v); continue; }
-    if (open >= CF_POOL_OPEN) continue;   // Rest wartet als Reserve auf einen freien Platz
+    if (open >= openMax) continue;   // Rest wartet als Reserve auf einen freien Platz
     own.push(v);
     open++;
   }
-  let take = 0;
-  while (open < CF_POOL_OPEN && take < supply.length) {
-    if (!_learned(supply[take])) open++;
+  const want = Math.max(CF_PRESET_MIN, openMax - open);
+  let take = 0, got = 0;
+  while (got < want && take < supply.length) {
+    if (!_learned(supply[take])) got++;
     take++;
   }
   return { own, preset: supply.slice(0, take) };
+}
+
+// Kurzzeit-Gedächtnis über Kampfgrenzen hinweg (nur Sitzung, nichts gespeichert):
+// die zuletzt gezogenen Wörter bzw. Verben fallen aus der nächsten Ziehung. Ohne das
+// konnte dieselbe Handvoll über mehrere Kämpfe hinweg immer wieder drankommen — die
+// Gewichtung allein zieht schwache Wörter ja gerade absichtlich wieder hoch.
+const _recent = [];
+const _recentV = [];
+function _fresh(list, seen) {
+  const out = list.filter((v) => !seen.includes(v.en));
+  return out.length >= 2 ? out : list;   // zu wenig übrig → lieber wiederholen als nichts
+}
+function _remember(seen, en) {
+  if (!en) return;
+  seen.push(en);
+  while (seen.length > CF_NO_REPEAT) seen.shift();
 }
 
 // Zeitlimit: Grundzeit + Zuschlag pro Buchstabe ab dem 6.; unsichere Deck-Wörter
@@ -233,7 +256,7 @@ function _shuffle(a) {
 }
 
 // ── Kampf-Lifecycle ──────────────────────────────────────────────────────────
-let _ctx = null;   // { run, node, enemy, weapon, save, onEnd, mg, lastEn }
+let _ctx = null;   // { run, node, enemy, weapon, save, onEnd, mg, round }
 
 // onEnd(result): 'victory' | 'death' (auch bei bewusstem „Kampf verlassen") | null
 // (interner Nicht-Fall, z. B. Wortpool beim Laden leer). stat(key) zählt einen
@@ -247,7 +270,7 @@ export function openFight({ run, node, save, onEnd, round, stat }) {
   }
   // cfPreset/cfDecks merken sich, welche Stat-Töpfe der Kampf angefasst hat (siehe
   // _record/_markCfDirty).
-  _ctx = { run, node, enemy, weapon: equippedWeapon(), eff: equipEffects(), save, onEnd, stat, mg: null, lastEn: null, round, cfPreset: false, cfDecks: new Set() };
+  _ctx = { run, node, enemy, weapon: equippedWeapon(), eff: equipEffects(), save, onEnd, stat, mg: null, round, cfPreset: false, cfDecks: new Set() };
   _renderOverlay();
   _startWave();
 }
@@ -549,8 +572,8 @@ function _pickWeighted(list, weightFn) {
   return best;
 }
 
-// Ein Wort aus dem Vorrat ziehen, direkte Wiederholung vermeiden. Zwei feste Quoten
-// davor, damit weder die eigenen Wörter noch der Stoff von gestern verschwinden:
+// Ein Wort aus dem Vorrat ziehen, die zuletzt gezogenen aussparen (_fresh). Zwei feste
+// Quoten davor, damit weder die eigenen Wörter noch der Stoff von gestern verschwinden:
 // jede fünfte Welle zieht aus dem eigenen Deck, und von den übrigen ist jede fünfte
 // eine Wiederholung eines schon gelernten Wortes.
 function _pickItem(stock) {
@@ -561,11 +584,8 @@ function _pickItem(stock) {
   if (stock.own.length && stock.preset.length && Math.random() < CF_OWN_SHARE) list = stock.own;
   else if (done.length && open.length && Math.random() < CF_REVIEW_SHARE) list = done;
   else list = open.length ? open : all;
-  let item = _pickWeighted(list, _weightOf);
-  if (item && list.length > 1 && _ctx.lastEn === item.en) {
-    item = _pickWeighted(list.filter(v => v.en !== item.en), _weightOf) || item;
-  }
-  _ctx.lastEn = item ? item.en : null;
+  const item = _pickWeighted(_fresh(list, _recent), _weightOf);
+  _remember(_recent, item && item.en);
   return item;
 }
 
@@ -610,23 +630,63 @@ function _pickVerb(which) {
   const suf = CF_SUF + (which === 'pp' ? '_pp' : '_past');
   const own = _ownVerbs(which);
   const share = Math.max(VERB_OWN_SHARE_MIN, VERB_OWN_SHARE_START - VERB_OWN_SHARE_PER_ROUND * Math.max(0, _ctx.round || 0));
+  let picked = null;
   if (own.length && Math.random() < share) {
-    const v = _pickWeighted(own, (x) =>
+    picked = _pickWeighted(_fresh(own, _recentV), (x) =>
       _learned({ de: x.de, en: x.en, _presetId: IRREGULAR_PRESET_ID }, suf) ? CF_LEARNED_WEIGHT : 1);
-    if (v) return v;
   }
-  const filled = new Set(_verbPool().map((v) => v.en));
-  const center = Math.min(5, VERB_TIER_START + VERB_TIER_PER_ROUND * Math.max(0, _ctx.round || 0));
-  return _pickWeighted(IRREGULAR_VERBS, (v) => {
-    const d = (v.tier || 1) - center;
-    // Mindestgewicht nur nach UNTEN: schon abgehakte Stufen bleiben als Auflockerung
-    // immer möglich, während schwerere erst hochkommen, wenn der Schwerpunkt da ist.
-    let w = Math.exp(-(d * d) / VERB_TIER_SPREAD);
-    if (d < 0) w = Math.max(w, VERB_TIER_FLOOR);
-    if (filled.has(v.en)) w *= VERB_FILLED_BONUS;
-    if (_learned({ de: v.de, en: v.en, _presetId: IRREGULAR_PRESET_ID }, suf)) w *= CF_LEARNED_WEIGHT;
-    return w;
-  });
+  if (!picked) {
+    const filled = new Set(_verbPool().map((v) => v.en));
+    const center = Math.min(5, VERB_TIER_START + VERB_TIER_PER_ROUND * Math.max(0, _ctx.round || 0));
+    picked = _pickWeighted(_fresh(IRREGULAR_VERBS, _recentV), (v) => {
+      const d = (v.tier || 1) - center;
+      // Mindestgewicht nur nach UNTEN: schon abgehakte Stufen bleiben als Auflockerung
+      // immer möglich, während schwerere erst hochkommen, wenn der Schwerpunkt da ist.
+      let w = Math.exp(-(d * d) / VERB_TIER_SPREAD);
+      if (d < 0) w = Math.max(w, VERB_TIER_FLOOR);
+      if (filled.has(v.en)) w *= VERB_FILLED_BONUS;
+      if (_learned({ de: v.de, en: v.en, _presetId: IRREGULAR_PRESET_ID }, suf)) w *= CF_LEARNED_WEIGHT;
+      return w;
+    });
+  }
+  _remember(_recentV, picked && picked.en);
+  return picked;
+}
+
+// Falsche Verbformen für die Auswahl-Wellen (Formen-Meteoriten/-Echo). Reihenfolge der
+// Quellen: die ANDERE Form desselben Verbs und die Grundform (die typischen Verwechs-
+// lungen), dann die regelmäßig gebildete Falle (go → „goed"), zuletzt dieselbe Form
+// fremder Verben. Doppelte und die richtige Antwort fallen raus.
+function _regularPast(en) {
+  const w = (en || '').toLowerCase();
+  if (/e$/.test(w)) return w + 'd';
+  if (/[^aeiou]y$/.test(w)) return w.slice(0, -1) + 'ied';
+  if (/^[^aeiou]*[aeiou][^aeiouwxy]$/.test(w)) return w + w.slice(-1) + 'ed';   // run → runned
+  return w + 'ed';
+}
+function _verbDistractors(v, which, n) {
+  const seen = new Set([_displayEn(which === 'past' ? v.past : v.pp).toLowerCase()]);
+  const out = [];
+  const add = (form) => {
+    const s = _displayEn(form);
+    if (!s || out.length >= n || seen.has(s.toLowerCase())) return;
+    seen.add(s.toLowerCase());
+    out.push(s);
+  };
+  add(which === 'past' ? v.pp : v.past);
+  add(v.en);
+  add(_regularPast(v.en));
+  for (const o of _shuffle(IRREGULAR_VERBS)) add(which === 'past' ? o.past : o.pp);
+  return out;
+}
+
+// Spielart einer 🌀-Welle auswürfeln: schreiben (Wirbelsturm), die richtige Form aus
+// fallenden Formen fangen (Meteoriten) oder die vorgesprochene Form heraushören (Echo).
+// Ohne TTS fällt Echo weg.
+function _verbWaveType() {
+  const types = ['verbstorm', 'verbmeteors'];
+  if (window.speechSynthesis) types.push('verbecho');
+  return types[Math.floor(Math.random() * types.length)];
 }
 
 function _startWave() {
@@ -636,18 +696,20 @@ function _startWave() {
   const pool = stock.own.concat(stock.preset);
   const verbs = _verbPool();
 
-  // Wellen-Typ wählen: 🌀 nur Verbformen; ⚔️ mischt Sturm/Meteoriten/Echo;
-  // 👑 mischt alles. Fallbacks: zu wenig Wörter → kein Meteoriten/Echo; kein
-  // TTS → kein Echo; 🌀 ohne befüllte Verben (alte Karte) → normale Wellen.
+  // Wellen-Typ wählen: 🌀 nur Verbformen (aber in drei Spielarten, _verbWaveType);
+  // ⚔️ mischt Sturm/Meteoriten/Echo/Stimmt-das; 👑 mischt alles. Fallbacks: zu wenig
+  // Wörter → kein Meteoriten/Echo/Stimmt-das; kein TTS → kein Echo; 🌀 ohne befüllte
+  // Verben (alte Karte) → normale Wellen.
   let type;
   if (node.type === 'irregular' && verbs.length) {
-    type = 'verbstorm';
+    type = _verbWaveType();
   } else {
     if (!pool.length) { _close(null); return; }
     const types = ['storm'];
     if (pool.length >= METEOR_COUNT) types.push('meteors');
     if (window.speechSynthesis && pool.length >= 3) types.push('echo');
-    if (node.type === 'boss' && verbs.length) types.push('verbstorm');
+    if (pool.length >= TF_PAIRS) types.push('truefalse');
+    if (node.type === 'boss' && verbs.length) types.push(_verbWaveType());
     type = types[Math.floor(Math.random() * types.length)];
   }
 
@@ -668,24 +730,55 @@ function _startWave() {
   const guards = Math.max(0, (eff.companionGuards || 0) - (f.guardsUsed || 0));
   const onGuardUsed = () => { f.guardsUsed = (f.guardsUsed || 0) + 1; _ctx.save(); };
 
-  if (type === 'verbstorm') {
-    // Verbform zusammensetzen: „go → Simple Past?" → w-e-n-t. Formen-Welle →
-    // passende Waffe (Stahl=past / Gold=pp) bekommt FORM_BONUS.
+  if (type === 'verbstorm' || type === 'verbmeteors' || type === 'verbecho') {
+    // Verbform-Welle: „go → Simple Past?" — entweder zusammensetzen (Wirbelsturm) oder
+    // aus Formen auswählen (Meteoriten/Echo). Formen-Welle → passende Waffe
+    // (Stahl=past / Gold=pp) bekommt FORM_BONUS.
     const which = _pickForm();
     const v = _pickVerb(which) || verbs[Math.floor(Math.random() * verbs.length)];
     _ctx.waveForm = which;
     _ctx.cfItem = { de: v.de, en: v.en, _presetId: IRREGULAR_PRESET_ID, _deck: null };
     _ctx.cfSuf = CF_SUF + (which === 'pp' ? '_pp' : '_past');
-    const target = which === 'past' ? v.past : v.pp;
+    const raw = which === 'past' ? v.past : v.pp;   // mit /-Alternativen (Tippen erlaubt beide)
     const label = which === 'past' ? 'Simple Past' : 'Past Participle';
-    _ctx.mg = startLetterstorm({
-      host, de: v.de, en: target,
-      prompt: `🌀 ${v.en} → <span style="color:#a67c00;">${label}</span>?`,
-      sub: `(${v.de})`,
-      timeLimitMs: _lettersMs(target) + tBonus,
-      guards, onGuardUsed, onMiss: _onStormMiss,
-      onResult: _onWave,
+    const head = `🌀 ${v.en} → <span style="color:#a67c00;">${label}</span>?`;
+    if (type === 'verbmeteors') {
+      const choices = _shuffle([_displayEn(raw), ..._verbDistractors(v, which, METEOR_COUNT - 1)]);
+      _ctx.mg = startMeteors({ host, de: v.de, answer: _displayEn(raw), choices, prompt: head, fallMs: METEOR_FALL_MS + tBonus, onResult: _onWave });
+    } else if (type === 'verbecho') {
+      // Gehört wird die FORM — die Frage ist also nicht „welches Wort", sondern
+      // welche Form dieses Verbs; die Auswahl sind lauter Verbformen.
+      const choices = _shuffle([_displayEn(raw), ..._verbDistractors(v, which, ECHO_CHOICES - 1)]);
+      _ctx.mg = startEcho({ host, answer: _displayEn(raw), speakText: _displayEn(raw), choices,
+        prompt: `🌀 ${v.en} → welche Form hörst du?`, timeLimitMs: ECHO_TIME_MS + tBonus, onResult: _onWave });
+    } else {
+      _ctx.mg = startLetterstorm({
+        host, de: v.de, en: raw, prompt: head,
+        timeLimitMs: _lettersMs(raw) + tBonus,
+        guards, onGuardUsed, onMiss: _onStormMiss,
+        onResult: _onWave,
+      });
+    }
+  } else if (type === 'truefalse') {
+    // „Stimmt das?": mehrere Paare in EINER Welle. Der Lernstand hängt wie bei jeder
+    // anderen Welle an genau einem Wort (dem ersten gezogenen) — die übrigen Paare
+    // kommen aus derselben gewichteten Ziehung und sind durch _fresh alle verschieden.
+    const items = [];
+    for (let i = 0; i < TF_PAIRS; i++) { const it = _pickItem(stock); if (it) items.push(it); }
+    if (!items.length) { _close(null); return; }
+    _ctx.cfItem = items[0];
+    // Etwa halb/halb, aber nie alle gleich — sonst hat man die Welle nach zwei Paaren
+    // durchschaut.
+    const nOk = Math.floor(items.length / 2) + (Math.random() < 0.5 ? 0 : 1);
+    const oks = _shuffle(items.map((_, i) => i < nOk));
+    const pairs = items.map((it, i) => {
+      const right = _displayEn(it.en);
+      // Falsches Paar: eine Übersetzung aus dem Vorrat, die NICHT zu diesem deutschen
+      // Wort gehört — gleiches de wäre ein zweites Wort für dasselbe und damit richtig.
+      const wrong = oks[i] ? null : _distractors(pool.filter((p) => p.de !== it.de), right, 1)[0];
+      return { de: it.de, en: wrong || right, ok: oks[i] || !wrong };
     });
+    _ctx.mg = startTrueFalse({ host, pairs, timeLimitMs: TF_TIME_MS + tBonus, onResult: _onWave });
   } else if (type === 'meteors') {
     const item = _ctx.cfItem = _pickItem(stock);
     const answer = _displayEn(item.en);

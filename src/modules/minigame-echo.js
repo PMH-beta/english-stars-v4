@@ -6,13 +6,14 @@
 //
 // Schnittstelle: startEcho({host, answer, speakText, choices, timeLimitMs, onResult})
 // → {destroy, pause, resume}. choices enthält answer; onResult(success, timeLeftMs)
-// genau einmal. pause()/resume() frieren die Restzeit exakt ein.
+// genau einmal. pause()/resume() frieren die Restzeit exakt ein. prompt (optional):
+// eigener Kopf statt „Welches Wort hörst du?" — für die Verbform-Wellen der 🌀-Knoten.
 
 import { playSfx } from './game.js';
 import { speakWord } from './speech.js';
 import { ensureStormStyle, setDrift } from './minigame-letterstorm.js';
 
-export function startEcho({ host, answer, speakText, choices, timeLimitMs, onResult }) {
+export function startEcho({ host, answer, speakText, choices, prompt, timeLimitMs, onResult }) {
   ensureStormStyle();   // cfDrift-Keyframes
   let done = false, timer = null, pausedAt = null;
   let endAt = Date.now() + timeLimitMs;
@@ -21,10 +22,9 @@ export function startEcho({ host, answer, speakText, choices, timeLimitMs, onRes
     <div style="display:flex;justify-content:center;margin-bottom:16px;">
       <div style="background:#fff;border-radius:16px;padding:8px 14px 10px 20px;box-shadow:0 3px 8px rgba(0,0,0,.2);">
         <div style="display:flex;align-items:center;gap:10px;">
-          <div style="font-size:1.15rem;font-weight:800;color:#333;">👂 Welches Wort hörst du?</div>
+          <div style="font-size:1.15rem;font-weight:800;color:#333;">${prompt || '👂 Welches Wort hörst du?'}</div>
           <button id="cf-replay" title="Nochmal anhören" style="border:none;background:rgba(43,35,80,.12);color:#2b2350;border-radius:50%;width:40px;height:40px;font-size:1.2rem;cursor:pointer;flex-shrink:0;">🔊</button>
         </div>
-        <div style="text-align:center;font-size:.8rem;font-weight:700;color:#777;margin-top:2px;">Tippe das gehörte Wort an</div>
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">

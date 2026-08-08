@@ -87,10 +87,10 @@ export function setDrift(el, rx, ry, durMin = 9, durMax = 15) {
 }
 
 // prompt (optional): eigener Kopf statt „🇩🇪 de" — für Verbform-Wellen
-// („go → Simple Past?"); sub (optional): kleine Zusatzzeile darunter.
+// („go → Simple Past?").
 // guards (optional): so viele Fehlgriffe fängt der 🐾 Gefährte ab (keine Strafe);
 // onGuardUsed wird je verbrauchtem Guard gerufen (Kampf merkt sich das pro Kampf).
-export function startLetterstorm({ host, de, en, prompt, sub, timeLimitMs, guards = 0, onGuardUsed, onMiss, onResult }) {
+export function startLetterstorm({ host, de, en, prompt, timeLimitMs, guards = 0, onGuardUsed, onMiss, onResult }) {
   ensureStormStyle();
   const target = stormTarget(en);
   const chars = target.split('');
@@ -107,7 +107,6 @@ export function startLetterstorm({ host, de, en, prompt, sub, timeLimitMs, guard
     <div style="display:flex;justify-content:center;margin-bottom:16px;">
       <div style="background:#fff;border-radius:16px;padding:8px 20px 10px;box-shadow:0 3px 8px rgba(0,0,0,.2);text-align:center;">
         <div style="font-size:1.5rem;font-weight:800;color:#333;">${prompt || `🇩🇪 ${de}`}</div>
-        ${sub ? `<div style="font-size:.8rem;font-weight:700;color:#777;margin-top:2px;">${sub}</div>` : ''}
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
