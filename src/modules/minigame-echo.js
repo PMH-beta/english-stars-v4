@@ -1,19 +1,21 @@
 // src/modules/minigame-echo.js
 // Echo-Fang — Minispiel der Kampagne (Phase 2).
 // Ein englisches Wort wird vorgesprochen (TTS, speech.js), 4–5 Wörter driften durchs
-// Feld — das gehörte antippen. Falscher Tipp oder Zeit abgelaufen = Welle verloren.
-// Ob TTS verfügbar ist, prüft der Kampf-Wrapper VOR der Wellen-Wahl.
+// Feld — das gehörte antippen. Ein falscher Tipp beendet die Welle NICHT: der Chip ist
+// raus, es kostet HP (onMiss), weitergesucht wird trotzdem. Verloren ist die Welle erst,
+// wenn die Zeit abläuft. Ob TTS verfügbar ist, prüft der Kampf-Wrapper VOR der Wahl.
 //
-// Schnittstelle: startEcho({host, answer, speakText, choices, timeLimitMs, onResult})
-// → {destroy, pause, resume}. choices enthält answer; onResult(success, timeLeftMs)
-// genau einmal. pause()/resume() frieren die Restzeit exakt ein. prompt (optional):
-// eigener Kopf statt „Welches Wort hörst du?" — für die Verbform-Wellen der 🌀-Knoten.
+// Schnittstelle: startEcho({host, answer, speakText, choices, timeLimitMs, onMiss,
+// onResult}) → {destroy, pause, resume}. choices enthält answer; onResult(success,
+// timeLeftMs) genau einmal, onMiss bei JEDEM falschen Tipp. pause()/resume() frieren die
+// Restzeit exakt ein. prompt (optional): eigener Kopf statt „Welches Wort hörst du?" —
+// für die Verbform-Wellen der 🌀-Knoten.
 
 import { playSfx } from './game.js';
 import { speakWord } from './speech.js';
 import { ensureStormStyle, setDrift } from './minigame-letterstorm.js';
 
-export function startEcho({ host, answer, speakText, choices, prompt, timeLimitMs, onResult }) {
+export function startEcho({ host, answer, speakText, choices, prompt, timeLimitMs, onMiss, onResult }) {
   ensureStormStyle();   // cfDrift-Keyframes
   let done = false, timer = null, pausedAt = null;
   let endAt = Date.now() + timeLimitMs;
@@ -68,15 +70,18 @@ export function startEcho({ host, answer, speakText, choices, prompt, timeLimitM
       white-space:nowrap;z-index:2;animation:cfDriftC var(--dur,9s) ease-in-out var(--del,0s) infinite;`;
     btn.textContent = word;
     btn.onclick = () => {
-      if (done) return;
+      if (done || btn._used) return;
       if (word === answer) {
         try { playSfx('correct'); } catch (e) {}
         btn.style.background = '#d3f9d8';
         _finish(true);
       } else {
+        // Falsches Wort: Chip ist raus und kostet HP — die übrigen treiben weiter.
+        btn._used = true;
         try { playSfx('wrong'); } catch (e) {}
         btn.style.background = '#ffd6d6';
-        _finish(false);
+        btn.style.opacity = '.45';
+        if (onMiss) onMiss();
       }
     };
     field.appendChild(btn);

@@ -11,8 +11,12 @@
 // Echo zusätzlich TTS — sonst fällt die Welle auf den Buchstabensturm zurück.
 // Formen-Wellen geben der passenden Waffe +FORM_BONUS (Stahl = Past, Gold = PP).
 //
+// Fehler beenden ein Minispiel NIE: jeder Fehlgriff kostet HP (_onMiss, STORM_MISS_DMG)
+// und die Welle läuft weiter. Verloren ist eine Welle nur, wenn die Zeit ausgeht (bzw.
+// der richtige Meteor einschlägt) — dann schlägt zusätzlich der Gegner zu.
+//
 // Der Kampf führt einen EIGENEN Lernstand je Wort (Stat-Suffix _cf, siehe _record):
-// pro Welle ein Eintrag richtig/falsch. Er steuert NUR die Wortauswahl hier und hat
+// pro Welle ein Eintrag richtig/falsch (Fehlgriffe unterwegs zählen als falsch). Er steuert NUR die Wortauswahl hier und hat
 // keinen Einfluss auf Taler, Deck-Prozente oder die Statistik-Seiten — analog zu den
 // _tr_-Stats des Trainingsplatzes. Die Vokabel-Stats (_sp) werden weiterhin nur
 // GELESEN: als Startwert für die Gewichtung und für den Zeitbonus (+25 % bei
@@ -20,7 +24,7 @@
 // jsonb mit) → Reload mitten im Kampf verliert nichts; nur das aktuelle Wort der
 // Welle wird neu gezogen.
 
-import { scaledEnemy, FORM_BONUS, TALISMAN_MULT, STORM_BASE_MS, STORM_PER_LETTER_MS, STORM_MISS_DMG, WEAK_TIME_BONUS, WEAK_EMA, METEOR_FALL_MS, METEOR_COUNT, ECHO_TIME_MS, ECHO_CHOICES, TF_PAIRS, TF_TIME_MS, PERK_SPEER_BOSS, PERK_AXT_ELITE, PERK_HAMMER_MULT, PERK_BOGEN_FIGHT, POTION_HEAL, POTION_POWER, POTION_TIME_MS, POTION_TIME_WAVES, BOSS_WIN_TALER, CF_MIN_ASKED, CF_MASTER, CF_POOL_OPEN, CF_POOL_PER_ROUND, CF_PRESET_MIN, CF_NO_REPEAT, CF_SEEN_MIN, CF_LEARNED_WEIGHT, CF_OWN_SHARE, CF_REVIEW_SHARE, VERB_OWN_SHARE_START, VERB_OWN_SHARE_PER_ROUND, VERB_OWN_SHARE_MIN, VERB_OWN_SEEN_MIN, VERB_TIER_START, VERB_TIER_PER_ROUND, VERB_TIER_SPREAD, VERB_TIER_FLOOR, VERB_FILLED_BONUS } from './campaign-balance.js';
+import { scaledEnemy, FORM_BONUS, TALISMAN_MULT, STORM_BASE_MS, STORM_PER_LETTER_MS, STORM_MISS_DMG, WEAK_TIME_BONUS, WEAK_EMA, METEOR_FALL_MS, METEOR_COUNT, ECHO_TIME_MS, ECHO_CHOICES, TF_PAIRS, TF_TIME_MS, PERK_SPEER_BOSS, PERK_AXT_ELITE, PERK_HAMMER_MULT, PERK_BOGEN_FIGHT, POTION_HEAL, POTION_POWER, POTION_TIME_MS, POTION_TIME_WAVES, BOSS_WIN_TALER, CF_MIN_ASKED, CF_MASTER, CF_POOL_OPEN, CF_NO_REPEAT, CF_SEEN_MIN, CF_LEARNED_WEIGHT, CF_OWN_SHARE, CF_REVIEW_SHARE, VERB_OWN_SHARE_START, VERB_OWN_SHARE_PER_ROUND, VERB_OWN_SHARE_MIN, VERB_OWN_SEEN_MIN, VERB_TIER_START, VERB_TIER_PER_ROUND, VERB_TIER_SPREAD, VERB_TIER_FLOOR, VERB_FILLED_BONUS } from './campaign-balance.js';
 import { startLetterstorm, stormTarget } from './minigame-letterstorm.js';
 import { startMeteors } from './minigame-meteors.js';
 import { startEcho } from './minigame-echo.js';
@@ -171,31 +175,26 @@ function _markCfDirty() {
 }
 
 // ── Vorrat = eigene Wörter, mit Vorlagen aufgefüllt ──────────────────────────
-// Grundzahl OFFENER Wörter (CF_POOL_OPEN), die pro abgeschlossener Runde um
-// CF_POOL_PER_ROUND wächst: der Aufstieg wird länger, also darf auch der Wortvorrat
-// mitwachsen — sonst kreist Runde 4 durch dieselbe Handvoll Wörter wie Runde 1.
-// Die Plätze bekommen zuerst die eigenen Deck-Wörter (Deck-, dann Wortreihenfolge),
-// der Überhang wartet als Reserve; Vorlagen-Wörter füllen die restlichen Plätze auf,
-// mindestens aber CF_PRESET_MIN Stück — sonst käme bei einem gut gefüllten Deck nie
-// Nachschub dazu. Ist ein Wort im Kampf gelernt, gibt es seinen Platz frei und die
-// Reserve rückt in derselben Reihenfolge nach — gelernte Wörter bleiben aber im
-// Vorrat, damit die Wiederholungs-Quote sie noch ziehen kann.
+// Feste Grundzahl OFFENER Wörter (CF_POOL_OPEN) — hoch genug, dass sich die Ziehung
+// zufällig anfühlt. Die Plätze bekommen zuerst die eigenen Deck-Wörter (Deck-, dann
+// Wortreihenfolge), der Überhang wartet als Reserve; erst wenn keine eigenen mehr da
+// sind, füllen Vorlagen-Wörter auf. Ist ein Wort im Kampf gelernt, gibt es seinen
+// Platz frei und die Reserve rückt in derselben Reihenfolge nach — gelernte Wörter
+// bleiben aber im Vorrat, damit die Wiederholungs-Quote sie noch ziehen kann.
 function _stock() {
   const supply = _supply || [];
-  const openMax = CF_POOL_OPEN + CF_POOL_PER_ROUND * Math.max(0, _ctx?.round || 0);
   const own = [];
   let open = 0;
   for (const v of _pool()) {
     // Gelernte bleiben im Vorrat (Wiederholungs-Quote), belegen aber keinen Platz.
     if (_learned(v)) { own.push(v); continue; }
-    if (open >= openMax) continue;   // Rest wartet als Reserve auf einen freien Platz
+    if (open >= CF_POOL_OPEN) continue;   // Rest wartet als Reserve auf einen freien Platz
     own.push(v);
     open++;
   }
-  const want = Math.max(CF_PRESET_MIN, openMax - open);
-  let take = 0, got = 0;
-  while (got < want && take < supply.length) {
-    if (!_learned(supply[take])) got++;
+  let take = 0;
+  while (open < CF_POOL_OPEN && take < supply.length) {
+    if (!_learned(supply[take])) open++;
     take++;
   }
   return { own, preset: supply.slice(0, take) };
@@ -525,12 +524,15 @@ function _strike(attackerId, targetId, dmgText, color) {
   }, 210);
 }
 
-// Fehlklick im Buchstabensturm kostet jetzt auch direkt HP (zusätzlich zur
-// Zeitstrafe aus minigame-letterstorm.js) — kann mitten in der Welle zum Tod führen;
-// dann bricht der Kampf sofort ab statt erst am Wellenende.
-function _onStormMiss() {
+// Fehlgriff in EINEM Minispiel (falscher Buchstabe, falscher Meteor, falsches Wort,
+// Fehlurteil): kostet direkt HP, die Welle läuft aber weiter — kein Minispiel bricht
+// mehr beim ersten Fehler ab. Kann mitten in der Welle zum Tod führen; dann bricht der
+// Kampf sofort ab statt erst am Wellenende. waveMiss merkt sich den Fehler für den
+// Lernstand: eine mit Fehlgriffen zu Ende gebrachte Welle zählt nicht als „gewusst".
+function _onMiss() {
   if (!_ctx) return;
   const { run, save } = _ctx;
+  _ctx.waveMiss = true;
   run.hp = Math.max(0, run.hp - STORM_MISS_DMG);
   _setBars();
   _hitFlash('cf-hero');
@@ -719,6 +721,7 @@ function _startWave() {
   _ctx.waveForm = null;
   _ctx.cfItem = null;    // Wort dieser Welle — bekommt in _onWave seinen _cf-Eintrag
   _ctx.cfSuf = null;
+  _ctx.waveMiss = false; // Fehlgriff in dieser Welle? (siehe _onMiss)
 
   // Ausrüstungs-Effekte: 🧤/🪄 Zeitbonus auf jedes Minispiel (Meteoriten fallen
   // langsamer), ⏳ Zeittrank für begrenzte Wellen, 🐾 Gefährte fängt Fehlgriffe
@@ -744,18 +747,18 @@ function _startWave() {
     const head = `🌀 ${v.en} → <span style="color:#a67c00;">${label}</span>?`;
     if (type === 'verbmeteors') {
       const choices = _shuffle([_displayEn(raw), ..._verbDistractors(v, which, METEOR_COUNT - 1)]);
-      _ctx.mg = startMeteors({ host, de: v.de, answer: _displayEn(raw), choices, prompt: head, fallMs: METEOR_FALL_MS + tBonus, onResult: _onWave });
+      _ctx.mg = startMeteors({ host, de: v.de, answer: _displayEn(raw), choices, prompt: head, fallMs: METEOR_FALL_MS + tBonus, onMiss: _onMiss, onResult: _onWave });
     } else if (type === 'verbecho') {
       // Gehört wird die FORM — die Frage ist also nicht „welches Wort", sondern
       // welche Form dieses Verbs; die Auswahl sind lauter Verbformen.
       const choices = _shuffle([_displayEn(raw), ..._verbDistractors(v, which, ECHO_CHOICES - 1)]);
       _ctx.mg = startEcho({ host, answer: _displayEn(raw), speakText: _displayEn(raw), choices,
-        prompt: `🌀 ${v.en} → welche Form hörst du?`, timeLimitMs: ECHO_TIME_MS + tBonus, onResult: _onWave });
+        prompt: `🌀 ${v.en} → welche Form hörst du?`, timeLimitMs: ECHO_TIME_MS + tBonus, onMiss: _onMiss, onResult: _onWave });
     } else {
       _ctx.mg = startLetterstorm({
         host, de: v.de, en: raw, prompt: head,
         timeLimitMs: _lettersMs(raw) + tBonus,
-        guards, onGuardUsed, onMiss: _onStormMiss,
+        guards, onGuardUsed, onMiss: _onMiss,
         onResult: _onWave,
       });
     }
@@ -778,20 +781,20 @@ function _startWave() {
       const wrong = oks[i] ? null : _distractors(pool.filter((p) => p.de !== it.de), right, 1)[0];
       return { de: it.de, en: wrong || right, ok: oks[i] || !wrong };
     });
-    _ctx.mg = startTrueFalse({ host, pairs, timeLimitMs: TF_TIME_MS + tBonus, onResult: _onWave });
+    _ctx.mg = startTrueFalse({ host, pairs, timeLimitMs: TF_TIME_MS + tBonus, onMiss: _onMiss, onResult: _onWave });
   } else if (type === 'meteors') {
     const item = _ctx.cfItem = _pickItem(stock);
     const answer = _displayEn(item.en);
     const choices = _shuffle([answer, ..._distractors(pool, answer, METEOR_COUNT - 1)]);
-    _ctx.mg = startMeteors({ host, de: item.de, answer, choices, fallMs: METEOR_FALL_MS + tBonus, onResult: _onWave });
+    _ctx.mg = startMeteors({ host, de: item.de, answer, choices, fallMs: METEOR_FALL_MS + tBonus, onMiss: _onMiss, onResult: _onWave });
   } else if (type === 'echo') {
     const item = _ctx.cfItem = _pickItem(stock);
     const answer = _displayEn(item.en);
     const choices = _shuffle([answer, ..._distractors(pool, answer, ECHO_CHOICES - 1)]);
-    _ctx.mg = startEcho({ host, answer, speakText: answer, choices, timeLimitMs: ECHO_TIME_MS + tBonus, onResult: _onWave });
+    _ctx.mg = startEcho({ host, answer, speakText: answer, choices, timeLimitMs: ECHO_TIME_MS + tBonus, onMiss: _onMiss, onResult: _onWave });
   } else {
     const item = _ctx.cfItem = _pickItem(stock);
-    _ctx.mg = startLetterstorm({ host, de: item.de, en: item.en, timeLimitMs: _timeLimit(item) + tBonus, guards, onGuardUsed, onMiss: _onStormMiss, onResult: _onWave });
+    _ctx.mg = startLetterstorm({ host, de: item.de, en: item.en, timeLimitMs: _timeLimit(item) + tBonus, guards, onGuardUsed, onMiss: _onMiss, onResult: _onWave });
   }
 }
 
@@ -801,8 +804,10 @@ function _onWave(success) {
   const f = run.fight;
   if (!f) return;
   // Lernstand des Wortes zuerst: er hängt an der Antwort, nicht daran, ob Schild/
-  // Helm/Ausweichen den Schaden abgefangen haben.
-  _record(_ctx.cfItem, success, _ctx.cfSuf);
+  // Helm/Ausweichen den Schaden abgefangen haben. Eine Welle, die nur mit Fehlgriffen
+  // fertig wurde, zählt dabei NICHT als gewusst (waveMiss) — sonst würde jedes Wort
+  // als gelernt durchgewinkt, seit ein Fehler die Welle nicht mehr beendet.
+  _record(_ctx.cfItem, success && !_ctx.waveMiss, _ctx.cfSuf);
   if (success) {
     // Schaden: Waffe + Formen-Bonus (Stahl=past / Gold=pp) + Typ-Vorteil
     // (Speer vs Boss, Axt vs Elite, Hammer verdoppelt Welle 1) + 💪 Krafttrank;

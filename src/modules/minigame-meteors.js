@@ -1,18 +1,19 @@
 // src/modules/minigame-meteors.js
 // Wort-Meteoriten — Minispiel der Kampagne (Phase 2).
 // 3–4 Meteoriten mit englischen Wörtern fallen von oben; nur einer ist die richtige
-// Übersetzung des angezeigten deutschen Worts. Richtigen antippen = Erfolg; falscher
-// Tipp oder Einschlag (der richtige erreicht den Boden) = Welle verloren.
+// Übersetzung des angezeigten deutschen Worts. Richtigen antippen = Erfolg. Ein falscher
+// Tipp beendet die Welle NICHT: der Meteor verglüht, es kostet HP (onMiss) und die
+// übrigen fallen weiter. Verloren ist die Welle erst, wenn der richtige einschlägt.
 //
-// Schnittstelle: startMeteors({host, de, answer, choices, fallMs, onResult}) → {destroy,
-// pause, resume}. choices enthält answer; onResult(success, timeLeftMs) wird genau einmal
-// gerufen. pause()/resume() frieren auch den Fall (CSS-Transition, läuft unabhängig vom
-// JS-Timer) exakt an der aktuellen Stelle ein. prompt (optional): eigener Kopf statt
-// „🇩🇪 de" — für die Verbform-Wellen der 🌀-Knoten („go → Simple Past?").
+// Schnittstelle: startMeteors({host, de, answer, choices, fallMs, onMiss, onResult}) →
+// {destroy, pause, resume}. choices enthält answer; onResult(success, timeLeftMs) wird
+// genau einmal gerufen, onMiss bei JEDEM falschen Tipp. pause()/resume() frieren auch den
+// Fall (CSS-Transition, läuft unabhängig vom JS-Timer) exakt an der aktuellen Stelle ein.
+// prompt (optional): eigener Kopf statt „🇩🇪 de" — für die Verbform-Wellen der 🌀-Knoten.
 
 import { playSfx } from './game.js';
 
-export function startMeteors({ host, de, answer, choices, prompt, fallMs, onResult }) {
+export function startMeteors({ host, de, answer, choices, prompt, fallMs, onMiss, onResult }) {
   let done = false, timer = null, pausedAt = null;
   let endAt = Date.now() + fallMs;
 
@@ -65,15 +66,20 @@ export function startMeteors({ host, de, answer, choices, prompt, fallMs, onResu
     btn.innerHTML = `<div style="font-size:2.2rem;line-height:1;">☄️</div>
       <div style="background:#fff;color:#333;font-family:'Fredoka One',cursive;font-size:1.1rem;padding:7px 14px;border-radius:14px;box-shadow:0 3px 8px rgba(0,0,0,.25);margin-top:2px;white-space:nowrap;">${word}</div>`;
     btn.onclick = () => {
-      if (done) return;
+      if (done || btn._used) return;
       if (isAnswer) {
         try { playSfx('correct'); } catch (e) {}
         btn.firstElementChild.textContent = '💥';
         _finish(true);
       } else {
+        // Falscher Meteor: verglüht und ist raus, kostet HP — der Rest fällt weiter.
+        btn._used = true;
         try { playSfx('wrong'); } catch (e) {}
+        btn.firstElementChild.textContent = '💨';
         btn.lastElementChild.style.background = '#ffd6d6';
-        _finish(false);
+        btn.style.opacity = '.4';
+        btn.style.pointerEvents = 'none';
+        if (onMiss) onMiss();
       }
     };
     sky.appendChild(btn);
@@ -145,7 +151,7 @@ export function startMeteors({ host, de, answer, choices, prompt, fallMs, onResu
       // machen und die Meteore wieder auf gleiche Höhe zusammenlaufen lassen.
       btns.forEach(b => {
         const ms = Math.max(0, (skyH + 10 - (parseFloat(b.style.top) || 0)) / b._v);
-        b.style.pointerEvents = '';
+        b.style.pointerEvents = b._used ? 'none' : '';   // schon verglühte bleiben tot
         b.style.transition = `top ${Math.round(ms)}ms linear`;
       });
       setTimeout(() => { if (!done) btns.forEach(b => { b.style.top = (skyH + 10) + 'px'; }); }, 60);
