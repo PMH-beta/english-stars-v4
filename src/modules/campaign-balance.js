@@ -62,7 +62,7 @@ export const ECHO_CHOICES = 5;             // 1 richtig + 4 falsch
 
 // Stimmt das? (Minispiel): mehrere Wortpaare hintereinander beurteilen. Ein Fehl-
 // urteil beendet die Welle sofort — die Zeit gilt für ALLE Paare zusammen.
-export const TF_PAIRS = 5;
+export const TF_PAIRS = 3;
 export const TF_TIME_MS = 17000;
 
 // ── Wortauswahl im Kampf: Vorrat mit fester Grundzahl ──
