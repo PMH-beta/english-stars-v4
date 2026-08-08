@@ -758,33 +758,49 @@ function bbox(type) {
 
 // Fertiges Objekt als <g> IN einem anderen Sprite (z. B. die Waffe in der Faust
 // des 64×96-Avatars — beide Raster haben dieselbe Pixelgröße, also 1:1). atX/atY
-// ist die Faust; die Gruppe wird so verschoben, dass der Griff dort liegt, aber
-// nie über den Rand des Ziel-Rasters (w×h) hinaus.
-export function itemGroupSVG(type, which, atX, atY, w = 64, h = 96, cls = '') {
+// ist die Faust: der GRIFF landet genau dort. pose (optional) neigt und verkleinert
+// das Objekt um den Griff herum ({rot, scale}) — so hält die Figur die Waffe schräg
+// nach vorn statt senkrecht vor dem Körper. Alles wird so weit zurückgeschoben, dass
+// nichts über den Rand des Ziel-Rasters (w×h) hinausragt.
+export function itemGroupSVG(type, which, atX, atY, w = 64, h = 96, cls = '', pose = {}) {
   const parts = ITEM_ART[type] || ITEM_ART._default;
   const grip = GRIP[type] || [16, 37];
   const bb = bbox(type);
+  const sc = pose.scale || 1;
+  const rot = pose.rot || 0;
   // Einseitige Objekte zeigen im Icon nach links (Axtblatt), in der Hand sollen sie
   // nach VORNE zeigen — also gespiegelt an der Faust. Der Bogen zielt schon nach vorn.
   const flip = FLIP.has(type);
   const x0 = flip ? 2 * grip[0] - bb.x1 : bb.x0;
   const x1 = flip ? 2 * grip[0] - bb.x0 : bb.x1;
+  // Kasten NACH Drehung/Skalierung, relativ zum Griff — nur damit lässt sich sauber
+  // an den Rand klemmen (ein gedrehtes Objekt ist breiter als sein aufrechter Kasten).
+  const rad = rot * Math.PI / 180, co = Math.cos(rad), si = Math.sin(rad);
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const [cx, cy] of [[x0, bb.y0], [x1, bb.y0], [x0, bb.y1], [x1, bb.y1]]) {
+    const rx = (cx - grip[0]) * sc, ry = (cy - grip[1]) * sc;
+    const tx = rx * co - ry * si, ty = rx * si + ry * co;
+    minX = Math.min(minX, tx); maxX = Math.max(maxX, tx);
+    minY = Math.min(minY, ty); maxY = Math.max(maxY, ty);
+  }
   const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-  const dx = clamp(Math.round(atX - grip[0]), -x0, w - x1);
-  const dy = clamp(Math.round(atY - grip[1]), -bb.y0, h - bb.y1);
+  const px_ = clamp(atX, -minX, w - maxX);
+  const py_ = clamp(atY, -minY, h - maxY);
   const rects = parts.map((blocks) => _rects(blocks)
     .map((r) => `<rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" fill="${_color(r.ch, which)}"/>`)
     .join('')).join('');
   const inner = flip ? `<g transform="translate(${2 * grip[0]},0) scale(-1,1)">${rects}</g>` : rects;
-  // ZWEI Gruppen: die äußere hält die Position (transform-Attribut), die innere ist
+  // ZWEI Gruppen: die äußere hält Position/Haltung (transform-Attribut), die innere ist
   // frei für CSS-Animationen. Eine CSS-transform auf der äußeren würde das Attribut
   // ersetzen — die Waffe spränge beim ersten Schwung aus der Hand.
   // Drehpunkt = Griff. transform-box:fill-box misst vom EIGENEN Kasten der Gruppe,
   // sonst bezöge sich transform-origin auf den Ursprung des ganzen Sprites.
   const gx = grip[0] - x0, gy = grip[1] - bb.y0;
-  return `<g transform="translate(${dx},${dy})"><g class="${cls}"`
-    + ` style="transform-box:fill-box;transform-origin:${gx}px ${gy}px;">${inner}</g></g>`;
+  return `<g transform="translate(${_n(px_)},${_n(py_)}) rotate(${_n(rot)}) scale(${_n(sc)}) translate(${-grip[0]},${-grip[1]})">`
+    + `<g class="${cls}" style="transform-box:fill-box;transform-origin:${gx}px ${gy}px;">${inner}</g></g>`;
 }
+// Kurze Zahl fürs transform-Attribut (keine 15 Nachkommastellen im DOM).
+function _n(v) { return Math.round(v * 100) / 100; }
 
 // Fertiges Objekt als eigenes Icon (Ausrüstungs-Felder, Tasche, Vorschau).
 export function itemIconSVG(type, which, cls = 'it-icon') {

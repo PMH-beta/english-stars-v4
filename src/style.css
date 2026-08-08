@@ -1481,7 +1481,8 @@ body.in-game .mode-progress{display:block;}
 }
 .uv-obj-row:hover{background:#f0e9fa;}
 .uv-obj-row.sel{border-color:var(--purple);background:rgba(168,108,219,.12);}
-.uv-obj-ic{font-size:1.7rem;flex-shrink:0;width:34px;text-align:center;}
+/* Platz für die echte Pixel-Art des Objekts (32×48-Raster) statt eines Emojis. */
+.uv-obj-ic{font-size:1.7rem;flex-shrink:0;width:36px;height:52px;display:flex;align-items:center;justify-content:center;}
 .uv-obj-tx{flex:1;min-width:0;color:var(--text);}
 .uv-obj-tx b{font-family:'Fredoka One',cursive;font-weight:400;font-size:.95rem;display:block;}
 .uv-obj-perk{display:block;font-size:.74rem;font-weight:700;color:#8b6ab5;margin-top:1px;}

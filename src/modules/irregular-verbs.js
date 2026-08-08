@@ -284,6 +284,10 @@ function _fillObj(entry) {
 export function usedForgeObjects() {
   return _fills().map(_fillObj).filter(Boolean);
 }
+// Beim Befüllen AUSDRÜCKLICH gewähltes Objekt einer Station (null = Legacy-Station
+// ohne Wahl, die ihr Objekt über den Zyklus in forgeObject bekommt). Die Objekt-Wahl
+// braucht das, um „schon vergeben" der richtigen Station zuzuordnen.
+export function fillObjectType(idx) { return _fillObj(_fills()[idx]) || null; }
 
 // Sternbild-Liste aus den Befüllungen aufbauen (KEIN Cache — hängt am Spielstand).
 export function getConstellations() {

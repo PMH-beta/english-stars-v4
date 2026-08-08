@@ -643,6 +643,22 @@ function bodySVG(cfg, skin) {
 // Materialfarben kommen aus pixel-items.js — Schmiede, Ausrüstungs-Icons und
 // die Teile am Charakter zeigen damit garantiert denselben Ton.
 
+// Haltung der Waffe in der Faust, je Typ: dx/dy = Versatz gegenüber der Faust,
+// rot = Neigung um den Griff (Grad, + = Spitze nach außen), scale = Größe.
+// Senkrecht und in Originalgröße lag die Waffe quer über Arm und Brust und
+// verdeckte beides — schräg nach vorn und etwas kleiner liegt sie NEBEN der Figur.
+export const WEAPON_POSE = {
+  _default:     { dx: 1, dy: -1, rot: 18, scale: 0.8 },
+  schwert:      { dx: 1, dy: -1, rot: 22, scale: 0.8 },
+  dolch:        { dx: 1, dy: -1, rot: 20, scale: 0.85 },
+  speer:        { dx: 1, dy: -1, rot: 12, scale: 0.85 },
+  axt:          { dx: 1, dy: -1, rot: 14, scale: 0.8 },
+  hammer:       { dx: 1, dy: -1, rot: 14, scale: 0.8 },
+  stab:         { dx: 1, dy: -1, rot: 12, scale: 0.85 },
+  bogen:        { dx: 3, dy: -1, rot: 0,  scale: 0.85 },
+  streitkolben: { dx: 1, dy: -1, rot: 20, scale: 0.8 },
+};
+
 // Material eines Teils als Palette (o/d/b/h) — identisch mit der Schmiede.
 const gearPal = (it) => matPalette(it && it.which === 'pp' ? 'pp' : 'past');
 const gearGem = (it) => gemPalette(it && it.which === 'pp' ? 'pp' : 'past');
@@ -714,8 +730,9 @@ function gearSVG(cfg, gear) {
   // Waffe: das echte Schmiede-Objekt (pixel-items.js) in der rechten Faust, in
   // eigener Gruppe — der Kampf lässt sie darüber schwingen (.av-weapon).
   if (gear.weapon && gear.weapon.type) {
+    const P = WEAPON_POSE[gear.weapon.type] || WEAPON_POSE._default;
     s += itemGroupSVG(gear.weapon.type, gear.weapon.which === 'pp' ? 'pp' : 'past',
-      arx + 2, 63, 64, 96, 'av-weapon');
+      arx + 2 + P.dx, 63 + P.dy, 64, 96, 'av-weapon', P);
   }
   // Faust über dem Griff — mit Panzerhandschuh in Materialfarbe, sonst Haut.
   if (gear.arms || (gear.weapon && gear.weapon.type)) {
@@ -952,11 +969,23 @@ export function petSVG(cfg, opts = {}) {
 //  Reihenfolge (hinten→vorne): Rückenhaar · Körper · Hals · Kopf · Ohren ·
 //  Gesicht · Haare · Ausrüstung (opts.gear — Helm über Haar, Waffe in der Hand …).
 // ────────────────────────────────────────────────
+// Unterkante der Helmkrempe (siehe gearSVG/gear.head): ab hier darf Haar wieder
+// sichtbar sein. Alles darüber steckt unter dem Helm.
+const HELM_BRIM = 23;
+let _clipN = 0;
+
 export function avatarSVG(cfg, opts = {}) {
   const headOnly = !!opts.headOnly;
   const skin = SKIN[cfg.skin] || SKIN[0];
+  // Mit Helm wird das Haar an der Krempe abgeschnitten: sonst stehen Pony, Zöpfe
+  // oder Afro über der Helmkuppel heraus, als läge der Helm dahinter. Langes Haar
+  // UNTERHALB der Krempe bleibt und schaut unter dem Helm hervor.
+  const helm = !!(opts.gear && opts.gear.head);
+  const cid = 'es-helm-' + (++_clipN);
+  const hair = (svg) => (helm ? `<g clip-path="url(#${cid})">${svg}</g>` : svg);
   const inner =
-    hairBackSVG(cfg.hair, cfg.hairColor) +
+    (helm ? `<defs><clipPath id="${cid}"><rect x="0" y="${HELM_BRIM}" width="64" height="${96 - HELM_BRIM}"/></clipPath></defs>` : '') +
+    hair(hairBackSVG(cfg.hair, cfg.hairColor)) +
     (headOnly ? '' : bodySVG(cfg, skin)) +
     neckSVG(skin) +
     headSVG(skin) +
@@ -964,7 +993,7 @@ export function avatarSVG(cfg, opts = {}) {
     eyesSVG(cfg.eyes) +
     noseSVG(cfg.nose, skin) +
     mouthSVG(cfg.mouth) +
-    hairSVG(cfg.hair, cfg.hairColor) +
+    hair(hairSVG(cfg.hair, cfg.hairColor)) +
     (headOnly ? '' : gearSVG(cfg, opts.gear));
   const vb = headOnly ? '10 0 44 44' : '0 0 64 96';
   return `<svg viewBox="${vb}" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges" style="width:100%;height:100%;display:block;image-rendering:pixelated;">${inner}</svg>`;

@@ -9,11 +9,11 @@ import { cloudLoad, cloudReset, saveDeck, saveWordStats, saveExam, markDirty, fl
 import { commitDirty } from './dialog.js';
 import { uvMap, uvLernstand, constellationWords, FORGE_DISC, SLOTS_PER_FORM, uvTrainProgress, uvTrainForms, uvTrainWords, uvPruneOrphanSlotStats } from './irregular-game.js';
 import { renderAvatarInto, renderCharacter, commitAvatar, resetCharacterFeature, setCharacterCompanion, setCharacterGear } from './avatar.js';
-import { IRREGULAR_PRESET_ID, uvAvailableVerbs, CONSTELLATION_SIZE, cefrOf, forgeObject, FORGE_OBJECTS, usedForgeObjects, getConstellations, allVerbsSorted, verbsByEns, UV_TRAIN_SUF } from './irregular-verbs.js';
+import { IRREGULAR_PRESET_ID, uvAvailableVerbs, CONSTELLATION_SIZE, cefrOf, forgeObject, FORGE_OBJECTS, usedForgeObjects, fillObjectType, getConstellations, allVerbsSorted, verbsByEns, UV_TRAIN_SUF } from './irregular-verbs.js';
 import { objectPerkText, renderEquipmentPanel, resetEquipmentSelection, forgedItems, equippedGearMap } from './campaign-equipment.js';
 import { renderFriendsSection, refreshFriendBadge, friendProgress, subscribeFriendRealtime, unsubscribeFriendRealtime } from './friends.js';
 import { renderCampaign, updateTalerBadge, refreshClaimedTaler } from './campaign.js';
-import { itemPartsSVG } from './pixel-items.js';
+import { itemPartsSVG, itemIconSVG } from './pixel-items.js';
 
 const API_KEY_SK = 'es_apikey';
 
@@ -1357,6 +1357,13 @@ export function uvOpenFill() {
   function showObjectStep() {
     // Einmal-Wahl: jedes Objekt kann nur für EINE Station geschmiedet werden.
     const used = new Set(usedForgeObjects());
+    // Stand der schon vergebenen Objekte: nur eine FERTIGE Station (alle Teile beider
+    // Formen) ist wirklich „geschmiedet" — sonst wird noch daran gearbeitet.
+    const byType = {};
+    for (const r of uvLernstand().rows) {
+      const t = fillObjectType(r.idx);
+      if (t) byType[t] = r;
+    }
     overlay.innerHTML = `<div class="uv-fill-card">
       <div class="uv-fill-head">
         <div class="uv-fill-title">⚒️ Was willst du schmieden?</div>
@@ -1365,10 +1372,19 @@ export function uvOpenFill() {
       <div class="uv-fill-list">
         ${FORGE_OBJECTS.map((o) => {
           const taken = used.has(o.type);
+          const row = byType[o.type];
+          const done = taken && (!row || row.complete);
+          // Vorschau in 🔩 Stahl: so sieht das Objekt fertig aus (Gold ist dasselbe
+          // Objekt im anderen Material) — der Emoji bleibt nur als Notnagel.
+          const art = itemIconSVG(o.type, 'past');
+          let note;
+          if (!taken) note = objectPerkText(o);
+          else if (done) note = '✔ fertig geschmiedet';
+          else note = `⚒️ wird geschmiedet${row ? ' · ' + row.scorePct + ' %' : ''}`;
           return `<button class="uv-obj-row${chosenObj === o.type ? ' sel' : ''}${taken ? ' taken' : ''}" data-obj="${o.type}"${taken ? ' disabled' : ''}>
-          <span class="uv-obj-ic">${o.icon}</span>
-          <span class="uv-obj-tx"><b>${o.name}</b><span class="uv-obj-perk">${taken ? '✔ schon geschmiedet' : objectPerkText(o)}</span></span>
-          <span class="uv-obj-go">${taken ? '✔' : '›'}</span>
+          <span class="uv-obj-ic">${art || o.icon}</span>
+          <span class="uv-obj-tx"><b>${o.name}</b><span class="uv-obj-perk">${note}</span></span>
+          <span class="uv-obj-go">${taken ? (done ? '✔' : '⚒️') : '›'}</span>
         </button>`;
         }).join('')}
       </div>
@@ -1966,14 +1982,33 @@ export async function showStats() {
   if (backBtn) backBtn.setAttribute('onclick', _statsFriendMode ? 'closeFriendStats()' : 'showMenu()');
   if (heading) heading.textContent = _statsFriendMode ? ('📊 ' + (SD.playerName || 'Freund')) : '📊 Fortschritt';
   // Kopf wie auf der Profilseite: Avatar, Name, Dabei-seit, Bosse/Taler, Highscore/Punkte.
-  renderAvatarInto('stats-avatar', SD, { headOnly: true });
+  // In der FREUND-Ansicht steht statt des Portraits die ganze Figur mit der Ausrüstung,
+  // die der Freund gerade trägt (window.SD zeigt hier auf seinen Stand, equippedGearMap
+  // liest also seine angelegten Teile) — keine Ausrüstungs-Felder, nur die Figur.
+  const avEl = document.getElementById('stats-avatar');
+  if (avEl) {
+    avEl.style.width = _statsFriendMode ? '86px' : '64px';
+    avEl.style.height = _statsFriendMode ? '129px' : '64px';
+  }
+  renderAvatarInto('stats-avatar', SD, _statsFriendMode ? { gear: equippedGearMap() } : { headOnly: true });
   const pn = document.getElementById('profile-name');
   const pm = document.getElementById('profile-meta');
   if (pn) pn.textContent = SD.playerName || 'Spieler';
   if (pm) {
     // Eigenes Profil: ältestes Deck (wie Profilseite); Freund: echtes Anmeldedatum aus der Cloud.
     const since = _statsFriendMode ? SD.createdAt : (Object.values(SD.decks || {})[0] || {}).createdAt;
-    pm.textContent = since ? '📅 Dabei seit ' + new Date(since).toLocaleDateString('de-DE', {day:'2-digit',month:'2-digit',year:'numeric'}) : '';
+    const sinceTxt = since ? '📅 Dabei seit ' + new Date(since).toLocaleDateString('de-DE', {day:'2-digit',month:'2-digit',year:'numeric'}) : '';
+    if (_statsFriendMode) {
+      // Neben der Figur bleibt sonst viel Luft — ein paar Eckdaten füllen sie.
+      const c = (SD.campaign && typeof SD.campaign === 'object') ? SD.campaign : {};
+      const claimed = Array.isArray(c.claimed) ? c.claimed.length : 0;
+      const taler = Math.max(0, claimed - (typeof c.talerSpent === 'number' ? c.talerSpent : 0));
+      const best = (c.stats && c.stats.bestRun) || 0;
+      const chip = (t) => `<span style="background:#f3eefb;color:#6f5a92;border-radius:50px;padding:3px 9px;">${t}</span>`;
+      pm.innerHTML = `${sinceTxt}<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:7px;font-size:.72rem;">`
+        + chip('🐉 ' + (c.bossWins || 0) + ' Bosse') + chip('🪙 ' + taler)
+        + (best ? chip('🏔️ Längster Run ' + best) : '') + '</div>';
+    } else pm.textContent = sinceTxt;
   }
   const sh = document.getElementById('stats-hs'); if (sh) sh.textContent = SD.highscore || 0;
   const sp = document.getElementById('stats-pts'); if (sp) sp.textContent = SD.totalPoints || 0;
