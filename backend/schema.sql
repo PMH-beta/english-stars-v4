@@ -189,7 +189,7 @@ CREATE POLICY "Users can insert own preset stats"  ON preset_stats FOR INSERT TO
 CREATE POLICY "Users can update own preset stats"  ON preset_stats FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users can delete own preset stats"  ON preset_stats FOR DELETE TO authenticated USING (auth.uid() = user_id);
 CREATE INDEX IF NOT EXISTS idx_preset_stats_user ON preset_stats(user_id);
-GRANT ALL ON preset_stats TO authenticated, anon, service_role;
+GRANT ALL ON preset_stats TO authenticated, service_role;
 
 -- Kategorie-Fortschritt pro Vorlage (played-Gate + bestStreak; PK: user_id + preset_id)
 CREATE TABLE IF NOT EXISTS preset_category_progress (
@@ -207,7 +207,7 @@ CREATE POLICY "Users can insert own preset cat progress"  ON preset_category_pro
 CREATE POLICY "Users can update own preset cat progress"  ON preset_category_progress FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users can delete own preset cat progress"  ON preset_category_progress FOR DELETE TO authenticated USING (auth.uid() = user_id);
 CREATE INDEX IF NOT EXISTS idx_preset_cat_progress_user ON preset_category_progress(user_id);
-GRANT ALL ON preset_category_progress TO authenticated, anon, service_role;
+GRANT ALL ON preset_category_progress TO authenticated, service_role;
 
 -- v4.0.80: deckPath — Exklusiver Sammlungs-Weg im Freien Modus
 ALTER TABLE decks ADD COLUMN IF NOT EXISTS deck_path TEXT NOT NULL DEFAULT 'none';
@@ -239,7 +239,7 @@ CREATE POLICY "Users can read own probetests"  ON probetests FOR SELECT TO authe
 CREATE POLICY "Users can insert own probetests" ON probetests FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users can delete own probetests" ON probetests FOR DELETE TO authenticated USING (auth.uid() = user_id);
 CREATE INDEX IF NOT EXISTS idx_probetests_user ON probetests(user_id);
-GRANT ALL ON probetests TO authenticated, anon, service_role;
+GRANT ALL ON probetests TO authenticated, service_role;
 
 -- v4.0.249: Onboarding auch für Google — Signup-Trigger übernimmt full_name NICHT
 -- mehr, player_name startet immer leer. Wirkt nur für NEUE Signups; bestehende
@@ -416,3 +416,31 @@ BEGIN
   INTO result FROM profiles p WHERE p.id=friend;
   RETURN result;
 END; $$;
+-- ─────────────────────────────────────────────
+-- 12) HÄRTUNG: anon bekommt auf den App-Tabellen keine Rechte
+-- ─────────────────────────────────────────────
+-- Warum: Der publishable Key der App ist zwangsläufig öffentlich — er steht im
+-- Browser-Bundle, jeder kann damit als Rolle 'anon' anfragen. Geschützt sind die
+-- Daten durch RLS, und dort gibt es bewusst KEINE einzige Policy für anon.
+-- Die Tabellenrechte sind die zweite Schicht: fehlt anon das Recht, kommt es auch
+-- dann nicht durch, wenn irgendwann versehentlich eine offene Policy dazukommt.
+--
+-- Warum REVOKE und nicht nur ein geändertes GRANT: ein bereits erteiltes Recht
+-- nimmt ein späteres GRANT nicht zurück, und Supabase vergibt auf dem public-Schema
+-- per Default ohnehin an anon. Die GRANT-Zeilen oben verhindern es nur bei einer
+-- frischen Einrichtung — für die laufende Datenbank braucht es das hier.
+--
+-- Unbedenklich, weil kein App-Weg als anon auf eine Tabelle zugreift: Login und
+-- Registrierung laufen über die Auth-API (nicht über diese Tabellen), alle direkten
+-- Abfragen setzen einen angemeldeten Nutzer voraus, und die Freundes-Funktionen sind
+-- SECURITY DEFINER — sie laufen mit den Rechten des Eigentümers, nicht des Aufrufers.
+--
+-- Einmal im Dashboard (SQL Editor) ausführen.
+REVOKE ALL ON profiles, decks, word_stats, exams, preset_categories,
+              preset_stats, preset_category_progress, probetests, friendships
+  FROM anon;
+
+-- Optional, falls künftige Tabellen gar nicht erst an anon gehen sollen. Wirkt nur
+-- auf Tabellen, die danach von derselben Rolle angelegt werden — bewusst nicht
+-- aktiviert, weil es auch Supabase-eigene Automatik betreffen kann:
+-- ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM anon;
