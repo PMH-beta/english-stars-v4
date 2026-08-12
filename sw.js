@@ -54,7 +54,11 @@ self.addEventListener('install', e => {
   // das stillschweigend geschluckt. Jetzt fehlt im Zweifel eine Datei statt aller.
   e.waitUntil(caches.open(CACHE).then(async c => {
     const results = await Promise.allSettled(PRECACHE.map(async u => {
-      const r = await fetch(new Request(u, { cache: 'reload' }));
+      // 'no-cache' statt 'reload': beides fragt beim Server nach (keine stale Datei
+      // im Precache), aber 'no-cache' erlaubt ein 304. Mit 'reload' lud der neue SW
+      // bei JEDEM Versionssprung alle 42 Dateien komplett neu — obwohl die Seite sie
+      // Sekunden vorher schon geholt hatte. Gemessen: jede Shell-Datei zweimal.
+      const r = await fetch(new Request(u, { cache: 'no-cache' }));
       if (!r.ok) throw new Error(u + ' → HTTP ' + r.status);
       return c.put(u, r);
     }));

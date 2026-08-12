@@ -64,12 +64,15 @@ function _drawAvatar(prefix, id, avatar) {
 }
 
 // ── Badge über dem Profilkopf (Startseite) ──
-export async function refreshFriendBadge() {
+// n === null → Zahl selbst holen (eigener RPC). Wer die Anfragen ohnehin gerade
+// geladen hat, reicht die Anzahl durch und spart den zusätzlichen Roundtrip:
+// die Freunde-Sektion machte bisher VIER Abfragen für drei Listen.
+export async function refreshFriendBadge(n = null) {
   const el = document.getElementById('friend-badge');
   if (!el) return;
   if (!window.currentUser) { el.style.display = 'none'; return; }
-  const n = await friendRequestCount();
-  if (n > 0) { el.textContent = n > 99 ? '99+' : String(n); el.style.display = ''; }
+  const count = (n === null) ? await friendRequestCount() : n;
+  if (count > 0) { el.textContent = count > 99 ? '99+' : String(count); el.style.display = ''; }
   else el.style.display = 'none';
 }
 
@@ -90,11 +93,11 @@ function _scheduleLiveRefresh() {
 // Badge immer, offene Listen nur wenn die Freunde-Sektion sichtbar ist und gerade
 // nicht gesucht wird (dann sind die Listen ohnehin ausgeblendet).
 export async function refreshFriendsLive() {
-  refreshFriendBadge();
-  if (!document.getElementById('friend-list')) return;
   const inp = document.getElementById('friend-search');
-  if (inp && inp.value.trim()) return;
-  await Promise.all([_loadRequests(), _loadFriends(), _loadOutgoing()]);
+  const listsVisible = !!document.getElementById('friend-list') && !(inp && inp.value.trim());
+  if (!listsVisible) { refreshFriendBadge(); return; }   // nur die Zahl nötig
+  const [nReq] = await Promise.all([_loadRequests(), _loadFriends(), _loadOutgoing()]);
+  refreshFriendBadge(nReq);
 }
 
 export async function subscribeFriendRealtime() {
@@ -140,18 +143,22 @@ export async function renderFriendsSection() {
       onkeydown="if(event.key==='Enter'){event.preventDefault();onFriendSearchEnter();}"
       style="width:100%;padding:10px 14px;border:2px solid #eee;border-radius:11px;font-size:.9rem;font-family:'Nunito',sans-serif;margin-bottom:10px;">
     <div id="friend-search-results" style="display:none;"></div>
-    <div id="friend-list"></div>
+    <div id="friend-list"><div style="font-size:.8rem;color:#bbb;font-weight:700;text-align:center;padding:14px;">Freunde werden geladen…</div></div>
     <div id="friend-requests" style="margin-top:14px;display:none;"></div>
     <div id="friend-outgoing" style="margin-top:14px;display:none;"></div>`;
-  await Promise.all([_loadRequests(), _loadFriends(), _loadOutgoing()]);
-  refreshFriendBadge();
+  // Drei Listen, drei parallele Abfragen — das Badge kommt aus dem Ergebnis der
+  // Anfragen-Liste statt aus einer vierten Abfrage.
+  const [nReq] = await Promise.all([_loadRequests(), _loadFriends(), _loadOutgoing()]);
+  refreshFriendBadge(nReq);
 }
 
+// Gibt die Anzahl offener Anfragen zurück — damit der Aufrufer das Badge setzen
+// kann, ohne die Zahl ein zweites Mal beim Server zu holen.
 async function _loadRequests() {
   const box = document.getElementById('friend-requests');
-  if (!box) return;
+  if (!box) return 0;
   const reqs = await listRequests();
-  if (!reqs.length) { box.innerHTML = ''; box.style.display = 'none'; return; }
+  if (!reqs.length) { box.innerHTML = ''; box.style.display = 'none'; return 0; }
   box.style.display = '';
   box.innerHTML = `<div style="font-family:'Fredoka One',cursive;font-size:.9rem;color:var(--text);margin-bottom:6px;">Anfragen (${reqs.length})</div>`
     + reqs.map(r => _person('req', r.requester_id, r.player_name,
@@ -159,6 +166,7 @@ async function _loadRequests() {
          <button onclick="respondFriendRequest('${r.friendship_id}',false)" style="${_btn('#f0f0f0','#c0392b')}">✕</button>`,
         false)).join('');
   reqs.forEach(r => _drawAvatar('req', r.requester_id, r.avatar));
+  return reqs.length;
 }
 
 async function _loadFriends() {
@@ -255,8 +263,8 @@ export async function sendFriendRequest(id) {
   const { error } = await supabase.rpc('send_friend_request', { target: id });
   if (error) { window.esAlert?.({ icon: '⚠️', title: 'Fehler', body: 'Anfrage konnte nicht gesendet werden.' }); return; }
   _clearFriendSearch();   // nach Anfrage/Annehmen Suchleiste zurücksetzen
-  await Promise.all([_loadRequests(), _loadFriends(), _loadOutgoing()]);
-  refreshFriendBadge();
+  const [nReq] = await Promise.all([_loadRequests(), _loadFriends(), _loadOutgoing()]);
+  refreshFriendBadge(nReq);
 }
 
 // Gesendete Anfrage zurückziehen (löscht die pending-Zeile beidseitig).
@@ -272,8 +280,8 @@ export async function cancelFriendRequest(id) {
 export async function respondFriendRequest(fid, accept) {
   const { error } = await supabase.rpc('respond_friend_request', { fid, accept });
   if (error) { window.esAlert?.({ icon: '⚠️', title: 'Fehler', body: 'Aktion fehlgeschlagen.' }); return; }
-  await Promise.all([_loadRequests(), _loadFriends()]);
-  refreshFriendBadge();
+  const [nReq] = await Promise.all([_loadRequests(), _loadFriends()]);
+  refreshFriendBadge(nReq);
 }
 
 export async function confirmRemoveFriend(id) {

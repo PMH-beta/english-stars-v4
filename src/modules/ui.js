@@ -505,7 +505,7 @@ export function renderUvTrainingSection() {
 }
 
 // Popup: Name + Formen-Vorauswahl (Simple Past / Participle / Beide) + bis zu
-// 15 Verben ankreuzen (alle 151, sortiert nach Stufe). Die Sperre gilt JE TOPF:
+// Genau UV_TRAIN_SIZE Verben ankreuzen (alle 151, sortiert nach Stufe). Die Sperre gilt JE TOPF:
 // ausgegraut (nicht mehr klickbar) ist ein Verb nur, wenn es schon in einem
 // anderen Deck MIT DERSELBEN Auswahl steckt — SP, PP und Beide zählen getrennt.
 // Beim Umschalten der Auswahl slidet die ganze Wortliste links raus und kommt
@@ -1943,6 +1943,13 @@ export async function showFriendStats(friendId) {
   _friendSDBackup = window.SD;
   _statsFriendMode = true;
   window.SD = _friendState(state);
+  // Anzeige angleichen: der Freund hat sich seit der Umstellung auf UV_TRAIN_SIZE
+  // vielleicht noch nicht angemeldet, dann stehen in SEINER Cloud noch 15 Verben —
+  // und die Freund-Seite zeigte entsprechend "15 Verben", während die eigene Seite
+  // längst 10 anzeigt. Erst NACH dem Setzen von window.SD, damit die Auswahl der
+  // behaltenen Verben auf seinen Ständen rechnet und nicht auf meinen.
+  // Rein lokal auf der Anzeige-Kopie — in fremde Daten wird NICHTS geschrieben.
+  migrateUvTrainSize(window.SD);
   await showStats();
 }
 export function closeFriendStats() {
@@ -2790,6 +2797,21 @@ function _finishLoginUI() {
   subscribeFriendRealtime();   // Freundschaftsanfragen live empfangen (WebSocket statt Polling)
   if (!window.SD?.playerName) showScreen('name-screen');
   else restoreLastScreen();
+
+  // Vosk ganz zum Schluss und nur im Leerlauf. Es sind zwei dicke Brocken:
+  // vendor/vosk.js (5,6 MB mit eingebettetem WASM — muss auch aus dem Cache jedes
+  // Mal geparst werden) und das 41-MB-Modell, das Vosk.createModel entpacken und
+  // initialisieren muss. Lief das während des Startvorgangs, konkurrierte es mit
+  // dem Cloud-Load und dem Aufbau der Oberfläche — genau die Phase nach dem
+  // "Los geht's"-Button, in der alles zäh wirkte. Zusätzlicher Sicherheitsabstand
+  // über setTimeout, damit der erste Rendervorgang sicher durch ist.
+  // Ist Vosk bei der ersten Aussprache-Übung noch nicht fertig, wartet
+  // startVoskRecognition dort freundlich mit sichtbarem Status (siehe speech.js).
+  setTimeout(() => {
+    const kick = () => { try { window._voskLoad && window._voskLoad(); } catch(e) {} };
+    if (typeof requestIdleCallback === 'function') requestIdleCallback(kick, { timeout: 20000 });
+    else kick();   // iOS < 16.4 kennt requestIdleCallback nicht
+  }, 3000);
 }
 
 // Klarer Retry-Dialog statt stillem Leer-Zustand, wenn kein lokaler Stand vorliegt

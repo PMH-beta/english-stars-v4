@@ -107,15 +107,13 @@ export async function startupSequence() {
   _discoverTracks().then(() => {
     if (window._musicTracks.length > 0) {
       const a = _initAudio();
-      if (!a.src) { a.src = _trackUrl(window._musicTracks[0]); a.preload = 'auto'; }
+      // preload 'metadata' statt 'auto': 'auto' zieht den KOMPLETTEN Track schon am
+      // Ladebildschirm — beim ersten Track sind das 10,9 MB, gemessen der mit Abstand
+      // größte Brocken des Kaltstarts. Gebraucht wird die Musik erst, wenn das Kind
+      // "Los geht's" tippt, und dann streamt sie ohnehin ab dem ersten Puffer.
+      if (!a.src) { a.src = _trackUrl(window._musicTracks[0]); a.preload = 'metadata'; }
     }
   }).catch(e => console.warn('[Startup] Musik:', e));
-
-  // Vosk ENTKOPPELT im Hintergrund laden — blockiert NICHT den Bereit-Zustand.
-  // Das Modell (~40 MB) braucht beim ersten Mal lange; die App ist trotzdem sofort
-  // bedienbar. Ist Vosk bei der ersten Aussprache-Übung noch nicht fertig, wartet
-  // startVoskRecognition dort freundlich mit sichtbarem Status (siehe speech.js).
-  try { if (window._voskLoad) window._voskLoad(); } catch(e) {}
 
   setProgress(80, 'Mikrofon wird vorbereitet…');
   try {
@@ -152,10 +150,15 @@ export async function startupSequence() {
         try { const v = localStorage.getItem('es_music'); if (v !== null) musicPref = v; } catch(e) {}
         if (musicPref === '1' && !window._musicOn) { startMusicSync(); _setMusicBtns(true); }
       } catch(e) { console.warn('[startup] Music unlock failed:', e); }
-      // Echtes TTS-Warmup HIER abwarten → die ~2 s Engine-/Stimm-Ladezeit liegen
-      // hinter dem Ladebildschirm, nicht beim ersten gesprochenen Wort im Spiel.
+      // TTS-Warmup in der Geste ANSTOSSEN, aber nicht mehr abwarten.
+      // Abgewartet kostete es hier bis zu 3,5 s, bevor überhaupt der Cloud-Load
+      // anlief: _withVoices pollt bis zu 1,5 s auf die Stimmenliste (auf Android ist
+      // sie anfangs regelmäßig leer) und warmTTS legt bis zu 2 s Warmup obendrauf.
+      // Genau diese Zeit lag zwischen "Los geht's" und dem Erscheinen der Elemente.
+      // Das Warmup läuft jetzt parallel weiter und ist lange fertig, bevor im Spiel
+      // das erste Wort gesprochen wird; speakWord geht ohnehin über _withVoices.
       if (status) status.textContent = 'Sprachausgabe wird vorbereitet…';
-      try { await warmTTS(); } catch(e) {}
+      try { warmTTS().catch(() => {}); } catch(e) {}
       finishStartup();
     };
   } else {
@@ -167,6 +170,11 @@ export async function startupSequence() {
 export async function finishStartup() {
   _startupComplete = true;
   console.log('[Startup] App-Ready:', performance.now().toFixed(0) + 'ms');
+
+  // Vosk wird NICHT hier angestoßen — finishStartup läuft direkt beim Tippen des
+  // "Los geht's"-Buttons, also genau dann, wenn der Cloud-Load und der Aufbau aller
+  // Elemente laufen. Der Anstoß sitzt am Ende von _finishLoginUI (ui.js), wenn die
+  // Oberfläche steht.
 
   if (_pendingRecovery) {
     showNewPasswordScreen();
