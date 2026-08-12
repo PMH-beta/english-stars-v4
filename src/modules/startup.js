@@ -10,6 +10,8 @@ import { onAuthChange } from './auth.js';
 let _startupComplete = false;
 // Gesetzt wenn URL-Hash type=recovery enthält ODER Supabase PASSWORD_RECOVERY event feuert
 let _pendingRecovery = (window.location.hash || '').includes('type=recovery');
+// true, solange der "Los geht's"-Gate auf das Tippen wartet
+let _gateOpen = false;
 
 export async function startupSequence() {
   console.log('[Startup] Boot-Start:', performance.now().toFixed(0) + 'ms');
@@ -32,45 +34,84 @@ export async function startupSequence() {
     const prev = window.currentUser;
     window.currentUser = user;
     if (prev && !user) handleLogout();           // Session abgelaufen oder Logout in anderem Tab
-    if (!prev && user) handleLogin(user);         // Email-Bestätigung redirect in anderem Tab
+    if (!prev && user) {
+      // Steht der "Los geht's"-Gate offen, NICHT von hier aus weiterlaufen: das
+      // SIGNED_IN-Event und authSubmit kommen praktisch gleichzeitig, und wer
+      // zuerst da ist, entscheidet sonst per Zufall, ob der Gate übersprungen wird.
+      // Der Gate übernimmt; hier reicht es, currentUser gesetzt zu haben.
+      if (!_gateOpen) handleLogin(user);          // Email-Bestätigung redirect in anderem Tab
+    }
   });
-
-  const ring = document.getElementById('progress-ring');
-  const pctEl = document.getElementById('loading-pct');
-  const status = document.getElementById('loading-status');
-  const hint = document.getElementById('loading-hint');
-  const _circ = 2 * Math.PI * 54;
-  function setProgress(pct, msg) {
-    if (ring) ring.style.strokeDashoffset = _circ * (1 - pct / 100);
-    if (pctEl) pctEl.textContent = Math.round(pct) + '%';
-    if (status) status.textContent = msg;
-  }
 
   const overlay = document.getElementById('init-overlay');
   if (overlay) overlay.style.display = 'none';
   console.log('[Startup] Loading-Screen:', performance.now().toFixed(0) + 'ms');
   showScreen('loading-screen');
+  _setRing(false);   // Ring bleibt weg, bis wirklich geladen wird
 
-  // ── Geste ZUERST, Ladevorgang danach ──
-  // Vorher lief die halbe Startsequenz vor dem Button und der TEURE Rest (Auth,
-  // Cloud-Load, Aufbau aller Elemente) danach — hinter einem Screen, der 100 %
-  // anzeigte und sich nicht mehr rührte. Das war die gefühlte Hängezeit.
-  // Jetzt: Button sofort, und alles Weitere läuft nach dem Tippen mit einem Ring,
-  // der echte Schritte zeigt. Nebeneffekt: Audio-Freigabe, audioSession und
-  // TTS-Warmup liegen damit garantiert INNERHALB einer echten Nutzergeste — auf
-  // iOS zuverlässiger als vorher, wo das Warmup teils außerhalb landete.
+  // Reihenfolge: erst wissen WER da ist, dann der Button.
+  // Ein abgemeldetes Kind soll den Login sehen und nicht erst "Los geht's" tippen
+  // müssen, um dann auf dem Anmeldeformular zu landen.
+  await resolveSession();
+
+  if (_pendingRecovery) { _startupComplete = true; showNewPasswordScreen(); return; }
+  if (!window.currentUser) { _startupComplete = true; showScreen('auth-screen'); return; }
+
+  showStartGate();
+}
+
+// ── Ring + Prozentanzeige ein-/ausblenden ──
+// Vor dem Tippen stand der Ring unbenutzt auf 0 % daneben; er gehört zum
+// Ladevorgang und erscheint deshalb erst mit ihm.
+function _setRing(on) {
+  const wrap = document.getElementById('loading-ring-wrap');
+  if (wrap) wrap.style.display = on ? '' : 'none';
+  if (!on) {
+    const s = document.getElementById('loading-status');
+    if (s) s.textContent = '';
+    const h = document.getElementById('loading-hint');
+    if (h) h.textContent = '';
+  }
+}
+
+function setProgress(pct, msg) {
+  const ring = document.getElementById('progress-ring');
+  const pctEl = document.getElementById('loading-pct');
+  const status = document.getElementById('loading-status');
+  const _circ = 2 * Math.PI * 54;
+  if (ring) ring.style.strokeDashoffset = _circ * (1 - pct / 100);
+  if (pctEl) pctEl.textContent = Math.round(pct) + '%';
+  if (status) status.textContent = msg;
+}
+
+/**
+ * Der "Los geht's"-Gate: nur der Button, kein Ring. Erst das Tippen startet den
+ * sichtbaren Ladevorgang.
+ *
+ * Der Button ist da, weil iOS Ton nur nach einer echten Nutzergeste freigibt —
+ * Audio-Session, SFX-Entsperrung, Musik und TTS-Warmup passieren deshalb
+ * ausdrücklich INNERHALB des Klick-Handlers.
+ *
+ * Wird an zwei Stellen aufgerufen: beim Start mit bereits gültiger Session, und
+ * nach einer frischen Anmeldung (ui.js authSubmit) — dort kommt der angemeldete
+ * Nutzer als Argument, weil window.currentUser sonst erst in handleLogin gesetzt
+ * würde und finishStartup zurück auf den Login-Screen schicken würde.
+ */
+export function showStartGate(user) {
+  if (user) window.currentUser = user;
+  showScreen('loading-screen');
+  _setRing(false);
   const startBtn = document.getElementById('loading-start-btn');
-
-  // Passwort-Reset über Mail-Link: kein Ton nötig, hier wäre ein Button nur im Weg.
-  if (_pendingRecovery || !startBtn) { await bootWork(setProgress, hint); return; }
-
-  setProgress(0, 'Bereit, wenn du es bist!');
-  if (hint) hint.textContent = '';
+  if (!startBtn) { bootWork(); return; }
+  _gateOpen = true;
   startBtn.style.display = '';
   startBtn.disabled = false;
   startBtn.onclick = async () => {
+    _gateOpen = false;
     startBtn.disabled = true;
     startBtn.style.display = 'none';
+    _setRing(true);
+    setProgress(5, 'Es geht los…');
     // ── alles hier ist synchron in der Geste ──
     // iOS: Audio-Session EINMAL auf 'play-and-record' (Web Audio Session API, Safari
     // 16.4+). Erlaubt Aufnahme dauerhaft (Vosk bleibt funktionsfähig) UND spielt Ton
@@ -91,12 +132,12 @@ export async function startupSequence() {
     // speakWord geht ohnehin über _withVoices, das notfalls selbst wartet.
     try { _initTTS(); } catch(e) {}
     try { warmTTS().catch(() => {}); } catch(e) {}
-    await bootWork(setProgress, hint);
+    await bootWork();
   };
 }
 
 // Die eigentliche Ladearbeit — läuft erst nach dem Tippen und meldet echte Schritte.
-async function bootWork(setProgress, hint) {
+async function bootWork() {
   setProgress(12, 'Sounds werden geladen…');
   try { _sfx(); } catch(e) {}
 
@@ -112,18 +153,16 @@ async function bootWork(setProgress, hint) {
     }
   }).catch(e => console.warn('[Startup] Musik:', e));
 
-  setProgress(38, 'Mikrofon wird vorbereitet…');
+  setProgress(40, 'Mikrofon wird vorbereitet…');
   try {
     if (navigator.mediaDevices && navigator.permissions) {
       await navigator.permissions.query({ name: 'microphone' }).catch(() => {});
     }
   } catch(e) {}
 
-  setProgress(55, 'Anmeldung wird geprüft…');
-  await resolveSession();
-
-  setProgress(75, 'Dein Fortschritt wird geladen…');
-  if (hint) hint.textContent = '';
+  // Kein resolveSession() mehr hier — die Session steht bereits, sie wird jetzt VOR
+  // dem Button ermittelt (sonst käme der Login erst nach dem Tippen).
+  setProgress(60, 'Dein Fortschritt wird geladen…');
   await finishStartup();
   setProgress(100, 'Bereit!');
 }

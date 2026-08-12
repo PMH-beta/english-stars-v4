@@ -15,7 +15,7 @@ import { openVocabManager, openPresetDeckStats, vmTab, renderVocabList, parsePas
 import { onFriendSearchInput, onFriendSearchEnter, sendFriendRequest, respondFriendRequest, cancelFriendRequest, confirmRemoveFriend, openFriendStats, refreshFriendBadge, refreshFriendsLive } from './modules/friends.js';
 import { startCampaignRun, campaignNode, campaignGiveUp, campPotionInfo, talerTest, talerDeckTest } from './modules/campaign.js';
 import './modules/dialog.js'; // registriert window.esAlert/esConfirm/esPrompt (App-Overlays statt nativer Dialoge)
-import { startupSequence, finishStartup } from './modules/startup.js';
+import { startupSequence, finishStartup, showStartGate } from './modules/startup.js';
 import { supabase, testConnection } from './modules/supabase.js';
 import { flushPendingSync } from './modules/sync.js';
 
@@ -196,6 +196,9 @@ window.cancelNewPassword = cancelNewPassword;
 // Startup via window für Legacy-Code (finishStartup: onclick="finishStartup()" im HTML)
 window.startupSequence = startupSequence;
 window.finishStartup = finishStartup;
+// ui.js (authSubmit) ruft den Gate nach erfolgreicher Anmeldung über window auf —
+// ein direkter Import waere ein Zyklus, weil startup.js seinerseits ui.js importiert.
+window.showStartGate = showStartGate;
 
 // Vocab via window für Legacy-Code
 window.openVocabManager = openVocabManager;

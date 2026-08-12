@@ -2579,8 +2579,13 @@ export async function authSubmit() {
     return;
   }
 
-  // login erfolgreich
-  handleLogin(result.user);
+  // Login erfolgreich → erst der "Los geht's"-Gate, dann der Ladevorgang.
+  // Nicht direkt handleLogin: der Gate gibt auf iOS den Ton in einer echten
+  // Nutzergeste frei, und das Kind sieht den Ladefortschritt statt eines
+  // eingefrorenen Anmeldeformulars. Über window, weil ui.js von startup.js
+  // importiert wird — ein Import zurück wäre ein Zyklus.
+  if (typeof window.showStartGate === 'function') window.showStartGate(result.user);
+  else handleLogin(result.user);
 }
 
 function _setAuthError(msg) {

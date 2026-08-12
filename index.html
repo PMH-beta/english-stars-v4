@@ -38,7 +38,9 @@
 <div id="loading-screen" style="display:none;width:100%;max-width:540px;flex-direction:column;align-items:center;justify-content:center;min-height:80vh;">
   <div style="font-size:3.5rem;margin-bottom:18px;">⭐</div>
   <div style="font-family:'Fredoka One',cursive;font-size:1.9rem;color:#a86cdb;margin-bottom:28px;">English Stars</div>
-  <div style="position:relative;width:130px;height:130px;margin-bottom:20px;">
+  <!-- Ring ist bis zum Tippen des Start-Buttons ausgeblendet (startup.js) — vorher
+       stand er unbenutzt auf 0 % daneben. -->
+  <div id="loading-ring-wrap" style="position:relative;width:130px;height:130px;margin-bottom:20px;display:none;">
     <svg width="130" height="130" viewBox="0 0 130 130" style="transform:rotate(-90deg)">
       <defs>
         <linearGradient id="ring-grad" x1="0%" y1="0%" x2="100%" y2="100%">
