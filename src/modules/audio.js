@@ -23,15 +23,20 @@ export async function _discoverTracks() {
       .replace(/&nbsp;/g, ' ');
   }
 
-  // Versuch 1: GitHub API für github.io-Hosting
+  // Versuch 1: GitHub API für github.io-Hosting.
+  // Offline übersprungen und online gedeckelt: der Aufruf ging vorher ungetimeoutet
+  // raus (und ist bei 60 Requests/Stunde pro IP auch noch rate-limited). Versuch 3
+  // (tracks.json) liegt same-origin im Repo und funktioniert aus dem Cache heraus.
   try {
     const host = location.hostname;
-    if (host.endsWith('.github.io')) {
+    if (host.endsWith('.github.io') && navigator.onLine !== false) {
       const user = host.split('.')[0];
       const pathParts = location.pathname.split('/').filter(Boolean);
       const repo = pathParts[0] || 'english-stars';
       const apiUrl = `https://api.github.com/repos/${user}/${repo}/contents/music`;
-      const r = await fetch(apiUrl);
+      const _ctl = new AbortController();
+      const _t = setTimeout(() => _ctl.abort(), 2500);
+      const r = await fetch(apiUrl, { signal: _ctl.signal }).finally(() => clearTimeout(_t));
       if (r.ok) {
         const files = await r.json();
         const mp3s = files.filter(f => f.type === 'file' && /\.mp3$/i.test(f.name)).map(f => f.name);

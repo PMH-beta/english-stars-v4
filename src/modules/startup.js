@@ -3,7 +3,7 @@ import { _initTTS, warmTTS } from './speech.js';
 import { _sfx, primeSfx } from './game.js';
 import { _discoverTracks, _initAudio, _trackUrl, startMusicSync, _setMusicBtns } from './audio.js';
 import { showScreen, showMenu, handleLogin, handleLogout, showNewPasswordScreen } from './ui.js';
-import { supabase } from './supabase.js';
+import { supabase, cachedSessionUser } from './supabase.js';
 import { onAuthChange } from './auth.js';
 
 // Guard: onAuthChange-Listener ignoriert Feuern während des Startvorgangs
@@ -20,15 +20,41 @@ export async function startupSequence() {
   // Cache-Invalidierung übernimmt jetzt der Service Worker: network-first für
   // App-Code (frische Updates online), cache-first für Modell/Statik (persistent).
 
-  // Auth-Session aus Cache laden (funktioniert auch offline wenn vorher eingeloggt)
-  try {
-    const { data: { session } } = await supabase.auth.getSession();
-    window.currentUser = session?.user ?? null;
-    console.log('[Startup] Auth-Resolved:', performance.now().toFixed(0) + 'ms —', window.currentUser ? 'eingeloggt als ' + window.currentUser.email : 'nicht eingeloggt');
-  } catch(e) {
-    window.currentUser = null;
-    console.warn('[startup] getSession fehlgeschlagen:', e.message);
+  // Auth-Session aus Cache laden (funktioniert auch offline wenn vorher eingeloggt).
+  // Gedeckelt: bei abgelaufenem Token versucht getSession() einen Token-Refresh übers
+  // Netz. Über ein totes oder zähes Netz (Hotel-WLAN, kein Empfang) kann das hängen —
+  // und der Boot steht hier ganz am Anfang still. Nach dem Timeout lesen wir die
+  // gespeicherte Session direkt aus dem localStorage, damit ein offline gestartetes
+  // Kind NICHT auf dem Login-Screen landet, obwohl es angemeldet ist.
+  if (navigator.onLine === false) {
+    // Offline gar nicht erst fragen — das kostet 0 ms statt in den Timeout unten zu
+    // laufen. Gemessen hat genau das den Offline-Start um 5 s verzögert.
+    window.currentUser = cachedSessionUser();
+    console.log('[Startup] Offline — Session aus dem lokalen Speicher:', !!window.currentUser);
+  } else {
+    try {
+      // Timeout für den fiesen Zwischenfall: Verbindung "da", aber tot (Hotel-WLAN,
+      // ein Balken, Captive Portal) — da meldet navigator.onLine weiterhin true.
+      const TIMEOUT = Symbol('timeout');
+      const res = await Promise.race([
+        supabase.auth.getSession().then(r => r?.data?.session ?? null),
+        // 2,5 s wie der Netz-Deckel im Service Worker. Greift der Timeout, gilt die
+        // lokal gespeicherte Session — das Kind bleibt angemeldet und kommt ins Menü;
+        // den echten Cloud-Stand holt handleLogin() danach mit eigenem Retry nach.
+        new Promise(r => setTimeout(() => r(TIMEOUT), 2500)),
+      ]);
+      if (res === TIMEOUT) {
+        window.currentUser = cachedSessionUser();
+        console.warn('[Startup] getSession Timeout — Session aus dem lokalen Speicher:', !!window.currentUser);
+      } else {
+        window.currentUser = res?.user ?? null;
+      }
+    } catch(e) {
+      window.currentUser = cachedSessionUser();
+      console.warn('[startup] getSession fehlgeschlagen:', e && e.message);
+    }
   }
+  console.log('[Startup] Auth-Resolved:', performance.now().toFixed(0) + 'ms —', window.currentUser ? 'eingeloggt als ' + window.currentUser.email : 'nicht eingeloggt');
 
   // Runtime-Listener: Session-Ablauf, Logout aus anderem Tab, Email-Bestätigung, Passwort-Reset
   onAuthChange((event, user) => {
@@ -62,38 +88,28 @@ export async function startupSequence() {
   showScreen('loading-screen');
 
   setProgress(8, 'Vokabeln werden geladen…');
-  await new Promise(r => setTimeout(r, 200));
 
   setProgress(20, 'Stimmen werden geladen…');
   try { _initTTS(); } catch(e) {}
-  let ttsTries = 0;
-  while (window._ttsVoices.length === 0 && ttsTries < 10) {
-    await new Promise(r => setTimeout(r, 200));
-    try { window._ttsVoices = window.speechSynthesis.getVoices(); } catch(e) {}
-    ttsTries++;
-  }
+  // Kein Polling mehr auf getVoices(). Auf Android ist die Liste anfangs leer und
+  // füllte hier bis zu 2 s lang gar nichts — der Start wartete also jedes Mal
+  // umsonst. speech.js:_withVoices() wartet ohnehin startup-unabhängig auf
+  // 'voiceschanged', BEVOR gesprochen wird, inklusive eigenem Poll-Fallback.
 
   setProgress(30, 'Sounds werden geladen…');
   try { _sfx(); } catch(e) {}
-  await new Promise(r => setTimeout(r, 150));
 
-  setProgress(45, 'Musik wird geladen…');
-  try {
-    await _discoverTracks();
+  setProgress(45, 'Musik wird vorbereitet…');
+  // Musik NICHT mehr abwarten: _discoverTracks() fragt (auf github.io) api.github.com
+  // an und danach wurde bis zu 3 s auf 'canplay' gewartet — beides am Ladebildschirm,
+  // bei jedem Start. Die Trackliste wird im Hintergrund geholt; startMusicSync() im
+  // Start-Button holt sie ohnehin selbst nach, falls sie noch nicht da ist.
+  _discoverTracks().then(() => {
     if (window._musicTracks.length > 0) {
       const a = _initAudio();
-      a.src = _trackUrl(window._musicTracks[0]);
-      a.preload = 'auto';
-      await new Promise(resolve => {
-        let done = false;
-        const finish = () => { if (!done) { done = true; resolve(); } };
-        a.addEventListener('loadedmetadata', finish, { once: true });
-        a.addEventListener('canplay', finish, { once: true });
-        setTimeout(finish, 3000);
-      });
-      console.log('[Startup] Musik bereit:', window._musicTracks[0]);
+      if (!a.src) { a.src = _trackUrl(window._musicTracks[0]); a.preload = 'auto'; }
     }
-  } catch(e) { console.warn('[Startup] Musik:', e); }
+  }).catch(e => console.warn('[Startup] Musik:', e));
 
   // Vosk ENTKOPPELT im Hintergrund laden — blockiert NICHT den Bereit-Zustand.
   // Das Modell (~40 MB) braucht beim ersten Mal lange; die App ist trotzdem sofort
@@ -107,13 +123,11 @@ export async function startupSequence() {
       await navigator.permissions.query({ name: 'microphone' }).catch(() => {});
     }
   } catch(e) {}
-  await new Promise(r => setTimeout(r, 150));
 
-  setProgress(96, 'Fast fertig…');
-  await new Promise(r => setTimeout(r, 200));
   setProgress(100, 'Bereit!');
   if (hint) hint.textContent = '';
-  // Voices finaler Check — wurden bereits bei Schritt 20% gepollt
+  // Voices-Check ohne Warten — _withVoices() in speech.js sichert das vor jedem
+  // Sprechen ohnehin ab.
   if (window.speechSynthesis && (!window._ttsVoices || window._ttsVoices.length === 0)) {
     window._ttsVoices = window.speechSynthesis.getVoices();
   }

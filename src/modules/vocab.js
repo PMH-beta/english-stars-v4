@@ -7,6 +7,7 @@ import { commitDirty } from './dialog.js';
 import { supabase } from './supabase.js';
 import { effectivePct, statKeyFor } from './stats.js';
 import { MAX_PRESET_CATEGORIES } from './config.js';
+import { ensureTesseract } from './lazyload.js';
 
 function _vmDeck() { return window._draftDeck || activeDeck(); }
 
@@ -394,6 +395,8 @@ async function startScan(dataUrl, file) {
 
   let rawText = '';
   try {
+    // OCR-Library erst hier laden (vorher blockierte sie jeden App-Start)
+    await ensureTesseract();
     const result = await Tesseract.recognize(imgInput, 'eng+deu', {
       logger: m => {
         if (m.status === 'recognizing text') {

@@ -460,9 +460,12 @@
 </div>
 <div id="version-badge" style="position:fixed;bottom:4px;left:50%;transform:translateX(-50%);font-size:.65rem;color:#bbb;font-weight:700;z-index:1000;pointer-events:none;"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-<!-- Vosk.js für Offline-Spracherkennung (Fallback wenn Web Speech API versagt) -->
-<script src="https://cdn.jsdelivr.net/npm/vosk-browser@0.0.8/dist/vosk.js"></script>
+<!-- Tesseract (OCR) und Vosk (Offline-Spracherkennung) werden NICHT mehr hier
+     geladen: als klassische <script>-Tags am Body-Ende blockierten sie den Parser,
+     d.h. src/main.js lief erst los, wenn beide da waren — zusammen über 5,6 MB, bei
+     JEDEM Start. Offline schlugen sie zwangsläufig fehl und die App wartete erst den
+     Netzwerk-Timeout ab. Beide kommen jetzt bei Bedarf über src/modules/lazyload.js:
+     Tesseract beim Scannen, Vosk bei der Aussprache-Übung. -->
 <script>
 // ── Globaler Fehler-Anzeiger ──
 (function(){

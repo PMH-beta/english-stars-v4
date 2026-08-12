@@ -2,6 +2,7 @@
 // Text-to-Speech + Spracherkennung (Web Speech API + Vosk Offline).
 // Shared state (_ttsVoices, _spokenForQuestion, _voskStatus, _voskModel, …)
 // liegt auf window damit Legacy-Code in index.html direkt darauf zugreifen kann.
+import { ensureVosk } from './lazyload.js';
 
 let _ttsReady = false;
 let _ttsWarmupDone = false;
@@ -221,13 +222,17 @@ window._voskLoad = async function() {
     }
     return window._voskModel;
   }
+  // Status VOR dem Nachladen setzen, damit parallele Aufrufe oben warten statt
+  // ein zweites Mal loszulaufen. Die Library selbst kam früher als parser-
+  // blockierendes <script> aus index.html und kostete 5,6 MB bei JEDEM Start.
+  window._voskStatus = 'loading';
+  try { await ensureVosk(); } catch(e) { console.warn('[Vosk] Library nicht ladbar:', e.message); }
   if (typeof Vosk === 'undefined') {
     console.warn('[Vosk] Library nicht verfügbar');
     window._voskStatus = 'failed';
     return null;
   }
   try {
-    window._voskStatus = 'loading';
     // Same-origin gehostet (models/) → vom Service Worker cache-first persistent
     // gecacht, kein Re-Download bei jedem Kaltstart. document.baseURI macht den
     // Pfad unter dem GitHub-Pages-Projektpfad (/english-stars-v4/) korrekt.
