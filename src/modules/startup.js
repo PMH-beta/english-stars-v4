@@ -20,42 +20,6 @@ export async function startupSequence() {
   // Cache-Invalidierung übernimmt jetzt der Service Worker: network-first für
   // App-Code (frische Updates online), cache-first für Modell/Statik (persistent).
 
-  // Auth-Session aus Cache laden (funktioniert auch offline wenn vorher eingeloggt).
-  // Gedeckelt: bei abgelaufenem Token versucht getSession() einen Token-Refresh übers
-  // Netz. Über ein totes oder zähes Netz (Hotel-WLAN, kein Empfang) kann das hängen —
-  // und der Boot steht hier ganz am Anfang still. Nach dem Timeout lesen wir die
-  // gespeicherte Session direkt aus dem localStorage, damit ein offline gestartetes
-  // Kind NICHT auf dem Login-Screen landet, obwohl es angemeldet ist.
-  if (navigator.onLine === false) {
-    // Offline gar nicht erst fragen — das kostet 0 ms statt in den Timeout unten zu
-    // laufen. Gemessen hat genau das den Offline-Start um 5 s verzögert.
-    window.currentUser = cachedSessionUser();
-    console.log('[Startup] Offline — Session aus dem lokalen Speicher:', !!window.currentUser);
-  } else {
-    try {
-      // Timeout für den fiesen Zwischenfall: Verbindung "da", aber tot (Hotel-WLAN,
-      // ein Balken, Captive Portal) — da meldet navigator.onLine weiterhin true.
-      const TIMEOUT = Symbol('timeout');
-      const res = await Promise.race([
-        supabase.auth.getSession().then(r => r?.data?.session ?? null),
-        // 2,5 s wie der Netz-Deckel im Service Worker. Greift der Timeout, gilt die
-        // lokal gespeicherte Session — das Kind bleibt angemeldet und kommt ins Menü;
-        // den echten Cloud-Stand holt handleLogin() danach mit eigenem Retry nach.
-        new Promise(r => setTimeout(() => r(TIMEOUT), 2500)),
-      ]);
-      if (res === TIMEOUT) {
-        window.currentUser = cachedSessionUser();
-        console.warn('[Startup] getSession Timeout — Session aus dem lokalen Speicher:', !!window.currentUser);
-      } else {
-        window.currentUser = res?.user ?? null;
-      }
-    } catch(e) {
-      window.currentUser = cachedSessionUser();
-      console.warn('[startup] getSession fehlgeschlagen:', e && e.message);
-    }
-  }
-  console.log('[Startup] Auth-Resolved:', performance.now().toFixed(0) + 'ms —', window.currentUser ? 'eingeloggt als ' + window.currentUser.email : 'nicht eingeloggt');
-
   // Runtime-Listener: Session-Ablauf, Logout aus anderem Tab, Email-Bestätigung, Passwort-Reset
   onAuthChange((event, user) => {
     if (event === 'PASSWORD_RECOVERY') {
@@ -87,84 +51,119 @@ export async function startupSequence() {
   console.log('[Startup] Loading-Screen:', performance.now().toFixed(0) + 'ms');
   showScreen('loading-screen');
 
-  setProgress(8, 'Vokabeln werden geladen…');
+  // ── Geste ZUERST, Ladevorgang danach ──
+  // Vorher lief die halbe Startsequenz vor dem Button und der TEURE Rest (Auth,
+  // Cloud-Load, Aufbau aller Elemente) danach — hinter einem Screen, der 100 %
+  // anzeigte und sich nicht mehr rührte. Das war die gefühlte Hängezeit.
+  // Jetzt: Button sofort, und alles Weitere läuft nach dem Tippen mit einem Ring,
+  // der echte Schritte zeigt. Nebeneffekt: Audio-Freigabe, audioSession und
+  // TTS-Warmup liegen damit garantiert INNERHALB einer echten Nutzergeste — auf
+  // iOS zuverlässiger als vorher, wo das Warmup teils außerhalb landete.
+  const startBtn = document.getElementById('loading-start-btn');
 
-  setProgress(20, 'Stimmen werden geladen…');
-  try { _initTTS(); } catch(e) {}
-  // Kein Polling mehr auf getVoices(). Auf Android ist die Liste anfangs leer und
-  // füllte hier bis zu 2 s lang gar nichts — der Start wartete also jedes Mal
-  // umsonst. speech.js:_withVoices() wartet ohnehin startup-unabhängig auf
-  // 'voiceschanged', BEVOR gesprochen wird, inklusive eigenem Poll-Fallback.
+  // Passwort-Reset über Mail-Link: kein Ton nötig, hier wäre ein Button nur im Weg.
+  if (_pendingRecovery || !startBtn) { await bootWork(setProgress, hint); return; }
 
-  setProgress(30, 'Sounds werden geladen…');
+  setProgress(0, 'Bereit, wenn du es bist!');
+  if (hint) hint.textContent = '';
+  startBtn.style.display = '';
+  startBtn.disabled = false;
+  startBtn.onclick = async () => {
+    startBtn.disabled = true;
+    startBtn.style.display = 'none';
+    // ── alles hier ist synchron in der Geste ──
+    // iOS: Audio-Session EINMAL auf 'play-and-record' (Web Audio Session API, Safari
+    // 16.4+). Erlaubt Aufnahme dauerhaft (Vosk bleibt funktionsfähig) UND spielt Ton
+    // über den Stumm-Schalter → Sounds/TTS auch lautlos in JEDEM Modus, OHNE Mic-Prompt
+    // am Start (der kommt erst im Aussprache-Modus via warmIosMic in _launchGame).
+    // NIE auf 'playback' umschalten — das verbot vorher das Mic → Erkennung tot. iOS-only.
+    try { if (navigator.audioSession) navigator.audioSession.type = 'play-and-record'; } catch(e) {}
+    // SFX sofort in der Geste entsperren (sonst Sounds erst nach 1-2 Runden).
+    try { primeSfx(); } catch(e) {}
+    try {
+      let musicPref = '1';
+      try { const v = localStorage.getItem('es_music'); if (v !== null) musicPref = v; } catch(e) {}
+      if (musicPref === '1' && !window._musicOn) { startMusicSync(); _setMusicBtns(true); }
+    } catch(e) { console.warn('[startup] Music unlock failed:', e); }
+    // TTS-Warmup in der Geste anstoßen, aber nicht abwarten: es kostet bis zu 3,5 s
+    // (bis 1,5 s Stimmen-Poll + bis 2 s Warmup) und liefe sonst VOR dem Cloud-Load,
+    // statt parallel dazu. Bis im Spiel das erste Wort fällt, ist es längst fertig —
+    // speakWord geht ohnehin über _withVoices, das notfalls selbst wartet.
+    try { _initTTS(); } catch(e) {}
+    try { warmTTS().catch(() => {}); } catch(e) {}
+    await bootWork(setProgress, hint);
+  };
+}
+
+// Die eigentliche Ladearbeit — läuft erst nach dem Tippen und meldet echte Schritte.
+async function bootWork(setProgress, hint) {
+  setProgress(12, 'Sounds werden geladen…');
   try { _sfx(); } catch(e) {}
 
-  setProgress(45, 'Musik wird vorbereitet…');
-  // Musik NICHT mehr abwarten: _discoverTracks() fragt (auf github.io) api.github.com
-  // an und danach wurde bis zu 3 s auf 'canplay' gewartet — beides am Ladebildschirm,
-  // bei jedem Start. Die Trackliste wird im Hintergrund geholt; startMusicSync() im
-  // Start-Button holt sie ohnehin selbst nach, falls sie noch nicht da ist.
+  setProgress(25, 'Musik wird vorbereitet…');
+  // Nicht abwarten: _discoverTracks() fragt (auf github.io) api.github.com an.
   _discoverTracks().then(() => {
     if (window._musicTracks.length > 0) {
       const a = _initAudio();
-      // preload 'metadata' statt 'auto': 'auto' zieht den KOMPLETTEN Track schon am
-      // Ladebildschirm — beim ersten Track sind das 10,9 MB, gemessen der mit Abstand
-      // größte Brocken des Kaltstarts. Gebraucht wird die Musik erst, wenn das Kind
-      // "Los geht's" tippt, und dann streamt sie ohnehin ab dem ersten Puffer.
+      // preload 'metadata' statt 'auto': 'auto' zieht den KOMPLETTEN Track — beim
+      // ersten sind das 10,9 MB und damit der größte Einzelposten des Kaltstarts.
+      // Beim Abspielen streamt er ohnehin ab dem ersten Puffer.
       if (!a.src) { a.src = _trackUrl(window._musicTracks[0]); a.preload = 'metadata'; }
     }
   }).catch(e => console.warn('[Startup] Musik:', e));
 
-  setProgress(80, 'Mikrofon wird vorbereitet…');
+  setProgress(38, 'Mikrofon wird vorbereitet…');
   try {
     if (navigator.mediaDevices && navigator.permissions) {
       await navigator.permissions.query({ name: 'microphone' }).catch(() => {});
     }
   } catch(e) {}
 
-  setProgress(100, 'Bereit!');
-  if (hint) hint.textContent = '';
-  // Voices-Check ohne Warten — _withVoices() in speech.js sichert das vor jedem
-  // Sprechen ohnehin ab.
-  if (window.speechSynthesis && (!window._ttsVoices || window._ttsVoices.length === 0)) {
-    window._ttsVoices = window.speechSynthesis.getVoices();
-  }
+  setProgress(55, 'Anmeldung wird geprüft…');
+  await resolveSession();
 
-  // Button bei JEDEM Kaltstart zeigen — iOS braucht User-Geste um Audio freizugeben.
-  // Gilt für eingeloggte und nicht eingeloggte Nutzer gleichermaßen.
-  const startBtn = document.getElementById('loading-start-btn');
-  if (startBtn) {
-    startBtn.style.display = '';
-    startBtn.onclick = async () => {
-      startBtn.disabled = true;
-      // iOS: Audio-Session EINMAL auf 'play-and-record' (Web Audio Session API, Safari
-      // 16.4+). Erlaubt Aufnahme dauerhaft (Vosk bleibt funktionsfähig) UND spielt Ton
-      // über den Stumm-Schalter → Sounds/TTS auch lautlos in JEDEM Modus, OHNE Mic-Prompt
-      // am Start (der kommt erst im Aussprache-Modus via warmIosMic in _launchGame).
-      // NIE auf 'playback' umschalten — das verbot vorher das Mic → Erkennung tot. iOS-only.
-      try { if (navigator.audioSession) navigator.audioSession.type = 'play-and-record'; } catch(e) {}
-      // SFX sofort in der Geste entsperren (sonst Sounds erst nach 1-2 Runden).
-      try { primeSfx(); } catch(e) {}
-      try {
-        let musicPref = '1';
-        try { const v = localStorage.getItem('es_music'); if (v !== null) musicPref = v; } catch(e) {}
-        if (musicPref === '1' && !window._musicOn) { startMusicSync(); _setMusicBtns(true); }
-      } catch(e) { console.warn('[startup] Music unlock failed:', e); }
-      // TTS-Warmup in der Geste ANSTOSSEN, aber nicht mehr abwarten.
-      // Abgewartet kostete es hier bis zu 3,5 s, bevor überhaupt der Cloud-Load
-      // anlief: _withVoices pollt bis zu 1,5 s auf die Stimmenliste (auf Android ist
-      // sie anfangs regelmäßig leer) und warmTTS legt bis zu 2 s Warmup obendrauf.
-      // Genau diese Zeit lag zwischen "Los geht's" und dem Erscheinen der Elemente.
-      // Das Warmup läuft jetzt parallel weiter und ist lange fertig, bevor im Spiel
-      // das erste Wort gesprochen wird; speakWord geht ohnehin über _withVoices.
-      if (status) status.textContent = 'Sprachausgabe wird vorbereitet…';
-      try { warmTTS().catch(() => {}); } catch(e) {}
-      finishStartup();
-    };
+  setProgress(75, 'Dein Fortschritt wird geladen…');
+  if (hint) hint.textContent = '';
+  await finishStartup();
+  setProgress(100, 'Bereit!');
+}
+
+// Auth-Session aus Cache laden (funktioniert auch offline wenn vorher eingeloggt).
+// Gedeckelt: bei abgelaufenem Token versucht getSession() einen Token-Refresh übers
+// Netz. Über ein totes oder zähes Netz (Hotel-WLAN, kein Empfang) kann das hängen —
+// und der Boot stünde still. Nach dem Timeout lesen wir die gespeicherte Session
+// direkt aus dem localStorage, damit ein offline gestartetes Kind NICHT auf dem
+// Login-Screen landet, obwohl es angemeldet ist.
+async function resolveSession() {
+  if (navigator.onLine === false) {
+    // Offline gar nicht erst fragen — das kostet 0 ms statt in den Timeout unten zu
+    // laufen. Gemessen hat genau das den Offline-Start um 5 s verzögert.
+    window.currentUser = cachedSessionUser();
+    console.log('[Startup] Offline — Session aus dem lokalen Speicher:', !!window.currentUser);
   } else {
-    await new Promise(r => setTimeout(r, 600));
-    finishStartup();
+    try {
+      // Timeout für den fiesen Zwischenfall: Verbindung "da", aber tot (Hotel-WLAN,
+      // ein Balken, Captive Portal) — da meldet navigator.onLine weiterhin true.
+      const TIMEOUT = Symbol('timeout');
+      const res = await Promise.race([
+        supabase.auth.getSession().then(r => r?.data?.session ?? null),
+        // 2,5 s wie der Netz-Deckel im Service Worker. Greift der Timeout, gilt die
+        // lokal gespeicherte Session — das Kind bleibt angemeldet und kommt ins Menü;
+        // den echten Cloud-Stand holt handleLogin() danach mit eigenem Retry nach.
+        new Promise(r => setTimeout(() => r(TIMEOUT), 2500)),
+      ]);
+      if (res === TIMEOUT) {
+        window.currentUser = cachedSessionUser();
+        console.warn('[Startup] getSession Timeout — Session aus dem lokalen Speicher:', !!window.currentUser);
+      } else {
+        window.currentUser = res?.user ?? null;
+      }
+    } catch(e) {
+      window.currentUser = cachedSessionUser();
+      console.warn('[startup] getSession fehlgeschlagen:', e && e.message);
+    }
   }
+  console.log('[Startup] Auth-Resolved:', performance.now().toFixed(0) + 'ms —', window.currentUser ? 'eingeloggt als ' + window.currentUser.email : 'nicht eingeloggt');
 }
 
 export async function finishStartup() {
