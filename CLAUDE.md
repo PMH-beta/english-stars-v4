@@ -4,8 +4,11 @@
 Deutsch→Englisch Vokabel-PWA für Grundschulkinder.
 Vite-PWA, buildless (ESM-CDN-Import), Module in src/modules/,
 Supabase-Backend (Projekt bjjdofvvzlivyhvjdfyw).
-Branch: refactor-modules. Deploy: push dev refactor-modules:main.
-Remotes: origin = altes Repo NICHT anfassen, dev = english-stars-v4.
+Branch: main (einziger Arbeitsbranch, Repo english-stars-v4).
+Ablauf auf jedem Rechner: git pull -> arbeiten -> commit -> push.
+Remote-NAME ist je Rechner anders: Linux-Laptop = origin,
+Windows-Hauptrechner = dev (dort ist origin das ALTE Repo, NICHT
+anfassen). Also erst `git remote -v` pruefen, dann pushen.
 Login: E-Mail+Passwort UND Google-OAuth. Kinder dürfen NIE auf
 Google angewiesen sein — E-Mail-Weg muss immer Alternative bleiben.
 
