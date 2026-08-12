@@ -7,7 +7,7 @@ import { releaseMicStream, stopVisualizer, voskStop, speakWord } from './speech.
 import { signIn, signUp, signOut, resendConfirmation, requestPasswordReset, updatePassword, signInWithGoogle } from './auth.js';
 import { cloudLoad, cloudReset, saveDeck, saveWordStats, saveExam, markDirty, flushPendingSync, setCloudConfirmed, getPendingCount, setKnownSig, cloudChangedRemotely, queuePresetStatDelete, deleteProbetest } from './sync.js';
 import { commitDirty } from './dialog.js';
-import { uvMap, uvLernstand, constellationWords, FORGE_DISC, SLOTS_PER_FORM, uvTrainProgress, uvTrainForms, uvTrainWords, uvPruneOrphanSlotStats } from './irregular-game.js';
+import { uvMap, uvLernstand, constellationWords, FORGE_DISC, SLOTS_PER_FORM, uvTrainProgress, uvTrainForms, uvTrainWords, uvPruneOrphanSlotStats, UV_TRAIN_SIZE, migrateUvTrainSize } from './irregular-game.js';
 import { renderAvatarInto, renderCharacter, commitAvatar, resetCharacterFeature, setCharacterCompanion, setCharacterGear } from './avatar.js';
 import { IRREGULAR_PRESET_ID, uvAvailableVerbs, CONSTELLATION_SIZE, cefrOf, forgeObject, FORGE_OBJECTS, usedForgeObjects, fillObjectType, getConstellations, allVerbsSorted, verbsByEns, UV_TRAIN_SUF } from './irregular-verbs.js';
 import { objectPerkText, renderEquipmentPanel, resetEquipmentSelection, forgedItems, equippedGearMap } from './campaign-equipment.js';
@@ -354,7 +354,8 @@ function renderStudentMode() {
 // sind die Schmiede-Disziplinen (🔍 Erkennen · 🔨 Schmieden · 🪄 Verzaubern) mit
 // eigenen _tr_-Stats — der Schmiede-Stationsfortschritt bleibt unberührt.
 // Achtung: mode 'training' (nicht 'student') — migrateDeckModes räumt 'student' weg.
-const UV_TRAIN_MAX = 15;
+// Deckgröße: UV_TRAIN_SIZE (irregular-game.js), genau so viele Verben — nicht mehr
+// "bis zu 15". Bestehende Decks kürzt migrateUvTrainSize beim Login.
 let _uvTrainExpanded = false;
 export function toggleUvTraining() { _uvTrainExpanded = !_uvTrainExpanded; renderUvTrainingSection(); }
 
@@ -478,7 +479,7 @@ export function renderUvTrainingSection() {
   const open = _uvTrainExpanded;
   const sub = decks.length
     ? decks.length + ' Deck' + (decks.length === 1 ? '' : 's') + ' · zum Aufklappen tippen'
-    : `Eigene Übungsdecks aus bis zu ${UV_TRAIN_MAX} Verben`;
+    : `Eigene Übungsdecks aus genau ${UV_TRAIN_SIZE} Verben`;
   // WICHTIG: kein 'expanded' auf der äußeren Karte — die CSS-Nachfahren-Regeln
   // (.deck-card.expanded .deck-body/.deck-chevron) würden sonst die inneren
   // Trainings-Deck-Karten dauerhaft aufklappen. Offen-Optik daher inline.
@@ -524,12 +525,12 @@ export function uvTrainOpenCreate() {
   overlay.innerHTML = `<div class="uv-fill-card">
     <div class="uv-fill-head">
       <div class="uv-fill-title">🎯 Neues Trainings-Deck</div>
-      <div class="uv-fill-hint">Wähle bis zu ${UV_TRAIN_MAX} Verben — geübt wird in 🔍 Erkennen · 🔨 Schmieden · 🪄 Verzaubern.</div>
+      <div class="uv-fill-hint">Wähle genau ${UV_TRAIN_SIZE} Verben — geübt wird in 🔍 Erkennen · 🔨 Schmieden · 🪄 Verzaubern.</div>
       <input id="uv-train-name" class="uv-train-name" maxlength="30" value="${defName}"/>
       <div class="uv-form-choice">
         ${_uvFormChipsHtml((f) => `data-forms="${f}"${f === 'both' ? ' data-sel="1"' : ''}`)}
       </div>
-      <div class="uv-fill-count"><span id="uv-train-n">0</span>/${UV_TRAIN_MAX}</div>
+      <div class="uv-fill-count"><span id="uv-train-n">0</span>/${UV_TRAIN_SIZE}</div>
     </div>
     <div class="uv-fill-list">
       <div class="uv-fill-slide" id="uv-train-slide">
@@ -553,7 +554,9 @@ export function uvTrainOpenCreate() {
   overlay.querySelector('#uv-train-cancel').addEventListener('click', close);
   const updateCount = () => {
     nEl.textContent = String(sel.size);
-    okBtn.disabled = sel.size < 1;
+    // Genau UV_TRAIN_SIZE — nicht weniger. Mehr lässt der Klick-Handler unten gar
+    // nicht erst zu, der Zähler zeigt also immer n/10.
+    okBtn.disabled = sel.size !== UV_TRAIN_SIZE;
   };
   // Grau-Zustand aller Zeilen für die aktuelle Auswahl setzen; angekreuzte
   // Verben, die dabei gesperrt werden, fliegen aus der Auswahl.
@@ -590,14 +593,14 @@ export function uvTrainOpenCreate() {
     const cb = row.querySelector('.uv-fill-cb');
     const en = row.getAttribute('data-en');
     cb.addEventListener('change', () => {
-      if (cb.checked && sel.size >= UV_TRAIN_MAX) { cb.checked = false; return; }
+      if (cb.checked && sel.size >= UV_TRAIN_SIZE) { cb.checked = false; return; }
       if (cb.checked) { sel.add(en); row.classList.add('sel'); }
       else { sel.delete(en); row.classList.remove('sel'); }
       updateCount();
     });
   });
   okBtn.addEventListener('click', () => {
-    if (!sel.size) return;
+    if (sel.size !== UV_TRAIN_SIZE) return;
     const name = (overlay.querySelector('#uv-train-name').value || '').trim() || defName;
     close();
     _uvTrainCreate(name, [...sel], formsSel);
@@ -2772,6 +2775,17 @@ function adoptCloudState(state, signature) {
 
 function _finishLoginUI() {
   if (migrateStatKeys()) persist(window.SD);
+  // Trainings-Decks auf UV_TRAIN_SIZE Verben kürzen. Hier und nicht in
+  // adoptCloudState, weil diese Stelle BEIDE Wege abdeckt: nach erfolgreichem
+  // Cloud-Load (läuft danach) und im Offline-Fall, wo cloudLoad 'failed' liefert
+  // und mit dem lokalen Stand weitergemacht wird. Die gekürzten Decks müssen
+  // zurück in die Cloud, sonst stellt der nächste harte Load die alte Größe wieder her.
+  const trimmed = migrateUvTrainSize();
+  if (trimmed.length) {
+    persist(window.SD);
+    console.log('[Migration] Trainings-Decks auf', UV_TRAIN_SIZE, 'Verben gekürzt:', trimmed.length);
+    if (window.currentUser) { trimmed.forEach((id) => markDirty('deck', id)); commitDirty(); }
+  }
   console.log('[handleLogin] SD bereit:', window.SD?.playerName, window.SD?.highscore);
   subscribeFriendRealtime();   // Freundschaftsanfragen live empfangen (WebSocket statt Polling)
   if (!window.SD?.playerName) showScreen('name-screen');
