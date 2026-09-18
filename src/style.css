@@ -1696,3 +1696,238 @@ body.in-game .mode-progress{display:block;}
   .pd-avatar{width:139px;height:208px;}   /* Höhe = 4×46 + 3×8 */
   .cg-grid{gap:6px;}
 }
+
+/* ══ PASTELL-REDESIGN: Bausteine ═══════════════════════════════════════════
+   Die wiederverwendbare Klassenschicht des neuen Designs. Bewusst NEBEN dem
+   alten CSS und mit eigenem p-Präfix: die Screens wandern einzeln herüber, und
+   solange ein Screen nicht umgestellt ist, sieht er aus wie bisher. Erst wenn
+   alle 32 durch sind, fällt das alte CSS weg.
+
+   Werte stammen aus dem Markup von design_handoff_english_stars_pastell/
+   "English Stars UI Pastell.dc.html" — dort sind sie inline und exakt; die
+   Tabellen im README nennen teils Spannen statt fester Werte.
+
+   NICHT nachgebaut: Geräterahmen (402×874, Radius 34) und Statusleiste („9:41",
+   Signal, Akku). Das ist die Attrappe, in der der Prototyp seine Screens zeigt —
+   in der echten App ist das Gerät das Gerät.
+
+   Grundton-Mechanik: .p-ton-* setzt --p-ton, und alles darunter liest daraus —
+   der Screen-Hintergrund, der aktive Tab, der Akzent-Button. Ein Screen bekommt
+   damit genau einen Grundton, so wie die Spezifikation es verlangt. */
+
+.p-ton-lila     { --p-ton: var(--p-lila); }
+.p-ton-mint     { --p-ton: var(--p-mint); }
+.p-ton-amber    { --p-ton: var(--p-amber); }
+.p-ton-rosa     { --p-ton: var(--p-rosa); }
+.p-ton-blau     { --p-ton: var(--p-blau); }
+.p-ton-pfirsich { --p-ton: var(--p-pfirsich); }
+
+/* ── Seiten-Grundgerüst ──────────────────────────────────────────────────── */
+/* body.p-app hebt das alte Body-Layout auf (zentrierte Spalte mit Polstern und
+   Farbverläufen). Wird pro Screen gesetzt, nicht global — sonst kippen alle
+   noch nicht umgestellten Screens mit. */
+body.p-app{
+  padding:0; background-image:none; background-color:var(--p-ton,var(--p-lila));
+  align-items:stretch; font-family:var(--p-font);
+}
+/* Der Screen füllt die Höhe und ist auf Handybreite begrenzt. Der Prototyp ist
+   auf 402 px gebaut und darf nach unten wachsen; 440 lässt etwas Luft, ohne dass
+   die Proportionen auf dem Desktop auseinanderlaufen. */
+.p-screen{
+  width:100%; max-width:440px; margin:0 auto;
+  min-height:100vh; min-height:100dvh;
+  background:var(--p-ton,var(--p-lila)); color:var(--p-ink);
+  font-family:var(--p-font);
+  display:flex; flex-direction:column;
+}
+/* Kopfbereich: liegt auf dem Grundton, über dem Blatt. */
+.p-kopf{ flex:none; padding:8px 16px 0; }
+/* Titelzeile: Zurück-Knopf links, Titel mittig, Platzhalter rechts. */
+.p-titel{ display:flex; justify-content:space-between; align-items:center; }
+.p-titel-text{
+  font:900 13px var(--p-font); letter-spacing:var(--p-ls-titel); text-transform:uppercase;
+}
+
+/* ── Das Blatt ───────────────────────────────────────────────────────────── */
+/* Das cremefarbene Panel, das unter dem Kopfbereich beginnt und bis zur
+   Unterkante läuft. flex:1 ist zwingend — ohne endet es mitten im Screen.
+   Der Prototyp zieht es mit margin-left/right:-2px unter den Geräterahmen;
+   ohne Attrappe entfällt das, die eigene Kontur ist hier die Außenkante. */
+.p-blatt{
+  margin-top:14px; flex:1;
+  background:var(--p-blatt);
+  border:var(--p-rahmen); border-bottom:0;
+  border-radius:var(--p-r-blatt) var(--p-r-blatt) 0 0;
+  padding:16px 16px 18px;
+}
+
+/* ── Zurück-Knopf ────────────────────────────────────────────────────────── */
+.p-back{
+  width:34px; height:34px; flex:none;
+  border:var(--p-rahmen); border-radius:50%; background:var(--p-karte);
+  display:flex; align-items:center; justify-content:center;
+  padding:0; cursor:pointer; font-family:inherit;
+}
+/* Leeres Gegenstück rechts, damit der Titel optisch mittig bleibt. */
+.p-back-platz{ width:34px; height:34px; flex:none; }
+
+/* ── Karte ───────────────────────────────────────────────────────────────── */
+.p-karte{
+  border:var(--p-rahmen); border-radius:var(--p-r-karte);
+  background:var(--p-karte); padding:13px 14px;
+}
+.p-karte--hell   { background:var(--p-karte-hell); }
+.p-karte--block  { padding:15px 14px 16px; }
+.p-karte--dialog { border-radius:var(--p-r-dialog); padding:22px 18px; background:var(--p-karte-hell); }
+.p-karte--leer   { border:var(--p-rahmen-leer); }           /* leere Ablagefläche */
+/* Angehobene Sammlung im Sortiermodus — der einzige Schatten im ganzen Design,
+   und bewusst hart. Sonst kommt Tiefe allein aus der Kontur. */
+.p-karte--angehoben{ box-shadow:var(--p-schatten-angehoben); transform:rotate(-1.4deg); }
+/* Trennlinie innerhalb einer Karte. */
+.p-karte-trenner{ border-top:var(--p-trenner); margin:10px 0 0; padding-top:10px; }
+
+/* ── Chips ───────────────────────────────────────────────────────────────── */
+.p-chip{
+  display:inline-flex; align-items:center;
+  border:var(--p-rahmen); border-radius:var(--p-r-chip);
+  background:var(--p-karte); padding:3px 9px;
+  font:800 10px var(--p-font); color:var(--p-ink); white-space:nowrap;
+}
+/* Mit Icon links: etwas weniger Polster links, damit das Icon nicht wegrutscht. */
+.p-chip--icon{ gap:5px; padding:3px 9px 3px 7px; }
+.p-chip--eigene  { background:var(--p-info); }      /* „Eigene" */
+.p-chip--vorlage { background:var(--p-formen); }    /* „Vorlage" */
+.p-chip--aktiv   { background:var(--p-ok); }        /* „Aktiv" */
+.p-chip--gold    { background:var(--p-gold); }
+/* „Noch nicht verdient": gestrichelt und grau. Der Zustandswechsel auf gold ist
+   die zentrale Belohnungsanzeige — pro Modus auf 100 % ein Taler, drei je Sammlung. */
+.p-chip--unverdient{
+  border:var(--p-rahmen-unverdient); background:var(--p-chip-leer); color:#4A4A52;
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+.p-btn{
+  width:100%; height:54px;
+  border:var(--p-rahmen); border-radius:var(--p-r-btn);
+  background:var(--p-karte); color:var(--p-ink);
+  display:flex; align-items:center; justify-content:center; gap:9px;
+  font:900 14px var(--p-font); cursor:pointer; text-align:center;
+}
+.p-btn--primaer  { background:var(--p-ink); color:var(--p-gold); }
+.p-btn--akzent   { background:var(--p-ton,var(--p-lila)); color:var(--p-ink); }
+.p-btn--sekundaer{ background:var(--p-karte); font-weight:800; font-size:13px; }
+.p-btn--gefahr   { background:var(--p-falsch); font-size:12px; }
+/* Zeilen-Variante: linksbündig, wie eine antippbare Liste — Einstellungen,
+   Auswahlzeilen, sekundäre Aktionen. */
+.p-btn--zeile{
+  height:52px; justify-content:flex-start; padding:0 16px; gap:11px;
+  font:700 13px var(--p-font); color:var(--p-text-2); text-align:left;
+}
+
+/* ── Eingabefeld ─────────────────────────────────────────────────────────── */
+.p-feld{
+  width:100%; height:56px;
+  border:var(--p-rahmen); border-radius:var(--p-r-btn);
+  background:var(--p-feld); color:var(--p-ink);
+  padding:0 16px; font:700 14px var(--p-font);
+}
+.p-feld::placeholder{ color:var(--p-text-2); }
+
+/* ── Fortschrittsbalken ──────────────────────────────────────────────────── */
+/* Spur + Füllung. Die Füllfarbe trägt Bedeutung: Mint = Sammlungsfortschritt,
+   Tinte = Modusfortschritt, Gold = Schmiede-Auftrag. */
+.p-balken{
+  height:10px; border-radius:var(--p-r-balken); overflow:hidden; background:var(--p-spur);
+}
+.p-balken > i{ display:block; height:100%; width:0; background:var(--p-ok); }
+.p-balken--modus   > i{ background:var(--p-ink); }
+.p-balken--schmiede> i{ background:var(--p-gold); }
+.p-balken--fehler  > i{ background:var(--p-falsch); }
+.p-balken--klein { height:8px; border-radius:5px; }         /* in Listen */
+.p-balken--mittel{ height:9px; border-radius:5px; }
+.p-balken--gross { height:13px; }                            /* Modus-Zeilen */
+
+/* ── Taler-Zeile unter einer Modus-Zeile ─────────────────────────────────── */
+/* Balken über die volle Breite, darunter links „6/12 gemeistert", rechts der
+   Taler-Chip. Der Chip wechselt bei 100 % von .p-chip--unverdient auf
+   .p-chip--gold — das ist der sichtbare Lohn des Modus. */
+.p-taler-zeile{
+  display:flex; align-items:center; justify-content:space-between; gap:9px; margin-top:6px;
+  font:700 11px var(--p-font); color:var(--p-text-2);
+}
+
+/* ── Drei-Tab-Leiste ─────────────────────────────────────────────────────── */
+.p-tabs{
+  border:var(--p-rahmen); border-radius:20px; background:var(--p-karte);
+  display:flex; padding:4px; gap:4px;
+}
+.p-tab{
+  flex:1; height:38px; border:0; border-radius:var(--p-r-kachel); background:none;
+  display:flex; align-items:center; justify-content:center; gap:6px;
+  font:800 12px var(--p-font); color:var(--p-text-2); cursor:pointer;
+}
+/* Aktiv: Grundton des Tabs plus Kontur. Ohne eigenes .p-ton-* erbt er den
+   Screen-Grundton. */
+.p-tab.is-aktiv{
+  background:var(--p-ton,var(--p-mint)); border:var(--p-rahmen);
+  font-weight:900; color:var(--p-ink);
+}
+
+/* ── Spielerbanner ───────────────────────────────────────────────────────── */
+.p-banner{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.p-banner-links{ display:flex; align-items:center; gap:10px; min-width:0; }
+.p-avatar{
+  width:44px; height:44px; flex:none;
+  border:var(--p-rahmen); border-radius:var(--p-r-kachel); background:var(--p-karte);
+  display:flex; align-items:center; justify-content:center; overflow:hidden; font-size:22px;
+}
+.p-banner-name{ font:900 17px var(--p-font); }
+.p-banner-stats{
+  display:flex; gap:9px; font:800 11px var(--p-font); color:var(--p-text-3);
+}
+.p-banner-stats > span{ display:inline-flex; align-items:center; gap:5px; }
+
+/* ── Icon-Slots und Kacheln ──────────────────────────────────────────────── */
+.p-slot{
+  width:34px; height:34px; flex:none;
+  border:var(--p-rahmen); border-radius:var(--p-r-slot); background:var(--p-inaktiv);
+  display:flex; align-items:center; justify-content:center;
+}
+.p-kachel{
+  aspect-ratio:1;
+  border:var(--p-rahmen); border-radius:var(--p-r-kachel); background:var(--p-karte);
+  display:flex; align-items:center; justify-content:center;
+}
+.p-kachel--leer{ background:var(--p-inaktiv); opacity:.55; }
+
+/* ── Sektions-Kicker ─────────────────────────────────────────────────────── */
+.p-kicker{
+  font:900 10px var(--p-font); letter-spacing:var(--p-ls-kicker); text-transform:uppercase;
+  color:var(--p-text-2); border-bottom:var(--p-haarlinie); padding-bottom:5px;
+}
+
+/* ── Vondu-Hinweis ───────────────────────────────────────────────────────── */
+/* Das Maskottchen erscheint NUR bei Anmeldung, Namenseingabe, Info-Popups und
+   Bestätigungsdialogen — nicht im Hauptmenü. */
+.p-vondu{
+  display:flex; align-items:center; gap:11px;
+  border:var(--p-rahmen-leer); border-radius:var(--p-r-karte);
+  background:var(--p-karte); padding:13px;
+}
+.p-vondu > img{ width:48px; height:46px; flex:none; display:block; }
+.p-vondu-text{ font:800 11.5px/1.45 var(--p-font); color:var(--p-text-3); }
+
+/* ── Kleinteile ──────────────────────────────────────────────────────────── */
+/* Sibling-Gruppen immer flex/grid + gap, nie Margins pro Element. */
+.p-reihe { display:flex; align-items:center; gap:9px; }
+.p-spalte{ display:flex; flex-direction:column; gap:11px; }
+.p-wachs { flex:1; min-width:0; }
+
+/* ── Fokus ───────────────────────────────────────────────────────────────── */
+/* Der Prototyp zeigt nur Ruhezustände. Ohne sichtbaren Fokus ist die App per
+   Tastatur unbedienbar, darum hier ergänzt — im Vokabular des Designs: ein
+   Tintenring, kein Schatten. Die Fläche hellt zusätzlich auf. */
+.p-feld:focus{ outline:2px solid var(--p-ink); outline-offset:2px; background:var(--p-karte-hell); }
+.p-btn:focus-visible,
+.p-tab:focus-visible,
+.p-back:focus-visible{ outline:2px solid var(--p-ink); outline-offset:2px; }

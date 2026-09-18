@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bausteine — Pastell</title>
+<!--
+  Entwickler-Werkzeug, NICHT Teil der App. Vite baut nur, was an index.html hängt.
+  Aufrufen im Dev-Server: /dev/bausteine.html
+
+  Zeigt jeden Baustein der p-Schicht in seinen Zuständen, auf einem echten Blatt.
+  Bindet bewusst src/style.css ein — die Seite prüft die echten Klassen und Tokens,
+  nicht eine Kopie davon. Grundton oben umschaltbar: jeder Screen hat genau einen,
+  und Akzent-Button wie aktiver Tab müssen ihn mitnehmen.
+-->
+<link rel="stylesheet" href="../src/style.css">
+<style>
+  /* Nur für diese Schauseite: Abschnittsgliederung. */
+  .demo-kicker{ margin:22px 0 10px; }
+  .demo-kicker:first-of-type{ margin-top:4px; }
+  .demo-reihe{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  .demo-spalte{ display:flex; flex-direction:column; gap:10px; }
+  .demo-note{ font:700 10.5px/1.45 var(--p-font); color:var(--p-text-2); margin-top:5px; }
+  .demo-ton{ display:flex; gap:6px; flex-wrap:wrap; padding:10px 16px 0; }
+  .demo-ton button{
+    font:900 10px var(--p-font); border:var(--p-rahmen); border-radius:var(--p-r-chip);
+    padding:5px 10px; background:var(--p-karte); color:var(--p-ink); cursor:pointer;
+  }
+</style>
+</head>
+<body class="p-app p-ton-lila">
+
+<div class="p-screen p-ton-lila" id="screen">
+
+  <div class="demo-ton" id="tonwahl">
+    <button data-ton="lila">Lila</button>
+    <button data-ton="mint">Mint</button>
+    <button data-ton="amber">Amber</button>
+    <button data-ton="rosa">Rosa</button>
+    <button data-ton="blau">Hellblau</button>
+    <button data-ton="pfirsich">Pfirsich</button>
+  </div>
+
+  <!-- Kopfbereich: Zurück-Knopf, Titel, Platzhalter -->
+  <div class="p-kopf">
+    <div class="p-titel">
+      <button class="p-back" id="backbtn"></button>
+      <div class="p-titel-text">Bausteine</div>
+      <div class="p-back-platz"></div>
+    </div>
+  </div>
+
+  <!-- Das Blatt -->
+  <div class="p-blatt">
+
+    <div class="p-kicker demo-kicker">Tab-Leiste</div>
+    <div class="p-tabs">
+      <button class="p-tab" id="t1">Kampagne</button>
+      <button class="p-tab is-aktiv" id="t2">Vokabeln</button>
+      <button class="p-tab" id="t3">Formen</button>
+    </div>
+    <div class="demo-note">Aktiv nimmt den Grundton. Ein Tab mit eigenem .p-ton-* überschreibt ihn lokal.</div>
+
+    <div class="p-kicker demo-kicker">Spielerbanner</div>
+    <div class="p-karte p-banner">
+      <div class="p-banner-links">
+        <div class="p-avatar">🧑‍🚀</div>
+        <div>
+          <div class="p-banner-name">Hannah</div>
+          <div class="p-banner-stats" id="bannerstats"></div>
+        </div>
+      </div>
+      <span class="p-chip p-chip--eigene">Fortschritt</span>
+    </div>
+
+    <div class="p-kicker demo-kicker">Karten</div>
+    <div class="demo-spalte">
+      <div class="p-karte">Karte — <code>13px 14px</code>, Radius 20</div>
+      <div class="p-karte p-karte--hell p-karte--block">Karte hell, Block-Polsterung</div>
+      <div class="p-karte p-karte--leer">Leere Ablagefläche — gestrichelt</div>
+      <div class="p-karte">
+        Karte mit Trennlinie
+        <div class="p-karte-trenner">Der zweite Teil, gepunktet abgesetzt.</div>
+      </div>
+      <div class="p-karte p-karte--angehoben">Angehoben — der einzige Schatten im Design</div>
+    </div>
+
+    <div class="p-kicker demo-kicker">Chips</div>
+    <div class="demo-reihe">
+      <span class="p-chip p-chip--eigene">Eigene</span>
+      <span class="p-chip p-chip--vorlage">Vorlage</span>
+      <span class="p-chip p-chip--aktiv">Aktiv</span>
+      <span class="p-chip p-chip--gold p-chip--icon" id="chipgold"></span>
+      <span class="p-chip p-chip--unverdient p-chip--icon" id="chipleer"></span>
+    </div>
+    <div class="demo-note">Grau-gestrichelt = noch nicht verdient, gold-durchgezogen = verdient.</div>
+
+    <div class="p-kicker demo-kicker">Buttons</div>
+    <div class="demo-spalte">
+      <button class="p-btn p-btn--primaer">Los geht's</button>
+      <button class="p-btn p-btn--akzent">Akzent — nimmt den Grundton</button>
+      <button class="p-btn p-btn--sekundaer">Sekundär</button>
+      <button class="p-btn p-btn--gefahr">Sammlung löschen</button>
+      <button class="p-btn p-btn--zeile" id="btnzeile">Vokabeln verwalten</button>
+    </div>
+
+    <div class="p-kicker demo-kicker">Eingabefeld</div>
+    <div class="demo-spalte">
+      <input class="p-feld" placeholder="E-Mail-Adresse">
+      <input class="p-feld" value="hannah@example.de">
+    </div>
+
+    <div class="p-kicker demo-kicker">Fortschrittsbalken</div>
+    <div class="demo-spalte">
+      <div class="p-balken"><i style="width:62%"></i></div>
+      <div class="p-balken p-balken--modus"><i style="width:45%"></i></div>
+      <div class="p-balken p-balken--schmiede"><i style="width:75%"></i></div>
+      <div class="p-balken p-balken--klein"><i style="width:30%"></i></div>
+    </div>
+    <div class="demo-note">Mint = Sammlung, Tinte = Modus, Gold = Schmiede.</div>
+
+    <div class="p-kicker demo-kicker">Modus-Zeile mit Taler</div>
+    <div class="p-karte">
+      <div class="p-reihe"><span class="p-wachs" style="font:900 14px var(--p-font)">Vokabeln</span><span style="font:900 17px var(--p-font)">50%</span></div>
+      <div class="p-balken p-balken--modus" style="margin-top:8px"><i style="width:50%"></i></div>
+      <div class="p-taler-zeile"><span>6/12 gemeistert</span><span class="p-chip p-chip--unverdient p-chip--icon" id="talerchip"></span></div>
+    </div>
+    <div class="p-karte" style="margin-top:11px">
+      <div class="p-reihe"><span class="p-wachs" style="font:900 14px var(--p-font)">Rechtschreibung</span><span style="font:900 17px var(--p-font)">100%</span></div>
+      <div class="p-balken p-balken--modus" style="margin-top:8px"><i style="width:100%"></i></div>
+      <div class="p-taler-zeile"><span>12/12 gemeistert</span><span class="p-chip p-chip--gold p-chip--icon" id="talerchip2"></span></div>
+    </div>
+
+    <div class="p-kicker demo-kicker">Slots und Kacheln</div>
+    <div class="demo-reihe" id="slots"></div>
+
+    <div class="p-kicker demo-kicker">Vondu-Hinweis</div>
+    <div class="p-vondu">
+      <img src="../design_handoff_english_stars_pastell/vondu-logo.svg" alt="Vondu">
+      <div class="p-vondu-text">Melde dich an, dann hebt Vondu deinen Fortschritt auf allen Geräten auf.</div>
+    </div>
+    <div class="demo-note">Vondu erscheint nur bei Anmeldung, Namenseingabe, Info-Popups und Bestätigungsdialogen.</div>
+
+  </div>
+</div>
+
+<script type="module">
+import { iconHTML, startIconAutoPaint } from '../src/modules/pixel-icons.js';
+
+document.getElementById('backbtn').innerHTML = iconHTML('back', 28);
+document.getElementById('bannerstats').innerHTML =
+  `<span>${iconHTML('crown', 14)}3</span><span>${iconHTML('coin', 14)}12</span>`;
+document.getElementById('chipgold').innerHTML = iconHTML('coin', 14) + 'Taler';
+document.getElementById('chipleer').innerHTML = iconHTML('coinOff', 14) + '0/3 Taler';
+document.getElementById('talerchip').innerHTML = iconHTML('coinOff', 14) + '+1 Taler';
+document.getElementById('talerchip2').innerHTML = iconHTML('coin', 14) + '+1 Taler';
+document.getElementById('btnzeile').innerHTML = iconHTML('pencil', 28) + 'Vokabeln verwalten';
+document.getElementById('t1').innerHTML = iconHTML('map', 14) + 'Kampagne';
+document.getElementById('t2').innerHTML = iconHTML('book', 14) + 'Vokabeln';
+document.getElementById('t3').innerHTML = iconHTML('test', 14) + 'Formen';
+document.getElementById('slots').innerHTML =
+  ['sword', 'shield', 'helm', 'potion'].map(n => `<div class="p-slot">${iconHTML(n, 28)}</div>`).join('')
+  + ['hammer', 'star'].map(n => `<div class="p-kachel" style="width:56px">${iconHTML(n, 28)}</div>`).join('')
+  + `<div class="p-kachel p-kachel--leer" style="width:56px">${iconHTML('lock', 28)}</div>`;
+
+// Grundton umschalten: Screen, Body und der aktive Tab müssen gemeinsam wechseln.
+const TOENE = ['lila', 'mint', 'amber', 'rosa', 'blau', 'pfirsich'];
+document.getElementById('tonwahl').addEventListener('click', (e) => {
+  const ton = e.target.dataset.ton;
+  if (!ton) return;
+  for (const el of [document.body, document.getElementById('screen')]) {
+    TOENE.forEach(t => el.classList.remove('p-ton-' + t));
+    el.classList.add('p-ton-' + ton);
+  }
+});
+
+// Tabs zum Anfassen — der aktive Tab soll den Grundton tragen.
+for (const id of ['t1', 't2', 't3']) {
+  document.getElementById(id).addEventListener('click', (e) => {
+    document.querySelectorAll('.p-tab').forEach(t => t.classList.remove('is-aktiv'));
+    e.currentTarget.classList.add('is-aktiv');
+  });
+}
+
+startIconAutoPaint();
+</script>
+</body>
+</html>
