@@ -26,3 +26,8 @@ db-backups/
 # Design-Handoff: Screenshots bleiben lokal (14 MB Binaerdateien).
 # tokens.json und DESIGN.md liegen bewusst IM Repo.
 design-handoff/screenshots/
+
+# Pastell-Handoff: Referenz-Screenshots (3,5 MB) und die Marken-Quelldateien
+# (.ai/.svg aus SVG/) bleiben lokal. Prototyp, Spezifikation und appicon/ sind IM Repo.
+design_handoff_english_stars_pastell/ref/
+SVG/
