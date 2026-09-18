@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&family=Press+Start+2P&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800;900&family=Press+Start+2P&display=swap');
 :root{
   --yellow:#FFD93D;--orange:#FF6B35;--green:#6BCB77;--teal:#00B4AB;
   --blue:#4D96FF;--purple:#a86cdb;--pink:#FF6B9D;
@@ -6,6 +6,61 @@
   --line:#ece5f9;                                /* zarte Kartenränder */
   --shadow:0 8px 24px rgba(88,60,150,.10);       /* weiche Karten-Schatten */
   --brand:linear-gradient(135deg,#a86cdb,#ff8fab);
+}
+
+/* ── PASTELL-REDESIGN: Tokens ───────────────────────────────────────
+   Werte aus design_handoff_english_stars_pastell/README.md, 1:1 übernommen.
+   Bewusst eine EIGENE Schicht mit --p-Präfix neben den alten Variablen: die
+   Screens wandern einzeln herüber, am Ende fällt der alte :root-Block weg.
+   Abstände haben absichtlich keine Variablen — die Spezifikation gibt pro
+   Baustein feste Werte vor, keine Skala. */
+:root{
+  /* Tinte & Text */
+  --p-ink:#1F1F24;              /* jede Kontur, Standardtext, dunkle Buttons */
+  --p-text-2:#3E3E46;           /* Labels, Metazeilen */
+  --p-text-3:#37373F;           /* Fließtext in Karten */
+  --p-text-akzent:#2E2E36;      /* Text auf Pastellflächen */
+  --p-violett-text:#5B3FC4;     /* Unterüberschriften auf der Fortschritt-Seite */
+  /* Pastell-Grundtöne — genau EINER pro Screen als Hintergrund */
+  --p-lila:#C9B8FF;             /* Start, Auth, Formen, Fortschritt, Schmiede, Rechtschreibung */
+  --p-mint:#B7E3C2;             /* Vokabeln-Tab und -Spiel, Treffer, Verwalten */
+  --p-amber:#FFD66B;            /* Kampagne, Rundenende, Sieg */
+  --p-rosa:#FFBBC1;             /* Kampf, Charakter, Aussprache */
+  --p-blau:#BCE3FF;             /* Profil, Postfach prüfen */
+  --p-pfirsich:#FFD6A5;         /* Neues Passwort, Vokabeln prüfen, Spiel Formen */
+  /* Papier-Ebene */
+  --p-blatt:#F1EEE0;            /* das große Panel über dem Grundton */
+  --p-karte:#F8F6EC;
+  --p-karte-hell:#FDFAF3;       /* Dialoge, hervorgehobene Karten */
+  --p-inaktiv:#EAE7D6;          /* Einsatz / inaktiv */
+  --p-spur:#E3DFCD;             /* Balken-Spur */
+  --p-chip-leer:#E6E2D4;        /* Chip „nicht verdient“ */
+  --p-feld:#F3EFE6;             /* Eingabefeld gefüllt */
+  /* Signalfarben — dieselben Töne in ihrer Bedeutungsrolle */
+  --p-ok:#B7E3C2; --p-falsch:#FFBBC1; --p-gold:#FFD66B;
+  --p-gold-dunkel:#E0A82E; --p-gold-hell:#FFE9A8;
+  --p-info:#BCE3FF; --p-violett:#C9B8FF; --p-violett-dunkel:#8B6FE8;
+  --p-formen:#FFD6A5; --p-flamme:#FF8A3D;
+  --p-stahl:#C3CDD9; --p-stahl-dunkel:#8A97A3;
+  --p-holz:#A9703F; --p-holz-dunkel:#6B4423;
+  /* Rahmen — 2px Tinte ist der Normalfall, jede Abweichung trägt Bedeutung */
+  --p-rahmen:2px solid #1F1F24;
+  --p-rahmen-leer:2px dashed #1F1F24;                 /* leere Ablage, Vondu-Kasten, offener Schmiede-Schritt */
+  --p-rahmen-unverdient:2px dashed rgba(31,31,36,.55);/* Taler-Chip, noch nicht verdient */
+  --p-trenner:2px dotted rgba(31,31,36,.25);          /* Trennlinie innerhalb einer Karte */
+  --p-haarlinie:2px solid rgba(31,31,36,.2);          /* unter Sektions-Kickern */
+  --p-zeilentrenner:1px dotted rgba(31,31,36,.3);     /* Zeilen in Statistiktabellen */
+  /* Radien */
+  --p-r-blatt:26px; --p-r-dialog:24px; --p-r-karte:20px; --p-r-btn:18px;
+  --p-r-kachel:16px; --p-r-chip-gross:14px; --p-r-slot:12px; --p-r-chip:10px;
+  --p-r-balken:6px;
+  /* Schrift — eine Familie, Gewichte 400/600/700/800/900 */
+  --p-font:'Nunito',system-ui,sans-serif;
+  --p-ls-titel:.18em;           /* Screen-Titel in Versalien */
+  --p-ls-kicker:.14em;          /* Sektions-Kicker */
+  --p-ls-mikro:.11em;           /* Mikro-Label in Kacheln */
+  /* Der einzige Schatten im Design: angehobene Sammlung im Sortiermodus */
+  --p-schatten-angehoben:6px 8px 0 rgba(31,31,36,.28);
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{
