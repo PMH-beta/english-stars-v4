@@ -1944,3 +1944,143 @@ body.p-app{
 .p-btn:focus-visible,
 .p-tab:focus-visible,
 .p-back:focus-visible{ outline:2px solid var(--p-ink); outline-offset:2px; }
+
+/* ── Bühne: Screens ohne Blatt ───────────────────────────────────────────── */
+/* Start, Registrieren, Passwort-Kette und Namenseingabe tragen kein Blatt,
+   sondern eine einzelne Karte auf dem Grundton. */
+.p-buehne{ flex:1; display:flex; flex-direction:column; padding:20px 4% 0; }
+/* Startbildschirm: alles mittig, ohne Karte. */
+.p-buehne--mitte{
+  align-items:center; justify-content:center; gap:20px; padding:0 10%; text-align:center;
+}
+
+.p-dialogkarte{
+  border:var(--p-rahmen); border-radius:28px; background:var(--p-karte-hell);
+  padding:24px 18px 22px;
+}
+/* Namenseingabe: cremefarben statt hell, rundum zentriert. */
+.p-dialogkarte--mitte{ background:var(--p-karte); padding:26px 18px 24px; text-align:center; }
+/* Willkommenskarte im Anmelde-Screen: Fläche im Grundton der Karte, nicht des Screens. */
+.p-dialogkarte--akzent{ background:var(--p-amber); padding:20px 18px; text-align:left; }
+
+/* Emblem: 76×76-Kachel mit dem Leitsymbol des Screens, Fläche im Screen-Ton. */
+.p-emblem{
+  width:76px; height:76px; margin:0 auto 16px;
+  border:var(--p-rahmen); border-radius:26px; background:var(--p-ton,var(--p-lila));
+  display:flex; align-items:center; justify-content:center;
+}
+
+.p-h1{ font:900 26px var(--p-font); text-align:center; }
+.p-h1--lang{ font-size:25px; }          /* für lange Überschriften wie „Passwort zurücksetzen" */
+.p-h1--links{ text-align:left; font-size:22px; }
+.p-lead{ font:700 12px/1.5 var(--p-font); color:var(--p-text-3); margin-top:8px; text-align:center; }
+.p-lead--links{ text-align:left; margin-top:5px; }
+.p-lead--eng{ line-height:1.6; margin-top:12px; }
+
+/* Eingabefelder und Absendeknopf als Gruppe. */
+.p-feldgruppe{ display:flex; flex-direction:column; gap:10px; margin-top:18px; }
+
+/* Textlinks — im Entwurf unterstrichen, zentriert, ohne Knopfoptik. */
+.p-link{
+  display:block; width:100%; background:none; border:0; padding:0;
+  font:800 12px var(--p-font); color:var(--p-ink); text-decoration:underline;
+  text-align:center; cursor:pointer; font-family:var(--p-font);
+}
+.p-linkgruppe{ margin-top:14px; display:flex; flex-direction:column; gap:7px; }
+
+/* „oder"-Trenner zwischen E-Mail-Weg und Google. Beide Wege stehen gleichwertig
+   nebeneinander — der E-Mail-Weg muss immer erreichbar bleiben. */
+.p-oder{ display:flex; align-items:center; gap:10px; margin:14px 0 12px; }
+.p-oder::before, .p-oder::after{ content:''; flex:1; height:2px; background:var(--p-ink); }
+.p-oder > span{
+  font:800 10px var(--p-font); text-transform:uppercase; letter-spacing:.12em; color:var(--p-text-2);
+}
+
+/* Google-Knopf: das Fremdlogo sitzt in einem eigenen 30×30-Slot links. */
+.p-google{ gap:9px; font:800 13px var(--p-font); }
+.p-google-slot{
+  width:30px; height:30px; flex:none;
+  border:var(--p-rahmen); border-radius:11px; background:var(--p-inaktiv);
+  display:flex; align-items:center; justify-content:center;
+}
+
+/* Fehlermeldung im Formular. */
+.p-fehler{
+  border:var(--p-rahmen); border-radius:var(--p-r-karte); background:var(--p-falsch);
+  color:var(--p-ink); font:800 11.5px/1.45 var(--p-font); padding:10px 13px; text-align:center;
+}
+/* Erfolgsmeldung (erneut gesendet). */
+.p-hinweis-ok{
+  border:var(--p-rahmen); border-radius:var(--p-r-karte); background:var(--p-ok);
+  color:var(--p-ink); font:800 11.5px/1.45 var(--p-font); padding:10px 13px; text-align:center;
+}
+
+/* ── Startbildschirm ─────────────────────────────────────────────────────── */
+.p-ladebalken{
+  height:18px; border:var(--p-rahmen); border-radius:10px; background:var(--p-karte); overflow:hidden;
+}
+.p-ladebalken > i{ display:block; height:100%; width:0; background:var(--p-ink); transition:width .4s ease; }
+.p-ladepct{ font:900 20px var(--p-font); color:var(--p-ink); margin-top:10px; }
+.p-ladetext{ font:700 11px var(--p-font); color:var(--p-text-akzent); min-height:16px; }
+/* Version am unteren Rand — im Entwurf auf jedem Auth-Screen. */
+.p-version{
+  flex:none; padding:20px 0 calc(16px + env(safe-area-inset-bottom,0px));
+  text-align:center; font:800 10px var(--p-font);
+  letter-spacing:var(--p-ls-kicker); color:var(--p-text-akzent);
+}
+
+/* ── Vondu ───────────────────────────────────────────────────────────────── */
+/* Lockup aus Gesicht und Wortmarke, im Kopfbereich des Anmelde-Screens. */
+.p-lockup{ display:flex; align-items:center; justify-content:center; gap:12px; padding:18px 4% 10px; }
+.p-lockup > img{ display:block; flex:none; }
+/* Sprechblase bei der Namenseingabe, Zipfel oben mittig. */
+.p-blase{
+  position:relative; display:inline-block; margin-bottom:14px;
+  border:var(--p-rahmen); border-radius:var(--p-r-kachel); background:var(--p-ton,var(--p-lila));
+  padding:9px 14px; font:800 12px var(--p-font);
+}
+.p-blase::before{
+  content:''; position:absolute; left:50%; top:-9px; width:14px; height:14px; margin-left:-7px;
+  background:var(--p-ton,var(--p-lila));
+  border-top:var(--p-rahmen); border-left:var(--p-rahmen);
+  border-radius:2px; transform:rotate(45deg);
+}
+
+/* Namensfeld: größer und mittig, es ist das einzige Feld auf dem Screen. */
+.p-feld--name{ height:58px; background:var(--p-inaktiv); text-align:center; font:800 16px var(--p-font); }
+
+/* ── App-Chrome auf umgestellten Screens ─────────────────────────────────── */
+/* Versionsanzeige und Musikknopf sind global und liegen ausserhalb der Screens.
+   Solange ein Pastell-Screen sichtbar ist, tragen sie dessen Sprache. */
+body.p-app #version-badge{
+  font:800 10px var(--p-font); letter-spacing:var(--p-ls-kicker);
+  color:var(--p-text-akzent); bottom:calc(6px + env(safe-area-inset-bottom,0px));
+}
+body.p-app .music-btn-global{
+  background:var(--p-karte); border:var(--p-rahmen); box-shadow:none; color:var(--p-ink);
+  bottom:calc(16px + env(safe-area-inset-bottom,0px));
+}
+body.p-app .music-btn-global.on{ background:var(--p-gold); }
+body.p-app .music-vol-btn{
+  background:var(--p-karte); border:var(--p-rahmen); box-shadow:none; color:var(--p-ink);
+  bottom:calc(76px + env(safe-area-inset-bottom,0px));
+}
+
+/* ── Anmelden ↔ Registrieren ─────────────────────────────────────────────── */
+/* Beide Modi teilen sich ein DOM (#auth-screen). Anmelden führt das
+   Vondu-Lockup und eine Willkommenskarte in Amber, Registrieren stattdessen das
+   Brief-Emblem über mittiger Überschrift — ui.js schaltet nur die Klasse um. */
+#auth-screen.is-signup #auth-lockup{ display:none; }
+#auth-screen.is-signup .p-blatt{ margin-top:24px; }
+#auth-screen.is-signup #auth-emblem{ display:flex; }
+#auth-screen.is-signup #auth-intro{
+  border:0; border-radius:0; background:none; padding:0;
+}
+#auth-screen.is-signup #auth-title{ text-align:center; font-size:26px; }
+#auth-screen.is-signup #auth-sub{ text-align:center; margin-top:8px; }
+/* Im Registrieren-Modus gibt es kein „Passwort vergessen" — ui.js blendet es
+   per style.display aus, die Lücke im Flex-Abstand bleibt sonst stehen. */
+#auth-screen.is-signup .p-linkgruppe{ gap:0; }
+/* Das Emblem gehoert nur zum Registrieren-Modus. Nicht inline verstecken —
+   ein inline-style schlaegt jede Klassenregel und liesse es nie erscheinen. */
+#auth-emblem{ display:none; }

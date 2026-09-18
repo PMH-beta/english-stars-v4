@@ -36,6 +36,8 @@ window.ESModules = { storage, config };
 window.APP_VERSION = APP_VERSION;
 const _vb = document.getElementById('version-badge');
 if (_vb) _vb.textContent = APP_VERSION;
+// Die Pastell-Screens tragen die Version selbst am unteren Rand.
+document.querySelectorAll('.p-version').forEach(el => { el.textContent = APP_VERSION; });
 
 // window.persist: liest window.SD als Fallback, kompatibel mit Legacy-Calls ohne Argument
 window.persist = (state = window.SD) => persist(state);

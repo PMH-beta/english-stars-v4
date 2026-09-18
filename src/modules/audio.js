@@ -2,6 +2,8 @@
 // Hintergrundmusik (MP3-Playlist, läuft endlos) + Volume-Popup
 // Shared state liegt auf window damit Legacy-Code in index.html direkt darauf zugreifen kann.
 
+import { iconHTML } from './pixel-icons.js';
+
 window._musicTracks = [];
 window._musicAudio = null;
 window._musicIdx = 0;
@@ -191,8 +193,10 @@ export function setMusicVolume(v) {
 export function _setMusicBtns(on) {
   [document.getElementById('music-btn'), document.getElementById('music-btn-global')].forEach(btn => {
     if (!btn) return;
-    if (on) { btn.classList.add('on'); btn.textContent = '🎶'; btn.title = 'Musik ausschalten'; }
-    else    { btn.classList.remove('on'); btn.textContent = '🎵'; btn.title = 'Musik einschalten'; }
+    // Pixel-Symbol statt Emoji: an = Lautsprecher, aus = Note.
+    btn.innerHTML = iconHTML(on ? 'speaker' : 'music', 28);
+    btn.classList.toggle('on', !!on);
+    btn.title = on ? 'Musik ausschalten' : 'Musik einschalten';
   });
 }
 

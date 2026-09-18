@@ -7,6 +7,7 @@ import { releaseMicStream, stopVisualizer, voskStop, speakWord } from './speech.
 import { signIn, signUp, signOut, resendConfirmation, requestPasswordReset, updatePassword, signInWithGoogle } from './auth.js';
 import { cloudLoad, cloudReset, saveDeck, saveWordStats, saveExam, markDirty, flushPendingSync, setCloudConfirmed, getPendingCount, setKnownSig, cloudChangedRemotely, queuePresetStatDelete, deleteProbetest } from './sync.js';
 import { commitDirty } from './dialog.js';
+import { setGrundton, clearGrundton } from './screen-shell.js';
 import { uvMap, uvLernstand, constellationWords, FORGE_DISC, SLOTS_PER_FORM, uvTrainProgress, uvTrainForms, uvTrainWords, uvPruneOrphanSlotStats } from './irregular-game.js';
 import { renderAvatarInto, renderCharacter, commitAvatar, resetCharacterFeature, setCharacterCompanion, setCharacterGear } from './avatar.js';
 import { IRREGULAR_PRESET_ID, uvAvailableVerbs, CONSTELLATION_SIZE, cefrOf, forgeObject, FORGE_OBJECTS, usedForgeObjects, fillObjectType, getConstellations, allVerbsSorted, verbsByEns, UV_TRAIN_SUF } from './irregular-verbs.js';
@@ -28,6 +29,18 @@ let _loginInFlight = false;
 // ────────────────────────────────────────────────
 //  SCREEN ROUTING
 // ────────────────────────────────────────────────
+// Grundton je Screen — die Spezifikation erlaubt genau einen pro Screen.
+// Was hier nicht steht, laeuft noch im alten Design und bekommt clearGrundton().
+const P_TON = {
+  'loading-screen': 'lila',
+  'auth-screen': 'lila',
+  'name-screen': 'lila',
+  'password-reset-screen': 'amber',
+  'password-reset-sent-screen': 'mint',
+  'new-password-screen': 'pfirsich',
+  'email-confirm-screen': 'blau',
+};
+
 export function showScreen(id) {
   // Freund-Fortschritt zeigt fremde Daten über einen temporären window.SD-Tausch.
   // Verlässt man die Fortschritt-Seite auf IRGENDEINEM Weg (auch Hardware-Zurück),
@@ -45,6 +58,9 @@ export function showScreen(id) {
     const el = document.getElementById(s); if (el) el.style.display = 'none';
   });
   const el = document.getElementById(id);
+  // Grundton setzen, bevor der Screen sichtbar wird — sonst blitzt die alte
+  // Flaeche auf. Faerbt auch die Statusleiste (theme-color) mit.
+  if (P_TON[id]) setGrundton(P_TON[id], el); else clearGrundton();
   // Immer 'flex': die .screen-Karten (Auth, Passwort-Reset, End-Screen …) zentrieren
   // ihre Kinder per flex-Column; ein Inline-'block' hebelte das aus (Emoji-Kreis,
   // Buttons und Trenner hingen linksbündig).
@@ -2490,7 +2506,17 @@ function _updateAuthModeUI() {
   const toggleBtn = document.getElementById('auth-toggle-btn');
   const confirmEl = document.getElementById('auth-password-confirm');
   const isLogin = _authMode === 'login';
-  if (title) title.textContent = isLogin ? 'Anmelden' : 'Konto erstellen';
+  // Anmelden und Registrieren teilen sich ein DOM, sehen aber verschieden aus:
+  // Anmelden fuehrt das Vondu-Lockup und eine Willkommenskarte in Amber,
+  // Registrieren stattdessen das Brief-Emblem ueber mittiger Ueberschrift.
+  // Die Klasse schaltet um, das Aussehen steht in style.css.
+  const screenEl = document.getElementById('auth-screen');
+  if (screenEl) screenEl.classList.toggle('is-signup', !isLogin);
+  const sub = document.getElementById('auth-sub');
+  if (sub) sub.textContent = isLogin
+    ? 'Melde dich an, dann hebt Vondu deinen Fortschritt auf allen Geräten auf.'
+    : 'Lerne auf allen Geräten — dein Fortschritt wird sicher in der Cloud gespeichert.';
+  if (title) title.textContent = isLogin ? 'Willkommen zurück!' : 'Konto erstellen';
   if (submitBtn) submitBtn.textContent = isLogin ? 'Anmelden' : 'Registrieren';
   if (toggleBtn) toggleBtn.textContent = isLogin
     ? 'Noch kein Konto? Registrieren'
@@ -2588,14 +2614,12 @@ export async function authResend() {
   const err = await resendConfirmation(_pendingConfirmEmail);
   if (btn) { btn.disabled = false; btn.textContent = 'Erneut senden'; }
   if (msgEl) {
+    // Aussehen ueber Klassen, nicht ueber cssText — inline geschriebene Farben
+    // wuerden die Pastell-Regeln ueberschreiben.
+    msgEl.textContent = err || 'Mail wurde erneut gesendet!';
+    msgEl.classList.toggle('p-fehler', !!err);
+    msgEl.classList.toggle('p-hinweis-ok', !err);
     msgEl.style.display = 'block';
-    if (err) {
-      msgEl.textContent = err;
-      msgEl.style.cssText = 'display:block;font-size:.82rem;font-weight:700;text-align:center;max-width:300px;margin-bottom:12px;padding:8px 12px;border-radius:10px;background:#fff0f0;color:#c0001a;';
-    } else {
-      msgEl.textContent = 'Mail wurde erneut gesendet!';
-      msgEl.style.cssText = 'display:block;font-size:.82rem;font-weight:700;text-align:center;max-width:300px;margin-bottom:12px;padding:8px 12px;border-radius:10px;background:#f0fff4;color:#2a7a35;';
-    }
   }
 }
 

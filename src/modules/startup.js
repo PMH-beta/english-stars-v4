@@ -45,13 +45,13 @@ export async function startupSequence() {
     if (!prev && user) handleLogin(user);         // Email-Bestätigung redirect in anderem Tab
   });
 
-  const ring = document.getElementById('progress-ring');
+  // Seit dem Pastell-Redesign ein waagerechter Balken statt des Rings.
+  const fill = document.getElementById('loading-fill');
   const pctEl = document.getElementById('loading-pct');
   const status = document.getElementById('loading-status');
   const hint = document.getElementById('loading-hint');
-  const _circ = 2 * Math.PI * 54;
   function setProgress(pct, msg) {
-    if (ring) ring.style.strokeDashoffset = _circ * (1 - pct / 100);
+    if (fill) fill.style.width = Math.round(pct) + '%';
     if (pctEl) pctEl.textContent = Math.round(pct) + '%';
     if (status) status.textContent = msg;
   }
@@ -121,6 +121,9 @@ export async function startupSequence() {
   // Button bei JEDEM Kaltstart zeigen — iOS braucht User-Geste um Audio freizugeben.
   // Gilt für eingeloggte und nicht eingeloggte Nutzer gleichermaßen.
   const startBtn = document.getElementById('loading-start-btn');
+  // Im fertigen Zustand weichen Balken und Prozentzahl dem Knopf.
+  const prog = document.getElementById('loading-progress');
+  if (prog) prog.style.display = 'none';
   if (startBtn) {
     startBtn.style.display = '';
     startBtn.onclick = async () => {

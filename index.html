@@ -8,7 +8,7 @@
 <title>⭐ English Stars</title>
 <!-- PWA: installierbar auf Handy/Desktop -->
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#a86cdb">
+<meta name="theme-color" content="#C9B8FF">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="English Stars">
@@ -18,47 +18,25 @@
 </head>
 <body>
 
-<div id="init-overlay" style="position:fixed;inset:0;z-index:9999;background:#f4f1fc;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Fredoka One',cursive,sans-serif;">
-  <div style="font-size:3.5rem;margin-bottom:18px;">⭐</div>
-  <div style="font-size:1.9rem;color:#a86cdb;margin-bottom:28px;">English Stars</div>
-  <svg width="130" height="130" viewBox="0 0 130 130" style="animation:spin 1.2s linear infinite;">
-    <defs>
-      <linearGradient id="overlay-ring-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stop-color="#a86cdb"/>
-        <stop offset="100%" stop-color="#ff8fab"/>
-      </linearGradient>
-    </defs>
-    <circle cx="65" cy="65" r="54" fill="none" stroke="#ede5f8" stroke-width="8"/>
-    <circle cx="65" cy="65" r="54" fill="none" stroke="url(#overlay-ring-grad)"
-      stroke-width="8" stroke-linecap="round" stroke-dasharray="240 99.292"/>
-  </svg>
+<div id="init-overlay" style="position:fixed;inset:0;z-index:9999;background:#C9B8FF;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Nunito',system-ui,sans-serif;">
+  <img src="vondu-logo.svg" alt="" width="112" height="107" style="display:block">
 </div>
 
 <!-- ═══ LOADING SCREEN ═══ -->
-<div id="loading-screen" style="display:none;width:100%;max-width:540px;flex-direction:column;align-items:center;justify-content:center;min-height:80vh;">
-  <div style="font-size:3.5rem;margin-bottom:18px;">⭐</div>
-  <div style="font-family:'Fredoka One',cursive;font-size:1.9rem;color:#a86cdb;margin-bottom:28px;">English Stars</div>
-  <div style="position:relative;width:130px;height:130px;margin-bottom:20px;">
-    <svg width="130" height="130" viewBox="0 0 130 130" style="transform:rotate(-90deg)">
-      <defs>
-        <linearGradient id="ring-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stop-color="#a86cdb"/>
-          <stop offset="100%" stop-color="#ff8fab"/>
-        </linearGradient>
-      </defs>
-      <circle cx="65" cy="65" r="54" fill="none" stroke="#ede5f8" stroke-width="8"/>
-      <circle id="progress-ring" cx="65" cy="65" r="54" fill="none"
-        stroke="url(#ring-grad)" stroke-width="8" stroke-linecap="round"
-        stroke-dasharray="339.292" stroke-dashoffset="339.292"
-        style="transition:stroke-dashoffset 0.4s ease;"/>
-    </svg>
-    <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
-      <span id="loading-pct" style="font-family:'Fredoka One',cursive;font-size:1.5rem;color:#a86cdb;">0%</span>
+<div id="loading-screen" class="p-screen p-ton-lila" style="display:none">
+  <div class="p-buehne p-buehne--mitte">
+    <img src="vondu-logo.svg" alt="Vondu" width="112" height="107" style="display:block;flex:none">
+    <img src="vondu-wordmark.svg" alt="VONDU" width="176" height="32" style="display:block;max-width:100%">
+    <!-- Ladend: Balken + Prozent. Fertig: beides weicht dem Knopf (startup.js). -->
+    <div id="loading-progress" style="width:100%">
+      <div class="p-ladebalken"><i id="loading-fill"></i></div>
+      <div class="p-ladepct" id="loading-pct">0%</div>
     </div>
+    <div id="loading-status" class="p-ladetext">Lade App…</div>
+    <div id="loading-hint" class="p-ladetext"></div>
+    <button id="loading-start-btn" class="p-btn" style="display:none;background:var(--p-gold);font-size:15px">Los geht's!<canvas data-icon="starInk" width="14" height="14" style="width:14px;height:14px;image-rendering:pixelated;flex:none"></canvas></button>
   </div>
-  <div id="loading-status" style="font-size:.82rem;color:#888;font-weight:700;text-align:center;max-width:260px;min-height:20px;">Lade App…</div>
-  <div id="loading-hint" style="margin-top:6px;font-size:.7rem;color:#bbb;font-weight:600;text-align:center;max-width:240px;min-height:16px;line-height:1.4;"></div>
-  <button id="loading-start-btn" style="display:none;margin-top:28px;background:linear-gradient(135deg,#a86cdb,#ff8fab);color:#fff;font-family:'Fredoka One',cursive,sans-serif;font-size:1.3rem;font-weight:700;padding:16px 44px;border:none;border-radius:999px;cursor:pointer;box-shadow:0 4px 20px rgba(168,108,219,.4);letter-spacing:.03em;">Los geht's! ✨</button>
+  <div class="p-version" id="loading-version"></div>
 </div>
 
 
@@ -70,95 +48,138 @@
 </div>
 
 <!-- ═══ AUTH SCREEN ═══ -->
-<div id="auth-screen" class="screen" style="display:none">
-  <span class="emoji-big">☁️</span>
-  <h2 id="auth-title">Anmelden</h2>
-  <p style="color:#888;font-size:.85rem;text-align:center;max-width:300px;margin-bottom:18px;">Lerne auf allen Geräten – dein Fortschritt wird sicher in der Cloud gespeichert.</p>
-  <input id="auth-email" type="email" class="es-input" placeholder="E-Mail-Adresse" autocomplete="email"
-    onkeydown="if(event.key==='Enter')document.getElementById('auth-password').focus()">
-  <input id="auth-password" type="password" class="es-input" placeholder="Passwort (mind. 6 Zeichen)" autocomplete="current-password"
-    onkeydown="if(event.key==='Enter'){var c=document.getElementById('auth-password-confirm');c&&c.style.display!=='none'?c.focus():authSubmit()}">
-  <input id="auth-password-confirm" type="password" class="es-input" placeholder="Passwort wiederholen" autocomplete="new-password"
-    style="display:none;" onkeydown="if(event.key==='Enter')authSubmit()">
-  <div id="auth-error" class="es-error" style="display:none;"></div>
-  <button id="auth-submit-btn" onclick="authSubmit()" class="big-btn brand center" style="max-width:300px;width:100%;">Anmelden</button>
-  <button id="auth-toggle-btn" onclick="authToggleMode()" class="link-btn accent">
-    Noch kein Konto? Registrieren
-  </button>
-  <button id="auth-forgot-btn" onclick="showPasswordReset()" class="link-btn">
-    Passwort vergessen?
-  </button>
-  <div class="auth-divider"><span>oder</span></div>
-  <button id="auth-google-btn" onclick="authGoogleSignIn()" class="google-btn">
+<div id="auth-screen" class="p-screen p-ton-lila" style="display:none">
+  <!-- Anmelden: Lockup im Kopf, Willkommenskarte auf dem Blatt.
+       Registrieren: kein Lockup, stattdessen Dialogkarte mit Emblem. -->
+  <div class="p-lockup" id="auth-lockup">
+    <img src="vondu-logo.svg" alt="Vondu" width="62" height="59">
+    <img src="vondu-wordmark.svg" alt="VONDU" width="132" height="24" style="max-width:100%">
+  </div>
+  <div class="p-blatt" id="auth-blatt">
+    <div class="p-emblem" id="auth-emblem"><canvas data-icon="mail" width="14" height="14" style="width:42px;height:42px;image-rendering:pixelated;flex:none"></canvas></div>
+    <div class="p-dialogkarte p-dialogkarte--akzent" id="auth-intro">
+      <div class="p-h1 p-h1--links" id="auth-title">Willkommen zurück!</div>
+      <div class="p-lead p-lead--links" id="auth-sub">Melde dich an, dann hebt Vondu deinen Fortschritt auf allen Geräten auf.</div>
+    </div>
+    <div class="p-feldgruppe">
+      <input id="auth-email" type="email" class="p-feld" placeholder="E-Mail-Adresse" autocomplete="email"
+        onkeydown="if(event.key==='Enter')document.getElementById('auth-password').focus()">
+      <input id="auth-password" type="password" class="p-feld" placeholder="Passwort (mind. 6 Zeichen)" autocomplete="current-password"
+        onkeydown="if(event.key==='Enter'){var c=document.getElementById('auth-password-confirm');c&&c.style.display!=='none'?c.focus():authSubmit()}">
+      <input id="auth-password-confirm" type="password" class="p-feld" placeholder="Passwort wiederholen" autocomplete="new-password"
+        style="display:none;" onkeydown="if(event.key==='Enter')authSubmit()">
+      <div id="auth-error" class="p-fehler" style="display:none;"></div>
+      <button id="auth-submit-btn" onclick="authSubmit()" class="p-btn p-btn--primaer">Anmelden</button>
+    </div>
+    <div class="p-linkgruppe">
+      <button id="auth-toggle-btn" onclick="authToggleMode()" class="p-link">Noch kein Konto? Registrieren</button>
+      <button id="auth-forgot-btn" onclick="showPasswordReset()" class="p-link">Passwort vergessen?</button>
+    </div>
+    <div class="p-oder"><span>oder</span></div>
+    <button id="auth-google-btn" onclick="authGoogleSignIn()" class="p-btn p-btn--sekundaer p-google">
+      <span class="p-google-slot">
     <svg width="18" height="18" viewBox="0 0 48 48" style="flex-shrink:0"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.04 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-3.54-13.46-8.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
-    Mit Google anmelden
-  </button>
+      </span>Mit Google anmelden
+    </button>
+  </div>
 </div>
 
 <!-- ═══ PASSWORD RESET SCREEN ═══ -->
-<div id="password-reset-screen" class="screen" style="display:none">
-  <span class="emoji-big">🔑</span>
-  <h2>Passwort zurücksetzen</h2>
-  <p style="color:#888;font-size:.85rem;text-align:center;max-width:300px;margin-bottom:18px;">Wir senden dir einen Reset-Link an deine E-Mail-Adresse.</p>
-  <input id="pw-reset-email" type="email" class="es-input" placeholder="E-Mail-Adresse" autocomplete="email"
-    onkeydown="if(event.key==='Enter')submitPasswordReset()">
-  <div id="pw-reset-error" class="es-error" style="display:none;"></div>
-  <button id="pw-reset-btn" onclick="submitPasswordReset()" class="big-btn brand center" style="max-width:300px;width:100%;">Reset-Link senden</button>
-  <button onclick="showAuth()" class="link-btn">Abbrechen</button>
+<div id="password-reset-screen" class="p-screen p-ton-amber" style="display:none">
+  <div class="p-buehne">
+    <div class="p-dialogkarte">
+      <div class="p-emblem"><canvas data-icon="key" width="14" height="14" style="width:42px;height:42px;image-rendering:pixelated;flex:none"></canvas></div>
+      <div class="p-h1 p-h1--lang">Passwort zurücksetzen</div>
+      <div class="p-lead">Wir senden dir einen Reset-Link an deine E-Mail-Adresse.</div>
+      <div class="p-feldgruppe">
+        <input id="pw-reset-email" type="email" class="p-feld" placeholder="E-Mail-Adresse" autocomplete="email"
+          onkeydown="if(event.key==='Enter')submitPasswordReset()">
+        <div id="pw-reset-error" class="p-fehler" style="display:none;"></div>
+        <button id="pw-reset-btn" onclick="submitPasswordReset()" class="p-btn p-btn--akzent">Reset-Link senden</button>
+      </div>
+      <div class="p-linkgruppe">
+        <button onclick="showAuth()" class="p-link">Abbrechen</button>
+      </div>
+    </div>
+  </div>
+  <div class="p-version"></div>
 </div>
 
 <!-- ═══ PASSWORD RESET SENT SCREEN ═══ -->
-<div id="password-reset-sent-screen" class="screen" style="display:none">
-  <span class="emoji-big">📬</span>
-  <h2>Mail ist raus!</h2>
-  <p style="color:#888;font-size:.85rem;text-align:center;max-width:300px;margin-bottom:20px;">
-    Schau in dein Postfach und klick auf den Link.<br>
-    Falls keine E-Mail kommt, prüfe ob die Adresse korrekt war.
-  </p>
-  <button onclick="showAuth()" class="big-btn brand center" style="max-width:300px;width:100%;">Zurück zum Login</button>
+<div id="password-reset-sent-screen" class="p-screen p-ton-mint" style="display:none">
+  <div class="p-buehne">
+    <div class="p-dialogkarte">
+      <div class="p-emblem"><canvas data-icon="check" width="14" height="14" style="width:42px;height:42px;image-rendering:pixelated;flex:none"></canvas></div>
+      <div class="p-h1 p-h1--lang">Mail ist raus!</div>
+      <div class="p-lead">Schau in dein Postfach und klick auf den Link. Falls keine E-Mail kommt, prüfe ob die Adresse korrekt war — schau auch im Spam-Ordner nach.</div>
+      <div class="p-linkgruppe">
+        <button onclick="showAuth()" class="p-link">Zurück zum Login</button>
+      </div>
+    </div>
+  </div>
+  <div class="p-version"></div>
 </div>
 
 <!-- ═══ NEW PASSWORD SCREEN ═══ -->
-<div id="new-password-screen" class="screen" style="display:none">
-  <span class="emoji-big">🔒</span>
-  <h2>Neues Passwort</h2>
-  <p style="color:#888;font-size:.85rem;text-align:center;max-width:300px;margin-bottom:18px;">Wähle ein neues Passwort für deinen Account.</p>
-  <input id="new-pw-input" type="password" class="es-input" placeholder="Neues Passwort (mind. 6 Zeichen)" autocomplete="new-password"
-    onkeydown="if(event.key==='Enter')document.getElementById('new-pw-confirm').focus()">
-  <input id="new-pw-confirm" type="password" class="es-input" placeholder="Passwort bestätigen" autocomplete="new-password"
-    onkeydown="if(event.key==='Enter')submitNewPassword()">
-  <div id="new-pw-error" class="es-error" style="display:none;"></div>
-  <button id="new-pw-btn" onclick="submitNewPassword()" class="big-btn brand center" style="max-width:300px;width:100%;">Passwort speichern</button>
-  <button onclick="cancelNewPassword()" class="link-btn">Abbrechen</button>
+<div id="new-password-screen" class="p-screen p-ton-pfirsich" style="display:none">
+  <div class="p-buehne">
+    <div class="p-dialogkarte">
+      <div class="p-emblem"><canvas data-icon="lock" width="14" height="14" style="width:42px;height:42px;image-rendering:pixelated;flex:none"></canvas></div>
+      <div class="p-h1">Neues Passwort</div>
+      <div class="p-lead">Wähle ein neues Passwort für deinen Account.</div>
+      <div class="p-feldgruppe">
+        <input id="new-pw-input" type="password" class="p-feld" placeholder="Neues Passwort (mind. 6 Zeichen)" autocomplete="new-password"
+          onkeydown="if(event.key==='Enter')document.getElementById('new-pw-confirm').focus()">
+        <input id="new-pw-confirm" type="password" class="p-feld" placeholder="Passwort bestätigen" autocomplete="new-password"
+          onkeydown="if(event.key==='Enter')submitNewPassword()">
+        <div id="new-pw-error" class="p-fehler" style="display:none;"></div>
+        <button id="new-pw-btn" onclick="submitNewPassword()" class="p-btn p-btn--akzent">Passwort speichern</button>
+      </div>
+      <div class="p-linkgruppe">
+        <button onclick="cancelNewPassword()" class="p-link">Abbrechen</button>
+      </div>
+    </div>
+  </div>
+  <div class="p-version"></div>
 </div>
 
 <!-- ═══ EMAIL CONFIRM SCREEN ═══ -->
-<div id="email-confirm-screen" class="screen" style="display:none">
-  <span class="emoji-big">📧</span>
-  <h2>Postfach prüfen</h2>
-  <p style="color:#888;font-size:.85rem;text-align:center;max-width:300px;margin-bottom:6px;">
-    Wir haben geprüft:
-  </p>
-  <p id="confirm-email-display" style="font-family:'Fredoka One',cursive;font-size:.95rem;color:var(--purple);text-align:center;max-width:300px;margin-bottom:14px;word-break:break-all;"></p>
-  <p style="color:#888;font-size:.82rem;text-align:center;max-width:300px;margin-bottom:20px;">
-    Falls diese E-Mail noch nicht registriert ist, haben wir dir einen Bestätigungs-Link gesendet. Klicke darauf, um dich anzumelden. Keine Mail? Dann ist die Adresse vielleicht schon registriert — nutze den Login.
-  </p>
-  <div id="confirm-message" style="display:none;font-size:.82rem;font-weight:700;text-align:center;max-width:300px;margin-bottom:12px;padding:8px 12px;border-radius:10px;"></div>
-  <button id="confirm-resend-btn" onclick="authResend()"
-    class="big-btn brand center" style="max-width:300px;width:100%;margin-bottom:10px;">
-    Erneut senden
-  </button>
-  <button onclick="showAuth()" class="link-btn">Zurück zum Login</button>
+<div id="email-confirm-screen" class="p-screen p-ton-blau" style="display:none">
+  <div class="p-buehne">
+    <div class="p-dialogkarte">
+      <div class="p-emblem"><canvas data-icon="mail" width="14" height="14" style="width:42px;height:42px;image-rendering:pixelated;flex:none"></canvas></div>
+      <div class="p-h1">Postfach prüfen</div>
+      <div class="p-kicker" style="border:0;text-align:center;margin-top:10px">Wir haben geprüft</div>
+      <div id="confirm-email-display" style="font:900 15px var(--p-font);text-align:center;margin-top:4px;color:var(--p-violett-text);word-break:break-all"></div>
+      <div class="p-lead p-lead--eng">Falls diese E-Mail noch nicht registriert ist, haben wir dir einen Bestätigungs-Link gesendet. Klicke darauf, um dich anzumelden. Keine Mail? Dann ist die Adresse vielleicht schon registriert — nutze den Login.</div>
+      <div class="p-feldgruppe">
+        <div id="confirm-message" class="p-hinweis-ok" style="display:none;"></div>
+        <button id="confirm-resend-btn" onclick="authResend()" class="p-btn p-btn--akzent">Erneut senden</button>
+      </div>
+      <div class="p-linkgruppe">
+        <button onclick="showAuth()" class="p-link">Zurück zum Login</button>
+      </div>
+    </div>
+  </div>
+  <div class="p-version"></div>
 </div>
 
 <!-- ═══ NAME SCREEN ═══ -->
-<div id="name-screen" class="screen" style="display:none">
-  <span class="emoji-big">👋</span>
-  <h2>Wie heißt du?</h2>
-  <p>Gib deinen Namen ein – dein Fortschritt wird gespeichert!</p>
-  <input class="name-input" id="name-input" type="text" placeholder="Dein Name..."
-    maxlength="20" onkeydown="if(event.key==='Enter')saveName()">
-  <button class="big-btn blue center" onclick="saveName()">Los geht's! 🚀</button>
+<div id="name-screen" class="p-screen p-ton-lila" style="display:none">
+  <div class="p-buehne" style="padding-top:16px">
+    <div class="p-dialogkarte p-dialogkarte--mitte">
+      <div style="display:flex;justify-content:center;margin-bottom:4px">
+        <img src="vondu-logo.svg" alt="Vondu" width="104" height="100" style="display:block;flex:none">
+      </div>
+      <div class="p-blase">Hi, ich bin Vondu — und du?</div>
+      <div class="p-h1">Wie heißt du?</div>
+      <div class="p-lead">Gib deinen Namen ein — dein Fortschritt wird gespeichert!</div>
+      <input class="p-feld p-feld--name" id="name-input" type="text" placeholder="Dein Name…"
+        maxlength="20" style="margin-top:16px" onkeydown="if(event.key==='Enter')saveName()">
+      <button class="p-btn p-btn--akzent" style="margin-top:12px;height:56px;background:var(--p-gold);font-size:15px" onclick="saveName()">Los geht's!</button>
+    </div>
+  </div>
+  <div class="p-version"></div>
 </div>
 
 <!-- ═══ MAIN MENU ═══ -->
