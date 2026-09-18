@@ -18,6 +18,7 @@ import './modules/dialog.js'; // registriert window.esAlert/esConfirm/esPrompt (
 import { startupSequence, finishStartup } from './modules/startup.js';
 import { supabase, testConnection } from './modules/supabase.js';
 import { flushPendingSync } from './modules/sync.js';
+import { startIconAutoPaint } from './modules/pixel-icons.js';
 
 console.log('[main] English Stars', APP_VERSION, 'startet…');
 
@@ -258,6 +259,11 @@ document.addEventListener('visibilitychange', () => {
 // Minuten-Check: hat ein anderes Gerät die Cloud geändert? → Reload-Hinweis (ui.js).
 // Begrenzt den „last-write-wins"-Worst-Case auf ~1 Min. Läuft nur im Menü/sichtbar.
 setInterval(() => { checkForRemoteChange().catch(() => {}); }, 60 * 1000);
+
+// ── Pixel-Icons ─────────────────────────────────────────────────────
+// Die App rendert überall per innerHTML — ein MutationObserver füllt jedes neu
+// aufgetauchte Icon-Canvas, damit kein Aufrufer ans Nachmalen denken muss.
+startIconAutoPaint();
 
 // ── Hochformat-Sperre ────────────────────────────────────────────────────────
 // Das Manifest (orientation: portrait) sperrt die installierte PWA; hier

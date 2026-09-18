@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pixel-Icons — Prüfseite</title>
+<!--
+  Entwickler-Werkzeug, NICHT Teil der App. index.html ist der Vite-Einstieg, diese
+  Datei wird nicht gebundelt. Aufrufen im Dev-Server: /dev/pixel-icons-test.html
+
+  Wozu: die Spezifikation verlangt, nach jeder Maskenänderung die ALPHAMASKE zu
+  prüfen und nicht den Screenshot — die berechnete 1-px-Kontur schüttet Binnenlücken
+  unter 3 px zu, und bei 14 px sieht man das mit dem Auge nicht. Die Seite zeigt
+  jedes Icon in allen erlaubten Größen, auf Papier und auf Tinte, und liefert per
+  Klick das Raster als Text.
+
+  Farben bewusst lokal wiederholt statt src/style.css einzubinden: das Werkzeug soll
+  auch dann noch funktionieren, wenn am App-CSS gerade gebaut wird.
+-->
+<style>
+:root{
+  --ink:#1F1F24; --blatt:#F1EEE0; --karte:#F8F6EC; --amber:#FFD66B;
+  --inaktiv:#EAE7D6; --falsch:#FFBBC1; --ok:#B7E3C2;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--blatt);color:var(--ink);font:700 13px/1.5 'Nunito',system-ui,sans-serif;padding:22px}
+h1{font:900 15px/1.2 'Nunito',system-ui,sans-serif;letter-spacing:.18em;text-transform:uppercase;margin-bottom:6px}
+.hint{font:700 11.5px/1.55 'Nunito',system-ui,sans-serif;max-width:640px;margin-bottom:16px}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:18px}
+button,select{font:900 12px 'Nunito',system-ui,sans-serif;color:var(--ink);background:var(--karte);
+  border:2px solid var(--ink);border-radius:14px;padding:7px 13px;cursor:pointer}
+button.on{background:var(--amber)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:10px}
+.tile{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:7px;
+  background:var(--karte);border:2px solid var(--ink);border-radius:16px;padding:12px 6px 9px;cursor:pointer}
+.tile.sel{background:var(--amber)}
+.tile .n{font:800 9px 'Nunito',system-ui,sans-serif;letter-spacing:.11em;text-transform:uppercase;
+  word-break:break-all;text-align:center}
+body.dunkel{background:var(--ink);color:var(--blatt)}
+body.dunkel .tile{background:var(--ink);border-color:var(--blatt)}
+body.dunkel .tile.sel{background:#3a3a44}
+body.dunkel button,body.dunkel select{background:var(--ink);color:var(--blatt);border-color:var(--blatt)}
+body.dunkel button.on{background:var(--amber);color:var(--ink)}
+pre{background:var(--karte);border:2px solid var(--ink);border-radius:16px;padding:14px;margin-top:16px;
+  font:700 11px/1.15 ui-monospace,Menlo,monospace;overflow:auto;color:var(--ink)}
+.ok{background:var(--ok)} .warn{background:var(--falsch)}
+</style>
+</head>
+<body>
+<h1>Pixel-Icons — Prüfseite</h1>
+<p class="hint">
+  Nur ganzzahlige Vielfache von 14 sind erlaubt (14/28/42/56). Dazwischen werden die Pixelspalten
+  abwechselnd 1 und 2 px breit und die Kontur wirkt ungleich stark. <b>grip</b> (9×14) und
+  <b>bossCrest</b> (14×18) haben eine abweichende Box, skalieren aber mit demselben Faktor.
+  Ein Klick auf ein Icon zeigt seine Alphamaske.
+</p>
+
+<div class="bar">
+  <span>Größe</span>
+  <select id="size"><option>14</option><option selected>28</option><option>42</option><option>56</option></select>
+  <button id="bg">Auf Tinte zeigen</button>
+  <button id="check">Alle Masken prüfen</button>
+  <span id="count"></span>
+</div>
+
+<div class="grid" id="grid"></div>
+<pre id="out">Kein Icon gewählt.</pre>
+
+<script type="module">
+import { ICON_NAMES, ICON_BOX, ICON_GRID, ICONS, iconHTML, iconAlphaMask, startIconAutoPaint }
+  from '../src/modules/pixel-icons.js';
+
+const grid = document.getElementById('grid');
+const out = document.getElementById('out');
+const sizeSel = document.getElementById('size');
+let sel = null;
+
+document.getElementById('count').textContent = ICON_NAMES.length + ' Icons';
+
+function render() {
+  const size = Number(sizeSel.value);
+  grid.innerHTML = ICON_NAMES.map(n =>
+    `<div class="tile${n === sel ? ' sel' : ''}" data-n="${n}">${iconHTML(n, size)}<span class="n">${n}</span></div>`
+  ).join('');
+}
+
+function showMask(name) {
+  const box = ICON_BOX[name] || [ICON_GRID, ICON_GRID];
+  const mask = iconAlphaMask(name);
+  const def = ICONS[name];
+  out.textContent =
+    `${name}   Box ${box[0]}×${box[1]}   Maske ${def.rows[0].length}×${def.rows.length}` +
+    `   Kontur: ${def.noOutline ? 'in der Maske' : 'berechnet'}\n\n` +
+    'Alphamaske (# = deckend):\n' + mask.join('\n') +
+    '\n\nQuellmaske:\n' + def.rows.join('\n');
+}
+
+// Faellt ein Pixel aus der Box, fehlt ein Stueck Kontur — genau der Fallstrick
+// der Spezifikation. Geprueft wird ueber die Alphamaske, nicht per Augenmass.
+function checkAll() {
+  const bad = [];
+  for (const n of ICON_NAMES) {
+    const [W, H] = ICON_BOX[n] || [ICON_GRID, ICON_GRID];
+    const m = iconAlphaMask(n, W, H);
+    if (!m.length || !m.some(r => r.includes('#'))) { bad.push(`${n}: malt nichts`); continue; }
+    const def = ICONS[n];
+    // Ragt die Quellmaske plus berechneter Kontur ueber die Box hinaus?
+    const need = [def.rows[0].length + (def.noOutline ? 0 : 2), def.rows.length + (def.noOutline ? 0 : 2)];
+    if (need[0] > W || need[1] > H) bad.push(`${n}: braucht ${need[0]}×${need[1]}, Box ist ${W}×${H}`);
+  }
+  out.className = bad.length ? 'warn' : 'ok';
+  out.textContent = bad.length
+    ? `${bad.length} Befund(e):\n\n` + bad.join('\n')
+    : `Alle ${ICON_NAMES.length} Icons passen in ihre Box, nichts wird abgeschnitten.`;
+}
+
+grid.addEventListener('click', (e) => {
+  const t = e.target.closest('.tile');
+  if (!t) return;
+  sel = t.dataset.n;
+  out.className = '';
+  render();
+  showMask(sel);
+});
+sizeSel.addEventListener('change', render);
+document.getElementById('bg').addEventListener('click', (e) => {
+  document.body.classList.toggle('dunkel');
+  e.target.classList.toggle('on');
+  e.target.textContent = document.body.classList.contains('dunkel') ? 'Auf Papier zeigen' : 'Auf Tinte zeigen';
+});
+document.getElementById('check').addEventListener('click', checkAll);
+
+render();
+startIconAutoPaint();   // malt auch alles, was durch render() neu dazukommt
+</script>
+</body>
+</html>
