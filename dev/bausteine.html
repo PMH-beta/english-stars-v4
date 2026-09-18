@@ -146,6 +146,7 @@
 
 <script type="module">
 import { iconHTML, startIconAutoPaint } from '../src/modules/pixel-icons.js';
+import { setGrundton } from '../src/modules/screen-shell.js';
 
 document.getElementById('backbtn').innerHTML = iconHTML('back', 28);
 document.getElementById('bannerstats').innerHTML =
@@ -163,15 +164,12 @@ document.getElementById('slots').innerHTML =
   + ['hammer', 'star'].map(n => `<div class="p-kachel" style="width:56px">${iconHTML(n, 28)}</div>`).join('')
   + `<div class="p-kachel p-kachel--leer" style="width:56px">${iconHTML('lock', 28)}</div>`;
 
-// Grundton umschalten: Screen, Body und der aktive Tab müssen gemeinsam wechseln.
-const TOENE = ['lila', 'mint', 'amber', 'rosa', 'blau', 'pfirsich'];
+// Grundton umschalten — genau der Weg, den die App spaeter nimmt: Body, Screen
+// und theme-color zusammen. Auf dem Handy faerbt sich dabei der Streifen mit
+// Uhrzeit und Akku mit, und der Wechsel blendet kurz ueber.
 document.getElementById('tonwahl').addEventListener('click', (e) => {
   const ton = e.target.dataset.ton;
-  if (!ton) return;
-  for (const el of [document.body, document.getElementById('screen')]) {
-    TOENE.forEach(t => el.classList.remove('p-ton-' + t));
-    el.classList.add('p-ton-' + ton);
-  }
+  if (ton) setGrundton(ton, document.getElementById('screen'));
 });
 
 // Tabs zum Anfassen — der aktive Tab soll den Grundton tragen.
@@ -183,6 +181,7 @@ for (const id of ['t1', 't2', 't3']) {
 }
 
 startIconAutoPaint();
+setGrundton('lila', document.getElementById('screen'));
 </script>
 </body>
 </html>

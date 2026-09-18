@@ -1729,6 +1729,11 @@ body.in-game .mode-progress{display:block;}
 body.p-app{
   padding:0; background-image:none; background-color:var(--p-ton,var(--p-lila));
   align-items:stretch; font-family:var(--p-font);
+  transition:background-color .25s;
+}
+/* Wer Bewegung reduziert haben will, bekommt den Wechsel hart. */
+@media (prefers-reduced-motion:reduce){
+  body.p-app, .p-screen{ transition:none; }
 }
 /* Der Screen füllt die Höhe und ist auf Handybreite begrenzt. Der Prototyp ist
    auf 402 px gebaut und darf nach unten wachsen; 440 lässt etwas Luft, ohne dass
@@ -1739,9 +1744,14 @@ body.p-app{
   background:var(--p-ton,var(--p-lila)); color:var(--p-ink);
   font-family:var(--p-font);
   display:flex; flex-direction:column;
+  overflow-x:clip;                  /* faengt die -2px des Blatts ab */
+  transition:background-color .25s; /* Grundton-Wechsel faded kurz */
 }
-/* Kopfbereich: liegt auf dem Grundton, über dem Blatt. */
-.p-kopf{ flex:none; padding:8px 16px 0; }
+/* Kopfbereich: liegt auf dem Grundton, über dem Blatt. Seitliches Polster
+   relativ (16px von 402px Referenzbreite = 4%), damit es auf schmalen und
+   breiten Handys gleich wirkt. Oben kommt die Sicherheitszone der Notch dazu —
+   auf Geräten ohne Notch ist env() null. */
+.p-kopf{ flex:none; padding:calc(8px + env(safe-area-inset-top,0px)) 4% 0; }
 /* Titelzeile: Zurück-Knopf links, Titel mittig, Platzhalter rechts. */
 .p-titel{ display:flex; justify-content:space-between; align-items:center; }
 .p-titel-text{
@@ -1751,14 +1761,17 @@ body.p-app{
 /* ── Das Blatt ───────────────────────────────────────────────────────────── */
 /* Das cremefarbene Panel, das unter dem Kopfbereich beginnt und bis zur
    Unterkante läuft. flex:1 ist zwingend — ohne endet es mitten im Screen.
-   Der Prototyp zieht es mit margin-left/right:-2px unter den Geräterahmen;
-   ohne Attrappe entfällt das, die eigene Kontur ist hier die Außenkante. */
+   Die negativen Seitenränder schieben die Kontur unter den Bildschirmrand: am
+   äußersten Rand soll keine Tintenlinie stehen, die runden oberen Ecken sollen
+   aber durchlaufen. Deshalb keine abgeschalteten Seitenrahmen — die würden am
+   Bogen abreißen. .p-screen klippt den Überstand. */
 .p-blatt{
   margin-top:14px; flex:1;
   background:var(--p-blatt);
   border:var(--p-rahmen); border-bottom:0;
   border-radius:var(--p-r-blatt) var(--p-r-blatt) 0 0;
-  padding:16px 16px 18px;
+  margin-left:-2px; margin-right:-2px;
+  padding:16px 4% calc(18px + env(safe-area-inset-bottom,0px));
 }
 
 /* ── Zurück-Knopf ────────────────────────────────────────────────────────── */
