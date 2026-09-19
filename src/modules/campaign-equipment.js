@@ -17,16 +17,19 @@ import { avatarSVG, ensureAvatar, itemSpriteSVG } from './avatar.js';
 import { persist } from './storage.js';
 import { markDirty } from './sync.js';
 import { commitDirty } from './dialog.js';
+import { iconHTML } from './pixel-icons.js';
 
+// px = Pixelsymbol des leeren Fachs (Pastell-Design); icon bleibt als Notnagel
+// fuer Stellen, die noch Text erwarten.
 export const SLOTS = {
-  weapon:    { icon: '⚔️', name: 'Waffe',       desc: 'Schaden pro gewonnener Welle' },
-  head:      { icon: '🪖', name: 'Helm',        desc: 'wehrt verlorene Wellen ab (pro Kampf)' },
-  body:      { icon: '🛡️', name: 'Rüstung',     desc: 'mehr HP' },
-  arms:      { icon: '🧤', name: 'Handschuhe',  desc: 'mehr Zeit pro Minispiel' },
-  legs:      { icon: '🥾', name: 'Stiefel',     desc: 'Chance auszuweichen' },
-  talisman:  { icon: '🧿', name: 'Talisman',    desc: '+50 % Schaden an 🌀-Knoten' },
-  ring1:     { icon: '💍', name: 'Ring',        desc: 'mehr Trank-Auswahl am 💎' },
-  companion: { icon: '🐾', name: 'Gefährte',    desc: 'fängt Fehlgriffe pro Kampf ab' },
+  weapon:    { icon: '⚔️', px: 'sword',  name: 'Waffe',       desc: 'Schaden pro gewonnener Welle' },
+  head:      { icon: '🪖', px: 'helm',   name: 'Helm',        desc: 'wehrt verlorene Wellen ab (pro Kampf)' },
+  body:      { icon: '🛡️', px: 'shield', name: 'Rüstung',     desc: 'mehr HP' },
+  arms:      { icon: '🧤', px: 'glove',  name: 'Handschuhe',  desc: 'mehr Zeit pro Minispiel' },
+  legs:      { icon: '🥾', px: 'boots',  name: 'Stiefel',     desc: 'Chance auszuweichen' },
+  talisman:  { icon: '🧿', px: 'orb',    name: 'Talisman',    desc: '+50 % Schaden an Formen-Knoten' },
+  ring1:     { icon: '💍', px: 'ring',   name: 'Ring',        desc: 'mehr Trank-Auswahl am Schatz' },
+  companion: { icon: '🐾', px: 'paw',    name: 'Gefährte',    desc: 'fängt Fehlgriffe pro Kampf ab' },
 };
 const SLOT_TYPE = { ring1: 'ring' };   // sonst = Slot-Key selbst
 export const TIER = {
@@ -238,7 +241,8 @@ function _wornItem(c, key) {
 function _slotTile(c, key) {
   const meta = SLOTS[key];
   const it = _wornItem(c, key);
-  const inner = it ? itemSpriteSVG(it.type, it.tier, it.which) : `<span class="pd-ghost">${meta.icon}</span>`;
+  const inner = it ? itemSpriteSVG(it.type, it.tier, it.which)
+    : `<span class="pd-ghost">${meta.px ? iconHTML(meta.px, 28) : meta.icon}</span>`;
   const title = it ? `${it.name} (${it.parts}/${SLOTS_PER_FORM} Teile)` : `${meta.name} — ${meta.desc}`;
   return `<button class="pd-slot${it ? ' filled' : ''}${key === _selSlot ? ' active' : ''}" data-slot="${key}" title="${title}">${inner}
     <span class="pd-slot-nm">${meta.name}</span></button>`;

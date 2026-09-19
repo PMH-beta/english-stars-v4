@@ -243,19 +243,24 @@
 
 
 <!-- ═══ PROFILE SCREEN ═══ -->
-<div id="profile-screen" style="display:none;width:100%;max-width:540px;flex-direction:column;align-items:flex-start;">
-  <button class="back-btn sticky" onclick="showMenu()">← Zurück</button>
-  <h1 style="width:100%;margin-bottom:14px">👤 Profil</h1>
-
+<div id="profile-screen" class="p-screen p-ton-blau" style="display:none">
+  <div class="p-kopf">
+    <div class="p-titel">
+      <button class="p-back" onclick="showMenu()"><canvas data-icon="back" width="14" height="14" style="width:28px;height:28px;image-rendering:pixelated;flex:none"></canvas></button>
+      <div class="p-titel-text">Profil</div>
+      <div class="p-back-platz"></div>
+    </div>
+  </div>
+  <div class="p-blatt">
   <div class="stats-panel">
-    <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;">
+    <div class="p-reihe" style="gap:14px;">
       <button onclick="showCharacter()" class="prof-avatar-btn" title="Charakter anpassen">
         <div id="prof-avatar" style="width:64px;height:64px;"></div>
-        <span class="prof-edit-badge">✏️</span>
+        <span class="prof-edit-badge"><canvas data-icon="pencil" width="14" height="14" style="width:14px;height:14px;image-rendering:pixelated;flex:none"></canvas></span>
       </button>
-      <div style="flex:1;min-width:0;">
-        <div id="prof-name" style="font-family:'Fredoka One',cursive;font-size:1.3rem;color:var(--text);"></div>
-        <div id="prof-since" style="font-size:.75rem;color:#888;font-weight:700;"></div>
+      <div class="p-wachs">
+        <div id="prof-name" style="font:900 19px var(--p-font)"></div>
+        <div id="prof-since" style="font:700 11px var(--p-font);color:var(--p-text-2)"></div>
       </div>
     </div>
   </div>
@@ -269,47 +274,59 @@
   <div class="stats-panel" id="prof-cloud-section">
     <!-- gefüllt durch showProfile() -->
   </div>
-
+  </div>
 </div>
 
 <!-- ═══ CHARACTER SCREEN ═══ -->
-<div id="character-screen" style="display:none;width:100%;max-width:540px;flex-direction:column;align-items:center;">
-  <button id="char-back-btn" class="back-btn sticky" onclick="closeCharacter()" style="align-self:flex-start;">← Zurück</button>
-  <h1 id="char-heading" style="width:100%;margin-bottom:10px">🎨 Charakter</h1>
-
+<div id="character-screen" class="p-screen p-ton-rosa" style="display:none">
+  <div class="p-kopf">
+    <div class="p-titel">
+      <button id="char-back-btn" class="p-back" onclick="closeCharacter()"><canvas data-icon="back" width="14" height="14" style="width:28px;height:28px;image-rendering:pixelated;flex:none"></canvas></button>
+      <div class="p-titel-text" id="char-heading">Charakter</div>
+      <div class="p-back-platz"></div>
+    </div>
+  </div>
+  <div class="p-blatt">
   <!-- Name als normales Eingabefeld (speichert beim Tippen; im Onboarding ausgeblendet) -->
-  <div id="char-name-row" style="width:100%;max-width:320px;margin-bottom:12px;text-align:left;">
-    <div style="font-size:.75rem;font-weight:800;color:#8a83a5;margin:0 0 4px 6px;">Dein Name</div>
-    <input id="char-name-input" class="es-input" style="max-width:none;margin-bottom:0;" type="text" maxlength="20" placeholder="Dein Name…">
+  <div id="char-name-row" style="margin-bottom:12px">
+    <div class="p-kicker" style="border:0;padding:0 0 5px">Dein Name</div>
+    <input id="char-name-input" class="p-feld" type="text" maxlength="20" placeholder="Dein Name…">
   </div>
 
   <!-- Bühne: Charakter + Gefährte, beide antippbar (Markierung unter der Figur).
        Gefährte im Onboarding ausgeblendet, ohne freigespielten Gefährten ausgegraut. -->
-  <div id="character-stage" style="width:100%;max-width:320px;">
+  <div id="character-stage">
     <button id="char-pick-char" class="cg-fig sel" onclick="charEditTarget('char')">
       <div id="character-canvas"></div>
-      <span class="cg-fig-lbl">🧍 Charakter</span>
+      <span class="cg-fig-lbl">Charakter</span>
     </button>
     <button id="char-pick-pet" class="cg-fig" onclick="charEditTarget('pet')">
       <div id="character-pet-canvas"></div>
-      <span class="cg-fig-lbl">🐾 Gefährte</span>
+      <span class="cg-fig-lbl">Gefährte</span>
     </button>
   </div>
 
   <!-- Merkmal-Auswahl (Slider ‹ › + Punkte, gerendert von renderCharacter) -->
-  <div id="character-feature-chips" style="width:100%;padding:12px 2px;"></div>
+  <div id="character-feature-chips" style="padding:12px 0;"></div>
 
   <!-- Varianten-Grid: 10 Kacheln mit Live-Vorschau, antippen = anziehen -->
   <div id="character-variants" class="cg-grid"></div>
 
   <!-- Nur im Onboarding: Avatar bestätigen und ins Menü -->
-  <button id="char-onboard-done" class="big-btn brand center" onclick="finishCharacterOnboarding()" style="display:none;margin-top:14px;">Los geht's! 🚀</button>
+  <button id="char-onboard-done" class="p-btn p-btn--primaer" onclick="finishCharacterOnboarding()" style="display:none;margin-top:14px;">Los geht's!</button>
+  </div>
 </div>
 
 <!-- ═══ STATS SCREEN ═══ -->
-<div id="stats-screen" style="display:none;width:100%;max-width:540px;flex-direction:column;align-items:flex-start;">
-  <button id="stats-back-btn" class="back-btn sticky" onclick="showMenu()">← Zurück</button>
-  <h1 id="stats-heading" style="width:100%;margin-bottom:14px">📊 Fortschritt</h1>
+<div id="stats-screen" class="p-screen p-ton-lila" style="display:none">
+  <div class="p-kopf">
+    <div class="p-titel">
+      <button id="stats-back-btn" class="p-back" onclick="showMenu()"><canvas data-icon="back" width="14" height="14" style="width:28px;height:28px;image-rendering:pixelated;flex:none"></canvas></button>
+      <div class="p-titel-text" id="stats-heading">Fortschritt</div>
+      <div class="p-back-platz"></div>
+    </div>
+  </div>
+  <div class="p-blatt">
 
   <!-- Profil-Panel — Kopf wie auf der Profilseite (gilt auch für die Freund-Ansicht) -->
   <div class="stats-panel">
@@ -320,21 +337,21 @@
         <div id="profile-meta" style="font-size:.75rem;color:#888;font-weight:700;"></div>
       </div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
-      <div style="background:linear-gradient(135deg,#fff8e0,#fff0c0);padding:12px;border-radius:14px;text-align:center;">
-        <div style="font-size:1.6rem;">🏆</div>
-        <div id="stats-hs" style="font-family:'Fredoka One',cursive;font-size:1.4rem;color:#cc8800;">0</div>
-        <div style="font-size:.7rem;color:#888;font-weight:700;">Highscore</div>
+    <div class="p-kacheln">
+      <div class="p-wertkachel p-ton-amber">
+        <canvas data-icon="trophy" width="14" height="14" style="width:28px;height:28px;image-rendering:pixelated;flex:none"></canvas>
+        <div id="stats-hs" class="p-wertkachel-zahl">0</div>
+        <div class="p-wertkachel-lbl">Highscore</div>
       </div>
-      <div style="background:linear-gradient(135deg,#fff0f6,#ffd6e0);padding:12px;border-radius:14px;text-align:center;">
-        <div style="font-size:1.6rem;">⭐</div>
-        <div id="stats-pts" style="font-family:'Fredoka One',cursive;font-size:1.4rem;color:#c0427a;">0</div>
-        <div style="font-size:.7rem;color:#888;font-weight:700;">Gesamtpunkte</div>
+      <div class="p-wertkachel p-ton-rosa">
+        <canvas data-icon="starInk" width="14" height="14" style="width:28px;height:28px;image-rendering:pixelated;flex:none"></canvas>
+        <div id="stats-pts" class="p-wertkachel-zahl">0</div>
+        <div class="p-wertkachel-lbl">Gesamtpunkte</div>
       </div>
     </div>
     <div id="profile-decks-summary" style="display:flex;flex-direction:column;gap:6px;"></div>
   </div>
-
+  </div>
 </div>
 
 <!-- ═══ SCAN SCREEN ═══ -->

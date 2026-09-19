@@ -46,6 +46,9 @@ const P_TON = {
   // Das Spiel setzt den Ton gleich danach genauer (renderQuestion, je Modus);
   // hier steht nur der Anfangswert, damit die Schale nicht kurz alt aussieht.
   'game-screen': 'mint',
+  'profile-screen': 'blau',
+  'character-screen': 'rosa',
+  'stats-screen': 'lila',
 };
 
 export function showScreen(id) {
@@ -2005,7 +2008,7 @@ export async function showStats() {
   const backBtn = document.getElementById('stats-back-btn');
   const heading = document.getElementById('stats-heading');
   if (backBtn) backBtn.setAttribute('onclick', _statsFriendMode ? 'closeFriendStats()' : 'showMenu()');
-  if (heading) heading.textContent = _statsFriendMode ? ('📊 ' + (SD.playerName || 'Freund')) : '📊 Fortschritt';
+  if (heading) heading.textContent = _statsFriendMode ? (SD.playerName || 'Freund') : 'Fortschritt';
   // Kopf wie auf der Profilseite: Avatar, Name, Dabei-seit, Bosse/Taler, Highscore/Punkte.
   // In der FREUND-Ansicht steht statt des Portraits die ganze Figur mit der Ausrüstung,
   // die der Freund gerade trägt (window.SD zeigt hier auf seinen Stand, equippedGearMap
