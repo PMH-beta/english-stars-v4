@@ -1098,7 +1098,7 @@ function _renderFeatureBar(features, activeKey) {
   bar.innerHTML = `
     <div class="cg-featbar">
       <button class="cg-featarrow" onclick="avatarPickStep(-1)" aria-label="voriges Merkmal">‹</button>
-      <div class="cg-featlbl">${feat.icon} ${feat.label}</div>
+      <div class="cg-featlbl">${feat.label}</div>
       <button class="cg-featarrow" onclick="avatarPickStep(1)" aria-label="nächstes Merkmal">›</button>
     </div>
     <div class="cg-featdots">${features.map((f, i) =>

@@ -1,5 +1,6 @@
 // src/modules/dialog.js
 import { flushPendingSync } from './sync.js';
+import { iconHTML } from './pixel-icons.js';
 // App-eigene Overlay-Dialoge als Ersatz für native alert/confirm/prompt.
 // Optik wie die bestehenden Overlays (Sammlung löschen/zurücksetzen). Alle drei
 // liegen auf z-index 9999 + position:fixed, damit der Android-Zurück-Button sie
@@ -7,40 +8,56 @@ import { flushPendingSync } from './sync.js';
 // zurück; Abbrechen oder Schließen löst KEINE Speicheraktion aus (resolve false/
 // null bzw. der .then-Callback läuft nicht) — exakt wie das native Pendant.
 
-const BACKDROP = 'position:fixed;inset:0;background:rgba(15,10,30,.55);backdrop-filter:blur(3px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
-const CARD     = "background:#fff;border-radius:22px;padding:28px 22px;max-width:340px;width:100%;text-align:center;box-shadow:0 14px 44px rgba(20,10,50,.35);max-height:86vh;overflow-y:auto;";
-const TITLE    = "font-family:'Fredoka One',cursive;font-size:1.25rem;margin-bottom:12px;";
-const BODY     = "font-size:.9rem;color:#555;line-height:1.6;margin:0 0 20px;white-space:pre-line;";
-const BTN      = "font-family:'Fredoka One',cursive;font-size:1rem;padding:12px 22px;border:none;border-radius:50px;cursor:pointer;";
-const BTN_CANCEL = BTN + 'background:#f0edf7;color:#555;';
-const BTN_OK     = BTN + 'background:linear-gradient(135deg,#a86cdb,#c084fc);color:#fff;box-shadow:0 4px 0 #7a4ba8;';
-const BTN_DANGER = BTN + 'background:linear-gradient(135deg,#e53935,#f44336);color:#fff;box-shadow:0 4px 0 #b71c1c;';
-const INPUT  = "width:100%;box-sizing:border-box;font-family:'Nunito',sans-serif;font-size:1rem;padding:12px 14px;border:2px solid #e0d4f0;border-radius:12px;margin:0 0 18px;outline:none;";
+// Aussehen liegt in style.css (Abschnitt Dialoge) — hier nur die Klassennamen.
+const CLS_BACKDROP = 'p-dlg-grund';
+const CLS_CARD     = 'p-dlg-karte';
+
+// Aufrufer uebergeben ihr Symbol seit Jahren als Emoji. Wo es ein Pixelsymbol
+// gibt, wird getauscht; alles ohne Gegenstueck bleibt Emoji, damit kein Dialog
+// ploetzlich ohne Zeichen dasteht.
+const DLG_ICON = {
+  '⚠️': 'bulb', 'ℹ️': 'bulb', '❓': 'bulb', '💡': 'bulb',
+  '✏️': 'pencil', '⚔️': 'sword', '⚒️': 'hammer', '⚡': 'flame',
+  '❌': 'close', '✅': 'check', '✓': 'check',
+  '❤️': 'potion', '✨': 'star', '🎉': 'star', '🏆': 'trophy',
+  '🐾': 'paw', '🗑️': 'trash', '🔑': 'key', '🔒': 'lock',
+  '📚': 'book', '📦': 'book', '🎯': 'target', '🪙': 'coin', '👑': 'crown',
+};
 
 // Grundgerüst: Backdrop + Karte mit optionalem Icon, Titel, Fließtext. Gibt die
 // Knoten zurück, die Aufrufer-spezifischen Buttons/Inputs hängen sich dort ein.
 function _scaffold(opts) {
   const overlay = document.createElement('div');
-  overlay.style.cssText = BACKDROP;
+  overlay.className = CLS_BACKDROP;
   const card = document.createElement('div');
-  card.style.cssText = CARD;
+  card.className = CLS_CARD;
   if (opts.icon) {
+    // Emblem: Kachel im Warnton bei Gefahr, sonst im Markenton.
     const ic = document.createElement('div');
-    ic.style.cssText = 'font-size:2.5rem;margin-bottom:10px;';
-    ic.textContent = opts.icon;
+    ic.className = 'p-dlg-emblem' + (opts.danger ? ' p-ton-rosa' : ' p-ton-lila');
+    const px = DLG_ICON[opts.icon];
+    if (px) ic.innerHTML = iconHTML(px, 28);
+    else { ic.textContent = opts.icon; ic.style.fontSize = '24px'; }
     card.appendChild(ic);
   }
   if (opts.title) {
     const t = document.createElement('div');
-    t.style.cssText = TITLE + 'color:' + (opts.danger ? '#e53935' : 'var(--purple)') + ';';
+    t.className = 'p-dlg-titel';
     t.textContent = opts.title;
     card.appendChild(t);
   }
   if (opts.body) {
-    const p = document.createElement('p');
-    p.style.cssText = BODY;
+    // Vondu traegt den Text — so zeigt es der Entwurf: Maskottchen links,
+    // Erklaerung rechts, das Ganze auf einer Flaeche im Grundton.
+    const box = document.createElement('div');
+    box.className = 'p-dlg-vondu' + (opts.danger ? ' p-ton-rosa' : ' p-ton-lila');
+    const img = document.createElement('img');
+    img.src = 'vondu-logo.svg'; img.alt = 'Vondu'; img.width = 48; img.height = 46;
+    const p = document.createElement('div');
+    p.className = 'p-dlg-text';
     p.textContent = opts.body;
-    card.appendChild(p);
+    box.appendChild(img); box.appendChild(p);
+    card.appendChild(box);
   }
   overlay.appendChild(card);
   return { overlay, card };
@@ -48,7 +65,7 @@ function _scaffold(opts) {
 
 function _btnRow() {
   const row = document.createElement('div');
-  row.style.cssText = 'display:flex;gap:10px;justify-content:center;';
+  row.className = 'p-dlg-knoepfe';
   return row;
 }
 
@@ -64,7 +81,7 @@ export function esAlert(opts) {
     const { overlay, card } = _scaffold(opts);
     const row = _btnRow();
     const ok = document.createElement('button');
-    ok.style.cssText = opts.danger ? BTN_DANGER : BTN_OK;
+    ok.className = 'p-dlg-btn ' + (opts.danger ? 'p-dlg-btn--gefahr' : 'p-dlg-btn--ok');
     ok.textContent = opts.ok || 'OK';
     ok.addEventListener('click', () => { overlay.remove(); resolve(); });
     row.appendChild(ok);
@@ -81,11 +98,11 @@ export function esConfirm(opts) {
     const { overlay, card } = _scaffold(opts);
     const row = _btnRow();
     const cancel = document.createElement('button');
-    cancel.style.cssText = BTN_CANCEL;
+    cancel.className = 'p-dlg-btn p-dlg-btn--ab';
     cancel.textContent = opts.cancel || 'Abbrechen';
     cancel.addEventListener('click', () => { overlay.remove(); resolve(false); });
     const ok = document.createElement('button');
-    ok.style.cssText = opts.danger ? BTN_DANGER : BTN_OK;
+    ok.className = 'p-dlg-btn ' + (opts.danger ? 'p-dlg-btn--gefahr' : 'p-dlg-btn--ok');
     ok.textContent = opts.ok || 'OK';
     ok.addEventListener('click', () => { overlay.remove(); resolve(true); });
     row.appendChild(cancel);
@@ -105,18 +122,18 @@ export function esPrompt(opts) {
     const { overlay, card } = _scaffold(opts);
     const input = document.createElement('input');
     input.type = 'text';
-    input.style.cssText = INPUT;
+    input.className = 'p-dlg-feld';
     input.value = opts.value != null ? opts.value : '';
     if (opts.placeholder) input.placeholder = opts.placeholder;
     card.appendChild(input);
     const row = _btnRow();
     const cancel = document.createElement('button');
-    cancel.style.cssText = BTN_CANCEL;
+    cancel.className = 'p-dlg-btn p-dlg-btn--ab';
     cancel.textContent = opts.cancel || 'Abbrechen';
     const done = (val) => { overlay.remove(); resolve(val); };
     cancel.addEventListener('click', () => done(null));
     const ok = document.createElement('button');
-    ok.style.cssText = BTN_OK;
+    ok.className = 'p-dlg-btn p-dlg-btn--ok';
     ok.textContent = opts.ok || 'OK';
     ok.addEventListener('click', () => done(input.value));
     input.addEventListener('keydown', e => {
@@ -140,13 +157,14 @@ export function esPrompt2(opts) {
     const { overlay, card } = _scaffold(opts);
     function mkField(labelText, val) {
       const wrap = document.createElement('div');
-      wrap.style.cssText = 'text-align:left;margin-bottom:14px;';
+      wrap.style.cssText = 'text-align:left;margin-bottom:12px;';
       const lab = document.createElement('div');
-      lab.style.cssText = "font-family:'Nunito',sans-serif;font-weight:700;font-size:.8rem;color:#999;margin:0 0 5px 4px;";
+      lab.className = 'p-dlg-feldlabel';
       lab.textContent = labelText;
       const inp = document.createElement('input');
       inp.type = 'text';
-      inp.style.cssText = INPUT + 'margin:0;';
+      inp.className = 'p-dlg-feld';
+      inp.style.margin = '0';
       inp.value = val != null ? val : '';
       wrap.appendChild(lab); wrap.appendChild(inp);
       return { wrap, inp };
@@ -157,12 +175,12 @@ export function esPrompt2(opts) {
     card.appendChild(f2.wrap);
     const row = _btnRow();
     const cancel = document.createElement('button');
-    cancel.style.cssText = BTN_CANCEL;
+    cancel.className = 'p-dlg-btn p-dlg-btn--ab';
     cancel.textContent = opts.cancel || 'Abbrechen';
     const done = (val) => { overlay.remove(); resolve(val); };
     cancel.addEventListener('click', () => done(null));
     const ok = document.createElement('button');
-    ok.style.cssText = BTN_OK;
+    ok.className = 'p-dlg-btn p-dlg-btn--ok';
     ok.textContent = opts.ok || 'OK';
     const submit = () => done({ de: f1.inp.value, en: f2.inp.value });
     ok.addEventListener('click', submit);
@@ -201,7 +219,7 @@ function esSavingShow(label) {
   if (!_savingEl) {
     _savingEl = document.createElement('div');
     _savingEl.id = 'es-saving-bar';
-    _savingEl.style.cssText = "position:fixed;top:max(10px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:10001;display:flex;align-items:center;gap:9px;background:rgba(40,30,60,.92);color:#fff;font-family:'Fredoka One',cursive;font-size:.82rem;padding:8px 16px;border-radius:50px;box-shadow:0 4px 16px rgba(0,0,0,.28);pointer-events:none;opacity:0;transition:opacity .15s;max-width:90vw;";
+    _savingEl.className = 'p-band';
     (document.body || document.documentElement).appendChild(_savingEl);
   }
   _savingEl.innerHTML = '<span style="width:13px;height:13px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;display:inline-block;animation:es-spin .7s linear infinite;"></span>'
@@ -224,7 +242,7 @@ export function esToast(msg, ms = 2200) {
   if (!t) {
     t = document.createElement('div');
     t.id = 'es-toast';
-    t.style.cssText = "position:fixed;top:max(10px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:10002;background:rgba(40,30,60,.95);color:#fff;font-family:'Nunito',sans-serif;font-weight:700;font-size:.85rem;padding:9px 18px;border-radius:50px;box-shadow:0 4px 16px rgba(0,0,0,.3);pointer-events:none;opacity:0;transition:opacity .18s;max-width:90vw;text-align:center;";
+    t.className = 'p-band p-band--mitte';
     (document.body || document.documentElement).appendChild(t);
   }
   t.textContent = msg;

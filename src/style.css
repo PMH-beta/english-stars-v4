@@ -2505,7 +2505,7 @@ button.p-chip{ cursor:pointer; }
 .cg-tile:hover{ transform:none; border-color:var(--p-ink); }
 .cg-tile.sel{ background:var(--p-gold); box-shadow:none; border-color:var(--p-ink); }
 /* Merkmal-Leiste: Pfeil, Bezeichnung, Pfeil — darunter die Punkte. */
-.cg-featlbl{ font:900 14px var(--p-font); color:var(--p-ink); min-width:150px; }
+.cg-featlbl{ font:900 19px var(--p-font); color:var(--p-ink); min-width:150px; }
 .cg-featarrow{
   width:42px; height:42px;
   border:var(--p-rahmen); border-radius:var(--p-r-slot); background:var(--p-karte);
@@ -2656,6 +2656,70 @@ button.p-chip{ cursor:pointer; }
   font:800 10px var(--p-font); text-transform:uppercase; letter-spacing:.08em;
   color:var(--p-text-3);
 }
+
+/* ══ DIALOGE ═══════════════════════════════════════════════════════════════
+   esAlert, esConfirm, esPrompt aus dialog.js. Aufbau wie im Entwurf: Emblem,
+   Ueberschrift, Vondu mit der Erklaerung, darunter zwei gleich breite Knoepfe. */
+.p-dlg-grund{
+  position:fixed; inset:0; z-index:9999;
+  background:rgba(31,31,36,.42);
+  display:flex; align-items:center; justify-content:center;
+  padding:20px; box-sizing:border-box;
+}
+.p-dlg-karte{
+  border:var(--p-rahmen); border-radius:28px; background:var(--p-karte);
+  padding:22px 18px; width:100%; max-width:360px; text-align:center;
+  max-height:86vh; overflow-y:auto; font-family:var(--p-font); color:var(--p-ink);
+  scrollbar-width:none;
+}
+.p-dlg-karte::-webkit-scrollbar{ display:none; }
+.p-dlg-emblem{
+  width:58px; height:58px; margin:0 auto 12px;
+  border:var(--p-rahmen); border-radius:var(--p-r-karte); background:var(--p-ton,var(--p-lila));
+  display:flex; align-items:center; justify-content:center;
+}
+.p-dlg-titel{ font:900 21px/1.2 var(--p-font); color:var(--p-ink); }
+/* Vondu traegt den Erklaertext. */
+.p-dlg-vondu{
+  display:flex; align-items:center; gap:11px; text-align:left; margin-top:12px;
+  border:var(--p-rahmen); border-radius:var(--p-r-btn); background:var(--p-ton,var(--p-lila));
+  padding:11px 13px;
+}
+.p-dlg-vondu > img{ display:block; flex:none; }
+.p-dlg-text{ font:800 11.5px/1.45 var(--p-font); color:var(--p-ink); white-space:pre-line; }
+.p-dlg-knoepfe{ display:flex; gap:10px; margin-top:16px; }
+.p-dlg-btn{
+  flex:1; height:50px; padding:0 12px;
+  border:var(--p-rahmen); border-radius:var(--p-r-kachel);
+  font:900 12px var(--p-font); cursor:pointer; box-shadow:none;
+  display:flex; align-items:center; justify-content:center;
+}
+.p-dlg-btn--ab{ background:var(--p-inaktiv); color:var(--p-ink); font-weight:800; }
+.p-dlg-btn--ok{ background:var(--p-ink); color:var(--p-gold); }
+.p-dlg-btn--gefahr{ background:var(--p-falsch); color:var(--p-ink); }
+.p-dlg-feld{
+  width:100%; height:52px; margin:12px 0 0; padding:0 15px;
+  border:var(--p-rahmen); border-radius:var(--p-r-btn); background:var(--p-feld);
+  color:var(--p-ink); font:700 14px var(--p-font); outline:none;
+}
+.p-dlg-feld:focus{ outline:2px solid var(--p-ink); outline-offset:2px; background:var(--p-karte-hell); }
+.p-dlg-feldlabel{
+  font:900 9px var(--p-font); text-transform:uppercase; letter-spacing:var(--p-ls-kicker);
+  color:var(--p-text-2); margin:0 0 5px 2px;
+}
+
+/* Bandmeldung oben (Speichern-Hinweis, Toast): Tintenflaeche mit Goldtext, wie
+   der Primaerknopf — im Design gibt es keine schwebenden grauen Pillen. */
+.p-band{
+  position:fixed; top:max(10px,env(safe-area-inset-top)); left:50%;
+  transform:translateX(-50%); z-index:10001;
+  display:flex; align-items:center; gap:9px;
+  border:var(--p-rahmen); border-radius:var(--p-r-chip-gross);
+  background:var(--p-ink); color:var(--p-gold);
+  font:800 12px var(--p-font); padding:9px 16px;
+  pointer-events:none; opacity:0; transition:opacity .15s; max-width:90vw;
+}
+.p-band--mitte{ z-index:10002; text-align:center; display:block; }
 
 /* ── Breite Fenster ──────────────────────────────────────────────────────── */
 /* Steht ganz am Ende, damit diese Regeln die Grundfassung ueberschreiben.
