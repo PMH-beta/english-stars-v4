@@ -63,10 +63,12 @@
   --p-schatten-angehoben:6px 8px 0 rgba(31,31,36,.28);
 }
 *{box-sizing:border-box;margin:0;padding:0;}
-/* Die Scrollleiste bekommt ihren Platz dauerhaft reserviert. Ohne das schmaelert
-   ihr Erscheinen — etwa beim Aufklappen einer Sammlung — das Fenster, und die
-   zentrierte Spalte springt seitlich. */
-html{ scrollbar-gutter:stable; }
+/* Die Scrollleiste bleibt unsichtbar — gescrollt wird hier mit Finger oder Rad,
+   angefasst wird sie nie. Nebeneffekt und eigentlicher Grund: erscheint sie beim
+   Aufklappen einer Sammlung, schmaelert sie das Fenster und die zentrierte Spalte
+   springt seitlich. Gescrollt werden kann weiterhin. */
+html{ scrollbar-width:none; }
+html::-webkit-scrollbar, body::-webkit-scrollbar{ width:0; height:0; display:none; }
 html,body{
   touch-action:manipulation;
   -webkit-touch-callout:none;
@@ -1740,18 +1742,6 @@ body.p-app{
   body.p-app, .p-screen{ transition:none; }
 }
 
-/* Ab Tablet-Breite fuellt die Spalte das Fenster nicht mehr aus. Dann liegt das
-   Blatt frei auf dem Grundton und braucht seine Kontur ringsum — sonst hat es
-   nur oben eine Kante und laeuft nach unten ins Nichts. Auf dem Handy bleibt es,
-   wie es ist: Seitenkontur unter dem Bildschirmrand, unten offen. */
-@media (min-width:800px){
-  .p-screen{ padding-bottom:26px; }
-  .p-blatt{
-    margin-left:0; margin-right:0;
-    border-bottom:var(--p-rahmen);
-    border-radius:var(--p-r-blatt);
-  }
-}
 /* Der Screen füllt die Höhe und ist auf Tablet-Breite begrenzt. Der Prototyp ist
    auf 402 px gebaut und darf nach unten wachsen; darüber hinaus fängt die Spalte
    bei 768 px ab, damit Karten und Zeilen auf breiten Monitoren nicht auseinander
@@ -2412,4 +2402,19 @@ button.p-chip{ cursor:pointer; }
 .mode-progress-bar{ height:100%; background:var(--p-ok); }
 .mode-progress-sub{
   font:700 10px var(--p-font); color:var(--p-text-2); margin-top:6px; text-align:right;
+}
+
+/* ── Breite Fenster ──────────────────────────────────────────────────────── */
+/* Steht ganz am Ende, damit diese Regeln die Grundfassung ueberschreiben.
+   Auf dem Handy laeuft die Kontur des Blatts links und rechts unter den
+   Bildschirmrand und unten ins Offene — dort soll keine Kante stehen. Sobald
+   die Spalte das Fenster nicht mehr ausfuellt, kehrt sich das um: dann liegt
+   das Blatt frei auf dem Grundton und braucht seine Kontur ringsum. */
+@media (min-width:800px){
+  .p-screen{ padding-bottom:26px; }
+  .p-blatt{
+    margin-left:0; margin-right:0;
+    border-bottom:var(--p-rahmen);
+    border-radius:var(--p-r-blatt);
+  }
 }
