@@ -3,7 +3,9 @@
 // Fallback nur, falls sw.js je ohne Query geladen wird.
 const VERSION = new URL(self.location.href).searchParams.get('v') || 'v4';
 const CACHE = 'english-stars-' + VERSION;
-const PRECACHE = ['./','./index.html','./manifest.json','./icon-192.png','./icon-512.png','./favicon.png'];
+const PRECACHE = ['./','./index.html','./manifest.json',
+  './icons/icon-192.png','./icons/icon-512.png','./icons/favicon-32.png',
+  './vondu-logo.svg','./vondu-wordmark.svg'];
 
 self.addEventListener('install', e => {
   // cache:'reload' beim Precache → der neue SW holt Shell/index.html frisch vom Netz,
