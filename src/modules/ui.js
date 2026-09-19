@@ -9,7 +9,7 @@ import { cloudLoad, cloudReset, saveDeck, saveWordStats, saveExam, markDirty, fl
 import { commitDirty } from './dialog.js';
 import { setGrundton, clearGrundton } from './screen-shell.js';
 import { iconHTML } from './pixel-icons.js';
-import { uvMap, uvLernstand, constellationWords, FORGE_DISC, SLOTS_PER_FORM, uvTrainProgress, uvTrainForms, uvTrainWords, uvPruneOrphanSlotStats } from './irregular-game.js';
+import { uvMap, uvLernstand, constellationWords, FORGE_DISC, SLOTS_PER_FORM, uvTrainProgress, uvTrainForms, uvTrainWords, uvPruneOrphanSlotStats, UV_TRAIN_SIZE, migrateUvTrainSize } from './irregular-game.js';
 import { renderAvatarInto, renderCharacter, commitAvatar, resetCharacterFeature, setCharacterCompanion, setCharacterGear } from './avatar.js';
 import { IRREGULAR_PRESET_ID, uvAvailableVerbs, CONSTELLATION_SIZE, cefrOf, forgeObject, FORGE_OBJECTS, usedForgeObjects, fillObjectType, getConstellations, allVerbsSorted, verbsByEns, UV_TRAIN_SUF } from './irregular-verbs.js';
 import { objectPerkText, renderEquipmentPanel, resetEquipmentSelection, forgedItems, equippedGearMap } from './campaign-equipment.js';
@@ -388,7 +388,8 @@ function renderStudentMode() {
 // sind die Schmiede-Disziplinen (🔍 Erkennen · 🔨 Schmieden · 🪄 Verzaubern) mit
 // eigenen _tr_-Stats — der Schmiede-Stationsfortschritt bleibt unberührt.
 // Achtung: mode 'training' (nicht 'student') — migrateDeckModes räumt 'student' weg.
-const UV_TRAIN_MAX = 15;
+// Deckgröße: UV_TRAIN_SIZE (irregular-game.js), genau so viele Verben — nicht mehr
+// "bis zu 15". Bestehende Decks kürzt migrateUvTrainSize beim Login.
 let _uvTrainExpanded = false;
 export function toggleUvTraining() { _uvTrainExpanded = !_uvTrainExpanded; renderUvTrainingSection(); }
 
@@ -515,7 +516,7 @@ export function renderUvTrainingSection() {
   const open = _uvTrainExpanded;
   const sub = decks.length
     ? decks.length + ' Deck' + (decks.length === 1 ? '' : 's') + ' · zum Aufklappen tippen'
-    : `Eigene Übungsdecks aus bis zu ${UV_TRAIN_MAX} Verben`;
+    : `Eigene Übungsdecks aus genau ${UV_TRAIN_SIZE} Verben`;
   // Zeilenkarte wie der Probetest. Bewusst KEINE Klasse, die auf die inneren
   // Trainings-Deck-Karten durchschlaegt — die klappen einzeln auf.
   let html =
@@ -539,7 +540,7 @@ export function renderUvTrainingSection() {
 }
 
 // Popup: Name + Formen-Vorauswahl (Simple Past / Participle / Beide) + bis zu
-// 15 Verben ankreuzen (alle 151, sortiert nach Stufe). Die Sperre gilt JE TOPF:
+// Genau UV_TRAIN_SIZE Verben ankreuzen (alle 151, sortiert nach Stufe). Die Sperre gilt JE TOPF:
 // ausgegraut (nicht mehr klickbar) ist ein Verb nur, wenn es schon in einem
 // anderen Deck MIT DERSELBEN Auswahl steckt — SP, PP und Beide zählen getrennt.
 // Beim Umschalten der Auswahl slidet die ganze Wortliste links raus und kommt
@@ -559,12 +560,12 @@ export function uvTrainOpenCreate() {
   overlay.innerHTML = `<div class="uv-fill-card">
     <div class="uv-fill-head">
       <div class="uv-fill-title">Neues Trainings-Deck</div>
-      <div class="uv-fill-hint">Wähle bis zu ${UV_TRAIN_MAX} Verben — geübt wird in Erkennen · Schmieden · Verzaubern.</div>
+      <div class="uv-fill-hint">Wähle genau ${UV_TRAIN_SIZE} Verben — geübt wird in Erkennen · Schmieden · Verzaubern.</div>
       <input id="uv-train-name" class="uv-train-name" maxlength="30" value="${defName}"/>
       <div class="uv-form-choice">
         ${_uvFormChipsHtml((f) => `data-forms="${f}"${f === 'both' ? ' data-sel="1"' : ''}`)}
       </div>
-      <div class="uv-fill-count"><span id="uv-train-n">0</span>/${UV_TRAIN_MAX}</div>
+      <div class="uv-fill-count"><span id="uv-train-n">0</span>/${UV_TRAIN_SIZE}</div>
     </div>
     <div class="uv-fill-list">
       <div class="uv-fill-slide" id="uv-train-slide">
@@ -588,7 +589,9 @@ export function uvTrainOpenCreate() {
   overlay.querySelector('#uv-train-cancel').addEventListener('click', close);
   const updateCount = () => {
     nEl.textContent = String(sel.size);
-    okBtn.disabled = sel.size < 1;
+    // Genau UV_TRAIN_SIZE — nicht weniger. Mehr lässt der Klick-Handler unten gar
+    // nicht erst zu, der Zähler zeigt also immer n/10.
+    okBtn.disabled = sel.size !== UV_TRAIN_SIZE;
   };
   // Grau-Zustand aller Zeilen für die aktuelle Auswahl setzen; angekreuzte
   // Verben, die dabei gesperrt werden, fliegen aus der Auswahl.
@@ -625,14 +628,14 @@ export function uvTrainOpenCreate() {
     const cb = row.querySelector('.uv-fill-cb');
     const en = row.getAttribute('data-en');
     cb.addEventListener('change', () => {
-      if (cb.checked && sel.size >= UV_TRAIN_MAX) { cb.checked = false; return; }
+      if (cb.checked && sel.size >= UV_TRAIN_SIZE) { cb.checked = false; return; }
       if (cb.checked) { sel.add(en); row.classList.add('sel'); }
       else { sel.delete(en); row.classList.remove('sel'); }
       updateCount();
     });
   });
   okBtn.addEventListener('click', () => {
-    if (!sel.size) return;
+    if (sel.size !== UV_TRAIN_SIZE) return;
     const name = (overlay.querySelector('#uv-train-name').value || '').trim() || defName;
     close();
     _uvTrainCreate(name, [...sel], formsSel);
@@ -1998,6 +2001,13 @@ export async function showFriendStats(friendId) {
   _friendSDBackup = window.SD;
   _statsFriendMode = true;
   window.SD = _friendState(state);
+  // Anzeige angleichen: der Freund hat sich seit der Umstellung auf UV_TRAIN_SIZE
+  // vielleicht noch nicht angemeldet, dann stehen in SEINER Cloud noch 15 Verben —
+  // und die Freund-Seite zeigte entsprechend "15 Verben", während die eigene Seite
+  // längst 10 anzeigt. Erst NACH dem Setzen von window.SD, damit die Auswahl der
+  // behaltenen Verben auf seinen Ständen rechnet und nicht auf meinen.
+  // Rein lokal auf der Anzeige-Kopie — in fremde Daten wird NICHTS geschrieben.
+  migrateUvTrainSize(window.SD);
   await showStats();
 }
 export function closeFriendStats() {
@@ -2637,8 +2647,13 @@ export async function authSubmit() {
     return;
   }
 
-  // login erfolgreich
-  handleLogin(result.user);
+  // Login erfolgreich → erst der "Los geht's"-Gate, dann der Ladevorgang.
+  // Nicht direkt handleLogin: der Gate gibt auf iOS den Ton in einer echten
+  // Nutzergeste frei, und das Kind sieht den Ladefortschritt statt eines
+  // eingefrorenen Anmeldeformulars. Über window, weil ui.js von startup.js
+  // importiert wird — ein Import zurück wäre ein Zyklus.
+  if (typeof window.showStartGate === 'function') window.showStartGate(result.user);
+  else handleLogin(result.user);
 }
 
 function _setAuthError(msg) {
@@ -2838,10 +2853,36 @@ function adoptCloudState(state, signature) {
 
 function _finishLoginUI() {
   if (migrateStatKeys()) persist(window.SD);
+  // Trainings-Decks auf UV_TRAIN_SIZE Verben kürzen. Hier und nicht in
+  // adoptCloudState, weil diese Stelle BEIDE Wege abdeckt: nach erfolgreichem
+  // Cloud-Load (läuft danach) und im Offline-Fall, wo cloudLoad 'failed' liefert
+  // und mit dem lokalen Stand weitergemacht wird. Die gekürzten Decks müssen
+  // zurück in die Cloud, sonst stellt der nächste harte Load die alte Größe wieder her.
+  const trimmed = migrateUvTrainSize();
+  if (trimmed.length) {
+    persist(window.SD);
+    console.log('[Migration] Trainings-Decks auf', UV_TRAIN_SIZE, 'Verben gekürzt:', trimmed.length);
+    if (window.currentUser) { trimmed.forEach((id) => markDirty('deck', id)); commitDirty(); }
+  }
   console.log('[handleLogin] SD bereit:', window.SD?.playerName, window.SD?.highscore);
   subscribeFriendRealtime();   // Freundschaftsanfragen live empfangen (WebSocket statt Polling)
   if (!window.SD?.playerName) showScreen('name-screen');
   else restoreLastScreen();
+
+  // Vosk ganz zum Schluss und nur im Leerlauf. Es sind zwei dicke Brocken:
+  // vendor/vosk.js (5,6 MB mit eingebettetem WASM — muss auch aus dem Cache jedes
+  // Mal geparst werden) und das 41-MB-Modell, das Vosk.createModel entpacken und
+  // initialisieren muss. Lief das während des Startvorgangs, konkurrierte es mit
+  // dem Cloud-Load und dem Aufbau der Oberfläche — genau die Phase nach dem
+  // "Los geht's"-Button, in der alles zäh wirkte. Zusätzlicher Sicherheitsabstand
+  // über setTimeout, damit der erste Rendervorgang sicher durch ist.
+  // Ist Vosk bei der ersten Aussprache-Übung noch nicht fertig, wartet
+  // startVoskRecognition dort freundlich mit sichtbarem Status (siehe speech.js).
+  setTimeout(() => {
+    const kick = () => { try { window._voskLoad && window._voskLoad(); } catch(e) {} };
+    if (typeof requestIdleCallback === 'function') requestIdleCallback(kick, { timeout: 20000 });
+    else kick();   // iOS < 16.4 kennt requestIdleCallback nicht
+  }, 3000);
 }
 
 // Klarer Retry-Dialog statt stillem Leer-Zustand, wenn kein lokaler Stand vorliegt

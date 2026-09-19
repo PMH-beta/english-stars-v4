@@ -29,9 +29,39 @@ export function pwaInstall() {
   }
 }
 
+/**
+ * Dauerhaften Speicher anfordern.
+ *
+ * Der Cache-Speicher ist sonst "best effort": wird der Platz auf dem Gerät knapp,
+ * darf der Browser die komplette Origin wegräumen — also Vosk-Modell (41 MB),
+ * vendor/vosk.js, Musik UND die vorgecachte App-Shell. Damit wäre die App offline
+ * wieder tot, obwohl sie vorher online war. Genau das soll liegen bleiben.
+ *
+ * Chrome/Android gewährt das installierten PWAs in der Regel still, Safari ebenso
+ * für Home-Screen-Apps. Ein "nein" ist folgenlos — dann verhält sich der Speicher
+ * wie bisher. Firefox kann einen Dialog zeigen; deshalb erst nach dem Laden.
+ */
+async function requestPersistentStorage() {
+  try {
+    if (!navigator.storage || !navigator.storage.persist) return;
+    if (await navigator.storage.persisted()) {
+      console.log('[Storage] bereits dauerhaft');
+    } else {
+      const granted = await navigator.storage.persist();
+      console.log('[Storage] dauerhaft:', granted ? 'ja' : 'nein (bleibt best effort)');
+    }
+    // Zum Nachsehen, ob Modell und Shell wirklich liegen: erwartet ~47 MB+
+    if (navigator.storage.estimate) {
+      const { usage, quota } = await navigator.storage.estimate();
+      console.log('[Storage] belegt:', Math.round((usage||0)/1048576) + ' MB von ' + Math.round((quota||0)/1048576) + ' MB');
+    }
+  } catch(e) { console.warn('[Storage] persist fehlgeschlagen:', e && e.message); }
+}
+
 // Service Worker registrieren
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
+    requestPersistentStorage();
     // Versions-Query koppelt den SW an APP_VERSION: pro Deploy ändert sich die
     // Script-URL → der Browser installiert einen neuen SW → activate/purge läuft
     // (sw.js leitet seinen CACHE-Namen aus genau diesem ?v ab). Eine Quelle der

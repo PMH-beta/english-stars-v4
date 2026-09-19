@@ -266,6 +266,46 @@ export function uvTrainWords(deck) {
   });
 }
 
+// Ein Trainings-Deck fasst genau so viele Verben. Vorher waren 1–15 erlaubt.
+export const UV_TRAIN_SIZE = 10;
+
+/**
+ * Bestehende Trainings-Decks auf UV_TRAIN_SIZE Verben kürzen.
+ *
+ * Was dabei NICHT verloren geht:
+ * - Taler: liegen in SD.campaign.claimed als deckId|disziplin und werden dort nur
+ *   angehängt, nie entfernt (campaign.js refreshClaimedTaler). Ein einmal
+ *   freigespielter Taler bleibt also, auch wenn das Deck kleiner wird.
+ * - Fortschritt: die Verb-Stände hängen NICHT am Deck, sondern global pro Verb in
+ *   SD.globalPresetStats (Schlüssel verb+suffix). Ein entferntes Verb behält seinen
+ *   Stand — taucht es später in einem anderen Deck auf, ist er wieder da.
+ * - Prozente: uvTrainProgress rechnet live über deck.vocab, passt sich also von
+ *   selbst auf die 10 verbleibenden Verben an. Nichts umzurechnen.
+ *
+ * Welche fliegen raus: die am wenigsten geübten. Der Nutzer sagte "egal welche" —
+ * so bleibt aber das Geschaffte erhalten statt weggeworfen zu werden.
+ * Decks mit 10 oder weniger Verben bleiben unangetastet (nicht aufgefüllt).
+ *
+ * Rückgabe: Ids der geänderten Decks (leer = nichts zu tun).
+ */
+export function migrateUvTrainSize(sd) {
+  sd = sd || window.SD;
+  const changed = [];
+  for (const deck of Object.values((sd && sd.decks) || {})) {
+    if ((deck.mode || 'free') !== 'training') continue;
+    const vocab = deck.vocab || [];
+    if (vocab.length <= UV_TRAIN_SIZE) continue;
+    const score = new Map(uvTrainWords(deck).map((w) => [w.en, w.score]));
+    const keep = new Set([...vocab]
+      .sort((a, b) => (score.get(b.en) || 0) - (score.get(a.en) || 0))
+      .slice(0, UV_TRAIN_SIZE)
+      .map((v) => v.en));
+    deck.vocab = vocab.filter((v) => keep.has(v.en));   // Originalreihenfolge behalten
+    changed.push(deck.id);
+  }
+  return changed;
+}
+
 // ── Live-Fortschritt im Spiel (progressForCurrentMode in game.js) ────────────
 // Slot-Runde → genau das aktive Teil-Suffix. Fallback: ganze Waffe.
 export function uvProgress() {
