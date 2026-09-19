@@ -8,6 +8,7 @@ import { signIn, signUp, signOut, resendConfirmation, requestPasswordReset, upda
 import { cloudLoad, cloudReset, saveDeck, saveWordStats, saveExam, markDirty, flushPendingSync, setCloudConfirmed, getPendingCount, setKnownSig, cloudChangedRemotely, queuePresetStatDelete, deleteProbetest } from './sync.js';
 import { commitDirty } from './dialog.js';
 import { setGrundton, clearGrundton } from './screen-shell.js';
+import { iconHTML } from './pixel-icons.js';
 import { uvMap, uvLernstand, constellationWords, FORGE_DISC, SLOTS_PER_FORM, uvTrainProgress, uvTrainForms, uvTrainWords, uvPruneOrphanSlotStats } from './irregular-game.js';
 import { renderAvatarInto, renderCharacter, commitAvatar, resetCharacterFeature, setCharacterCompanion, setCharacterGear } from './avatar.js';
 import { IRREGULAR_PRESET_ID, uvAvailableVerbs, CONSTELLATION_SIZE, cefrOf, forgeObject, FORGE_OBJECTS, usedForgeObjects, fillObjectType, getConstellations, allVerbsSorted, verbsByEns, UV_TRAIN_SUF } from './irregular-verbs.js';
@@ -31,6 +32,9 @@ let _loginInFlight = false;
 // ────────────────────────────────────────────────
 // Grundton je Screen — die Spezifikation erlaubt genau einen pro Screen.
 // Was hier nicht steht, laeuft noch im alten Design und bekommt clearGrundton().
+// Das Hauptmenue hat keinen festen Ton — er folgt dem aktiven Tab.
+const MENU_TON = { campaign: 'amber', free: 'mint', student: 'lila' };
+
 const P_TON = {
   'loading-screen': 'lila',
   'auth-screen': 'lila',
@@ -60,7 +64,10 @@ export function showScreen(id) {
   const el = document.getElementById(id);
   // Grundton setzen, bevor der Screen sichtbar wird — sonst blitzt die alte
   // Flaeche auf. Faerbt auch die Statusleiste (theme-color) mit.
-  if (P_TON[id]) setGrundton(P_TON[id], el); else clearGrundton();
+  const ton = id === 'menu-screen'
+    ? (MENU_TON[window.SD?.activeMode || 'free'] || 'mint')
+    : P_TON[id];
+  if (ton) setGrundton(ton, el); else clearGrundton();
   // Immer 'flex': die .screen-Karten (Auth, Passwort-Reset, End-Screen …) zentrieren
   // ihre Kinder per flex-Column; ein Inline-'block' hebelte das aus (Emoji-Kreis,
   // Buttons und Trenner hingen linksbündig).
@@ -308,15 +315,13 @@ export function skipApiKey() {
 // ────────────────────────────────────────────────
 
 function _renderModeToggle(mode) {
-  // Dark-Variante des Haupt-Switches spiegelt den Schnell-Zustand des ANGEZEIGTEN
-  // Modus. Optik liegt komplett im CSS (.mode-toggle/.mode-btn + .dark/.active).
-  const dark = !!(window.schnellByMode && window.schnellByMode[mode]);
-  const toggle = document.getElementById('mode-toggle');
-  if (toggle) toggle.classList.toggle('dark', dark);
   ['free', 'student', 'campaign'].forEach(m => {
     const btn = document.getElementById('mode-btn-' + m);
-    if (btn) btn.classList.toggle('active', m === mode);
+    if (btn) btn.classList.toggle('is-aktiv', m === mode);
   });
+  // Der Grundton des ganzen Screens folgt dem aktiven Tab — Kampagne Amber,
+  // Vokabeln Mint, Formen Flieder. Der aktive Tab erbt ihn ueber --p-ton.
+  setGrundton(MENU_TON[mode] || 'mint', document.getElementById('menu-screen'));
 }
 
 export function renderModeContent(mode) {
@@ -852,19 +857,22 @@ export function toggleProbetestHistory() {
 function _probetestEntryHtml(t, idx) {
   const names = (t.decks || []).map(d => window.escHtml(d.name || '')).join(' + ') || '—';
   const dateStr = new Date(t.date || Date.now()).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  const gradeColor = t.grade <= 2 ? '#2a7a35' : (t.grade <= 4 ? '#cc8800' : '#c0392b');
+  // Note faerbt den Chip: 1-2 mint, 3-4 amber, ab 5 rosa.
+  const notenChip = t.grade <= 2 ? 'p-chip--aktiv' : (t.grade <= 4 ? 'p-chip--gold' : '');
+  const notenStil = t.grade > 4 ? ' style="background:var(--p-falsch)"' : '';
   const delBtn = idx == null ? '' :
     '<button onclick="deleteProbetestEntry(' + idx + ')" title="Diesen Test löschen" '
-    + 'style="border:none;background:#fff0f0;color:#c0392b;border-radius:10px;width:30px;height:30px;font-size:.9rem;cursor:pointer;flex-shrink:0;">🗑️</button>';
-  return '<div style="background:#fff;border-radius:14px;padding:12px 14px;margin-bottom:8px;box-shadow:var(--shadow);">'
-    + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">'
-    + '<span style="flex:1;min-width:0;font-family:\'Fredoka One\',cursive;font-size:.95rem;color:#444;">' + names + '</span>'
-    + '<span style="font-family:\'Fredoka One\',cursive;font-size:1.1rem;color:' + gradeColor + ';white-space:nowrap;">Note ' + t.grade + '</span>'
+    + 'class="p-slot" style="background:var(--p-falsch);cursor:pointer;width:30px;height:30px;">'
+    + iconHTML('trash', 14) + '</button>';
+  return '<div class="p-karte" style="margin-top:9px;padding:11px 13px">'
+    + '<div class="p-reihe" style="gap:9px">'
+    + '<span class="p-wachs" style="font:900 13px var(--p-font)">' + names + '</span>'
+    + '<span class="p-chip ' + notenChip + '"' + notenStil + '>Note ' + t.grade + '</span>'
     + delBtn + '</div>'
-    + '<div style="display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.78rem;color:#777;font-weight:700;">'
-    + '<span>📊 ' + t.percent + '%</span>'
-    + '<span>✅ ' + t.correct + '/' + t.questions + ' richtig</span>'
-    + '<span>📅 ' + dateStr + '</span></div></div>';
+    + '<div style="display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:6px;font:700 10px var(--p-font);color:var(--p-text-2)">'
+    + '<span>' + t.percent + '%</span>'
+    + '<span>' + t.correct + '/' + t.questions + ' richtig</span>'
+    + '<span>' + dateStr + '</span></div></div>';
 }
 
 // 🗑️ am Verlaufseintrag: erst Gegenfrage, dann lokal + Cloud löschen.
@@ -904,22 +912,22 @@ export function renderProbetestSection() {
   const sub = hist.length
     ? hist.length + ' Test' + (hist.length === 1 ? '' : 's') + ' · zum Aufklappen tippen'
     : 'Gemischte Prüfung aus bis zu 2 Sammlungen';
-  // Gleiche Karten-Sprache wie die Deck-Karten (weiß, weicher Schatten, Chevron).
-  // Toggle liegt NUR auf dem Kopf — Klicks im aufgeklappten Bereich (Start-Button,
-  // Verlauf) dürfen die Karte nicht wieder zuklappen.
+  // Zeilenkarte mit Symbolkachel links, wie im Entwurf. Das Auf- und Zuklappen
+  // haengt NUR am Kopf — Klicks im offenen Bereich (Start, Verlauf) duerfen die
+  // Karte nicht wieder schliessen.
   let html =
-    '<div class="deck-card' + (open ? ' expanded' : '') + '">'
-    + '<div class="deck-header" onclick="toggleProbetestHistory()" style="cursor:pointer;">'
-    + '<div style="width:44px;height:44px;border-radius:14px;background:linear-gradient(135deg,#e8f8eb,#d2f2d8);display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">🎲</div>'
-    + '<div class="deck-info"><div class="deck-name">Probetest</div>'
-    + '<div class="deck-meta"><span>' + sub + '</span></div></div>'
-    + '<div class="deck-chevron"' + (open ? ' style="transform:rotate(180deg);"' : '') + '>▼</div>'
+    '<div class="p-zeilenkarte' + (open ? ' is-offen' : '') + '">'
+    + '<div class="p-zeilenkarte-kopf" onclick="toggleProbetestHistory()" style="cursor:pointer;">'
+    + '<div class="p-symbolkachel p-ton-lila">' + iconHTML('test', 28) + '</div>'
+    + '<div class="p-wachs"><div class="p-zeilentitel">Probetest</div>'
+    + '<div class="p-zeilensub">' + sub + '</div></div>'
+    + '<div class="p-chevron">' + iconHTML(open ? 'chevronUp' : 'chevron', 14) + '</div>'
     + '</div>';
   if (open) {
-    html += '<div style="padding:0 14px 14px;">'
-      + '<button onclick="openProbetestPicker()" class="big-btn green center" style="width:100%;margin-bottom:12px;"><span class="icon-btn">➕</span><span>Neuen Probetest starten</span></button>';
+    html += '<div class="p-karte-trenner">'
+      + '<button onclick="openProbetestPicker()" class="p-btn p-btn--akzent" style="height:46px;font-size:13px">Neuen Probetest starten</button>';
     if (!hist.length) {
-      html += '<div style="text-align:center;color:#8a83a5;font-size:.82rem;padding:6px 0 2px;font-weight:700;">Noch keine Tests durchgeführt.</div>';
+      html += '<div class="p-zeilensub" style="text-align:center;padding:10px 0 2px;">Noch keine Tests durchgeführt.</div>';
     } else {
       html += hist.map((t, i) => _probetestEntryHtml(t, i)).join('');
     }

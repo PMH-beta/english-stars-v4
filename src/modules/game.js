@@ -445,8 +445,9 @@ function _persistSchnellBackup(){
 function _setSchnellBtn(id, on){
   const btn=document.getElementById(id);
   if(!btn) return;
-  btn.textContent = on ? '⚡ Schnell: AN' : '⚡ Schnell: AUS';
-  btn.classList.add('schnell-btn');           // Optik in style.css
+  // Chip im Pastell-Design: eingeschaltet golden, ausgeschaltet cremefarben.
+  btn.textContent = on ? 'Schnell: An' : 'Schnell: Aus';
+  btn.classList.toggle('p-chip--gold', on);
   btn.classList.toggle('on', on);
 }
 

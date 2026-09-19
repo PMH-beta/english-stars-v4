@@ -2,6 +2,7 @@
 import { effectivePct, statKeyFor } from './stats.js';
 import { markDirty, deleteCloudDeck, deleteCloudWordStats, deleteCloudPresetStats, saveDeck } from './sync.js';
 import { commitDirty } from './dialog.js';
+import { iconHTML } from './pixel-icons.js';
 
 // ────────────────────────────────────────────────
 //  UI STATE
@@ -170,6 +171,25 @@ export function presetProgressPct(deck, presetId) {
   return Math.min(100, Math.round((totalScore / 3 / words.length) * 100));
 }
 
+// Modus-Zeile der aufgeklappten Sammlung: Name, Prozent, Balken und darunter
+// „x/y gemeistert" mit dem Taler-Chip. Der Chip wechselt bei 100 % von
+// grau-gestrichelt auf gold-durchgezogen — das ist der sichtbare Lohn.
+function _modusZeile(name, mod, klasse, onclick) {
+  const total = mod.total || 0;
+  const pct = total > 0 ? Math.min(100, Math.round((mod.score / total) * 100)) : 0;
+  const verdient = total > 0 && mod.mastered === total;
+  const chip = verdient
+    ? `<span class="p-chip p-chip--gold p-chip--icon" style="flex:none">${iconHTML('coin', 14)}+1 Taler</span>`
+    : `<span class="p-chip p-chip--unverdient p-chip--icon" style="flex:none">${iconHTML('coinOff', 14)}+1 Taler</span>`;
+  return `<button class="p-moduszeile p-moduszeile--${klasse}" onclick="${onclick}">
+    <span class="p-moduszeile-kopf">
+      <span class="p-moduszeile-name">${name}</span><span class="p-moduszeile-pct">${pct}%</span>
+    </span>
+    <span class="p-balken p-balken--modus" style="display:block"><i style="width:${pct}%"></i></span>
+    <span class="p-taler-zeile"><span>${mod.mastered}/${total} gemeistert</span>${chip}</span>
+  </button>`;
+}
+
 export function renderModeSubBy(p) {
   const total = p.total || 0;
   const pct = total > 0 ? Math.min(100, Math.round((p.score / total) * 100)) : 0;
@@ -186,22 +206,22 @@ export function renderModeSubBy(p) {
 // Vorlage auswählen oder eigene Sammlung anlegen. Startet direkt den jeweiligen Weg.
 function _renderEmptyChooser(c) {
   const wrap = document.createElement('div');
-  wrap.style.cssText = 'display:flex;flex-direction:column;gap:16px;width:100%;padding:18px 0 8px;';
+  wrap.className = 'p-leerwahl';
   wrap.innerHTML = `
-    <div style="text-align:center;font-family:'Fredoka One',cursive;font-size:1.25rem;color:var(--purple);margin-bottom:4px;">Womit möchtest du starten?</div>
-    <button id="empty-preset" style="display:flex;align-items:center;gap:16px;padding:26px 20px;border:none;border-radius:20px;cursor:pointer;background:linear-gradient(135deg,#a86cdb,#c084fc);color:#fff;text-align:left;font-family:'Nunito',sans-serif;width:100%;box-shadow:0 6px 0 #7a4ba8;">
-      <span style="font-size:2.8rem;flex-shrink:0;">📦</span>
-      <div>
-        <div style="font-family:'Fredoka One',cursive;font-size:1.25rem;">Vorlage auswählen</div>
-        <div style="font-size:.85rem;opacity:.92;margin-top:3px;">Fertige Wortgruppen nehmen und sofort starten</div>
-      </div>
+    <div style="text-align:center;font:900 19px var(--p-font);margin-top:6px;">Womit möchtest du starten?</div>
+    <button id="empty-preset" class="p-leerwahl-karte">
+      <span class="p-symbolkachel p-ton-pfirsich">${iconHTML('book', 28)}</span>
+      <span class="p-wachs">
+        <span class="p-zeilentitel" style="display:block">Vorlage auswählen</span>
+        <span class="p-zeilensub" style="display:block;margin-top:2px">Fertige Wortgruppen nehmen und sofort starten</span>
+      </span>
     </button>
-    <button id="empty-custom" style="display:flex;align-items:center;gap:16px;padding:26px 20px;border:none;border-radius:20px;cursor:pointer;background:linear-gradient(135deg,#4D96FF,#7ab4ff);color:#fff;text-align:left;font-family:'Nunito',sans-serif;width:100%;box-shadow:0 6px 0 #2c6fd0;">
-      <span style="font-size:2.8rem;flex-shrink:0;">✏️</span>
-      <div>
-        <div style="font-family:'Fredoka One',cursive;font-size:1.25rem;">Eigene Sammlung anlegen</div>
-        <div style="font-size:.85rem;opacity:.92;margin-top:3px;">Wörter selbst eingeben, einfügen oder scannen</div>
-      </div>
+    <button id="empty-custom" class="p-leerwahl-karte">
+      <span class="p-symbolkachel p-ton-blau">${iconHTML('pencil', 28)}</span>
+      <span class="p-wachs">
+        <span class="p-zeilentitel" style="display:block">Eigene Sammlung anlegen</span>
+        <span class="p-zeilensub" style="display:block;margin-top:2px">Wörter selbst eingeben, einfügen oder scannen</span>
+      </span>
     </button>
   `;
   c.appendChild(wrap);
@@ -228,9 +248,8 @@ export function renderDecks(mode) {
 
   // «+ Neue Sammlung» — immer erstes Element, nicht verschiebbar
   const newBtn = document.createElement('button');
-  newBtn.className = 'big-btn purple center';
-  newBtn.style.cssText = 'margin-bottom:14px;font-size:.95rem;';
-  newBtn.innerHTML = '<span class="icon-btn">➕</span><span>Neue Vokabelsammlung anlegen</span>';
+  newBtn.className = 'p-neu';
+  newBtn.textContent = '+ Neue Vokabelsammlung';
   newBtn.addEventListener('click', () => window.newDeckFlow(mode));
   c.appendChild(newBtn);
 
@@ -245,50 +264,42 @@ export function renderDecks(mode) {
     const dt = new Date(deck.createdAt);
     const dateStr = dt.toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit', year: 'numeric'});
     const card = document.createElement('div');
-    const typeClass = deck.deckPath === 'preset' ? 'deck-type-preset' : 'deck-type-custom';
-    card.className = 'deck-card ' + typeClass + (isExpanded ? ' expanded' : '') + (isActive ? ' active' : '');
+    card.className = 'p-sammlung' + (isExpanded ? ' is-offen' : '') + (isActive ? ' is-aktiv' : '');
     card.dataset.deckId = id;
+    const artChip = deck.deckPath === 'preset'
+      ? '<span class="p-chip p-chip--vorlage">Vorlage</span>'
+      : deck.deckPath === 'custom' ? '<span class="p-chip p-chip--eigene">Eigene</span>' : '';
+    const talerChip = talerEarned === 3
+      ? `<span class="p-chip p-chip--gold p-chip--icon">${iconHTML('coin', 14)}3/3 Taler</span>`
+      : `<span class="p-chip p-chip--unverdient p-chip--icon">${iconHTML('coinOff', 14)}${talerEarned}/3 Taler</span>`;
     card.innerHTML = `
-      <div class="deck-header">
-        <div class="deck-icon">${deck.deckPath === 'preset' ? '📦' : '📚'}</div>
-        <div class="deck-info">
-          <div class="deck-name">${window.escHtml(deck.name)}</div>
-          <div class="deck-meta">
-            <span>📅 ${dateStr}</span>
-            <span>📝 ${deck.vocab.length} Wörter</span>
-            ${deck.deckPath === 'preset' ? '<span style="font-size:.70rem;font-weight:700;background:rgba(168,108,219,.12);color:#8a4dcc;padding:2px 7px;border-radius:20px;">📦 Vorlage</span>' : deck.deckPath === 'custom' ? '<span style="font-size:.70rem;font-weight:700;background:rgba(77,150,255,.12);color:#2c7aec;padding:2px 7px;border-radius:20px;">✏️ Eigene</span>' : ''}
-            <span title="Freigespielte Taler (MC / Rechtschreibung / Aussprache je 100 %)" style="font-size:.70rem;font-weight:800;background:rgba(201,151,0,.14);color:#a67c00;padding:2px 7px;border-radius:20px;">🪙 ${talerEarned}/3</span>
-          </div>
-          <div class="deck-progress-mini"><div class="deck-progress-mini-fill" style="width:${p.overallPct}%"></div></div>
+      <div class="p-sammlung-kopf">
+        <div class="p-wachs">
+          <div class="p-sammlung-name">${window.escHtml(deck.name)}</div>
+          <div class="p-sammlung-meta">${dateStr} · ${deck.vocab.length} Wörter</div>
+          <div class="p-sammlung-chips">${artChip}${talerChip}</div>
         </div>
-        <div class="deck-pct">${p.overallPct}%</div>
-        <div class="deck-chevron">▼</div>
-      </div>
-      <div class="deck-body">
-        <div class="mode-buttons">
-          <button class="big-btn blue" onclick="startGameWithDeck('${id}','vocab')">
-            <span class="icon-btn">🔤</span>
-            <div><span>Vokabeln</span><span class="btn-sub">${renderModeSubBy(p.perMode.vocab)}</span></div>
-          </button>
-          <button class="big-btn purple" onclick="startGameWithDeck('${id}','spelling')">
-            <span class="icon-btn">✏️</span>
-            <div><span>Rechtschreibung</span><span class="btn-sub">${renderModeSubBy(p.perMode.spelling)}</span></div>
-          </button>
-          <button class="big-btn pink" onclick="startGameWithDeck('${id}','pronounce')">
-            <span class="icon-btn">🎙️</span>
-            <div><span>Aussprache</span><span class="btn-sub">${renderModeSubBy(p.perMode.pronounce)}</span></div>
-          </button>
-          ${deck.deckPath !== 'preset' ? `<button class="big-btn teal" onclick="openVocabManager('${id}')">
-            <span class="icon-btn">📷</span>
-            <div><span>Vokabeln verwalten</span><span class="btn-sub">Hinzufügen, scannen, löschen</span></div>
-          </button>` : ''}
-        </div>
-        <div class="deck-actions">
-          <button class="deck-action-btn" onclick="${deck.deckPath === 'preset' ? `openPresetDeckStats('${id}')` : `openDeckStats('${id}')`}">📊 Statistik</button>
-          <button class="deck-action-btn" onclick="resetDeckProgress('${id}')">🔄 Zurücksetzen</button>
-          <button class="deck-action-btn danger" onclick="confirmDeleteDeck('${id}')">🗑️ Löschen</button>
+        <div class="p-sammlung-rechts">
+          <div class="p-sammlung-pct">${p.overallPct}%</div>
+          <div class="p-chevron">${iconHTML('chevron', 14)}${iconHTML('chevronUpLight', 14)}</div>
         </div>
       </div>
+      <div class="p-balken" style="margin-top:11px"><i style="width:${p.overallPct}%"></i></div>
+      ${isExpanded ? `
+      <div class="p-modi">
+        ${_modusZeile('Vokabeln', p.perMode.vocab, 'vokabeln', `startGameWithDeck('${id}','vocab')`)}
+        ${_modusZeile('Rechtschreibung', p.perMode.spelling, 'rechtschreibung', `startGameWithDeck('${id}','spelling')`)}
+        ${_modusZeile('Aussprache', p.perMode.pronounce, 'aussprache', `startGameWithDeck('${id}','pronounce')`)}
+        ${deck.deckPath !== 'preset' ? `<button class="p-moduszeile p-moduszeile--verwalten" onclick="openVocabManager('${id}')">
+          <span class="p-moduszeile-name" style="display:block">Vokabeln verwalten</span>
+          <span class="p-zeilensub" style="display:block;font-size:10px;margin-top:1px">Hinzufügen, scannen, löschen</span>
+        </button>` : ''}
+      </div>
+      <div class="p-aktionen">
+        <button class="p-aktion" onclick="${deck.deckPath === 'preset' ? `openPresetDeckStats('${id}')` : `openDeckStats('${id}')`}">Statistik</button>
+        <button class="p-aktion" onclick="resetDeckProgress('${id}')">Zurücksetzen</button>
+        <button class="p-aktion p-aktion--gefahr" onclick="confirmDeleteDeck('${id}')">Löschen</button>
+      </div>` : ''}
     `;
     _attachCardListeners(card, id);
     c.appendChild(card);
@@ -341,7 +352,7 @@ function _handleTap(deckId) {
 }
 
 function _attachCardListeners(cardEl, deckId) {
-  const header = cardEl.querySelector('.deck-header');
+  const header = cardEl.querySelector('.p-sammlung-kopf');
   if (!header) return;
   let longPressTimer = null, startY = 0, startX = 0, tapBlocked = false;
 
@@ -389,18 +400,19 @@ function _initDrag(cardEl, deckId, clientY) {
 
   if (_expandedDeckId) {
     _expandedDeckId = null;
-    document.querySelectorAll('.deck-card.expanded').forEach(el => el.classList.remove('expanded'));
+    document.querySelectorAll('.p-sammlung.is-offen').forEach(el => el.classList.remove('is-offen'));
   }
   // Post-Collapse-Rect für Breite/Links (Höhe kann sich geändert haben)
   const rect = cardEl.getBoundingClientRect();
   const ph = document.createElement('div');
-  ph.style.cssText = `height:${rect.height}px;margin-bottom:10px;border-radius:18px;border:2px dashed var(--purple,#9b4dca);background:rgba(155,77,202,.06);box-sizing:border-box;`;
+  ph.style.cssText = `height:${rect.height}px;margin-top:11px;box-sizing:border-box;`;
+  ph.className = 'p-ablage';
   cardEl.after(ph);
   Object.assign(cardEl.style, {
     position: 'fixed', top: preTop + 'px', left: rect.left + 'px',
     width: rect.width + 'px', zIndex: '1000', margin: '0',
-    boxShadow: '0 16px 48px rgba(0,0,0,.25)',
-    transform: 'scale(1.02)', transition: 'none', pointerEvents: 'none',
+    boxShadow: '6px 8px 0 rgba(31,31,36,.28)',
+    transform: 'rotate(-1.4deg)', transition: 'none', pointerEvents: 'none',
   });
   _dragState = { deckId, el: cardEl, ph, offsetY };
   document.body.style.userSelect = 'none';
@@ -412,7 +424,7 @@ function _moveDrag(clientY) {
   const { el, ph, offsetY } = _dragState;
   el.style.top = (clientY - offsetY) + 'px';
   const container = document.getElementById(_activeDecksContainerId());
-  const cards = [...container.querySelectorAll('.deck-card')].filter(c => c !== el);
+  const cards = [...container.querySelectorAll('.p-sammlung')].filter(c => c !== el);
   let insertBefore = null;
   for (const c of cards) {
     const r = c.getBoundingClientRect();
@@ -430,7 +442,7 @@ function _endDrag() {
   ph.remove();
   el.removeAttribute('style');
   const container = document.getElementById(_activeDecksContainerId());
-  const newOrder = [...container.querySelectorAll('.deck-card')].map(c => c.dataset.deckId).filter(Boolean);
+  const newOrder = [...container.querySelectorAll('.p-sammlung')].map(c => c.dataset.deckId).filter(Boolean);
   newOrder.forEach((id, i) => { if (window.SD.decks[id]) window.SD.decks[id].sortOrder = (i + 1) * 10; });
   document.body.style.userSelect = '';
   document.body.style.webkitUserSelect = '';

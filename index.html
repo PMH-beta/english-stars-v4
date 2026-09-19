@@ -183,58 +183,62 @@
 </div>
 
 <!-- ═══ MAIN MENU ═══ -->
-<div id="menu-screen" style="display:none;width:100%;max-width:580px;flex-direction:column;align-items:center;padding-bottom:90px;">
-  <h1>⭐ English Stars</h1>
-  <div class="subtitle">Deutsch → Englisch Lernspiel</div>
-  <div class="player-banner" onclick="showProfile()" style="cursor:pointer;">
-    <div style="position:relative;flex-shrink:0;">
-      <div id="menu-avatar" style="width:46px;height:46px;"></div>
-      <div id="friend-badge" style="display:none;position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;padding:0 4px;box-sizing:border-box;background:#e03131;color:#fff;border-radius:10px;font-family:'Fredoka One',cursive;font-size:.66rem;line-height:18px;text-align:center;box-shadow:0 0 0 2px #fff;"></div>
+<div id="menu-screen" class="p-screen p-ton-mint" style="display:none">
+  <div class="p-kopf">
+    <!-- Spielerbanner: Avatar, Name, Kronen und Taler, rechts der Weg zum Fortschritt -->
+    <div class="p-karte p-banner" onclick="showProfile()" style="cursor:pointer">
+      <div class="p-banner-links">
+        <div style="position:relative;flex:none">
+          <div class="p-avatar" id="menu-avatar"></div>
+          <div id="friend-badge" style="display:none;position:absolute;top:-6px;right:-6px;min-width:20px;height:20px;padding:0 4px;box-sizing:border-box;background:var(--p-falsch);color:var(--p-ink);border:2px solid var(--p-ink);border-radius:10px;font:900 10px var(--p-font);line-height:16px;text-align:center"></div>
+        </div>
+        <div class="p-wachs">
+          <div class="p-banner-name" id="menu-player-name"></div>
+          <div class="p-banner-stats">
+            <span title="Besiegte Bosse"><canvas data-icon="crown" width="14" height="14" style="width:14px;height:14px;image-rendering:pixelated;flex:none"></canvas><span id="menu-bosses">0</span></span>
+            <span title="Taler"><canvas data-icon="coin" width="14" height="14" style="width:14px;height:14px;image-rendering:pixelated;flex:none"></canvas><span id="menu-taler">0</span></span>
+          </div>
+        </div>
+      </div>
+      <button class="p-chip" style="border-radius:14px;padding:8px 12px;font-size:11px" onclick="event.stopPropagation();showStats()">Fortschritt</button>
     </div>
-    <div style="flex:1;min-width:0;">
-      <div class="player-name" id="menu-player-name"></div>
-      <div class="player-stats">
-        <span class="pstat" title="Besiegte Bosse">👑 <span id="menu-bosses">0</span></span>
-        <span class="pstat">🪙 <span id="menu-taler">0</span></span>
+
+    <!-- Drei Tabs. Jeder traegt seinen eigenen Grundton; der aktive faerbt den
+         ganzen Screen (ui.js, _renderModeToggle). -->
+    <div id="mode-toggle" class="p-tabs" style="margin-top:14px">
+      <button id="mode-btn-campaign" class="p-tab p-ton-amber" onclick="setActiveMode('campaign')">Kampagne</button>
+      <button id="mode-btn-free" class="p-tab p-ton-mint is-aktiv" onclick="setActiveMode('free')">Vokabeln</button>
+      <button id="mode-btn-student" class="p-tab p-ton-lila" onclick="setActiveMode('student')">Formen</button>
+    </div>
+  </div>
+
+  <div class="p-blatt">
+    <!-- ─── Vokabeln ─── -->
+    <div id="mode-free">
+      <!-- Probetest: eigene, aufklappbare Sektion über den Sammlungen (Verlauf) -->
+      <div id="probetest-section"></div>
+      <div id="free-decks-header" class="p-sektionkopf">
+        <div class="p-kicker">Vokabelsammlungen</div>
+        <button id="schnell-toggle" class="p-chip" style="border-radius:12px;padding:5px 10px" onclick="toggleSchnell()">Schnell: Aus</button>
+      </div>
+      <!-- Liste der Decks (dynamisch) — «+ Neue Sammlung» wird von renderDecks() als erstes Element eingefügt -->
+      <div id="decks-container"></div>
+      <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
+    </div>
+
+    <!-- ─── Formen (Trainingsplatz + Schmiede) ─── -->
+    <div id="mode-student" style="display:none">
+      <!-- Trainingsplatz (freie Übungsdecks) — aufklappbar, über der Schmiede -->
+      <div id="uv-training-section"></div>
+      <!-- Die Schmiede (unregelmäßige Verben) — wird von renderStudentUV befüllt -->
+      <div id="student-uv" style="text-align:center;padding:40px 20px;">
+        <div style="font:900 19px var(--p-font)">Die Schmiede</div>
       </div>
     </div>
-    <button class="back-btn" style="margin:0" onclick="event.stopPropagation();showStats()">📊 Fortschritt</button>
+
+    <!-- ─── Kampagne (Karte) — befüllt von renderCampaign() ─── -->
+    <div id="mode-campaign" style="display:none"></div>
   </div>
-
-  <!-- Modus-Toggle (Optik in style.css: .mode-toggle/.mode-btn) -->
-  <div id="mode-toggle" class="mode-toggle">
-    <button id="mode-btn-campaign" class="mode-btn" onclick="setActiveMode('campaign')">🗺️ Kampagne</button>
-    <button id="mode-btn-free" class="mode-btn active" onclick="setActiveMode('free')">📚 Vokabeln</button>
-    <button id="mode-btn-student" class="mode-btn" onclick="setActiveMode('student')">⚒️ Unregelmäßige</button>
-  </div>
-
-  <!-- ─── Vokabeln ─── -->
-  <div id="mode-free">
-    <!-- Probetest: eigene, aufklappbare Sektion über den Sammlungen (Verlauf) -->
-    <div id="probetest-section" style="width:100%;margin-bottom:16px;"></div>
-    <div id="free-decks-header" style="display:flex;align-items:center;justify-content:space-between;width:100%;margin-bottom:8px;">
-      <div class="section-title" style="margin:0">📚 Vokabelsammlungen</div>
-      <button id="schnell-toggle" class="schnell-btn" onclick="toggleSchnell()">⚡ Schnell: AUS</button>
-    </div>
-    <!-- Liste der Decks (dynamisch) — «+ Neue Sammlung» wird von renderDecks() als erstes Element eingefügt -->
-    <div id="decks-container" style="width:100%;"></div>
-    <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
-  </div>
-
-  <!-- ─── Unregelmäßige (Die Schmiede) ─── -->
-  <div id="mode-student" style="display:none;width:100%;">
-    <!-- Trainingsplatz (freie Übungsdecks) — aufklappbar, über der Schmiede -->
-    <div id="uv-training-section" style="width:100%;"></div>
-    <!-- Die Schmiede (unregelmäßige Verben) — wird von renderStudentUV befüllt -->
-    <div id="student-uv" style="width:100%;text-align:center;padding:40px 20px;">
-      <div style="font-size:3.2rem;margin-bottom:12px;">⚒️</div>
-      <div style="font-family:'Fredoka One',cursive;font-size:1.3rem;color:var(--purple);margin-bottom:6px;">Die Schmiede</div>
-    </div>
-  </div>
-
-  <!-- ─── Kampagne (Karte) — befüllt von renderCampaign() ─── -->
-  <div id="mode-campaign" style="display:none;width:100%;"></div>
-
 </div>
 
 
@@ -468,7 +472,6 @@
   <button class="big-btn blue  center" onclick="showMenu()">🏠 Hauptmenü</button>
 </div>
 
-</div>
 <div class="confetti-wrap" id="confetti-wrap"></div>
 <!-- Globaler Musik-Button (sichtbar im Menü/Stats, im Spiel ist eigener Button in der Score-Bar) -->
 <button class="music-btn-global" id="music-btn-global" onclick="toggleMusic()" title="Musik an/aus">🎵</button>

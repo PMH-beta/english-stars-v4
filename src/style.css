@@ -2084,3 +2084,117 @@ body.p-app .music-vol-btn{
 /* Das Emblem gehoert nur zum Registrieren-Modus. Nicht inline verstecken —
    ein inline-style schlaegt jede Klassenregel und liesse es nie erscheinen. */
 #auth-emblem{ display:none; }
+
+/* ══ HAUPTMENÜ ═════════════════════════════════════════════════════════════
+   Der Grundton folgt dem aktiven Tab: Kampagne Amber, Vokabeln Mint, Formen
+   Flieder. _renderModeToggle() in ui.js setzt ihn, der aktive Tab erbt ihn. */
+
+/* Zeilenkarte mit Symbolkachel links — Probetest, Trainingsplatz. */
+.p-zeilenkarte{
+  border:var(--p-rahmen); border-radius:var(--p-r-karte); background:var(--p-karte); padding:13px;
+}
+.p-zeilenkarte-kopf{ display:flex; align-items:center; gap:11px; }
+.p-symbolkachel{
+  width:40px; height:40px; flex:none;
+  border:var(--p-rahmen); border-radius:var(--p-r-chip-gross); background:var(--p-ton,var(--p-lila));
+  display:flex; align-items:center; justify-content:center;
+}
+.p-zeilentitel{ font:900 14px var(--p-font); }
+.p-zeilensub{ font:700 11px var(--p-font); color:var(--p-text-2); }
+
+/* Sektionskopf: Kicker links, Chip rechts. */
+.p-sektionkopf{
+  display:flex; align-items:center; justify-content:space-between; gap:9px; margin-top:16px;
+}
+.p-sektionkopf .p-kicker{ border:0; padding:0; }
+
+/* „+ Neue Vokabelsammlung" — Akzentknopf über der Liste. */
+.p-neu{
+  margin-top:10px; height:50px;
+  border:var(--p-rahmen); border-radius:var(--p-r-btn); background:var(--p-violett);
+  display:flex; align-items:center; justify-content:center; gap:8px;
+  font:900 13px var(--p-font); color:var(--p-ink); width:100%; cursor:pointer;
+}
+
+/* ── Sammlungskarte ──────────────────────────────────────────────────────── */
+.p-sammlung{
+  border:var(--p-rahmen); border-radius:var(--p-r-dialog); background:var(--p-karte);
+  padding:14px 14px 15px; cursor:pointer;
+}
+.p-sammlung + .p-sammlung, .p-neu + .p-sammlung{ margin-top:11px; }
+.p-sammlung-kopf{ display:flex; align-items:flex-start; gap:10px; }
+.p-sammlung-name{ font:900 17px var(--p-font); }
+.p-sammlung-meta{ font:700 11px var(--p-font); color:var(--p-text-2); margin-top:2px; }
+.p-sammlung-chips{ display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }
+.p-sammlung-rechts{ flex:none; display:flex; align-items:center; gap:10px; }
+.p-sammlung-pct{ font:900 24px var(--p-font); }
+/* Der Chevron-Slot dreht sich beim Aufklappen um und wird zur Tintenfläche. */
+.p-chevron{
+  width:34px; height:34px; flex:none;
+  border:var(--p-rahmen); border-radius:var(--p-r-slot); background:var(--p-inaktiv);
+  display:flex; align-items:center; justify-content:center;
+}
+.p-sammlung.is-offen .p-chevron{ background:var(--p-ink); }
+/* Zu: Chevron nach unten. Offen: heller Chevron nach oben auf Tinte. */
+.p-chevron [data-icon="chevronUpLight"]{ display:none; }
+.p-sammlung.is-offen .p-chevron [data-icon="chevron"]{ display:none; }
+.p-sammlung.is-offen .p-chevron [data-icon="chevronUpLight"]{ display:block; }
+
+/* ── Modus-Zeilen im aufgeklappten Zustand ───────────────────────────────── */
+.p-modi{ display:flex; flex-direction:column; gap:9px; margin-top:12px; }
+.p-moduszeile{
+  border:var(--p-rahmen); border-radius:var(--p-r-btn); background:var(--p-karte);
+  padding:11px 13px; width:100%; text-align:left; cursor:pointer; font-family:var(--p-font);
+  color:var(--p-ink); display:block;
+}
+/* Jeder Modus hat seine Farbe — sie kehrt im Spielbildschirm wieder. */
+.p-moduszeile--vokabeln       { background:var(--p-info); }
+.p-moduszeile--rechtschreibung{ background:var(--p-violett); }
+.p-moduszeile--aussprache     { background:var(--p-rosa); }
+.p-moduszeile--verwalten      { background:var(--p-ok); }
+.p-moduszeile-kopf{ display:flex; justify-content:space-between; align-items:baseline; gap:9px; }
+.p-moduszeile-name{ font:900 14px var(--p-font); }
+.p-moduszeile-pct{ font:900 17px var(--p-font); }
+/* Auf der farbigen Fläche ist die Balkenspur hell, nicht sandfarben. */
+.p-moduszeile .p-balken{ height:11px; background:var(--p-karte); margin-top:9px; }
+.p-moduszeile .p-taler-zeile{ font-size:10px; color:var(--p-text-3); margin-top:8px; }
+
+/* Drei Aktionen am Fuß der offenen Karte. */
+.p-aktionen{ display:flex; gap:7px; margin-top:12px; }
+.p-aktion{
+  flex:1; height:40px;
+  border:var(--p-rahmen); border-radius:var(--p-r-chip-gross); background:var(--p-blatt);
+  display:flex; align-items:center; justify-content:center;
+  font:800 10px var(--p-font); color:var(--p-ink); cursor:pointer;
+}
+.p-aktion--gefahr{ background:var(--p-falsch); }
+
+/* ── Sortiermodus ────────────────────────────────────────────────────────── */
+/* Nach langem Halten: Griffe erscheinen links neben den Karten, die gehaltene
+   Karte hebt sich mit hartem Schatten und leichter Drehung ab. */
+.p-sortierzeile{ display:flex; align-items:center; gap:10px; }
+.p-sortierzeile > .p-sammlung{ flex:1; min-width:0; }
+.p-griff{ flex:none; display:flex; align-items:center; justify-content:center; padding:4px; }
+.p-sammlung.is-gehalten{
+  box-shadow:var(--p-schatten-angehoben); transform:rotate(-1.4deg);
+}
+/* Ablagefläche, auf der die gehaltene Karte landet. */
+.p-ablage{
+  border:var(--p-rahmen-leer); border-radius:var(--p-r-dialog); background:none;
+  min-height:76px; margin-top:11px;
+}
+
+/* ── Leerzustand ─────────────────────────────────────────────────────────── */
+.p-leerwahl{ display:flex; flex-direction:column; gap:12px; margin-top:14px; }
+.p-leerwahl-karte{
+  border:var(--p-rahmen); border-radius:var(--p-r-dialog); background:var(--p-karte);
+  padding:18px 16px; display:flex; align-items:center; gap:13px;
+  text-align:left; cursor:pointer; width:100%; font-family:var(--p-font); color:var(--p-ink);
+}
+
+/* Karte direkt nach der Ablageflaeche behaelt ihren Abstand (beim Sortieren). */
+.p-ablage + .p-sammlung{ margin-top:11px; }
+/* Chips, die als Knopf dienen (Fortschritt, Schnell). */
+button.p-chip{ cursor:pointer; }
+/* Der schwebende Musikknopf darf die letzte Karte nicht verdecken. */
+#menu-screen .p-blatt{ padding-bottom:calc(80px + env(safe-area-inset-bottom,0px)); }
