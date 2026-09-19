@@ -50,7 +50,7 @@ export function openVocabManager(deckId) {
   if (backArea) {
     backArea.innerHTML = window._draftDeck
       ? ''
-      : '<button class="back-btn sticky" onclick="vmBack()" style="margin-bottom:14px;">← Zurück</button>';
+      : '<button class="p-back" onclick="vmBack()"><canvas data-icon="back" width="14" height="14" style="width:28px;height:28px;image-rendering:pixelated;flex:none"></canvas></button>';
   }
   if (window.SD?.activeMode === 'free' && (!deck.deckPath || deck.deckPath === 'none')) {
     if (!window._draftDeck) _showPathChoiceDialog();
@@ -106,11 +106,11 @@ function _renderVmTabsForMode() {
   const row = document.createElement('div');
   row.className = 'vm-bottom-bar';
   const abortBtn = document.createElement('button');
-  abortBtn.className = 'back-btn';
+  abortBtn.className = 'p-dlg-btn p-dlg-btn--ab';
   abortBtn.textContent = '✕ Abbrechen';
   abortBtn.addEventListener('click', () => confirmAbortDraft());
   const confirmBtn = document.createElement('button');
-  confirmBtn.className = 'back-btn vm-confirm';
+  confirmBtn.className = 'p-dlg-btn vm-confirm';
   confirmBtn.id = 'vm-draft-confirm';
   confirmBtn.textContent = '✓ Bestätigen';
   confirmBtn.addEventListener('click', () => {
@@ -157,21 +157,21 @@ function _showPathChoiceDialog() {
     <div style="background:#fff;border-radius:20px;padding:26px 20px;max-width:360px;width:100%;box-shadow:0 8px 36px rgba(0,0,0,.2);">
       <div style="text-align:center;margin-bottom:18px;">
         <div style="font-size:2rem;margin-bottom:8px;">📚</div>
-        <div style="font-family:'Fredoka One',cursive;font-size:1.15rem;color:#2D2D2D;margin-bottom:5px;">Wie soll diese Sammlung aufgebaut werden?</div>
+        <div class="p-dlg-titel" style="font-size:17px;margin-bottom:5px">Wie soll diese Sammlung aufgebaut werden?</div>
         <p style="font-size:.78rem;color:#bbb;margin:0;line-height:1.5;">Einmalige Wahl — kann später nicht mehr geändert werden</p>
       </div>
       <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px;">
-        <button id="_path-preset" style="display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border:none;border-radius:14px;cursor:pointer;background:linear-gradient(135deg,#a86cdb,#c084fc);color:#fff;text-align:left;font-family:'Nunito',sans-serif;width:100%;">
+        <button id="_path-preset" class="p-leerwahl-karte p-ton-pfirsich" style="align-items:flex-start">
           <span style="font-size:1.5rem;flex-shrink:0;margin-top:1px;">📦</span>
           <div>
-            <div style="font-family:'Fredoka One',cursive;font-size:.98rem;">Vorlage nutzen</div>
+            <div class="p-zeilentitel">Vorlage nutzen</div>
             <div style="font-size:.75rem;opacity:.88;margin-top:2px;line-height:1.4;">Fertige Wortgruppen auswählen und sofort starten</div>
           </div>
         </button>
-        <button id="_path-custom" style="display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border:none;border-radius:14px;cursor:pointer;background:linear-gradient(135deg,#4D96FF,#7ab4ff);color:#fff;text-align:left;font-family:'Nunito',sans-serif;width:100%;">
+        <button id="_path-custom" class="p-leerwahl-karte p-ton-blau" style="align-items:flex-start">
           <span style="font-size:1.5rem;flex-shrink:0;margin-top:1px;">✏️</span>
           <div>
-            <div style="font-family:'Fredoka One',cursive;font-size:.98rem;">Selbst zusammenstellen</div>
+            <div class="p-zeilentitel">Selbst zusammenstellen</div>
             <div style="font-size:.75rem;opacity:.88;margin-top:2px;line-height:1.4;">Wörter manuell eingeben oder per Text einfügen</div>
           </div>
         </button>
@@ -222,7 +222,7 @@ function _wordTablesHtml(deck) {
       const st = wordStatus(s, 3);
       return `<tr><td>${window.escHtml(v.de)}</td><td>${window.escHtml(v.en)}</td><td><span class="ws-badge ${st.cls}">${st.label}</span></td><td>${wrongDots(s)}</td></tr>`;
     }).join('');
-    return `<h3 style="font-family:'Fredoka One',cursive;color:var(--purple);font-size:1rem;margin:16px 0 6px;">${title}</h3>
+    return `<h3 class="p-kicker" style="border:0;padding:0;margin:16px 0 8px">${title}</h3>
 <table class="word-table"><thead><tr><th>Deutsch</th><th>Englisch</th><th>Stand</th><th>Richtig/Falsch</th></tr></thead><tbody>${rows}</tbody></table>`;
   }
   return makeTable('_mc','🔤 Vokabeln') + makeTable('_sp','✏️ Rechtschreibung') + makeTable('_pr','🎙️ Aussprache');
@@ -249,7 +249,7 @@ export async function openPresetDeckStats(deckId) {
   const dn = document.getElementById('vm-deck-name');
   if (dn) dn.textContent = 'Statistik: ' + deck.name;
   const ba = document.getElementById('vm-back-area');
-  if (ba) ba.innerHTML = '<button class="back-btn sticky" onclick="vmBack()" style="margin-bottom:14px;">← Zurück</button>';
+  if (ba) ba.innerHTML = '<button class="p-back" onclick="vmBack()"><canvas data-icon="back" width="14" height="14" style="width:28px;height:28px;image-rendering:pixelated;flex:none"></canvas></button>';
   const tabsEl = document.querySelector('.vm-tabs');
   if (tabsEl) tabsEl.innerHTML = '';
   const aa = document.getElementById('vm-action-area');
@@ -276,12 +276,12 @@ export async function openPresetDeckStats(deckId) {
       const name = cat ? cat.name : 'Vorlage';
       const wordCount = deck.vocab.filter(v => v._presetId === pid).length;
       const pct = presetProgressPct(deck, pid);
-      return `<div class="preset-row" style="background:linear-gradient(to right,rgba(168,108,219,.15) ${pct}%,#fff ${pct}%);box-shadow:inset 0 0 0 2.5px #a86cdb;">
+      return `<div class="preset-row" style="background:linear-gradient(to right,var(--p-ok) ${pct}%,var(--p-karte) ${pct}%);">
         <div class="preset-info">
           <span class="preset-name">${window.escHtml(name)}</span>
           <span class="preset-count">${wordCount} Wörter</span>
         </div>
-        <span style="font-family:'Fredoka One',cursive;font-size:1rem;color:#7a3aac;flex-shrink:0;">${pct}%</span>
+        <span style="font:900 14px var(--p-font);color:var(--p-ink);flex:none">${pct}%</span>
       </div>`;
     }).join('') + '</div>';
   }
@@ -445,7 +445,7 @@ async function startScan(dataUrl, file) {
         <summary style="cursor:pointer;font-weight:700;color:var(--purple)">🔍 Erkannter Rohtext anzeigen</summary>
         <pre style="margin-top:6px;background:#f5f5f5;padding:8px;border-radius:8px;white-space:pre-wrap;font-size:.7rem;max-height:200px;overflow-y:auto">${(rawText || '').slice(0, 1500).replace(/&/g, '&amp;').replace(/</g, '&lt;')}</pre>
       </details>
-      <button onclick="_reviewItems=[];showReview()" style="margin-top:10px;font-family:'Fredoka One',cursive;font-size:.88rem;padding:8px 16px;background:var(--purple);color:white;border:none;border-radius:10px;cursor:pointer;">
+      <button onclick="_reviewItems=[];showReview()" class="p-chip" style="margin-top:10px;padding:9px 16px;background:var(--p-ink);color:var(--p-gold);border-radius:var(--p-r-chip);cursor:pointer;">
         ✏️ Wörter manuell eingeben
       </button>
     </div>`;
@@ -723,11 +723,11 @@ function _showPresetIntroModal(onDone) {
   overlay.innerHTML = `
     <div style="background:#fff;border-radius:20px;padding:28px 22px;max-width:340px;width:100%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.2);">
       <div style="font-size:2.5rem;margin-bottom:10px;">📦</div>
-      <div style="font-family:'Fredoka One',cursive;font-size:1.25rem;color:var(--purple);margin-bottom:12px;">Lernvorlagen</div>
+      <div class="p-dlg-titel" style="margin-bottom:12px">Lernvorlagen</div>
       <p style="font-size:.88rem;color:#555;line-height:1.6;margin:0 0 20px;">
         Für den Anfang empfehlen wir 1 Vorlage. Wer auffrischen will, kann 2 nehmen. Mehr als 2 gleichzeitig sind nicht möglich.
       </p>
-      <button id="_preset-intro-ok" style="font-family:'Fredoka One',cursive;font-size:1rem;padding:12px 32px;background:linear-gradient(135deg,var(--purple),var(--pink));color:#fff;border:none;border-radius:50px;cursor:pointer;box-shadow:0 4px 0 #7a4ba8;">Verstanden</button>
+      <button id="_preset-intro-ok" class="p-dlg-btn p-dlg-btn--ok">Verstanden</button>
     </div>
   `;
   document.body.appendChild(overlay);
@@ -794,7 +794,7 @@ export async function renderPresetsTab() {
     const barPct = isOn ? ownPct : (isClaimed ? _claimedBarPct(cat) : 0);
 
     let rowStyle = '';
-    if (barPct > 0) rowStyle = 'background:linear-gradient(to right,rgba(168,108,219,.15) ' + barPct + '%,#fff ' + barPct + '%);';
+    if (barPct > 0) rowStyle = 'background:linear-gradient(to right,var(--p-ok) ' + barPct + '%,var(--p-karte) ' + barPct + '%);';
     if (greyOut) rowStyle += 'opacity:.38;';
     else if (isOn) rowStyle += 'box-shadow:inset 0 0 0 2.5px #a86cdb;';
     if (isClickableCard) rowStyle += 'cursor:pointer;';
@@ -843,13 +843,13 @@ export function vmBack() {
   overlay.innerHTML = `
     <div style="background:#fff;border-radius:20px;padding:28px 22px;max-width:340px;width:100%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.2);">
       <div style="font-size:2.5rem;margin-bottom:10px;">🔒</div>
-      <div style="font-family:'Fredoka One',cursive;font-size:1.25rem;color:var(--purple);margin-bottom:12px;">Sammlung sperren?</div>
+      <div class="p-dlg-titel" style="margin-bottom:12px">Sammlung sperren?</div>
       <p style="font-size:.88rem;color:#555;line-height:1.6;margin:0 0 20px;">
         Mit „Bestätigen" werden die aktiven Vorlagen fest mit dieser Sammlung verbunden. Danach können keine Vorlagen mehr gewechselt werden.
       </p>
       <div style="display:flex;gap:10px;justify-content:center;">
-        <button id="_vmback-cancel" style="font-family:'Fredoka One',cursive;font-size:1rem;padding:12px 20px;background:#eee;color:#333;border:none;border-radius:50px;cursor:pointer;">Abbrechen</button>
-        <button id="_vmback-ok" style="font-family:'Fredoka One',cursive;font-size:1rem;padding:12px 20px;background:linear-gradient(135deg,var(--purple),var(--pink));color:#fff;border:none;border-radius:50px;cursor:pointer;box-shadow:0 4px 0 #7a4ba8;">Bestätigen</button>
+        <button id="_vmback-cancel" class="p-dlg-btn p-dlg-btn--ab">Abbrechen</button>
+        <button id="_vmback-ok" class="p-dlg-btn p-dlg-btn--ok">Bestätigen</button>
       </div>
     </div>
   `;
@@ -900,21 +900,21 @@ function _showNewDeckPathDialog() {
     <div style="background:#fff;border-radius:20px;padding:26px 20px;max-width:360px;width:100%;box-shadow:0 8px 36px rgba(0,0,0,.2);">
       <div style="text-align:center;margin-bottom:18px;">
         <div style="font-size:2rem;margin-bottom:8px;">📚</div>
-        <div style="font-family:'Fredoka One',cursive;font-size:1.15rem;color:#2D2D2D;margin-bottom:5px;">Wie soll diese Sammlung aufgebaut werden?</div>
+        <div class="p-dlg-titel" style="font-size:17px;margin-bottom:5px">Wie soll diese Sammlung aufgebaut werden?</div>
         <p style="font-size:.78rem;color:#bbb;margin:0;line-height:1.5;">Einmalige Wahl — kann später nicht mehr geändert werden</p>
       </div>
       <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px;">
-        <button id="_ndp-preset" style="display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border:none;border-radius:14px;cursor:pointer;background:linear-gradient(135deg,#a86cdb,#c084fc);color:#fff;text-align:left;font-family:'Nunito',sans-serif;width:100%;">
+        <button id="_ndp-preset" class="p-leerwahl-karte p-ton-pfirsich" style="align-items:flex-start">
           <span style="font-size:1.5rem;flex-shrink:0;margin-top:1px;">📦</span>
           <div>
-            <div style="font-family:'Fredoka One',cursive;font-size:.98rem;">Vorlage nutzen</div>
+            <div class="p-zeilentitel">Vorlage nutzen</div>
             <div style="font-size:.75rem;opacity:.88;margin-top:2px;line-height:1.4;">Fertige Wortgruppen auswählen und sofort starten</div>
           </div>
         </button>
-        <button id="_ndp-custom" style="display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border:none;border-radius:14px;cursor:pointer;background:linear-gradient(135deg,#4D96FF,#7ab4ff);color:#fff;text-align:left;font-family:'Nunito',sans-serif;width:100%;">
+        <button id="_ndp-custom" class="p-leerwahl-karte p-ton-blau" style="align-items:flex-start">
           <span style="font-size:1.5rem;flex-shrink:0;margin-top:1px;">✏️</span>
           <div>
-            <div style="font-family:'Fredoka One',cursive;font-size:.98rem;">Selbst zusammenstellen</div>
+            <div class="p-zeilentitel">Selbst zusammenstellen</div>
             <div style="font-size:.75rem;opacity:.88;margin-top:2px;line-height:1.4;">Wörter manuell eingeben oder per Text einfügen</div>
           </div>
         </button>
@@ -980,13 +980,13 @@ function _showDraftLockDialog(draft) {
   overlay.innerHTML = `
     <div style="background:#fff;border-radius:20px;padding:28px 22px;max-width:340px;width:100%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.2);">
       <div style="font-size:2.5rem;margin-bottom:10px;">🔒</div>
-      <div style="font-family:'Fredoka One',cursive;font-size:1.25rem;color:var(--purple);margin-bottom:12px;">Sammlung abschließen?</div>
+      <div class="p-dlg-titel" style="margin-bottom:12px">Sammlung abschließen?</div>
       <p style="font-size:.88rem;color:#555;line-height:1.6;margin:0 0 20px;">
         Die gewählten Vorlagen werden fest mit dieser neuen Sammlung verbunden. Danach können keine Vorlagen mehr gewechselt werden.
       </p>
       <div style="display:flex;gap:10px;justify-content:center;">
-        <button id="_dld-cancel" style="font-family:'Fredoka One',cursive;font-size:1rem;padding:12px 20px;background:#eee;color:#333;border:none;border-radius:50px;cursor:pointer;">Weiter wählen</button>
-        <button id="_dld-ok" style="font-family:'Fredoka One',cursive;font-size:1rem;padding:12px 20px;background:linear-gradient(135deg,var(--purple),var(--pink));color:#fff;border:none;border-radius:50px;cursor:pointer;box-shadow:0 4px 0 #7a4ba8;">Bestätigen</button>
+        <button id="_dld-cancel" class="p-dlg-btn p-dlg-btn--ab">Weiter wählen</button>
+        <button id="_dld-ok" class="p-dlg-btn p-dlg-btn--ok">Bestätigen</button>
       </div>
     </div>
   `;
@@ -1007,11 +1007,11 @@ function _showCustomNameDialog(draft) {
   overlay.innerHTML = `
     <div style="background:#fff;border-radius:20px;padding:28px 22px;max-width:340px;width:100%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.2);">
       <div style="font-size:2.5rem;margin-bottom:10px;">📝</div>
-      <div style="font-family:'Fredoka One',cursive;font-size:1.25rem;color:var(--purple);margin-bottom:12px;">Name der Sammlung</div>
+      <div class="p-dlg-titel" style="margin-bottom:12px">Name der Sammlung</div>
       <input id="_cnd-name" type="text" placeholder="z.B. Schule Klasse 3" style="width:100%;padding:12px 16px;border:2px solid #e0e0e0;border-radius:12px;font-family:'Nunito',sans-serif;font-size:1rem;box-sizing:border-box;margin-bottom:18px;" maxlength="50">
       <div style="display:flex;gap:10px;justify-content:center;">
-        <button id="_cnd-cancel" style="font-family:'Fredoka One',cursive;font-size:1rem;padding:12px 20px;background:#eee;color:#333;border:none;border-radius:50px;cursor:pointer;">Weiter bearbeiten</button>
-        <button id="_cnd-ok" style="font-family:'Fredoka One',cursive;font-size:1rem;padding:12px 20px;background:linear-gradient(135deg,var(--purple),var(--pink));color:#fff;border:none;border-radius:50px;cursor:pointer;box-shadow:0 4px 0 #7a4ba8;">Fertig</button>
+        <button id="_cnd-cancel" class="p-dlg-btn p-dlg-btn--ab">Weiter bearbeiten</button>
+        <button id="_cnd-ok" class="p-dlg-btn p-dlg-btn--ok">Fertig</button>
       </div>
     </div>
   `;

@@ -271,7 +271,10 @@ function _showExitToast() {
   if (!t) {
     t = document.createElement('div');
     t.id = '_es-exit-toast';
-    t.style.cssText = "position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:10000;background:rgba(0,0,0,.82);color:#fff;font-family:'Fredoka One',cursive;font-size:1.15rem;text-align:center;padding:16px 28px;border-radius:24px;box-shadow:0 8px 28px rgba(0,0,0,.35);pointer-events:none;opacity:0;transition:opacity .2s;";
+    t.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:10000;'
+      + 'border:2px solid var(--p-ink);border-radius:var(--p-r-dialog);background:var(--p-ink);'
+      + 'color:var(--p-gold);font:900 15px var(--p-font);text-align:center;padding:16px 26px;'
+      + 'pointer-events:none;opacity:0;transition:opacity .2s;';
     t.textContent = 'Zum Schließen erneut zurück';
     (document.body || document.documentElement).appendChild(t);
   }
@@ -400,7 +403,7 @@ function _trainingDecks() {
 const UV_TRACK_STYLE = {
   past: { icon: '⏱',  label: 'Nur Simple Past', color: '#3a6ea8', bg: 'rgba(58,110,168,.14)' },
   pp:   { icon: '✓',  label: 'Nur Participle',  color: '#a67c00', bg: 'rgba(202,160,74,.20)' },
-  both: { icon: '⏱✓', label: 'Beide Formen',    color: '#7a3aac', bg: 'linear-gradient(135deg,rgba(58,110,168,.14),rgba(202,160,74,.22))' },
+  both: { icon: '⏱✓', label: 'Beide Formen',    color: '#7a3aac', bg: 'var(--p-violett)' },
   open: { icon: '❓',  label: 'Formen wählen',   color: '#8a83a5', bg: '#efedf5' },
 };
 function _uvTrack(deck) {
@@ -471,7 +474,7 @@ function _trainDeckCardHtml(deck) {
   const ts = UV_TRACK_STYLE[_uvTrack(deck)];
   return `<div class="deck-card${open ? ' expanded' : ''}" style="border:1.5px solid ${ts.color}55;box-shadow:none;margin-bottom:10px;">
     <div class="deck-header" onclick="uvTrainToggleDeck('${id}')" style="cursor:pointer;">
-      <div style="width:44px;height:44px;border-radius:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:${ts.bg};color:${ts.color};font-family:'Fredoka One',cursive;font-size:${ts.icon.length > 1 ? '.95rem' : '1.3rem'};">${ts.icon}</div>
+      <div class="p-symbolkachel" style="background:${ts.bg};color:var(--p-ink);font:900 ${ts.icon.length > 1 ? '12' : '17'}px var(--p-font)">${ts.icon}</div>
       <div class="deck-info">
         <div class="deck-name">${window.escHtml(deck.name)}</div>
         <div class="deck-meta"><span>📝 ${(deck.vocab || []).length} Verben</span><span style="font-size:.70rem;font-weight:800;background:${ts.bg};color:${ts.color};padding:2px 7px;border-radius:20px;">${ts.icon} ${ts.label}</span><span title="Freigespielte Taler (Erkennen / Schmieden / Verzaubern je 100 %)" style="font-size:.70rem;font-weight:800;background:rgba(201,151,0,.14);color:#a67c00;padding:2px 7px;border-radius:20px;">🪙 ${talerEarned}/3</span></div>
@@ -483,14 +486,17 @@ function _trainDeckCardHtml(deck) {
     <div class="deck-body">
       ${formsChips}
       <div class="mode-buttons">
-        <button class="big-btn blue" onclick="startUvTraining('${id}','erkennen')">
-          <span class="icon-btn">🔍</span><div><span>Erkennen</span><span class="btn-sub">${renderModeSubBy(per[0])}</span></div>
+        <button class="p-moduszeile p-moduszeile--vokabeln" onclick="startUvTraining('${id}','erkennen')">
+          <span class="p-moduszeile-name">Erkennen</span>
+          <span class="p-zeilensub" style="display:block;font-size:10px">${renderModeSubBy(per[0])}</span>
         </button>
-        <button class="big-btn purple" onclick="startUvTraining('${id}','schmieden')">
-          <span class="icon-btn">🔨</span><div><span>Schmieden</span><span class="btn-sub">${renderModeSubBy(per[1])}</span></div>
+        <button class="p-moduszeile p-moduszeile--rechtschreibung" onclick="startUvTraining('${id}','schmieden')">
+          <span class="p-moduszeile-name">Schmieden</span>
+          <span class="p-zeilensub" style="display:block;font-size:10px">${renderModeSubBy(per[1])}</span>
         </button>
-        <button class="big-btn pink" onclick="startUvTraining('${id}','verzaubern')">
-          <span class="icon-btn">🪄</span><div><span>Verzaubern</span><span class="btn-sub">${renderModeSubBy(per[2])}</span></div>
+        <button class="p-moduszeile p-moduszeile--aussprache" onclick="startUvTraining('${id}','verzaubern')">
+          <span class="p-moduszeile-name">Verzaubern</span>
+          <span class="p-zeilensub" style="display:block;font-size:10px">${renderModeSubBy(per[2])}</span>
         </button>
       </div>
       <div class="deck-actions">
@@ -744,7 +750,7 @@ export function uvTrainOpenStats(id) {
   const dn = document.getElementById('vm-deck-name');
   if (dn) dn.textContent = 'Statistik: ' + deck.name;
   const ba = document.getElementById('vm-back-area');
-  if (ba) ba.innerHTML = '<button class="back-btn sticky" onclick="showMenu()" style="margin-bottom:14px;">← Zurück</button>';
+  if (ba) ba.innerHTML = '<button class="p-back" onclick="showMenu()"><canvas data-icon="back" width="14" height="14" style="width:28px;height:28px;image-rendering:pixelated;flex:none"></canvas></button>';
   const tabsEl = document.querySelector('.vm-tabs');
   if (tabsEl) tabsEl.innerHTML = '';
   const aa = document.getElementById('vm-action-area');
@@ -771,11 +777,11 @@ export function uvTrainOpenStats(id) {
   const pct = total ? Math.round(mastered / total * 100) : 0;
   const done = total > 0 && mastered === total;
   const tileBg = done
-    ? 'background:linear-gradient(to right,rgba(58,170,92,.18) 100%,#fff 100%);box-shadow:inset 0 0 0 2.5px #3aaa5c;'
-    : `background:linear-gradient(to right,rgba(168,108,219,.15) ${pct}%,#fff ${pct}%);box-shadow:inset 0 0 0 2.5px #a86cdb;`;
+    ? 'background:var(--p-ok);border-color:var(--p-ink);'
+    : `background:linear-gradient(to right,var(--p-ok) ${pct}%,var(--p-karte) ${pct}%);border-color:var(--p-ink);`;
   const tileRight = done
     ? '<span style="font-size:.72rem;font-weight:700;color:#2a8a4a;background:rgba(58,170,92,.15);padding:3px 9px;border-radius:20px;white-space:nowrap;flex-shrink:0;">✓ erledigt</span>'
-    : `<span style="font-family:'Fredoka One',cursive;font-size:1rem;color:#7a3aac;flex-shrink:0;">${pct}%</span>`;
+    : `<span style="font:900 14px var(--p-font);color:var(--p-ink);flex:none">${pct}%</span>`;
   const tileHtml = `<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:6px;">
     <div class="preset-row" style="${tileBg}">
       <div class="preset-info">
@@ -813,7 +819,7 @@ export function uvTrainOpenStats(id) {
       }
       return `<tr><td>${window.escHtml(v.de)}</td><td>${window.escHtml(v.en)}</td>${cells}</tr>`;
     }).join('');
-    return `<h3 style="font-family:'Fredoka One',cursive;color:var(--purple);font-size:1rem;margin:16px 0 6px;">${d.icon} ${d.name}</h3>
+    return `<h3 class="p-kicker" style="border:0;padding:0;margin:16px 0 8px">${d.icon} ${d.name}</h3>
 <table class="word-table"><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table>`;
   };
   pane.innerHTML = verbs.length
@@ -961,15 +967,16 @@ export function openProbetestPicker() {
   const card = document.createElement('div');
   card.style.cssText = "background:#fff;border-radius:20px;padding:24px 20px;max-width:360px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,.2);max-height:85vh;display:flex;flex-direction:column;";
   card.innerHTML =
-    '<div style="font-size:2.2rem;text-align:center;margin-bottom:4px;">🎲</div>'
-    + '<div style="font-family:\'Fredoka One\',cursive;font-size:1.2rem;color:var(--purple);text-align:center;margin-bottom:6px;">Probetest</div>'
-    + '<p style="font-size:.85rem;color:#777;text-align:center;margin:0 0 14px;line-height:1.5;">Bis zu 2 Sammlungen wählen — gemischte Prüfung, ohne Speichern.</p>';
+    '<div class="p-dlg-emblem p-ton-lila">' + iconHTML('test', 28) + '</div>'
+    + '<div class="p-dlg-titel">Probetest</div>'
+    + '<p class="p-lead">Bis zu 2 Sammlungen wählen — gemischte Prüfung, ohne Speichern.</p>';
   const list = document.createElement('div');
   list.style.cssText = 'overflow-y:auto;display:flex;flex-direction:column;gap:8px;margin-bottom:16px;';
   const selected = new Set();
 
   const startBtn = document.createElement('button');
-  startBtn.style.cssText = "font-family:'Fredoka One',cursive;font-size:1rem;padding:12px 22px;border:none;border-radius:50px;cursor:pointer;background:linear-gradient(135deg,#5bc24a,#7ed957);color:#fff;box-shadow:0 4px 0 #3a9b45;";
+  startBtn.className = 'p-dlg-btn';
+  startBtn.style.cssText = 'background:var(--p-ok);color:var(--p-ink);';
   startBtn.textContent = 'Start';
 
   function refresh() {
@@ -1011,7 +1018,7 @@ export function openProbetestPicker() {
   const btnRow = document.createElement('div');
   btnRow.style.cssText = 'display:flex;gap:10px;justify-content:center;';
   const cancel = document.createElement('button');
-  cancel.style.cssText = "font-family:'Fredoka One',cursive;font-size:1rem;padding:12px 22px;border:none;border-radius:50px;cursor:pointer;background:#eee;color:#333;";
+  cancel.className = 'p-dlg-btn p-dlg-btn--ab';
   cancel.textContent = 'Abbrechen';
   cancel.addEventListener('click', () => overlay.remove());
   startBtn.addEventListener('click', () => {
@@ -1853,7 +1860,7 @@ export function showProfile() {
             <div style="font-size:.82rem;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${user.email}</div>
             <div style="font-size:.72rem;color:#2a7a35;font-weight:700;">Fortschritt wird synchronisiert</div>
           </div>
-          <button onclick="authLogout()" style="font-family:'Fredoka One',cursive;font-size:.78rem;padding:6px 14px;background:#ffd0d0;color:#c0001a;border:none;border-radius:50px;cursor:pointer;white-space:nowrap;flex-shrink:0;">Abmelden</button>
+          <button onclick="authLogout()" class="p-chip" style="padding:7px 12px;background:var(--p-falsch);cursor:pointer">Abmelden</button>
         </div>`;
     } else {
       cloudSection.innerHTML = `
@@ -1863,7 +1870,7 @@ export function showProfile() {
             <div style="font-size:.82rem;font-weight:700;color:#888;">Nicht eingeloggt</div>
             <div style="font-size:.72rem;color:#aaa;font-weight:700;">Speichere deinen Fortschritt auf allen Geräten</div>
           </div>
-          <button onclick="showAuth()" style="font-family:'Fredoka One',cursive;font-size:.78rem;padding:8px 14px;background:linear-gradient(135deg,var(--purple),var(--pink));color:#fff;border:none;border-radius:50px;cursor:pointer;box-shadow:0 3px 0 #7a4ba8;white-space:nowrap;flex-shrink:0;">☁️ Anmelden</button>
+          <button onclick="showAuth()" class="p-chip" style="padding:9px 14px;background:var(--p-ink);color:var(--p-gold);border-radius:var(--p-r-chip-gross);cursor:pointer">Anmelden</button>
         </div>`;
     }
   }
@@ -2072,7 +2079,7 @@ export async function showStats() {
 // Abschnitts-Rahmen mit Überschrift (Modus-Gliederung der Fortschritt-Seite).
 function _statSection(title, inner) {
   return `<div style="margin-bottom:22px;">
-    <div style="font-family:'Fredoka One',cursive;color:var(--text);font-size:1.1rem;margin:0 0 10px;border-bottom:2px solid #eee;padding-bottom:6px;">${title}</div>
+    <div class="p-kicker" style="font-size:12px;margin:0 0 10px">${title}</div>
     ${inner}
   </div>`;
 }
@@ -2081,11 +2088,11 @@ function _statSection(title, inner) {
 // Balken-Hintergrund nach %, rechts %-Zahl bzw. ✓-erledigt-Chip.
 function _progressTile(title, sub, pct, done) {
   const bg = done
-    ? 'background:linear-gradient(to right,rgba(58,170,92,.18) 100%,#fff 100%);box-shadow:inset 0 0 0 2px #3aaa5c;'
-    : 'background:linear-gradient(to right,rgba(168,108,219,.15) ' + pct + '%,#f7f7f7 ' + pct + '%);';
+    ? 'background:var(--p-ok);'
+    : 'background:linear-gradient(to right,var(--p-ok) ' + pct + '%,var(--p-karte) ' + pct + '%);';
   const right = done
     ? '<span style="font-size:.72rem;font-weight:700;color:#2a8a4a;background:rgba(58,170,92,.15);padding:3px 9px;border-radius:20px;white-space:nowrap;">✓ erledigt</span>'
-    : '<span style="font-family:\'Fredoka One\',cursive;font-size:.95rem;color:#7a3aac;">' + pct + '%</span>';
+    : '<span style="font:900 13px var(--p-font);color:var(--p-ink);">' + pct + '%</span>';
   return `<div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:12px;margin-bottom:6px;${bg}">
     <div style="flex:1;min-width:0;">
       <div style="font-weight:700;color:var(--text);font-size:.86rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${title}</div>
@@ -2106,7 +2113,7 @@ function _campaignBlock() {
   // Zählt erst ab Einführung der Statistik — ältere Läufe sind nicht nachrechenbar.
   const st = (c.stats && typeof c.stats === 'object') ? c.stats : {};
   const statRow = (icon, label, num) => `
-    <tr><td>${icon} ${label}</td><td style="text-align:right;font-family:'Fredoka One',cursive;color:var(--purple);">${num}</td></tr>`;
+    <tr><td>${icon} ${label}</td><td style="text-align:right;font:900 13px var(--p-font);color:var(--p-ink);">${num}</td></tr>`;
   let runHtml;
   const run = c.run;
   if (run && run.map) {
@@ -2120,13 +2127,13 @@ function _campaignBlock() {
         <span>⚔️ Aktueller Lauf: Reihe ${row} von ${rows}</span><span style="color:var(--purple);">${pct}%</span>
       </div>
       <div style="height:12px;background:#eee;border-radius:10px;overflow:hidden;margin-bottom:8px;">
-        <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--purple),var(--pink));border-radius:10px;"></div>
+        <div style="height:100%;width:${pct}%;background:var(--p-ink)"></div>
       </div>
       <div style="display:flex;justify-content:space-between;font-size:.82rem;font-weight:700;color:var(--text);margin-bottom:6px;">
         <span>❤️ Leben</span><span style="color:#c0392b;">${run.hp}/${run.hpMax}</span>
       </div>
       <div style="height:12px;background:#eee;border-radius:10px;overflow:hidden;">
-        <div style="height:100%;width:${hpPct}%;background:linear-gradient(90deg,#e05a5a,#f08a8a);border-radius:10px;"></div>
+        <div style="height:100%;width:${hpPct}%;background:var(--p-falsch);"></div>
       </div>`;
   } else {
     runHtml = '<div style="font-size:.8rem;color:#999;font-weight:700;text-align:center;padding:6px;">Kein Lauf aktiv.</div>';
@@ -2161,7 +2168,7 @@ function _vocabWordRows(words, ws, presetId, head) {
     const wPct = Math.round((m / 3) * 100);
     return `<div class="uvw">
       <span class="uvw-en">${window.escHtml(v.en)}</span>
-      <div class="uvw-half"><div class="uvw-fill" style="width:${wPct}%;background:linear-gradient(90deg,var(--purple),var(--pink));"></div></div>
+      <div class="uvw-half"><div class="uvw-fill" style="width:${wPct}%;background:var(--p-ink);"></div></div>
       <span class="uvw-pct">${m}/3</span>
     </div>`;
   }).join('');
@@ -2205,7 +2212,7 @@ function _customWordsBlock(decks) {
   }
   return `
     <div style="margin-bottom:16px;">
-      <h3 style="font-family:'Fredoka One',cursive;color:var(--purple);font-size:1rem;margin:0 0 8px;">✏️ Eigene Wörter</h3>
+      <h3 class="p-kicker" style="border:0;padding:0;margin:0 0 8px">✏️ Eigene Wörter</h3>
       ${tiles.length
         ? tiles.join('')
         : '<div style="font-size:.82rem;color:#999;text-align:center;padding:10px;">Keine eigenen Wörter angelegt.</div>'}
@@ -2235,7 +2242,7 @@ function _activePresetsBlock(decks, catById) {
   }
   return `
     <div style="margin-bottom:16px;">
-      <h3 style="font-family:'Fredoka One',cursive;color:var(--purple);font-size:1rem;margin:0 0 8px;">📦 Aktive Vorlagen</h3>
+      <h3 class="p-kicker" style="border:0;padding:0;margin:0 0 8px">📦 Aktive Vorlagen</h3>
       ${activePresets.length === 0
         ? '<div style="font-size:.82rem;color:#999;text-align:center;padding:10px;">Keine aktiven Vorlagen.</div>'
         : activePresets.map(p => {
@@ -2274,7 +2281,7 @@ function _uvTrainStatsBlock() {
           const wPct = w.total ? Math.round((w.score / w.total) * 100) : 0;
           return `<div class="uvw">
             <span class="uvw-en">${window.escHtml(w.en)}</span>
-            <div class="uvw-half"><div class="uvw-fill" style="width:${wPct}%;background:linear-gradient(90deg,var(--purple),var(--pink));"></div></div>
+            <div class="uvw-half"><div class="uvw-fill" style="width:${wPct}%;background:var(--p-ink);"></div></div>
             <span class="uvw-pct">${w.mastered}/${w.total}</span>
           </div>`;
         }).join('');
@@ -2287,7 +2294,7 @@ function _uvTrainStatsBlock() {
         </details>`;
       }).join('');
   return `<div style="margin-bottom:16px;">
-    <h3 style="font-family:'Fredoka One',cursive;color:var(--purple);font-size:1rem;margin:14px 0 8px;">🎯 Trainingsplatz</h3>
+    <h3 class="p-kicker" style="margin:14px 0 8px">Trainingsplatz</h3>
     ${body}
   </div>`;
 }
@@ -2313,7 +2320,7 @@ function _uvLernstandBlock() {
       const wPct = w.total ? Math.round((w.mastered / w.total) * 100) : 0;
       return `<div class="uvw">
         <span class="uvw-en">${window.escHtml(w.en)}</span>
-        <div class="uvw-half"><div class="uvw-fill" style="width:${wPct}%;background:linear-gradient(90deg,var(--purple),var(--pink));"></div></div>
+        <div class="uvw-half"><div class="uvw-fill" style="width:${wPct}%;background:var(--p-ink);"></div></div>
         <span class="uvw-pct">${w.mastered}/${w.total}</span>
       </div>`;
     }).join('');
@@ -2329,10 +2336,10 @@ function _uvLernstandBlock() {
   const played = L.totalLit > 0;
   return `
     <div style="margin-bottom:16px;">
-      <h3 style="font-family:'Fredoka One',cursive;color:var(--purple);font-size:1rem;margin:0 0 4px;">⚒️ Die Schmiede · unregelmäßige Verben</h3>
+      <h3 class="p-kicker" style="margin:0 0 6px">Die Schmiede · unregelmäßige Verben</h3>
       <div style="font-size:.74rem;color:#7a3aac;font-weight:700;margin-bottom:8px;">⚒️ ${L.complete}/${L.total} Aufträge fertig · 🔨 ${L.totalLit}/${L.maxLit} Schritte · ${pct}%</div>
       <div style="height:12px;background:#eee;border-radius:10px;overflow:hidden;margin-bottom:10px;">
-        <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--purple),var(--pink));border-radius:10px;"></div>
+        <div style="height:100%;width:${pct}%;background:var(--p-ink)"></div>
       </div>
       ${rows}
       ${played ? '' : '<div style="font-size:.78rem;color:#999;text-align:center;padding:8px;">Noch nicht geübt — leg im Tab „Unregelmäßige" einen Schmiede-Auftrag an.</div>'}

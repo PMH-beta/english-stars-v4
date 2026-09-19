@@ -45,17 +45,23 @@ export async function friendProgress(friendId) {
 }
 
 // ── Style-Helfer ──
-function _btn(bg, color = '#fff') {
-  return `font-family:'Fredoka One',cursive;font-size:.72rem;padding:6px 10px;border:none;border-radius:50px;cursor:pointer;background:${bg};color:${color};white-space:nowrap;flex-shrink:0;`;
+// Kleine Knoepfe und Marken in der Freundesliste. bg kommt vom Aufrufer und
+// wird zur Chipflaeche; die Kontur ist immer Tinte, der Text immer Tinte.
+function _btn(bg, color = 'var(--p-ink)') {
+  return `font:900 10px var(--p-font);padding:6px 10px;border:2px solid var(--p-ink);`
+    + `border-radius:var(--p-r-chip-gross);cursor:pointer;background:${bg};color:${color};`
+    + `white-space:nowrap;flex:none;box-shadow:none;`;
 }
 function _tag(color) {
-  return `font-size:.72rem;font-weight:700;color:${color};background:rgba(0,0,0,.05);padding:5px 10px;border-radius:50px;white-space:nowrap;flex-shrink:0;`;
+  return `font:800 10px var(--p-font);color:var(--p-ink);background:var(--p-inaktiv);`
+    + `border:2px solid var(--p-ink);padding:4px 9px;border-radius:var(--p-r-chip);`
+    + `white-space:nowrap;flex:none;`;
 }
 function _person(prefix, id, name, rightHtml, clickable) {
   const nameClick = clickable ? ` onclick="openFriendStats('${id}')" style="cursor:pointer;` : ' style="';
-  return `<div style="display:flex;align-items:center;gap:10px;padding:8px 6px;border-bottom:1px solid #f0f0f0;">
-    <div id="${prefix}-av-${id}" ${clickable ? `onclick="openFriendStats('${id}')" style="cursor:pointer;` : 'style="'}width:40px;height:40px;flex-shrink:0;"></div>
-    <div${nameClick}flex:1;min-width:0;font-family:'Fredoka One',cursive;color:var(--text);font-size:.92rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(name)}</div>
+  return `<div class="fr-zeile">
+    <div id="${prefix}-av-${id}" ${clickable ? `onclick="openFriendStats('${id}')" style="cursor:pointer;` : 'style="'}width:40px;height:40px;flex:none;border:2px solid var(--p-ink);border-radius:var(--p-r-slot);background:var(--p-karte);overflow:hidden;"></div>
+    <div${nameClick}flex:1;min-width:0;font:900 13px var(--p-font);color:var(--p-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(name)}</div>
     ${rightHtml}
   </div>`;
 }
@@ -153,7 +159,7 @@ async function _loadRequests() {
   const reqs = await listRequests();
   if (!reqs.length) { box.innerHTML = ''; box.style.display = 'none'; return; }
   box.style.display = '';
-  box.innerHTML = `<div style="font-family:'Fredoka One',cursive;font-size:.9rem;color:var(--text);margin-bottom:6px;">Anfragen (${reqs.length})</div>`
+  box.innerHTML = `<div class="p-zeilentitel" style="margin-bottom:6px">Anfragen (${reqs.length})</div>`
     + reqs.map(r => _person('req', r.requester_id, r.player_name,
         `<button onclick="respondFriendRequest('${r.friendship_id}',true)" style="${_btn('#2a8a4a')}">✓ Annehmen</button>
          <button onclick="respondFriendRequest('${r.friendship_id}',false)" style="${_btn('#f0f0f0','#c0392b')}">✕</button>`,
@@ -184,7 +190,7 @@ async function _loadOutgoing() {
   const reqs = await listOutgoing();
   if (!reqs.length) { box.innerHTML = ''; box.style.display = 'none'; return; }
   box.style.display = '';
-  box.innerHTML = `<div style="font-family:'Fredoka One',cursive;font-size:.9rem;color:var(--text);margin-bottom:6px;">Gesendet (${reqs.length})</div>`
+  box.innerHTML = `<div class="p-zeilentitel" style="margin-bottom:6px">Gesendet (${reqs.length})</div>`
     + reqs.map(r => _person('out', r.addressee_id, r.player_name,
         `<span style="${_tag('#999')}">⏳ Angefragt</span>
          <button onclick="cancelFriendRequest('${r.addressee_id}')" title="Anfrage zurückziehen" style="${_btn('#f0f0f0','#c0392b')}">✕</button>`,

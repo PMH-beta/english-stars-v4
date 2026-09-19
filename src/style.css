@@ -1,4 +1,6 @@
-@import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800;900&family=Press+Start+2P&display=swap');
+/* Eine Familie fuer alles. Fredoka One und Press Start 2P sind mit dem
+   Pastell-Redesign entfallen — nichts rendert mehr darin. */
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 :root{
   --yellow:#FFD93D;--orange:#FF6B35;--green:#6BCB77;--teal:#00B4AB;
   --blue:#4D96FF;--purple:#a86cdb;--pink:#FF6B9D;
@@ -79,7 +81,7 @@ html,body{
 }
 /* Pull-to-Refresh-Hinweis (main.js): erscheint beim Ziehen ganz oben */
 #ptr-bar{position:fixed;top:-48px;left:50%;transform:translateX(-50%);z-index:9999;
-  background:#fff;color:var(--purple);font-family:'Fredoka One',cursive;font-size:.85rem;
+  background:#fff;color:var(--purple);font-family:'Nunito',system-ui,sans-serif;font-size:.85rem;
   padding:9px 18px;border-radius:50px;box-shadow:0 4px 14px rgba(0,0,0,.18);
   transition:top .2s;pointer-events:none;white-space:nowrap;}
 #ptr-bar.show{top:14px;}
@@ -104,7 +106,7 @@ body{
                    radial-gradient(circle at 50% 90%,rgba(77,150,255,.08) 0%,transparent 55%);
 }
 h1{
-  font-family:'Fredoka One',cursive;font-size:2.2rem;margin-bottom:4px;text-align:center;
+  font-family:'Nunito',system-ui,sans-serif;font-size:2.2rem;margin-bottom:4px;text-align:center;
   background:var(--brand);-webkit-background-clip:text;background-clip:text;
   -webkit-text-fill-color:transparent;color:var(--purple);
 }
@@ -116,7 +118,7 @@ h1{
   text-align:center;border:1px solid var(--line);box-shadow:var(--shadow);
   display:flex;flex-direction:column;align-items:center;
 }
-.screen h2{font-family:'Fredoka One',cursive;font-size:1.7rem;margin-bottom:10px;color:var(--text);}
+.screen h2{font-family:'Nunito',system-ui,sans-serif;font-size:1.7rem;margin-bottom:10px;color:var(--text);}
 .screen p{color:#6f6889;margin-bottom:14px;font-size:.95rem;font-weight:600;line-height:1.55;}
 .emoji-big{
   font-size:2.6rem;margin-bottom:14px;display:flex;align-items:center;justify-content:center;
@@ -145,7 +147,7 @@ h1{
   margin-bottom:18px;gap:3px;box-shadow:inset 0 2px 6px rgba(88,60,150,.08);
 }
 .mode-btn{
-  flex:1;font-family:'Fredoka One',cursive;font-size:.78rem;padding:10px 4px;
+  flex:1;font-family:'Nunito',system-ui,sans-serif;font-size:.78rem;padding:10px 4px;
   border:none;border-radius:12px;cursor:pointer;transition:all .18s;
   background:transparent;color:#8a83a5;
 }
@@ -156,7 +158,7 @@ h1{
 
 /* ── BUTTONS ── */
 .big-btn{
-  font-family:'Fredoka One',cursive;font-size:1.05rem;padding:15px 18px;
+  font-family:'Nunito',system-ui,sans-serif;font-size:1.05rem;padding:15px 18px;
   border:none;border-radius:16px;cursor:pointer;transition:all .15s;
   color:white;display:flex;align-items:center;gap:12px;width:100%;margin-bottom:9px;
   text-align:left;
@@ -175,7 +177,7 @@ h1{
 /* Text-Links (Auth: Registrieren, Passwort vergessen, Abbrechen …) */
 .link-btn{
   margin-top:12px;background:none;border:none;color:#8a83a5;
-  font-family:'Fredoka One',cursive;font-size:.85rem;cursor:pointer;
+  font-family:'Nunito',system-ui,sans-serif;font-size:.85rem;cursor:pointer;
   text-decoration:underline;text-underline-offset:3px;transition:color .15s;
 }
 .link-btn:hover{color:var(--purple);}
@@ -185,7 +187,7 @@ h1{
 .google-btn{
   margin-top:12px;max-width:300px;width:100%;padding:12px 16px;
   background:#fff;color:#3c4043;border:2px solid var(--line);border-radius:14px;
-  font-family:'Fredoka One',cursive;font-size:.95rem;cursor:pointer;
+  font-family:'Nunito',system-ui,sans-serif;font-size:.95rem;cursor:pointer;
   display:flex;align-items:center;justify-content:center;gap:10px;
   box-shadow:0 3px 10px rgba(88,60,150,.10);transition:all .15s;
 }
@@ -231,18 +233,18 @@ h1{
 #character-feature-chips{scrollbar-width:none;}
 #character-feature-chips::-webkit-scrollbar{display:none;}
 .char-arrow{
-  font-family:'Fredoka One',cursive;font-size:1.7rem;line-height:1;
+  font-family:'Nunito',system-ui,sans-serif;font-size:1.7rem;line-height:1;
   width:48px;height:48px;border:1px solid var(--line);border-radius:50%;cursor:pointer;
   background:#fff;color:var(--purple);box-shadow:0 4px 14px rgba(88,60,150,.18);
   display:flex;align-items:center;justify-content:center;z-index:2;
   padding-bottom:4px;
 }
 .char-arrow:active{transform:translateY(-50%) translateY(3px);box-shadow:0 1px 0 #c9b3e6;}
-.player-name{font-family:'Fredoka One',cursive;font-size:1.05rem;color:var(--purple);}
+.player-name{font-family:'Nunito',system-ui,sans-serif;font-size:1.05rem;color:var(--purple);}
 .player-stats{display:flex;gap:10px;flex-wrap:wrap;}
 .pstat{font-weight:800;font-size:.82rem;color:#6f6889;}
 .back-btn{
-  font-family:'Fredoka One',cursive;font-size:.88rem;padding:9px 18px;
+  font-family:'Nunito',system-ui,sans-serif;font-size:.88rem;padding:9px 18px;
   background:#fff;color:#6f6889;border:1px solid var(--line);border-radius:50px;
   cursor:pointer;box-shadow:0 3px 10px rgba(88,60,150,.10);transition:all .15s;display:inline-block;
 }
@@ -256,7 +258,7 @@ h1{
 #vm-back-area{width:100%;align-self:flex-start;}
 /* Sammlung umbenennen — kompakt unter dem Sammlungsnamen */
 .vm-rename-btn{
-  font-family:'Fredoka One',cursive;font-size:.72rem;padding:5px 14px;
+  font-family:'Nunito',system-ui,sans-serif;font-size:.72rem;padding:5px 14px;
   background:#f3eefb;color:var(--purple);border:none;border-radius:50px;
   cursor:pointer;margin-top:7px;display:inline-flex;align-items:center;gap:5px;
   box-shadow:0 2px 0 #ddcff0;transition:all .15s;
@@ -266,7 +268,7 @@ h1{
 /* ── STATS SCREEN ── */
 .cat-progress-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:14px;}
 .cat-card{background:white;border:1px solid var(--line);border-radius:16px;padding:11px;box-shadow:var(--shadow);}
-.cat-card-title{font-family:'Fredoka One',cursive;font-size:.88rem;margin-bottom:4px;}
+.cat-card-title{font-family:'Nunito',system-ui,sans-serif;font-size:.88rem;margin-bottom:4px;}
 .mini-bar-wrap{background:#eee;border-radius:50px;height:6px;overflow:hidden;margin-bottom:3px;}
 .mini-bar{height:100%;border-radius:50px;}
 .cat-stat-small{font-size:.68rem;color:#888;font-weight:700;}
@@ -290,20 +292,20 @@ h1{
   box-shadow:0 10px 30px rgba(88,60,150,.16);
 }
 .deck-activate-btn{
-  width:100%;font-family:'Fredoka One',cursive;font-size:.88rem;
+  width:100%;font-family:'Nunito',system-ui,sans-serif;font-size:.88rem;
   padding:10px 14px;background:linear-gradient(135deg,var(--purple),var(--pink));
   color:#fff;border:none;border-radius:11px;cursor:pointer;
   margin-bottom:10px;box-shadow:0 4px 0 #7d52a8;transition:transform .15s;
 }
 .deck-activate-btn:hover{transform:translateY(-2px);}
 .deck-active-badge{
-  font-family:'Fredoka One',cursive;font-size:.78rem;color:var(--purple);
+  font-family:'Nunito',system-ui,sans-serif;font-size:.78rem;color:var(--purple);
   background:rgba(168,108,219,.10);padding:8px 14px;border-radius:11px;
   text-align:center;margin-bottom:10px;
 }
 .deck-header{
   padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;
-  font-family:'Fredoka One',cursive;
+  font-family:'Nunito',system-ui,sans-serif;
 }
 .deck-icon{font-size:1.6rem;flex-shrink:0;}
 .deck-info{flex:1;min-width:0;}
@@ -333,7 +335,7 @@ h1{
   border-top:1px solid #f0f0f0;
 }
 .deck-action-btn{
-  flex:1;font-family:'Fredoka One',cursive;font-size:.78rem;padding:7px 10px;
+  flex:1;font-family:'Nunito',system-ui,sans-serif;font-size:.78rem;padding:7px 10px;
   border:none;border-radius:9px;cursor:pointer;transition:all .15s;
   background:#f5f5f5;color:#666;
 }
@@ -363,7 +365,7 @@ h1{
   box-shadow:inset 0 2px 6px rgba(88,60,150,.08);
 }
 .vm-tab{
-  flex:1;font-family:'Fredoka One',cursive;font-size:.78rem;
+  flex:1;font-family:'Nunito',system-ui,sans-serif;font-size:.78rem;
   padding:9px 8px;border:none;border-radius:10px;cursor:pointer;
   background:transparent;color:#8a83a5;white-space:nowrap;transition:all .15s;
 }
@@ -408,10 +410,10 @@ h1{
   margin-bottom:8px;box-shadow:0 3px 10px rgba(88,60,150,.08);
 }
 .preset-info{display:flex;flex-direction:column;gap:3px;}
-.preset-name{font-family:'Fredoka One',cursive;font-size:1rem;color:var(--text);}
+.preset-name{font-family:'Nunito',system-ui,sans-serif;font-size:1rem;color:var(--text);}
 .preset-count{font-size:.72rem;color:#aaa;font-weight:700;}
 .preset-toggle{
-  font-family:'Fredoka One',cursive;font-size:.85rem;
+  font-family:'Nunito',system-ui,sans-serif;font-size:.85rem;
   padding:8px 16px;
   border:2px solid rgba(168,108,219,.4);
   border-radius:50px;
@@ -433,7 +435,7 @@ h1{
 }
 /* Music button */
 .music-btn{
-  font-family:'Fredoka One',cursive;font-size:1rem;padding:7px 12px;background:#fff;color:#666;
+  font-family:'Nunito',system-ui,sans-serif;font-size:1rem;padding:7px 12px;background:#fff;color:#666;
   border:none;border-radius:50px;cursor:pointer;box-shadow:0 3px 0 #ccc;transition:all .15s;
 }
 .music-btn:hover{transform:translateY(-1px);}
@@ -441,7 +443,7 @@ h1{
 /* Globaler schwebender Musik-Button (Menü/Stats) */
 .music-btn-global{
   position:fixed;bottom:16px;right:16px;z-index:500;
-  font-family:'Fredoka One',cursive;font-size:1.3rem;
+  font-family:'Nunito',system-ui,sans-serif;font-size:1.3rem;
   background:#fff;color:#666;border:none;border-radius:50%;
   cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.18);
   width:52px;height:52px;display:flex;align-items:center;justify-content:center;
@@ -464,7 +466,7 @@ h1{
   flex-direction:column;align-items:center;gap:6px;
   background:#fff;border-radius:18px;padding:10px 8px 8px;
   box-shadow:0 4px 14px rgba(0,0,0,.18);
-  font-family:'Fredoka One',cursive;font-size:.7rem;color:#666;
+  font-family:'Nunito',system-ui,sans-serif;font-size:.7rem;color:#666;
   transform-origin:bottom right;
   animation:volPop .2s ease;
 }
@@ -498,7 +500,7 @@ body.in-game .music-vol-wrap.open{display:flex !important;}
 }
 .music-vol-btn{
   position:fixed;bottom:76px;right:24px;z-index:498;
-  font-family:'Fredoka One',cursive;font-size:.9rem;
+  font-family:'Nunito',system-ui,sans-serif;font-size:.9rem;
   background:#fff;color:#666;border:none;border-radius:50%;
   cursor:pointer;box-shadow:0 3px 10px rgba(0,0,0,.15);
   width:36px;height:36px;display:flex;align-items:center;justify-content:center;
@@ -511,7 +513,7 @@ body.in-game .music-vol-wrap.open{display:flex !important;}
 /* PWA Install-Knopf - oben links (klein, dezent) */
 #pwa-install-btn{
   display:none;position:fixed;top:14px;left:14px;z-index:500;
-  font-family:'Fredoka One',cursive;font-size:.78rem;
+  font-family:'Nunito',system-ui,sans-serif;font-size:.78rem;
   padding:8px 12px;background:linear-gradient(135deg,#06d6a0,#3a9b45);
   color:#fff;border:none;border-radius:50px;cursor:pointer;
   box-shadow:0 3px 10px rgba(6,214,160,.4);
@@ -533,7 +535,7 @@ body.in-game #pwa-install-btn{display:none !important;}
 body.in-game .mode-progress{display:block;}
 .mode-progress-label{
   display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px;
-  font-family:'Fredoka One',cursive;
+  font-family:'Nunito',system-ui,sans-serif;
 }
 .mode-progress-label > span:first-child{font-size:.78rem;color:#666;}
 .mode-progress-label > span:last-child{
@@ -560,7 +562,7 @@ body.in-game .mode-progress{display:block;}
   font-size:.66rem;color:#888;font-weight:700;text-align:right;margin-top:2px;
 }
 .mode-progress-pop{
-  position:absolute;font-family:'Fredoka One',cursive;font-size:.95rem;
+  position:absolute;font-family:'Nunito',system-ui,sans-serif;font-size:.95rem;
   color:#06d6a0;pointer-events:none;animation:popUp 1.2s ease-out forwards;
   font-weight:800;text-shadow:0 2px 6px rgba(255,255,255,.8);
 }
@@ -587,7 +589,7 @@ body.in-game .mode-progress{display:block;}
 .word-table td{padding:8px 9px;border-bottom:1px solid #ececf3;vertical-align:middle;color:var(--text);}
 .word-table tbody tr:nth-child(even){background:#f8f6fc;}
 .word-table tbody tr:last-child td{border-bottom:none;}
-.section-title{font-family:'Fredoka One',cursive;font-size:.95rem;color:#8a83a5;text-align:left;width:100%;max-width:540px;margin-bottom:7px;letter-spacing:.02em;}
+.section-title{font-family:'Nunito',system-ui,sans-serif;font-size:.95rem;color:#8a83a5;text-align:left;width:100%;max-width:540px;margin-bottom:7px;letter-spacing:.02em;}
 .ws-badge{display:inline-flex;align-items:center;gap:3px;font-size:.72rem;font-weight:800;padding:2px 8px;border-radius:50px;}
 .ws-green {background:#e8f8eb;color:#3a9b45;}
 .ws-yellow{background:#fff8e1;color:#d4a000;}
@@ -607,7 +609,7 @@ body.in-game .mode-progress{display:block;}
 .progress-wrap{width:100%;max-width:640px;background:#e6e0f4;border-radius:50px;height:12px;margin-bottom:16px;overflow:hidden;box-shadow:inset 0 2px 4px rgba(88,60,150,.10);}
 .progress-fill{height:100%;border-radius:50px;background:linear-gradient(90deg,#6BCB77,#4D96FF);transition:width .4s ease;}
 .game-top-row{display:flex;align-items:center;justify-content:space-between;width:100%;max-width:640px;margin-bottom:4px;}
-.home-btn{font-family:'Fredoka One',cursive;font-size:.8rem;padding:7px 13px;background:#fff;color:#6f6889;border:1px solid var(--line);border-radius:50px;cursor:pointer;box-shadow:0 3px 10px rgba(88,60,150,.10);transition:all .15s;}
+.home-btn{font-family:'Nunito',system-ui,sans-serif;font-size:.8rem;padding:7px 13px;background:#fff;color:#6f6889;border:1px solid var(--line);border-radius:50px;cursor:pointer;box-shadow:0 3px 10px rgba(88,60,150,.10);transition:all .15s;}
 .home-btn:hover{color:var(--purple);}
 .game-card{
   background:var(--card);border-radius:24px;padding:24px 22px;
@@ -616,11 +618,11 @@ body.in-game .mode-progress{display:block;}
   text-align:center;position:relative;overflow:hidden;
 }
 .game-card::before{content:'';position:absolute;top:0;left:0;right:0;height:5px;background:linear-gradient(90deg,var(--yellow),var(--orange),var(--pink),var(--purple),var(--blue));}
-.badge{display:inline-block;font-family:'Fredoka One',cursive;font-size:.75rem;padding:3px 13px;border-radius:50px;margin-bottom:10px;letter-spacing:1px;text-transform:uppercase;}
+.badge{display:inline-block;font-family:'Nunito',system-ui,sans-serif;font-size:.75rem;padding:3px 13px;border-radius:50px;margin-bottom:10px;letter-spacing:1px;text-transform:uppercase;}
 .badge.vocab   {background:rgba(77,150,255,.15);color:var(--blue);}
 .badge.spelling{background:rgba(199,125,255,.15);color:var(--purple);}
 .badge.pronounce{background:rgba(255,107,157,.15);color:var(--pink);}
-.question-text{font-family:'Fredoka One',cursive;font-size:1.45rem;color:var(--text);margin-bottom:7px;line-height:1.35;}
+.question-text{font-family:'Nunito',system-ui,sans-serif;font-size:1.45rem;color:var(--text);margin-bottom:7px;line-height:1.35;}
 .hint-text{font-size:.85rem;color:#aaa;margin-bottom:18px;}
 
 /* MC choices */
@@ -650,7 +652,7 @@ body.in-game .mode-progress{display:block;}
 /* Buchstaben-Lücke INLINE im Wort: getippter Buchstabe sitzt direkt an seiner
    Stelle → das Wort steht als Ganzes da. */
 .gap-word{display:flex;align-items:center;justify-content:center;gap:7px;flex-wrap:wrap;margin:8px 0 16px;}
-.gap-cell{font-family:'Fredoka One',cursive;font-size:2rem;font-weight:800;color:var(--text);min-width:.7em;text-align:center;line-height:1.2;}
+.gap-cell{font-family:'Nunito',system-ui,sans-serif;font-size:2rem;font-weight:800;color:var(--text);min-width:.7em;text-align:center;line-height:1.2;}
 .gap-cell.gap-input{width:1.1em;padding:0 0 2px;border:none;border-bottom:3px solid var(--purple);background:transparent;outline:none;color:var(--purple);caret-color:var(--purple);border-radius:0;}
 .gap-cell.gap-input::placeholder{color:#cdbce8;}
 .gap-input.filled{animation:gapPop .25s ease;}
@@ -658,7 +660,7 @@ body.in-game .mode-progress{display:block;}
 .gap-cell.gap-input.correct{color:#1a7a2a;border-bottom-color:var(--green);}
 .gap-cell.gap-input.wrong{color:#b00;border-bottom-color:var(--red);}
 .submit-btn{
-  font-family:'Fredoka One',cursive;font-size:1rem;padding:11px 30px;
+  font-family:'Nunito',system-ui,sans-serif;font-size:1rem;padding:11px 30px;
   background:var(--blue);color:white;border:none;border-radius:12px;
   cursor:pointer;box-shadow:0 5px 0 #2a6fcc;transition:all .15s;margin-bottom:5px;
 }
@@ -696,9 +698,9 @@ body.in-game .mode-progress{display:block;}
 /* ── Sternenpfad (Gestaltwandler UV-Tab) ── */
 .star-path{background:linear-gradient(180deg,#1b1430,#241a40 50%,#1b1430);border-radius:18px;padding:16px 8px 24px;}
 .star-path-head{text-align:center;margin-bottom:14px;position:relative;}
-.sp-title{font-family:'Fredoka One',cursive;color:#e9def7;font-size:1.15rem;}
+.sp-title{font-family:'Nunito',system-ui,sans-serif;color:#e9def7;font-size:1.15rem;}
 .sp-stand{font-size:.74rem;color:#ffd45e;font-weight:800;margin-top:3px;}
-.sp-info{position:absolute;top:0;right:2px;width:28px;height:28px;border-radius:50%;border:1.5px solid rgba(189,165,255,.5);background:rgba(189,165,255,.12);color:#cdbcff;font-family:'Fredoka One',cursive;font-size:1rem;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;}
+.sp-info{position:absolute;top:0;right:2px;width:28px;height:28px;border-radius:50%;border:1.5px solid rgba(189,165,255,.5);background:rgba(189,165,255,.12);color:#cdbcff;font-family:'Nunito',system-ui,sans-serif;font-size:1rem;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;}
 .sp-info:active{background:rgba(189,165,255,.28);}
 .cst-words{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin-top:8px;}
 .cst-word{font-size:.66rem;font-weight:700;color:#c3b8e2;background:rgba(255,255,255,.06);border:1px solid rgba(189,165,255,.2);padding:2px 8px;border-radius:20px;}
@@ -736,7 +738,7 @@ body.in-game .mode-progress{display:block;}
 .cst-block{max-width:360px;margin:0 auto;padding:8px 10px 14px;border-radius:16px;}
 .cst-block.locked{opacity:.5;}
 .cst-block.current{background:rgba(255,255,255,.05);box-shadow:inset 0 0 0 1px rgba(189,165,255,.35);}
-.cst-name{font-family:'Fredoka One',cursive;font-size:.95rem;margin-bottom:4px;}
+.cst-name{font-family:'Nunito',system-ui,sans-serif;font-size:.95rem;margin-bottom:4px;}
 .cst-cefr{font-size:.6rem;font-weight:700;color:#cdc3ea;background:rgba(255,255,255,.1);padding:1px 7px;border-radius:20px;}
 .cst-cap{font-size:.72rem;color:#c3b8e2;font-weight:700;margin-top:2px;min-height:1.1em;}
 .cst-link{height:26px;border-left:3px dotted rgba(189,165,255,.4);width:0;margin:0 auto;}
@@ -781,13 +783,13 @@ body.in-game .mode-progress{display:block;}
 .cst-flip-inner>.cst-face{grid-area:1/1;height:100%;display:flex;flex-direction:column;align-items:center;backface-visibility:hidden;-webkit-backface-visibility:hidden;}
 .cst-back{transform:rotateY(180deg);}
 .cst-flip.flipped .cst-flip-inner{transform:rotateY(180deg);}
-.cst-back-title{font-family:'Fredoka One',cursive;font-size:.85rem;color:#e7deff;margin:4px 0 8px;}
+.cst-back-title{font-family:'Nunito',system-ui,sans-serif;font-size:.85rem;color:#e7deff;margin:4px 0 8px;}
 /* margin-top:auto schiebt den Knopf auf beiden Seiten an dieselbe untere Kante,
    damit „↩ zurück" exakt dort sitzt wo „📖 Wörter" war. */
-.cst-flip-btn{margin-top:auto;font-family:'Fredoka One',cursive;font-size:.72rem;padding:6px 16px;border-radius:50px;cursor:pointer;background:rgba(189,165,255,.18);color:#d9ccff;border:1px solid rgba(189,165,255,.35);}
+.cst-flip-btn{margin-top:auto;font-family:'Nunito',system-ui,sans-serif;font-size:.72rem;padding:6px 16px;border-radius:50px;cursor:pointer;background:rgba(189,165,255,.18);color:#d9ccff;border:1px solid rgba(189,165,255,.35);}
 .cst-flip-btn.ghost{background:transparent;}
-.cst-active-btn{margin-top:16px;font-family:'Fredoka One',cursive;font-size:.72rem;padding:6px 16px;border-radius:50px;cursor:pointer;background:rgba(95,208,138,.16);color:#9be6b8;border:1px solid rgba(95,208,138,.4);}
-.cst-active-tag{margin-top:16px;font-family:'Fredoka One',cursive;font-size:.72rem;color:#5fd08a;}
+.cst-active-btn{margin-top:16px;font-family:'Nunito',system-ui,sans-serif;font-size:.72rem;padding:6px 16px;border-radius:50px;cursor:pointer;background:rgba(95,208,138,.16);color:#9be6b8;border:1px solid rgba(95,208,138,.4);}
+.cst-active-tag{margin-top:16px;font-family:'Nunito',system-ui,sans-serif;font-size:.72rem;color:#5fd08a;}
 
 /* UV: Past/PP-Slider (das ganze Sternbild slidet & färbt sich um) */
 .cst-slider-wrap{margin-top:4px;width:100%;}
@@ -800,7 +802,7 @@ body.in-game .mode-progress{display:block;}
 .cst-page-foot .foot-done{color:#ffd45e;}
 .cst-arrow{background:none;border:none;color:#bda5ff;font-size:1.4rem;line-height:1;cursor:pointer;padding:4px 6px;flex-shrink:0;}
 /* Aktuelle Zeitform als Label direkt unter dem Sternbild-Namen */
-.cst-form-now{font-family:'Fredoka One',cursive;font-size:.84rem;margin-bottom:10px;}
+.cst-form-now{font-family:'Nunito',system-ui,sans-serif;font-size:.84rem;margin-bottom:10px;}
 .cst-form-now.past{color:#ffb155;}
 .cst-form-now.pp{color:#6fdc9b;}
 /* Navigationspunkte unten — aktive Form hervorgehoben, antippbar */
@@ -811,19 +813,19 @@ body.in-game .mode-progress{display:block;}
 /* UV: Befüllen-Karte (leeres Sternbild) */
 .cst-fill{display:flex;flex-direction:column;align-items:center;gap:6px;padding:18px 12px;border:2px dashed rgba(189,165,255,.45);background:rgba(189,165,255,.06);}
 .cst-fill-star{font-size:1.8rem;}
-.cst-fill-title{font-family:'Fredoka One',cursive;color:#e7deff;font-size:1rem;}
+.cst-fill-title{font-family:'Nunito',system-ui,sans-serif;color:#e7deff;font-size:1rem;}
 .cst-fill-sub{font-size:.72rem;color:#a99fc7;font-weight:700;}
 .cst-fill-sub b{color:#cdbcff;}
-.cst-fill-btn{margin-top:6px;font-family:'Fredoka One',cursive;font-size:.82rem;padding:9px 22px;border-radius:50px;cursor:pointer;color:#1b1430;border:none;background:linear-gradient(135deg,#cdbcff,#a86cdb);box-shadow:0 4px 0 #7a4ba8;}
+.cst-fill-btn{margin-top:6px;font-family:'Nunito',system-ui,sans-serif;font-size:.82rem;padding:9px 22px;border-radius:50px;cursor:pointer;color:#1b1430;border:none;background:linear-gradient(135deg,#cdbcff,#a86cdb);box-shadow:0 4px 0 #7a4ba8;}
 .cst-fill-btn:active{transform:translateY(2px);box-shadow:0 2px 0 #7a4ba8;}
 
 /* UV: Befüllen-Popup (10 Wörter wählen) */
 .uv-fill-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;}
 .uv-fill-card{background:#fff;border-radius:20px;width:100%;max-width:380px;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.25);}
 .uv-fill-head{padding:18px 18px 12px;text-align:center;border-bottom:1px solid #eee;}
-.uv-fill-title{font-family:'Fredoka One',cursive;color:var(--purple);font-size:1.15rem;}
+.uv-fill-title{font-family:'Nunito',system-ui,sans-serif;color:var(--purple);font-size:1.15rem;}
 .uv-fill-hint{font-size:.8rem;color:#777;margin-top:4px;}
-.uv-fill-count{font-family:'Fredoka One',cursive;color:#a86cdb;font-size:1rem;margin-top:8px;}
+.uv-fill-count{font-family:'Nunito',system-ui,sans-serif;color:#a86cdb;font-size:1rem;margin-top:8px;}
 .uv-fill-list{overflow-y:auto;overflow-x:hidden;padding:6px 10px;flex:1;}
 .uv-fill-row{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:12px;cursor:pointer;border:2px solid transparent;}
 .uv-fill-row.sel{background:rgba(168,108,219,.1);border-color:rgba(168,108,219,.4);}
@@ -842,7 +844,7 @@ body.in-game .mode-progress{display:block;}
 /* Formen-Wahl: drei deutlich verschiedene Chips — Stahl-Blau (Simple Past),
    Gold (Participle), Blau-Gold-Verlauf (beide) — gewählt = gefüllt + Häkchen. */
 .uv-form-choice{display:flex;gap:6px;margin-top:10px;}
-.uv-form-chip{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:9px 6px;border-radius:14px;border:2px solid #ddd6ee;background:#fff;cursor:pointer;font-family:'Fredoka One',cursive;}
+.uv-form-chip{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:9px 6px;border-radius:14px;border:2px solid #ddd6ee;background:#fff;cursor:pointer;font-family:'Nunito',system-ui,sans-serif;}
 .uv-form-chip .fc-title{font-size:.74rem;}
 .uv-form-chip .fc-sub{font-size:.58rem;font-weight:700;color:#8a83a5;}
 .uv-form-chip.past{color:#3a6ea8;}
@@ -853,8 +855,8 @@ body.in-game .mode-progress{display:block;}
 .uv-form-chip.pp.sel{background:rgba(202,160,74,.18);border-color:#caa04a;box-shadow:0 3px 0 rgba(166,124,0,.35);}
 .uv-form-chip.both.sel{background:linear-gradient(135deg,rgba(58,110,168,.12),rgba(202,160,74,.24));border-color:#a86cdb;box-shadow:0 3px 0 rgba(122,58,172,.35);}
 .uv-fill-foot{display:flex;gap:10px;justify-content:center;padding:12px 16px;border-top:1px solid #eee;}
-.uv-fill-cancel{font-family:'Fredoka One',cursive;font-size:.92rem;padding:11px 20px;background:#eee;color:#333;border:none;border-radius:50px;cursor:pointer;}
-.uv-fill-ok{font-family:'Fredoka One',cursive;font-size:.92rem;padding:11px 24px;border:none;border-radius:50px;cursor:pointer;color:#fff;background:linear-gradient(135deg,#a86cdb,#c084fc);box-shadow:0 4px 0 #7a4ba8;}
+.uv-fill-cancel{font-family:'Nunito',system-ui,sans-serif;font-size:.92rem;padding:11px 20px;background:#eee;color:#333;border:none;border-radius:50px;cursor:pointer;}
+.uv-fill-ok{font-family:'Nunito',system-ui,sans-serif;font-size:.92rem;padding:11px 24px;border:none;border-radius:50px;cursor:pointer;color:#fff;background:linear-gradient(135deg,#a86cdb,#c084fc);box-shadow:0 4px 0 #7a4ba8;}
 .uv-fill-ok:disabled{background:#ccc;box-shadow:none;cursor:not-allowed;}
 
 /* UV: Pro-Wort-Fortschritt getrennt Past/PP */
@@ -896,17 +898,17 @@ body.in-game .mode-progress{display:block;}
 }
 .add-row input:focus{border-color:var(--purple);}
 .add-row button{
-  font-family:'Fredoka One',cursive;font-size:.9rem;padding:9px 16px;
+  font-family:'Nunito',system-ui,sans-serif;font-size:.9rem;padding:9px 16px;
   background:var(--purple);color:white;border:none;border-radius:10px;
   cursor:pointer;box-shadow:0 3px 0 #9b4dcc;white-space:nowrap;
 }
 .scanning-overlay{
   display:flex;flex-direction:column;align-items:center;gap:10px;padding:20px;
-  font-family:'Fredoka One',cursive;font-size:1rem;color:var(--purple);
+  font-family:'Nunito',system-ui,sans-serif;font-size:1rem;color:var(--purple);
 }
 
 .mic-btn{
-  font-family:'Fredoka One',cursive;font-size:1.1rem;padding:18px 36px;
+  font-family:'Nunito',system-ui,sans-serif;font-size:1.1rem;padding:18px 36px;
   border:none;border-radius:50px;cursor:pointer;transition:all .2s;
   color:white;display:inline-flex;align-items:center;gap:10px;
   background:var(--pink);box-shadow:0 5px 0 #cc3a72;
@@ -953,7 +955,7 @@ body.in-game .mode-progress{display:block;}
 }
 .pronounce-result.heard{background:#fff3e0;color:#e65100;}
 .speak-btn{
-  font-family:'Fredoka One',cursive;font-size:.88rem;padding:9px 20px;
+  font-family:'Nunito',system-ui,sans-serif;font-size:.88rem;padding:9px 20px;
   background:rgba(77,150,255,.1);color:var(--blue);border:2px solid rgba(77,150,255,.3);
   border-radius:50px;cursor:pointer;transition:all .15s;margin-bottom:12px;
 }
@@ -997,7 +999,7 @@ body.in-game .mode-progress{display:block;}
 .feedback-sub{font-size:.85rem;color:#555;font-weight:600;margin-top:2px;}
 .feedback-left{display:flex;flex-direction:column;flex:1;min-width:0;}
 .next-btn{
-  font-family:'Fredoka One',cursive;font-size:1rem;padding:12px 26px;
+  font-family:'Nunito',system-ui,sans-serif;font-size:1rem;padding:12px 26px;
   color:white;border:none;border-radius:13px;cursor:pointer;box-shadow:0 4px 0;transition:all .15s;white-space:nowrap;flex-shrink:0;
 }
 .feedback.success .next-btn{background:var(--green);box-shadow:0 4px 0 #3a9b45;}
@@ -1012,7 +1014,7 @@ body.in-game .mode-progress{display:block;}
 /* END */
 .stat-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;margin:12px 0;width:100%;}
 .stat-box{background:#f6f2fd;border:1px solid var(--line);border-radius:14px;padding:12px 5px;}
-.stat-num{font-family:'Fredoka One',cursive;font-size:1.65rem;display:block;}
+.stat-num{font-family:'Nunito',system-ui,sans-serif;font-size:1.65rem;display:block;}
 .stat-label{font-size:.7rem;color:#8a83a5;font-weight:700;}
 .stars-row{font-size:1.25rem;letter-spacing:4px;margin:4px 0;}
 
@@ -1050,7 +1052,7 @@ body.in-game .mode-progress{display:block;}
   display:flex;align-items:center;justify-content:center;
   box-shadow:0 2px 6px rgba(88,60,150,.18);
 }
-.stats-panel h3{font-family:'Fredoka One',cursive;font-size:1rem;margin-bottom:9px;color:var(--text);}
+.stats-panel h3{font-family:'Nunito',system-ui,sans-serif;font-size:1rem;margin-bottom:9px;color:var(--text);}
 
 @media(min-width:600px){
   body{padding:24px 20px 40px;}
@@ -1073,24 +1075,24 @@ body.in-game .mode-progress{display:block;}
 .forge{padding:4px 0 24px;}
 .forge-top{text-align:center;margin-bottom:14px;position:relative;}
 .forge-emoji{font-size:2rem;}
-.forge-h1{font-family:'Fredoka One',cursive;color:var(--purple);font-size:1.2rem;}
+.forge-h1{font-family:'Nunito',system-ui,sans-serif;color:var(--purple);font-size:1.2rem;}
 .forge-stand{font-size:.74rem;color:#a06a00;font-weight:800;margin-top:3px;}
-.forge-info{position:absolute;top:0;right:2px;width:28px;height:28px;border-radius:50%;border:1.5px solid rgba(168,108,219,.5);background:rgba(168,108,219,.1);color:var(--purple);font-family:'Fredoka One',cursive;font-size:1rem;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;}
+.forge-info{position:absolute;top:0;right:2px;width:28px;height:28px;border-radius:50%;border:1.5px solid rgba(168,108,219,.5);background:rgba(168,108,219,.1);color:var(--purple);font-family:'Nunito',system-ui,sans-serif;font-size:1rem;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;}
 
 .forge-station{max-width:420px;margin:0 auto 12px;padding:12px 12px 10px;border-radius:16px;background:#fff;box-shadow:var(--shadow);border:1px solid #eee;}
 .forge-station.locked{opacity:.5;}
 .forge-station.current{border-color:rgba(168,108,219,.55);box-shadow:0 0 0 2px rgba(168,108,219,.25),var(--shadow);}
 .forge-station.complete{border-color:#ffd45e;}
 .forge-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
-.forge-title{font-family:'Fredoka One',cursive;font-size:1rem;color:var(--text);}
+.forge-title{font-family:'Nunito',system-ui,sans-serif;font-size:1rem;color:var(--text);}
 .forge-del{
   margin-left:auto;border:none;background:none;cursor:pointer;font-size:.95rem;
   opacity:.4;padding:4px 6px;border-radius:8px;transition:opacity .15s,background .15s;
 }
 .forge-del:hover{opacity:1;background:rgba(224,49,49,.1);}
 .forge-cefr{font-size:.6rem;font-weight:800;color:var(--purple);background:rgba(168,108,219,.12);padding:2px 8px;border-radius:20px;}
-.forge-active-tag{margin-left:auto;font-family:'Fredoka One',cursive;font-size:.72rem;color:#3a9b45;}
-.forge-active-btn{margin-left:auto;font-family:'Fredoka One',cursive;font-size:.72rem;padding:5px 12px;border-radius:50px;cursor:pointer;background:rgba(95,208,138,.16);color:#2a8a4a;border:1px solid rgba(95,208,138,.5);}
+.forge-active-tag{margin-left:auto;font-family:'Nunito',system-ui,sans-serif;font-size:.72rem;color:#3a9b45;}
+.forge-active-btn{margin-left:auto;font-family:'Nunito',system-ui,sans-serif;font-size:.72rem;padding:5px 12px;border-radius:50px;cursor:pointer;background:rgba(95,208,138,.16);color:#2a8a4a;border:1px solid rgba(95,208,138,.5);}
 
 .forge-items{display:flex;gap:10px;}
 .forge-item{flex:1;min-width:0;border-radius:14px;padding:10px 8px;text-align:center;border:2px solid transparent;}
@@ -1108,7 +1110,7 @@ body.in-game .mode-progress{display:block;}
 .forge-item.pp   .fi-seg.built{background:linear-gradient(180deg,#ffe48a,#f3c34a);border:1.5px solid #e0ae33;}
 .fi-seg.next{border:1.5px solid var(--purple);background:rgba(168,108,219,.14);animation:forgePulse 1.3s ease-in-out infinite;}
 @keyframes forgePulse{0%,100%{opacity:.45;}50%{opacity:1;}}
-.fi-title{font-family:'Fredoka One',cursive;font-size:.8rem;margin-top:4px;color:#444;}
+.fi-title{font-family:'Nunito',system-ui,sans-serif;font-size:.8rem;margin-top:4px;color:#444;}
 .fi-form{font-size:.66rem;font-weight:800;margin-top:1px;}
 .forge-item.past .fi-form{color:#3a6ea8;}
 .forge-item.pp .fi-form{color:#a06a00;}
@@ -1126,7 +1128,7 @@ body.in-game .mode-progress{display:block;}
 .fi-prog{color:#888;}
 
 .forge-words{margin-top:22px;text-align:center;}   /* Abstand zu den Navi-Punkten */
-.forge-words summary{display:inline-flex;align-items:center;gap:7px;font-family:'Fredoka One',cursive;font-size:.8rem;color:var(--purple);cursor:pointer;list-style:none;background:#f3eefb;border:1.5px solid #e2d2f5;padding:8px 18px;border-radius:50px;}
+.forge-words summary{display:inline-flex;align-items:center;gap:7px;font-family:'Nunito',system-ui,sans-serif;font-size:.8rem;color:var(--purple);cursor:pointer;list-style:none;background:#f3eefb;border:1.5px solid #e2d2f5;padding:8px 18px;border-radius:50px;}
 .forge-words summary::-webkit-details-marker{display:none;}
 .forge-words summary::after{content:'▾';font-size:.9rem;transition:transform .2s;}
 .forge-words[open] summary::after{transform:rotate(180deg);}
@@ -1141,10 +1143,10 @@ body.in-game .mode-progress{display:block;}
 
 .forge-fill{display:flex;flex-direction:column;align-items:center;gap:6px;padding:18px 12px;border:2px dashed rgba(168,108,219,.45);background:rgba(168,108,219,.05);}
 .forge-fill-ic{font-size:1.8rem;}
-.forge-fill-title{font-family:'Fredoka One',cursive;color:var(--purple);font-size:1rem;}
+.forge-fill-title{font-family:'Nunito',system-ui,sans-serif;color:var(--purple);font-size:1rem;}
 .forge-fill-sub{font-size:.72rem;color:#999;font-weight:700;}
 .forge-fill-sub b{color:var(--purple);}
-.forge-fill-btn{margin-top:6px;font-family:'Fredoka One',cursive;font-size:.82rem;padding:9px 22px;border-radius:50px;cursor:pointer;color:#fff;border:none;background:linear-gradient(135deg,#a86cdb,#c084fc);box-shadow:0 4px 0 #7a4ba8;}
+.forge-fill-btn{margin-top:6px;font-family:'Nunito',system-ui,sans-serif;font-size:.82rem;padding:9px 22px;border-radius:50px;cursor:pointer;color:#fff;border:none;background:linear-gradient(135deg,#a86cdb,#c084fc);box-shadow:0 4px 0 #7a4ba8;}
 .forge-fill-btn:active{transform:translateY(2px);box-shadow:0 2px 0 #7a4ba8;}
 
 /* Slider (Stahl-Past ↔ Gold-PP): wiederverwendete .cst-*-Mechanik, hell gemacht. */
@@ -1159,7 +1161,7 @@ body.in-game .mode-progress{display:block;}
    enger viewBox maximal aus. Aktives nächstes Teil pulsiert, fertige Teile solid,
    ungebaute transparent. Darunter ein Balken für den aktuellen Schritt. */
 .forge-weapon-wrap{display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 0 2px;}
-.fw-name{font-family:'Fredoka One',cursive;font-size:.82rem;color:#555;}
+.fw-name{font-family:'Nunito',system-ui,sans-serif;font-size:.82rem;color:#555;}
 .forge-weapon{position:relative;width:100%;height:200px;display:flex;align-items:center;justify-content:center;cursor:pointer;}
 .forge-weapon.locked{cursor:default;}
 
@@ -1181,7 +1183,7 @@ body.in-game .mode-progress{display:block;}
 .fw-step-top{display:flex;justify-content:space-between;align-items:center;font-weight:800;font-size:.78rem;color:#555;margin-bottom:4px;}
 .fw-step.done .fw-step-name{color:#a06a00;}
 .fw-step.locked .fw-step-name{color:#aaa;}
-.fw-step-pct{font-family:'Fredoka One',cursive;color:#444;}
+.fw-step-pct{font-family:'Nunito',system-ui,sans-serif;color:#444;}
 .fw-bar{height:9px;background:#ececec;border-radius:50px;overflow:hidden;}
 .fw-bar-fill{height:100%;border-radius:50px;transition:width .5s ease;}
 .fw-bar-fill.past{background:linear-gradient(90deg,#7aa0c8,#4d96ff);}
@@ -1211,7 +1213,7 @@ body.in-game .mode-progress{display:block;}
   -webkit-overflow-scrolling:touch;
 }
 .adv-head{display:flex;align-items:center;gap:10px;margin:0 auto 12px;max-width:580px;}
-.adv-head-title{font-family:'Fredoka One',cursive;color:var(--text);font-size:1.1rem;flex:1;}
+.adv-head-title{font-family:'Nunito',system-ui,sans-serif;color:var(--text);font-size:1.1rem;flex:1;}
 .adv-x{
   border:1px solid var(--line);background:#fff;color:#6f6889;border-radius:50%;
   width:38px;height:38px;font-size:1rem;cursor:pointer;flex-shrink:0;transition:all .15s;
@@ -1231,7 +1233,7 @@ body.in-game .mode-progress{display:block;}
   box-shadow:0 14px 44px rgba(20,10,50,.35);max-height:86vh;overflow-y:auto;
 }
 .adv-card-icon{font-size:2.8rem;margin-bottom:8px;}
-.adv-card-title{font-family:'Fredoka One',cursive;font-size:1.25rem;color:var(--purple);margin-bottom:6px;}
+.adv-card-title{font-family:'Nunito',system-ui,sans-serif;font-size:1.25rem;color:var(--purple);margin-bottom:6px;}
 .adv-card-sub{font-size:.85rem;font-weight:700;color:#8a83a5;margin-bottom:16px;}
 .adv-choice{
   display:flex;align-items:center;gap:12px;width:100%;text-align:left;
@@ -1242,7 +1244,7 @@ body.in-game .mode-progress{display:block;}
 .adv-choice:hover{border-color:var(--purple);background:#f4edfd;}
 .adv-choice-icon{font-size:1.8rem;flex-shrink:0;}
 .adv-choice-txt{color:var(--text);font-weight:700;font-size:.85rem;line-height:1.4;}
-.adv-choice-txt b{font-family:'Fredoka One',cursive;font-weight:400;font-size:.95rem;}
+.adv-choice-txt b{font-family:'Nunito',system-ui,sans-serif;font-weight:400;font-size:.95rem;}
 .adv-choice-txt span{color:#8a83a5;font-size:.78rem;}
 
 /* ── Ausrüstung (ce-*) — helle Karten ── */
@@ -1255,7 +1257,7 @@ body.in-game .mode-progress{display:block;}
 .ce-slot:hover{transform:translateY(-1px);}
 .ce-slot.open{border-color:var(--purple);box-shadow:0 0 0 3px rgba(168,108,219,.16);}
 .ce-slot-ic{font-size:1.6rem;line-height:1.2;}
-.ce-slot-nm{font-family:'Fredoka One',cursive;font-size:.7rem;color:var(--text);margin:3px 0 2px;}
+.ce-slot-nm{font-family:'Nunito',system-ui,sans-serif;font-size:.7rem;color:var(--text);margin:3px 0 2px;}
 .ce-slot-it{font-size:.68rem;font-weight:700;color:#8a83a5;}
 .ce-picker{background:#fff;border:1px solid var(--line);border-radius:var(--r-md);padding:10px;max-width:580px;margin:8px auto 0;box-shadow:var(--shadow);}
 .ce-picker-head{font-size:.76rem;font-weight:800;color:var(--purple);margin-bottom:7px;}
@@ -1419,7 +1421,7 @@ body.in-game .mode-progress{display:block;}
 }
 .cf-dmg{
   position:absolute;transform:translateX(-50%);z-index:2;pointer-events:none;white-space:nowrap;
-  font-family:'Fredoka One',cursive;font-size:1.15rem;text-shadow:0 2px 0 rgba(0,0,0,.5);
+  font-family:'Nunito',system-ui,sans-serif;font-size:1.15rem;text-shadow:0 2px 0 rgba(0,0,0,.5);
   animation:cfDmg .75s steps(5,end) forwards;
 }
 @keyframes cfDmg{0%{opacity:1;margin-top:0;}100%{opacity:0;margin-top:-30px;}}
@@ -1446,7 +1448,7 @@ body.in-game .mode-progress{display:block;}
 .potion-n{
   position:absolute;right:-4px;bottom:-4px;min-width:17px;height:17px;padding:0 3px;
   border-radius:9px;background:var(--purple);color:#fff;box-sizing:border-box;
-  font-family:'Fredoka One',cursive;font-size:.62rem;line-height:17px;text-align:center;
+  font-family:'Nunito',system-ui,sans-serif;font-size:.62rem;line-height:17px;text-align:center;
 }
 
 /* ── Objekt-Wahl im Befüllen-Popup ── */
@@ -1460,7 +1462,7 @@ body.in-game .mode-progress{display:block;}
 /* Platz für die echte Pixel-Art des Objekts (32×48-Raster) statt eines Emojis. */
 .uv-obj-ic{font-size:1.7rem;flex-shrink:0;width:36px;height:52px;display:flex;align-items:center;justify-content:center;}
 .uv-obj-tx{flex:1;min-width:0;color:var(--text);}
-.uv-obj-tx b{font-family:'Fredoka One',cursive;font-weight:400;font-size:.95rem;display:block;}
+.uv-obj-tx b{font-family:'Nunito',system-ui,sans-serif;font-weight:400;font-size:.95rem;display:block;}
 .uv-obj-perk{display:block;font-size:.74rem;font-weight:700;color:#8b6ab5;margin-top:1px;}
 .uv-obj-go{color:#c4b3de;font-size:1.2rem;flex-shrink:0;}
 .uv-obj-row.taken{opacity:.45;cursor:default;}
@@ -1470,7 +1472,7 @@ body.in-game .mode-progress{display:block;}
 .uv-train-name{
   width:100%;box-sizing:border-box;margin-top:8px;padding:9px 12px;
   border:2px solid var(--line);border-radius:12px;background:#fff;
-  font-family:'Fredoka One',cursive;font-size:.95rem;color:var(--text);
+  font-family:'Nunito',system-ui,sans-serif;font-size:.95rem;color:var(--text);
 }
 .uv-train-name:focus{outline:none;border-color:var(--purple);}
 
@@ -1490,7 +1492,7 @@ body.in-game .mode-progress{display:block;}
 }
 /* Schnell-Toggle (Vokabeln-Kopfzeile) */
 .schnell-btn{
-  font-family:'Fredoka One',cursive;font-size:.78rem;padding:7px 14px;
+  font-family:'Nunito',system-ui,sans-serif;font-size:.78rem;padding:7px 14px;
   border:1px solid var(--line);border-radius:50px;cursor:pointer;transition:all .2s;
   background:#fff;color:#8a83a5;box-shadow:0 3px 10px rgba(88,60,150,.10);white-space:nowrap;
 }
@@ -1506,7 +1508,7 @@ body.in-game .mode-progress{display:block;}
 /* Figur-Knöpfe: antippen wählt an, Markierung als Strich UNTER der Figur */
 .cg-fig{background:none;border:none;padding:0 0 4px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;}
 .cg-fig-lbl{
-  font-family:'Fredoka One',cursive;font-size:.72rem;color:#8a83a5;
+  font-family:'Nunito',system-ui,sans-serif;font-size:.72rem;color:#8a83a5;
   border-bottom:3px solid transparent;padding:0 6px 3px;
 }
 .cg-fig.sel .cg-fig-lbl{color:var(--purple);border-bottom-color:var(--purple);}
@@ -1551,7 +1553,7 @@ body.in-game .mode-progress{display:block;}
   font-size:.56rem;font-weight:800;color:#8a83a5;background:#fff;
   padding:0 5px;border-radius:8px;white-space:nowrap;border:1px solid var(--line);
 }
-.pd-inv-title{font-family:'Fredoka One',cursive;font-size:.85rem;color:#8a83a5;margin:10px 0 6px;}
+.pd-inv-title{font-family:'Nunito',system-ui,sans-serif;font-size:.85rem;color:#8a83a5;margin:10px 0 6px;}
 .pd-inv{display:grid;grid-template-columns:repeat(6,minmax(0,56px));gap:8px;justify-content:center;}
 .pd-item{
   aspect-ratio:1/1;padding:8px;border:2px solid var(--line);border-radius:12px;
@@ -1577,7 +1579,7 @@ body.in-game .mode-progress{display:block;}
 .pd-stat{display:flex;align-items:baseline;gap:5px;padding:1px 0;}
 .pd-stat .lbl{font-size:.64rem;font-weight:800;color:#8a83a5;white-space:nowrap;}
 .pd-stat .dots{flex:1;border-bottom:2px dotted #e3dbf2;transform:translateY(-3px);}
-.pd-stat b{font-family:'Fredoka One',cursive;font-size:.7rem;color:var(--text);white-space:nowrap;}
+.pd-stat b{font-family:'Nunito',system-ui,sans-serif;font-size:.7rem;color:var(--text);white-space:nowrap;}
 .pd-stat.chg.up b{color:#2a7a35;}
 .pd-stat.chg.down b{color:#c0392b;}
 
@@ -1588,10 +1590,10 @@ body.in-game .mode-progress{display:block;}
 }
 .pd-preview-sprite{width:44px;height:44px;flex-shrink:0;}
 .pd-preview-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
-.pd-preview-info b{font-family:'Fredoka One',cursive;font-size:.88rem;color:var(--text);}
+.pd-preview-info b{font-family:'Nunito',system-ui,sans-serif;font-size:.88rem;color:var(--text);}
 .pd-preview-info span{font-size:.68rem;font-weight:700;color:#8a83a5;}
 .pd-equip-btn{
-  font-family:'Fredoka One',cursive;font-size:.85rem;padding:9px 16px;border:none;
+  font-family:'Nunito',system-ui,sans-serif;font-size:.85rem;padding:9px 16px;border:none;
   border-radius:50px;cursor:pointer;flex-shrink:0;color:#fff;
   background:linear-gradient(135deg,#5bc24a,#7ed957);box-shadow:0 3px 0 #3a9b45;
 }
@@ -1620,7 +1622,7 @@ body.in-game .mode-progress{display:block;}
 /* Merkmal-Slider im Charakter-Editor */
 .cg-featbar{display:flex;align-items:center;justify-content:center;gap:12px;}
 .cg-featarrow{
-  font-family:'Fredoka One',cursive;font-size:1.3rem;line-height:1;
+  font-family:'Nunito',system-ui,sans-serif;font-size:1.3rem;line-height:1;
   width:42px;height:42px;border:1px solid var(--line);border-radius:50%;cursor:pointer;
   background:#fff;color:var(--purple);box-shadow:0 3px 10px rgba(88,60,150,.14);
   display:flex;align-items:center;justify-content:center;padding-bottom:3px;flex-shrink:0;
@@ -1629,7 +1631,7 @@ body.in-game .mode-progress{display:block;}
 .cg-featarrow:hover{transform:translateY(-1px);}
 .cg-featarrow:active{transform:translateY(1px);}
 .cg-featlbl{
-  font-family:'Fredoka One',cursive;font-size:1.05rem;color:var(--text);
+  font-family:'Nunito',system-ui,sans-serif;font-size:1.05rem;color:var(--text);
   min-width:150px;text-align:center;
 }
 .cg-featdots{display:flex;gap:8px;justify-content:center;margin-top:10px;}
@@ -2824,6 +2826,74 @@ button.p-chip{ cursor:pointer; }
   border:var(--p-rahmen); border-radius:var(--p-r-chip); background:var(--p-ok);
   color:var(--p-ink); font:900 10px var(--p-font); padding:3px 9px;
 }
+
+/* ══ RESTE DER ALTEN SCHICHT ═══════════════════════════════════════════════
+   Diese Klassen erzeugt weiterhin JS, das noch nicht umgebaut ist (UV-Trainings-
+   decks, Freundesliste, Statistiktabellen). Sie bekommen hier die Sprache des
+   Designs, damit kein Screen aus dem Rahmen faellt. */
+
+/* Karten und Kopfzeilen der Trainings-Decks. */
+.deck-card{
+  border:var(--p-rahmen); border-radius:var(--p-r-dialog); background:var(--p-karte);
+  box-shadow:none; padding:0; margin-bottom:11px; overflow:visible;
+}
+.deck-card.deck-type-custom, .deck-card.deck-type-preset{
+  border:var(--p-rahmen); background:var(--p-karte);
+}
+.deck-card.expanded{ border:var(--p-rahmen); box-shadow:none; }
+.deck-header{ padding:13px 14px; gap:11px; }
+.deck-name{ font:900 15px var(--p-font); color:var(--p-ink); }
+.deck-meta{ font:700 10px var(--p-font); color:var(--p-text-2); gap:6px; flex-wrap:wrap; }
+.deck-chevron{ color:var(--p-ink); font-size:12px; }
+.deck-body{ padding:0 14px 14px; }
+.deck-progress-mini{
+  height:8px; border-radius:5px; overflow:hidden; background:var(--p-spur); margin-top:7px;
+}
+.deck-progress-mini-fill{ height:100%; background:var(--p-ok); }
+.deck-actions{ border-top:var(--p-trenner); gap:7px; padding-top:11px; margin-top:11px; }
+.deck-action-btn{
+  flex:1; height:40px;
+  border:var(--p-rahmen); border-radius:var(--p-r-chip-gross); background:var(--p-blatt);
+  color:var(--p-ink); font:800 10px var(--p-font); box-shadow:none; cursor:pointer;
+}
+.deck-action-btn.danger{ background:var(--p-falsch); }
+.deck-pct{ font:900 19px var(--p-font); color:var(--p-ink); }
+
+/* Untertitel und Minibalken in den Modus-Zeilen der Trainings-Decks. */
+.mode-buttons{ display:flex; flex-direction:column; gap:9px; margin-top:12px; width:100%; }
+.btn-sub{ font:700 10px var(--p-font); opacity:1; display:block; margin-top:3px; }
+.btn-progress-text{ display:block; font:700 10px var(--p-font); color:var(--p-text-3); }
+.btn-progress{
+  display:block; height:9px; border-radius:5px; overflow:hidden;
+  background:var(--p-karte); margin-top:5px;
+}
+.btn-progress-fill{ display:block; height:100%; background:var(--p-ink); }
+
+/* Freundesliste. */
+.fr-zeile{
+  display:flex; align-items:center; gap:10px; padding:10px 0;
+  border-bottom:var(--p-zeilentrenner);
+}
+.fr-zeile:last-child{ border-bottom:0; }
+
+/* Statistiktabellen auf der Fortschritt-Seite. */
+.word-table{
+  border:var(--p-rahmen); border-radius:var(--p-r-karte); background:var(--p-karte);
+  box-shadow:none; overflow:hidden; border-collapse:collapse; width:100%;
+}
+.word-table th{
+  background:var(--p-inaktiv); color:var(--p-ink);
+  font:900 9px var(--p-font); text-transform:uppercase; letter-spacing:var(--p-ls-mikro);
+  padding:8px 10px; text-align:left;
+}
+.word-table td{
+  font:700 11px var(--p-font); color:var(--p-ink);
+  border-bottom:var(--p-zeilentrenner); padding:8px 10px;
+}
+.word-table tbody tr:last-child td{ border-bottom:0; }
+
+/* Kleine Statistikkaesten. */
+.stat-box.p-ton-pfirsich, .stat-box.p-ton-mint, .stat-box.p-ton-blau{ background:var(--p-ton); }
 
 /* ── Breite Fenster ──────────────────────────────────────────────────────── */
 /* Steht ganz am Ende, damit diese Regeln die Grundfassung ueberschreiben.

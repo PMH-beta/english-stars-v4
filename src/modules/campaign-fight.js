@@ -368,8 +368,9 @@ function _hillsScene() {
 }
 
 // Kampf-Szene wie die ursprüngliche Kampagnen-Version: dunkler Violett-Verlauf,
-// runder ✕-Knopf, Fredoka-Schrift, weiche Verlaufs-HP-Balken. NUR der Show-Teil
-// oben ist Pixel-Art: die Landschafts-Arena mit Spieler (links) und Gegner (rechts).
+// Kartenlogik und Sprites bleiben; die Bedienoberflaeche traegt seit dem
+// Pastell-Redesign Kontur und Pixelsymbole. Der Show-Teil oben ist Pixel-Art:
+// die Landschafts-Arena mit Spieler (links) und Gegner (rechts).
 function _renderOverlay() {
   _removeOverlay();
   const { run, node, enemy, weapon } = _ctx;
@@ -907,12 +908,12 @@ function _endScreen(victory) {
   if (stage) stage.innerHTML = `<div style="display:flex;justify-content:center;padding:20px 16px;">
     <div style="background:#fff;border-radius:20px;padding:28px 24px;box-shadow:0 4px 14px rgba(0,0,0,.22);max-width:300px;text-align:center;">
       <div style="font-size:4rem;margin-bottom:12px;">${victory ? (boss ? '👑' : '🎉') : '💀'}</div>
-      <div style="font-family:'Fredoka One',cursive;font-size:1.3rem;color:#333;margin-bottom:10px;">${bossWin ? `🐉 Boss Nr. ${round + 1} besiegt!` : victory ? 'Gewonnen!' : 'Besiegt …'}</div>
+      <div class="p-dlg-titel" style="margin-bottom:10px">${bossWin ? `🐉 Boss Nr. ${round + 1} besiegt!` : victory ? 'Gewonnen!' : 'Besiegt …'}</div>
       <div style="font-size:.9rem;font-weight:700;color:#777;margin-bottom:${bossWin ? 14 : 22}px;line-height:1.5;">${victory
         ? (boss ? 'Du hast dich bis ganz nach oben gekämpft — der Lauf ist geschafft!' : 'Der Weg ist frei — wähle den nächsten Knoten.')
         : `Deine HP sind auf 0 — der Lauf ist vorbei und der Einsatz (2 🪙) weg.${round > 0 ? ' Der Aufstieg beginnt wieder bei Runde 1.' : ''}`}</div>
-      ${bossWin ? `<div class="bounce-in" style="font-family:'Fredoka One',cursive;font-size:1.15rem;color:#a67c00;background:#fff3bf;border-radius:12px;padding:8px 14px;margin-bottom:22px;display:inline-block;">+${BOSS_WIN_TALER} 🪙</div>` : ''}
-      <button id="cf-endbtn" style="font-family:'Fredoka One',cursive;font-size:1rem;padding:14px 28px;border:none;border-radius:14px;cursor:pointer;background:linear-gradient(135deg,#a86cdb,#c084fc);color:#fff;box-shadow:0 4px 0 #7d4bb0;">${bossWin ? '🔄 Neue Runde starten' : 'Weiter'}</button>
+      ${bossWin ? `<div class="bounce-in p-chip p-chip--gold p-chip--icon" style="border-radius:var(--p-r-chip-gross);padding:8px 14px;font-size:14px;margin-bottom:22px">${iconHTML('coin', 14)}+${BOSS_WIN_TALER}</div>` : ''}
+      <button id="cf-endbtn" class="p-btn p-btn--primaer" style="width:auto;padding:0 24px">${bossWin ? '🔄 Neue Runde starten' : 'Weiter'}</button>
     </div>
   </div>`;
   const flee = _el('cf-flee');

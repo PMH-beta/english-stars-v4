@@ -491,7 +491,7 @@ export function openDeckStats(id) {
   const dn = document.getElementById('vm-deck-name');
   if (dn) dn.textContent = 'Statistik: ' + deck.name;
   const ba = document.getElementById('vm-back-area');
-  if (ba) ba.innerHTML = '<button class="back-btn sticky" onclick="vmBack()" style="margin-bottom:14px;">← Zurück</button>';
+  if (ba) ba.innerHTML = '<button class="p-back" onclick="vmBack()"><canvas data-icon="back" width="14" height="14" style="width:28px;height:28px;image-rendering:pixelated;flex:none"></canvas></button>';
   const tabsEl = document.querySelector('.vm-tabs');
   if (tabsEl) tabsEl.innerHTML = '<button class="vm-tab active" data-tab="deck-stats" onclick="vmTab(\'deck-stats\')">📊 Statistik</button>';
   const aa = document.getElementById('vm-action-area');
@@ -521,11 +521,11 @@ export function resetDeckProgress(id) {
   overlay.innerHTML = `
     <div style="background:#fff;border-radius:20px;padding:28px 22px;max-width:340px;width:100%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.2);">
       <div style="font-size:2.5rem;margin-bottom:10px;">🔄</div>
-      <div style="font-family:'Fredoka One',cursive;font-size:1.25rem;color:var(--purple);margin-bottom:12px;">Fortschritt zurücksetzen?</div>
+      <div class="p-dlg-titel" style="margin-bottom:12px">Fortschritt zurücksetzen?</div>
       <p style="font-size:.88rem;color:#555;line-height:1.6;margin:0 0 20px;">${bodyText}</p>
       <div style="display:flex;gap:10px;justify-content:center;">
-        <button id="_rp-cancel" style="font-family:'Fredoka One',cursive;font-size:1rem;padding:12px 20px;background:#eee;color:#333;border:none;border-radius:50px;cursor:pointer;">Abbrechen</button>
-        <button id="_rp-ok" style="font-family:'Fredoka One',cursive;font-size:1rem;padding:12px 20px;background:linear-gradient(135deg,#e8920a,#f5a623);color:#fff;border:none;border-radius:50px;cursor:pointer;box-shadow:0 4px 0 #b86e08;">Zurücksetzen</button>
+        <button id="_rp-cancel" class="p-dlg-btn p-dlg-btn--ab">Abbrechen</button>
+        <button id="_rp-ok" class="p-dlg-btn" style="background:var(--p-gold);color:var(--p-ink)">Zurücksetzen</button>
       </div>
     </div>
   `;
@@ -588,11 +588,11 @@ export function confirmDeleteDeck(id) {
   overlay.innerHTML = `
     <div style="background:#fff;border-radius:20px;padding:28px 22px;max-width:340px;width:100%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.2);">
       <div style="font-size:2.5rem;margin-bottom:10px;">🗑️</div>
-      <div style="font-family:'Fredoka One',cursive;font-size:1.25rem;color:#e53935;margin-bottom:12px;">Sammlung löschen?</div>
+      <div class="p-dlg-titel" style="margin-bottom:12px">Sammlung löschen?</div>
       <p style="font-size:.88rem;color:#555;line-height:1.6;margin:0 0 20px;">${bodyText}</p>
       <div style="display:flex;gap:10px;justify-content:center;">
-        <button id="_cd-cancel" style="font-family:'Fredoka One',cursive;font-size:1rem;padding:12px 20px;background:#eee;color:#333;border:none;border-radius:50px;cursor:pointer;">Abbrechen</button>
-        <button id="_cd-ok" style="font-family:'Fredoka One',cursive;font-size:1rem;padding:12px 20px;background:linear-gradient(135deg,#e53935,#f44336);color:#fff;border:none;border-radius:50px;cursor:pointer;box-shadow:0 4px 0 #b71c1c;">Löschen</button>
+        <button id="_cd-cancel" class="p-dlg-btn p-dlg-btn--ab">Abbrechen</button>
+        <button id="_cd-ok" class="p-dlg-btn p-dlg-btn--gefahr">Löschen</button>
       </div>
     </div>
   `;

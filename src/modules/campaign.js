@@ -465,7 +465,7 @@ export function campPotionInfo(el, key) {
     background:#2b2350;color:#fff;font-family:'Nunito',sans-serif;font-size:.76rem;font-weight:700;
     line-height:1.4;padding:9px 13px;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.32);
     z-index:9000;max-width:200px;text-align:center;`;
-  tip.innerHTML = `<div style="font-family:'Fredoka One',cursive;font-size:.85rem;margin-bottom:2px;">${info.icon} ${info.name}</div>${info.desc}`;
+  tip.innerHTML = `<div style="font:900 12px var(--p-font);margin-bottom:2px">${info.icon} ${info.name}</div>${info.desc}`;
   document.body.appendChild(tip);
   setTimeout(() => { if (tip.parentNode) tip.remove(); }, 3500);
 }

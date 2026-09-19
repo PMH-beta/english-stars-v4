@@ -107,7 +107,8 @@ const _FORM_BADGE={
   past: ['Simple Past','#e8920a'],
   pp:   ['Past Participle','#3aaa5c'],
 };
-function _uvBadge(key,label,bg){ const b=_FORM_BADGE[key]||[label,bg]; return `<div style="margin-bottom:8px;"><span style="display:inline-block;background:${b[1]};color:#fff;font-family:'Fredoka One',cursive;font-size:.72rem;padding:3px 12px;border-radius:20px;">${b[0]}</span></div>`; }
+function _uvBadge(key,label,bg){ const b=_FORM_BADGE[key]||[label,bg];
+  return `<div style="margin-bottom:8px;"><span class="badge" style="background:${b[1]};color:var(--p-ink)">${b[0]}</span></div>`; }
 // Anweisung — als abgegrenzte Plakette (klar als Erklärung erkennbar, NICHT als
 // das Vorgabewort). Eigener Look: gerahmt, gedämpft. Eigene Zeile (Block-Wrapper),
 // damit sie NICHT neben der Form-Plakette landet (beide sind sonst inline-block).
@@ -850,7 +851,8 @@ export function showSelfRateButtons() {
   wrap.style.cssText='margin-top:14px;display:flex;flex-direction:column;gap:10px;align-items:center;';
   const listenBtn=document.createElement('button');
   listenBtn.textContent='🔊 Lösung anhören';
-  listenBtn.style.cssText="font-family:'Fredoka One',cursive;font-size:.9rem;padding:10px 22px;background:#fff;color:var(--purple);border:2px solid var(--purple);border-radius:50px;cursor:pointer;";
+  listenBtn.className='p-dlg-btn p-dlg-btn--ab';
+  listenBtn.style.cssText='flex:none;padding:0 18px;height:44px;';
   listenBtn.onclick=()=>{
     try{ voskStop(); }catch(e){}
     if(window._activeVoskTimeout){ clearTimeout(window._activeVoskTimeout); window._activeVoskTimeout=null; }
@@ -864,18 +866,20 @@ export function showSelfRateButtons() {
     }
   };
   const hint=document.createElement('div');
-  hint.style.cssText='font-size:.78rem;color:#666;text-align:center;';
+  hint.style.cssText='font:700 11px var(--p-font);color:var(--p-text-2);text-align:center;';
   hint.textContent='Hör dir die Aussprache an und entscheide:';
   const btnRow=document.createElement('div');
   btnRow.style.cssText='display:flex;gap:8px;flex-wrap:wrap;justify-content:center;';
   const okBtn=document.createElement('button');
   okBtn.textContent='✓ Hatte ich richtig';
-  okBtn.style.cssText="font-family:'Fredoka One',cursive;font-size:.9rem;padding:10px 18px;background:linear-gradient(135deg,#06d6a0,#3a9b45);color:#fff;border:none;border-radius:11px;cursor:pointer;box-shadow:0 4px 0 #2a7a35;";
+  okBtn.className='p-dlg-btn';
+  okBtn.style.cssText='flex:none;padding:0 16px;height:44px;background:var(--p-ok);color:var(--p-ink);';
   okBtn.onclick=()=>selfRate(true);
   btnRow.appendChild(okBtn);
   const noBtn=document.createElement('button');
   noBtn.textContent='✗ Daneben';
-  noBtn.style.cssText="font-family:'Fredoka One',cursive;font-size:.9rem;padding:10px 18px;background:linear-gradient(135deg,#ff6b6b,#c0001a);color:#fff;border:none;border-radius:11px;cursor:pointer;box-shadow:0 4px 0 #800010;";
+  noBtn.className='p-dlg-btn';
+  noBtn.style.cssText='flex:none;padding:0 16px;height:44px;background:var(--p-falsch);color:var(--p-ink);';
   noBtn.onclick=()=>selfRate(false);
   btnRow.appendChild(noBtn);
   wrap.appendChild(listenBtn);wrap.appendChild(hint);wrap.appendChild(btnRow);
