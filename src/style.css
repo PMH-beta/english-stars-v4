@@ -2198,3 +2198,39 @@ body.p-app .music-vol-btn{
 button.p-chip{ cursor:pointer; }
 /* Der schwebende Musikknopf darf die letzte Karte nicht verdecken. */
 #menu-screen .p-blatt{ padding-bottom:calc(80px + env(safe-area-inset-bottom,0px)); }
+
+/* ── Kampagnenkarte ──────────────────────────────────────────────────────── */
+/* Knoten liegen absolut auf der Karte, Pfade laufen als SVG dahinter. */
+.p-knoten{
+  position:absolute; transform:translate(-50%,-50%); z-index:2; padding:0;
+  border:var(--p-rahmen);
+  display:flex; align-items:center; justify-content:center;
+}
+/* Erreichbar: Goldring mit Tintenkante aussen herum. Kein Schatten im Sinne des
+   Designs — kein Versatz, keine Weichzeichnung, nur eine zweite Kontur. */
+.p-knoten--offen{ box-shadow:0 0 0 4px var(--p-gold), 0 0 0 6px var(--p-ink); }
+
+/* Legende unter „Pfad wählen": zwei Strichproben. */
+.p-pfad-probe{ display:inline-block; width:22px; height:4px; }
+.p-pfad-probe--offen{
+  background:repeating-linear-gradient(90deg,#1F1F24 0 5px,transparent 5px 9px);
+}
+.p-pfad-probe--spaeter{
+  background:repeating-linear-gradient(90deg,#9B968A 0 4px,transparent 4px 10px);
+}
+
+/* Tränkeplätze: belegte tragen Kontur, freie bleiben gestrichelt. */
+.camp-slot{
+  width:28px; height:28px; padding:0; flex:none;
+  border:var(--p-rahmen); border-radius:var(--p-r-chip); background:var(--p-karte);
+  display:flex; align-items:center; justify-content:center;
+  font-size:14px; line-height:1; cursor:pointer; position:relative;
+}
+.camp-slot.empty{ border:var(--p-rahmen-leer); background:none; cursor:default; }
+.camp-slot .potion-n{
+  position:absolute; right:-4px; bottom:-4px;
+  min-width:15px; height:15px; padding:0 3px;
+  border:2px solid var(--p-ink); border-radius:8px; background:var(--p-gold);
+  color:var(--p-ink);   /* die alte Regel setzt Weiss — auf Gold unlesbar */
+  font:900 8px var(--p-font); line-height:11px; text-align:center;
+}

@@ -500,24 +500,22 @@ export function renderUvTrainingSection() {
   const sub = decks.length
     ? decks.length + ' Deck' + (decks.length === 1 ? '' : 's') + ' · zum Aufklappen tippen'
     : `Eigene Übungsdecks aus bis zu ${UV_TRAIN_MAX} Verben`;
-  // WICHTIG: kein 'expanded' auf der äußeren Karte — die CSS-Nachfahren-Regeln
-  // (.deck-card.expanded .deck-body/.deck-chevron) würden sonst die inneren
-  // Trainings-Deck-Karten dauerhaft aufklappen. Offen-Optik daher inline.
+  // Zeilenkarte wie der Probetest. Bewusst KEINE Klasse, die auf die inneren
+  // Trainings-Deck-Karten durchschlaegt — die klappen einzeln auf.
   let html =
-    '<div class="deck-card" style="text-align:left;margin-bottom:14px;'
-    + (open ? 'border-color:rgba(168,108,219,.55);box-shadow:0 10px 30px rgba(88,60,150,.16);' : '') + '">'
-    + '<div class="deck-header" onclick="toggleUvTraining()" style="cursor:pointer;">'
-    + '<div style="width:44px;height:44px;border-radius:14px;background:linear-gradient(135deg,#fdeef0,#fbd9e0);display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">🎯</div>'
-    + '<div class="deck-info"><div class="deck-name">Trainingsplatz</div>'
-    + '<div class="deck-meta"><span>' + sub + '</span></div></div>'
-    + '<div class="deck-chevron"' + (open ? ' style="transform:rotate(180deg);"' : '') + '>▼</div>'
+    '<div class="p-zeilenkarte">'
+    + '<div class="p-zeilenkarte-kopf" onclick="toggleUvTraining()" style="cursor:pointer;">'
+    + '<div class="p-symbolkachel p-ton-rosa">' + iconHTML('target', 28) + '</div>'
+    + '<div class="p-wachs"><div class="p-zeilentitel">Trainingsplatz</div>'
+    + '<div class="p-zeilensub">' + sub + '</div></div>'
+    + '<div class="p-chevron">' + iconHTML(open ? 'chevronUp' : 'chevron', 14) + '</div>'
     + '</div>';
   if (open) {
-    html += '<div style="padding:0 14px 14px;">'
-      + '<button onclick="uvTrainOpenCreate()" class="big-btn green center" style="width:100%;margin-bottom:12px;"><span class="icon-btn">➕</span><span>Neues Trainings-Deck</span></button>'
+    html += '<div class="p-karte-trenner">'
+      + '<button onclick="uvTrainOpenCreate()" class="p-btn p-btn--akzent" style="height:46px;font-size:13px">Neues Trainings-Deck</button>'
       + (decks.length
         ? decks.map(_trainDeckCardHtml).join('')
-        : '<div style="text-align:center;color:#8a83a5;font-size:.82rem;padding:6px 0 2px;font-weight:700;">Noch kein Trainings-Deck angelegt.</div>')
+        : '<div class="p-zeilensub" style="text-align:center;padding:10px 0 2px;">Noch kein Trainings-Deck angelegt.</div>')
       + '</div>';
   }
   html += '</div>';

@@ -17,6 +17,7 @@ import { uvTrainProgress } from './irregular-game.js';
 import { persist } from './storage.js';
 import { markDirty } from './sync.js';
 import { commitDirty } from './dialog.js';
+import { iconHTML } from './pixel-icons.js';
 import { HP_MAX, REST_HEAL, BOSS_WIN_TALER } from './campaign-balance.js';
 import { openFight, fightPoolReady, verbsReady, loadPresetSupply } from './campaign-fight.js';
 import { equipEffects, openPotionChoice, POTIONS, potionStacks } from './campaign-equipment.js';
@@ -27,12 +28,15 @@ const PATHS = 6;            // Anzahl generierter Pfade von unten nach oben
 export const STAKE_COST = 2;
 const UNLOCK_NEED = 2;      // so viele 100%-Deck-Modi (Taler) zum Freischalten
 
+// Knotentypen. Farbe und Pixelsymbol folgen der Bedeutung, die die Farbe im
+// uebrigen Design schon hat: Kampf rosa wie der Kampfbildschirm, Formen
+// pfirsich wie der Formen-Tab, Rast mint, Schatz hellblau, Boss flieder.
 const NODE = {
-  fight:     { icon: '⚔️', label: 'Übung' },
-  irregular: { icon: '🌀', label: 'Unregelmäßige' },
-  rest:      { icon: '🔥', label: 'Rastplatz' },
-  treasure:  { icon: '💎', label: 'Schatz' },
-  boss:      { icon: '👑', label: 'Boss' },
+  fight:     { icon: 'sword',    ton: 'var(--p-rosa)',     label: 'Übung' },
+  irregular: { icon: 'portal',   ton: 'var(--p-pfirsich)', label: 'Unregelmäßige' },
+  rest:      { icon: 'campfire', ton: 'var(--p-mint)',     label: 'Rastplatz' },
+  treasure:  { icon: 'gem',      ton: 'var(--p-blau)',     label: 'Schatz' },
+  boss:      { icon: 'crownBig', ton: 'var(--p-lila)',     label: 'Boss' },
 };
 
 // Gewichtete Zufallswahl: höheres Gewicht = wahrscheinlicher, aber nie ausgeschlossen.
@@ -525,29 +529,35 @@ function _startScreenHtml() {
   const c = _camp();
   const claimed = c.claimed.length;
   const avail = talerAvailable();
-  const box = (inner) => `<div style="padding:22px 14px;text-align:center;">
-    <div style="font-size:3.4rem;margin-bottom:12px;">🗺️</div>
-    <div style="font-family:'Fredoka One',cursive;font-size:1.4rem;color:var(--purple);margin-bottom:12px;">Kampagne</div>
+  const box = (inner) => `<div class="p-dialogkarte" style="text-align:center">
+    <div class="p-emblem p-ton-amber">${iconHTML('map', 42)}</div>
+    <div class="p-h1">Kampagne</div>
     ${inner}</div>`;
   if (claimed < UNLOCK_NEED) {
-    return box(`<div style="font-size:.9rem;color:#8a83a5;font-weight:700;line-height:1.55;max-width:330px;margin:0 auto;">
-      Bring erst <b>${UNLOCK_NEED} Übungsarten</b> (z. B. MC) in deinen Decks auf <b>100 %</b>, um die Kampagne freizuschalten.<br><br>
-      Freigeschaltet: <b style="color:#a67c00;">${claimed} / ${UNLOCK_NEED}</b> 🪙</div>`);
+    return box(`<div class="p-lead">
+      Bring erst <b>${UNLOCK_NEED} Übungsarten</b> (z. B. Vokabeln) in deinen Sammlungen auf <b>100 %</b>, um die Kampagne freizuschalten.</div>
+      <div class="p-feldgruppe"><div class="p-karte p-reihe" style="justify-content:center;gap:7px">
+        ${iconHTML('coin', 14)}<span style="font:900 13px var(--p-font)">Freigeschaltet: ${claimed} / ${UNLOCK_NEED}</span>
+      </div></div>`);
   }
   const free = c.freeStart;   // Boss gerade besiegt → dieser Lauf kostet nichts
   const canStart = free || avail >= STAKE_COST;
   return box(`
-    <div style="font-size:.9rem;color:#6f6889;font-weight:700;line-height:1.55;max-width:340px;margin:0 auto 16px;">
+    <div class="p-lead">
       ${free
-        ? '🎉 Boss besiegt! Dein <b>nächster Lauf ist kostenlos</b> — kämpf dich über die Karte zum nächsten Boss.'
-        : `Setze <b>${STAKE_COST} 🪙</b> ein und kämpf dich über die Karte zum Boss.`}
-      <span style="color:#c0392b;">Fällst du (HP = 0), ist der Einsatz verloren.</span>
+        ? 'Boss besiegt! Dein <b>nächster Lauf ist kostenlos</b> — kämpf dich über die Karte zum nächsten Boss.'
+        : `Setze <b>${STAKE_COST} Taler</b> ein und kämpf dich über die Karte zum Boss.`}
+      Fällst du (Leben auf 0), ist der Einsatz verloren.
     </div>
-    <div style="font-size:.95rem;font-weight:800;color:var(--text);margin-bottom:16px;">Deine Taler: <span style="color:#a67c00;">${avail} 🪙</span></div>
-    <button onclick="startCampaignRun()" ${canStart ? '' : 'disabled'}
-      style="font-family:'Fredoka One',cursive;font-size:1rem;padding:14px 26px;border:none;border-radius:14px;cursor:${canStart ? 'pointer' : 'not-allowed'};background:${canStart ? 'linear-gradient(135deg,#a86cdb,#c084fc)' : '#e5def2'};color:${canStart ? '#fff' : '#a79cc2'};box-shadow:${canStart ? '0 4px 0 #7d4bb0' : 'none'};">
-      ▶️ Kampagne starten ${free ? '(kostenlos)' : `(${STAKE_COST} 🪙)`}</button>
-    ${canStart ? '' : `<div style="font-size:.82rem;color:#8a83a5;font-weight:700;margin-top:12px;">Nicht genug Taler — bring weitere Übungsarten auf 100 %.</div>`}`);
+    <div class="p-feldgruppe">
+      <div class="p-karte p-reihe" style="justify-content:center;gap:7px">
+        ${iconHTML('coin', 14)}<span style="font:900 13px var(--p-font)">Deine Taler: ${avail}</span>
+      </div>
+      <button onclick="startCampaignRun()" ${canStart ? '' : 'disabled'}
+        class="p-btn p-btn--primaer" style="${canStart ? '' : 'opacity:.45;cursor:not-allowed'}">
+        Kampagne starten ${free ? '(kostenlos)' : `(${STAKE_COST} Taler)`}</button>
+    </div>
+    ${canStart ? '' : `<div class="p-lead">Nicht genug Taler — bring weitere Übungsarten auf 100 %.</div>`}`);
 }
 
 const _MAP_H = ROWS * 78;   // px Gesamthöhe der Karte
@@ -559,26 +569,28 @@ function _mapHtml(run, preview) {
     const x = (n.col + 0.5) / COLS * 100;
     const y = (ROWS - 1 - n.row + 0.5) / ROWS * 100;
     const meta = NODE[n.type];
-    let bg, ring, opacity, click, cursor, glow;
+    const isBoss = n.type === 'boss';
+    // Der Boss sitzt groesser auf der Karte — 70 statt 46, Radius 24 statt 16.
+    const size = isBoss ? 70 : 46;
+    const radius = isBoss ? 'var(--p-r-dialog)' : 'var(--p-r-kachel)';
+    let bg, opacity, click, cursor, klasse;
     if (preview) {
-      bg = '#fff'; ring = '2px solid #e5e5e5'; opacity = '.9'; click = ''; cursor = 'default'; glow = '';
+      bg = 'var(--p-inaktiv)'; opacity = '.6'; click = ''; cursor = 'default'; klasse = '';
     } else {
       const reachable = _isReachable(run, n);
       const isCur = run.pos === id;
       const visited = run.visited.includes(id);
-      // Glühen (Puls) zeigt an, was man als Nächstes wählen kann.
-      bg = (isCur || visited) ? '#e9e2f5' : reachable ? '#fff' : '#f6f6f6';
-      ring = isCur ? '2px solid var(--purple)' : reachable ? '3px solid #f0a500' : '2px solid #e5e5e5';
+      // Aktueller Knoten in Tinte gefuellt, erreichbare mit Goldring, gesperrte
+      // blass auf Sand — so steht es in der Spezifikation.
+      bg = isCur ? 'var(--p-ink)' : (reachable || visited) ? meta.ton : 'var(--p-inaktiv)';
       opacity = (reachable || visited || isCur) ? '1' : '.45';
-      glow = reachable ? 'animation:campNodeGlow 1.3s ease-in-out infinite;' : '';
+      klasse = reachable && !isCur ? ' p-knoten--offen' : '';
       click = reachable ? `onclick="campaignNode('${id}')"` : '';
       cursor = reachable ? 'pointer' : 'default';
     }
-    nodesHtml += `<button ${click} title="${meta.label}"
-      style="position:absolute;left:${x}%;top:${y}%;transform:translate(-50%,-50%);
-      width:44px;height:44px;border-radius:50%;border:${ring};background:${bg};opacity:${opacity};
-      cursor:${cursor};font-size:1.3rem;line-height:1;display:flex;
-      align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.12);z-index:2;padding:0;${glow}">${meta.icon}</button>`;
+    nodesHtml += `<button ${click} title="${meta.label}" class="p-knoten${klasse}"
+      style="left:${x}%;top:${y}%;width:${size}px;height:${size}px;border-radius:${radius};
+      background:${bg};opacity:${opacity};cursor:${cursor};">${iconHTML(meta.icon, isBoss ? 56 : 28)}</button>`;
   }
   let header;
   if (preview) {
@@ -586,9 +598,9 @@ function _mapHtml(run, preview) {
   } else {
     const hpPct = Math.max(0, Math.round(run.hp / run.hpMax * 100));
     const statusText = run.fight
-      ? '⚔️ Ein Kampf wartet auf dich — tippe einen Punkt an'
+      ? 'Ein Kampf wartet auf dich — tippe einen Punkt an'
       : run.pos == null
-        ? 'Wähle unten deinen Startpunkt ⬇️'
+        ? 'Wähle unten deinen Startpunkt'
         : 'Wähle den nächsten Knoten';
     // Mitgeführte Tränke über der Lebensanzeige (spielbar sind sie erst im Kampf — hier
     // nur Anzeige; Antippen zeigt Name+Wirkung als kleine Sprechblase daneben).
@@ -598,7 +610,7 @@ function _mapHtml(run, preview) {
       `<button onclick="campPotionInfo(this,'${s.key}')" class="camp-slot">${POTIONS[s.key].icon}${
         s.count > 1 ? `<span class="potion-n">${s.count}</span>` : ''}</button>`);
     while (slots.length < 3) slots.push('<div class="camp-slot empty"></div>');
-    const potionsHtml = `<div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-bottom:8px;">${slots.join('')}</div>`;
+    const potionsHtml = `<div style="display:flex;gap:6px;">${slots.join('')}</div>`;
     // Runde = Stufe des laufenden Aufstiegs (1. Boss-Sieg schließt Runde 1 ab, danach läuft
     // Runde 2 usw.; eine Niederlage setzt zurück auf Runde 1);
     // Run-Länge = wie weit dieser Aufstieg insgesamt gekommen ist (alle Karten zusammen,
@@ -607,23 +619,44 @@ function _mapHtml(run, preview) {
     // Fortschritt-Seite („Längster Run").
     const c = _camp();
     const roundNum = (c.round || 0) + 1;
-    const roundHtml = `<div style="text-align:center;font-size:.72rem;font-weight:800;color:#8a83a5;margin-bottom:6px;">🔄 Runde ${roundNum} · 🏔️ Run-Länge ${_runLength(c)}</div>`;
+    // Kopfkarte: Runde und Run-Laenge links, Traenkeplaetze rechts, darunter
+    // Lebensbalken und Aufgeben.
     header = `
-  ${roundHtml}
-  ${potionsHtml}
-  <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
-    <div style="flex:1;min-width:0;">
-      <div style="font-family:'Fredoka One',cursive;font-size:.8rem;color:var(--text);margin-bottom:3px;">❤️ ${run.hp} / ${run.hpMax}</div>
-      <div style="height:12px;background:#ece5f9;border-radius:8px;overflow:hidden;"><div style="height:100%;width:${hpPct}%;background:linear-gradient(90deg,#ff6b6b,#e03131);"></div></div>
+  <div class="p-karte" style="border-radius:22px;padding:14px">
+    <div class="p-reihe" style="justify-content:space-between">
+      <div style="font:900 12px var(--p-font);letter-spacing:.06em;text-transform:uppercase;color:var(--p-text-3)">Runde ${roundNum} · Run-Länge ${_runLength(c)}</div>
+      ${potionsHtml}
     </div>
-    <button onclick="campaignGiveUp()" class="back-btn" style="font-size:.72rem;padding:8px 12px;flex-shrink:0;color:#c0392b;">🏳️ Aufgeben</button>
+    <div class="p-reihe" style="gap:10px;margin-top:12px">
+      <div class="p-wachs">
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <span style="font:800 9px var(--p-font);letter-spacing:var(--p-ls-mikro);text-transform:uppercase;color:var(--p-text-2)">Leben</span>
+          <span style="font:900 13px var(--p-font)">${run.hp}/${run.hpMax}</span>
+        </div>
+        <div class="p-balken" style="margin-top:5px"><i style="width:${hpPct}%"></i></div>
+      </div>
+      <button onclick="campaignGiveUp()" class="p-chip" style="border-radius:14px;padding:7px 11px;background:var(--p-falsch);flex:none">Aufgeben</button>
+    </div>
   </div>
-  <div style="font-size:.8rem;color:#8a83a5;font-weight:700;text-align:center;margin-bottom:6px;">${statusText}</div>`;
+  <div style="text-align:center;font:700 11px var(--p-font);color:var(--p-text-2);margin-top:12px">${statusText}</div>`;
   }
+  // Die Karte liegt in einer eigenen Karte mit Legende — welcher Pfad jetzt offen
+  // ist und welcher spaeter kommt, ist sonst nicht zu unterscheiden.
+  const legende = preview ? '' : `
+    <div class="p-reihe" style="justify-content:space-between;margin-bottom:12px">
+      <div class="p-kicker" style="border:0;padding:0">Pfad wählen</div>
+      <div class="p-reihe" style="gap:7px;font:800 10px var(--p-font);color:var(--p-text-2)">
+        <span class="p-pfad-probe p-pfad-probe--offen"></span>offen
+        <span class="p-pfad-probe p-pfad-probe--spaeter" style="margin-left:5px"></span>später
+      </div>
+    </div>`;
   return `${header}
-  <div id="camp-map" style="position:relative;width:100%;height:${_MAP_H}px;">
-    <svg id="camp-edges" style="position:absolute;inset:0;width:100%;height:100%;z-index:1;" viewBox="0 0 100 ${_MAP_H}" preserveAspectRatio="none"></svg>
-    ${nodesHtml}
+  <div class="p-karte" style="border-radius:24px;padding:15px 13px;margin-top:12px">
+    ${legende}
+    <div id="camp-map" style="position:relative;width:100%;height:${_MAP_H}px;">
+      <svg id="camp-edges" style="position:absolute;inset:0;width:100%;height:100%;z-index:1;" viewBox="0 0 100 ${_MAP_H}" preserveAspectRatio="none"></svg>
+      ${nodesHtml}
+    </div>
   </div>`;
 }
 
@@ -642,8 +675,11 @@ function _drawEdges(run) {
       const b = run.map.nodes[bid];
       if (!b) continue;
       const pb = coord(b);
+      // Offen = gegangen oder von hier aus erreichbar: kraeftige Tinte. Alles
+      // Weitere liegt blass dahinter. Pfade laufen HINTER den Knoten (z-index).
       const done = run.visited.includes(id) && run.visited.includes(bid);
-      lines += `<line x1="${pa.x}" y1="${pa.y}" x2="${pb.x}" y2="${pb.y}" stroke="${done ? '#a86cdb' : '#d9d0ec'}" stroke-width="2" stroke-linecap="round" vector-effect="non-scaling-stroke"/>`;
+      const offen = done || run.pos === id || (run.pos == null && a.row === 0);
+      lines += `<line x1="${pa.x}" y1="${pa.y}" x2="${pb.x}" y2="${pb.y}" stroke="${offen ? '#1F1F24' : '#9B968A'}" stroke-width="${offen ? 4 : 3}" stroke-dasharray="${offen ? '5 4' : '4 6'}" stroke-linecap="butt" vector-effect="non-scaling-stroke"/>`;
     }
   }
   svg.innerHTML = lines;
