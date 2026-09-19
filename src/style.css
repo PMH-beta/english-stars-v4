@@ -2895,6 +2895,308 @@ button.p-chip{ cursor:pointer; }
 /* Kleine Statistikkaesten. */
 .stat-box.p-ton-pfirsich, .stat-box.p-ton-mint, .stat-box.p-ton-blau{ background:var(--p-ton); }
 
+/* ══ SCHMIEDE ══════════════════════════════════════════════════════════════
+   Die Waffen selbst zeichnet weiter pixel-items.js — unveraendert. Umgestellt
+   ist die Werkbank drumherum: Auftragskopf, Werkstueck-Rahmen, Schritt-Balken
+   und die Liste der Verbformen. */
+
+/* Zwei Waffen pro Station (Stahl = Simple Past, Gold = Past Participle). */
+.forge-items{ display:flex; gap:10px; }
+.forge-item{
+  flex:1; min-width:0; text-align:center; padding:11px 8px;
+  border:var(--p-rahmen); border-radius:var(--p-r-kachel); background:var(--p-karte);
+}
+.forge-item.past{ background:var(--p-stahl); border-color:var(--p-ink); }
+.forge-item.pp  { background:var(--p-gold);  border-color:var(--p-ink); }
+.forge-item.done{ box-shadow:0 0 0 3px var(--p-gold) inset; }
+.fi-icon{ font-size:0; }
+.forge-item.past .fi-icon, .forge-item.done .fi-icon{ filter:none; text-shadow:none; }
+/* Bau-Segmente: gebaute Teile solide, das naechste gestrichelt und pulsierend. */
+.fi-seg{
+  width:15px; height:20px; border-radius:4px;
+  border:2px dashed var(--p-ink); background:rgba(31,31,36,.05);
+}
+.forge-item.past .fi-seg.built{ background:var(--p-stahl-dunkel); border:2px solid var(--p-ink); }
+.forge-item.pp   .fi-seg.built{ background:var(--p-gold-dunkel);  border:2px solid var(--p-ink); }
+.fi-seg.next{ border:2px solid var(--p-ink); background:var(--p-karte); }
+.fi-title{ font:900 12px var(--p-font); color:var(--p-ink); margin-top:5px; }
+.fi-form{
+  font:800 9px var(--p-font); text-transform:uppercase; letter-spacing:var(--p-ls-mikro);
+  margin-top:2px;
+}
+.forge-item.past .fi-form, .forge-item.pp .fi-form{ color:var(--p-text-3); }
+.fi-foot{ font:800 9px var(--p-font); min-height:1.1em; color:var(--p-text-2); }
+.fi-lock{ color:var(--p-text-2); }
+.fi-done, .fi-prog{ color:var(--p-ink); }
+
+/* ── Verbform-Schritte ───────────────────────────────────────────────────── */
+/* Erledigt Mint mit Haken, jetzt dran Gold mit Nummer, offen cremefarben und
+   gedimmt — so zeigt es der Entwurf. */
+.forge-steps{ display:flex; flex-direction:column; gap:8px; margin:10px 0 6px; }
+.forge-step{
+  display:flex; align-items:center; gap:10px; width:100%; padding:11px 13px;
+  border:var(--p-rahmen); border-radius:var(--p-r-btn); background:var(--p-karte);
+  font:900 13px var(--p-font); color:var(--p-ink); cursor:default; box-shadow:none;
+}
+.forge-step .fs-nm{ flex:1; text-align:left; }
+.forge-step .fs-tl{
+  flex:none; font:700 10px var(--p-font); text-transform:uppercase;
+  letter-spacing:var(--p-ls-mikro); color:var(--p-text-3);
+}
+.forge-step.open{ background:var(--p-gold); color:var(--p-ink); cursor:pointer; }
+.forge-step.next{ box-shadow:none; }
+.forge-step.done{ background:var(--p-ok); color:var(--p-ink); cursor:pointer; }
+.forge-step.locked{ opacity:.6; }
+
+/* ── Werkstueck ──────────────────────────────────────────────────────────── */
+.forge-weapon-wrap{ display:flex; flex-direction:column; align-items:center; gap:8px; padding:4px 0 2px; }
+.fw-name{ font:900 17px var(--p-font); color:var(--p-ink); }
+/* Die Waffe sitzt in einem eigenen Rahmen auf Sand, wie im Entwurf. */
+.forge-weapon{
+  position:relative; width:100%; max-width:190px; height:200px;
+  border:var(--p-rahmen); border-radius:22px; background:var(--p-inaktiv);
+  display:flex; align-items:center; justify-content:center; cursor:pointer;
+}
+.forge-weapon.locked{ cursor:default; opacity:.55; }
+.wp.ghost{ fill:rgba(31,31,36,.14); }
+/* Schritt-Balken mit eigener Kontur — der einzige Balken im Design, der eine hat. */
+.fw-step{ width:100%; max-width:280px; margin:4px auto 0; }
+.fw-step-top{
+  display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;
+  font:800 10px var(--p-font); text-transform:uppercase; letter-spacing:var(--p-ls-mikro);
+  color:var(--p-text-2);
+}
+.fw-step.done .fw-step-name, .fw-step.locked .fw-step-name{ color:var(--p-text-2); }
+.fw-step-pct{ font:900 11px var(--p-font); color:var(--p-ink); }
+.fw-bar{
+  height:12px; border:var(--p-rahmen); border-radius:8px; overflow:hidden;
+  background:var(--p-spur);
+}
+.fw-bar-fill{ height:100%; border-radius:0; transition:width .5s ease; }
+.fw-bar-fill.past{ background:var(--p-stahl-dunkel); }
+.fw-bar-fill.pp  { background:var(--p-gold); }
+
+/* Wortliste unter dem Werkstueck. */
+.forge-words summary{
+  display:inline-flex; align-items:center; gap:7px; list-style:none; cursor:pointer;
+  border:var(--p-rahmen); border-radius:var(--p-r-chip-gross); background:var(--p-karte);
+  color:var(--p-ink); font:900 11px var(--p-font); padding:8px 16px;
+}
+.forge-words summary:active{ transform:none; background:var(--p-inaktiv); }
+.forge-word{
+  display:inline-flex; align-items:center; gap:5px;
+  border:var(--p-rahmen); border-radius:var(--p-r-chip); background:var(--p-karte);
+  color:var(--p-ink); font:700 10px var(--p-font); padding:3px 9px;
+}
+.forge-word b{ color:var(--p-ink); font-weight:900; }
+.fw-p{ color:var(--p-stahl-dunkel); }
+.fw-g{ color:var(--p-gold-dunkel); }
+.fw-p.done, .fw-g.done{ color:var(--p-ink); }
+
+/* Leere Station: gestrichelte Ablage mit Aufforderung. */
+.forge-fill{
+  display:flex; flex-direction:column; align-items:center; gap:7px; padding:20px 14px;
+  border:var(--p-rahmen-leer); border-radius:var(--p-r-dialog); background:var(--p-karte);
+}
+.forge-fill-ic{ font-size:0; }
+.forge-fill-title{ font:900 17px var(--p-font); color:var(--p-ink); }
+.forge-fill-sub{ font:700 11px var(--p-font); color:var(--p-text-2); }
+.forge-fill-sub b{ color:var(--p-ink); }
+.forge-fill-btn{
+  margin-top:8px; height:48px; padding:0 22px;
+  border:var(--p-rahmen); border-radius:var(--p-r-btn); background:var(--p-ink);
+  color:var(--p-gold); font:900 13px var(--p-font); cursor:pointer; box-shadow:none;
+}
+.forge-fill-btn:active{ transform:none; box-shadow:none; }
+
+/* Kopfzeile eines Auftrags. */
+.forge-active-tag{
+  margin-left:auto; font:800 10px var(--p-font); color:var(--p-ink);
+}
+.forge-active-btn{
+  margin-left:auto; padding:5px 11px; cursor:pointer;
+  border:var(--p-rahmen); border-radius:var(--p-r-chip); background:var(--p-ok);
+  color:var(--p-ink); font:800 10px var(--p-font);
+}
+/* Sternbild-Slider und Navigationspunkte. */
+.forge .cst-arrow{ color:var(--p-ink); }
+.forge .cst-form-now.past{ color:var(--p-stahl-dunkel); }
+.forge .cst-form-now.pp{ color:var(--p-gold-dunkel); }
+.forge .uv-dot{ border:2px solid var(--p-ink); background:var(--p-karte); }
+.forge .uv-dot.active{ background:var(--p-ink); }
+
+/* ── Abenteuer-Panels (Schatz, Belohnung, Ausrüstung-Vollbild) ───────────── */
+/* Dieselben Klassen trugen vorher ein dunkles Lila-Panel. Ueber die Variablen
+   umgestellt, damit nicht jede einzelne Regel angefasst werden muss. */
+:root{
+  --adv-card:var(--p-karte); --adv-line:var(--p-ink);
+  --adv-text:var(--p-ink); --adv-dim:var(--p-text-2);
+  --adv-gold:var(--p-gold); --adv-accent:var(--p-violett);
+  --r-lg:var(--p-r-karte); --r-md:var(--p-r-chip-gross); --r-sm:var(--p-r-chip);
+}
+.adv-screen{
+  background:var(--p-lila); background-image:none;
+}
+.adv-head-title{ font:900 13px var(--p-font); letter-spacing:var(--p-ls-titel); text-transform:uppercase; }
+.adv-x{
+  width:34px; height:34px; flex:none; padding:0;
+  border:var(--p-rahmen); border-radius:50%; background:var(--p-karte);
+  color:var(--p-ink); font:900 15px var(--p-font);
+  display:flex; align-items:center; justify-content:center; cursor:pointer;
+}
+.adv-x:hover{ color:var(--p-ink); background:var(--p-inaktiv); }
+.adv-hint{ font:700 11px/1.55 var(--p-font); color:var(--p-text-3); }
+.adv-backdrop{ background:rgba(31,31,36,.42); backdrop-filter:none; -webkit-backdrop-filter:none; }
+.adv-card{
+  border:var(--p-rahmen); border-radius:28px; background:var(--p-karte);
+  box-shadow:none; color:var(--p-ink);
+}
+.adv-card-icon{ font-size:0; margin-bottom:10px; }
+.adv-card-title{ font:900 21px var(--p-font); color:var(--p-ink); margin-bottom:6px; }
+.adv-card-sub{ font:700 12px/1.5 var(--p-font); color:var(--p-text-3); margin-bottom:14px; }
+.adv-choice{
+  border:var(--p-rahmen); border-radius:var(--p-r-btn); background:var(--p-karte);
+  cursor:pointer;
+}
+.adv-choice:hover{ border-color:var(--p-ink); background:var(--p-inaktiv); }
+.adv-choice-icon{ font-size:1.6rem; flex:none; }
+.adv-choice-txt{ color:var(--p-ink); font:700 12px/1.4 var(--p-font); }
+.adv-choice-txt b{ font:900 13px var(--p-font); }
+.adv-choice-txt span{ color:var(--p-text-2); font-size:11px; }
+.ce-pick{
+  border:var(--p-rahmen); background:var(--p-karte); color:var(--p-ink);
+  font:800 12px var(--p-font); padding:10px 12px; margin-bottom:6px;
+}
+.ce-pick:hover{ background:var(--p-inaktiv); }
+.ce-pick.sel{ background:var(--p-gold); }
+.ce-effects{ font:700 11px/1.7 var(--p-font); color:var(--p-text-3); }
+
+/* Kopf und Stationen der Schmiede. */
+.forge{ padding:0 0 10px; }
+.forge-top{ text-align:center; margin-bottom:14px; position:relative; }
+.forge-kopfzeile{ display:flex; align-items:center; gap:10px; }
+.forge-emoji{ display:none; }
+.forge-h1{ font:900 19px var(--p-font); color:var(--p-ink); text-align:left; }
+.forge-stand{ display:none; }
+/* Info-Kreis rechts in der Kopfzeile. */
+.forge-info{
+  position:static; margin-left:auto; width:26px; height:26px; flex:none; padding:0;
+  border:var(--p-rahmen); border-radius:50%; background:var(--p-karte);
+  color:var(--p-ink); font:900 13px var(--p-font);
+  display:flex; align-items:center; justify-content:center; cursor:pointer;
+}
+.forge-station{
+  max-width:none; margin:0 0 12px; padding:16px 15px 18px;
+  border:var(--p-rahmen); border-radius:26px; background:var(--p-karte-hell);
+  box-shadow:none; text-align:left;
+}
+.forge-station.locked{ opacity:.55; }
+.forge-station.current{ border:var(--p-rahmen); box-shadow:none; }
+.forge-station.complete{ border:var(--p-rahmen); background:var(--p-karte); }
+.forge-head{ display:flex; align-items:center; gap:10px; margin-bottom:6px; }
+.forge-title{ flex:1; min-width:0; font:900 18px var(--p-font); color:var(--p-ink); }
+.forge-del{
+  width:30px; height:30px; flex:none; padding:0; opacity:1;
+  border:var(--p-rahmen); border-radius:var(--p-r-chip); background:var(--p-falsch);
+  color:var(--p-ink); cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+}
+.forge-del:hover{ opacity:1; background:var(--p-inaktiv); }
+
+/* ══ STERNBILDER UND WORTLISTEN DER SCHMIEDE ═══════════════════════════════
+   Diese Klassen kommen aus der dunklen Sternbild-Fassung. Sie werden weiter
+   gerendert (Slider, Wortlisten, Fortschritt), tragen aber jetzt Papier und
+   Tinte statt Nachthimmel. */
+.cst-word{
+  border:var(--p-rahmen); border-radius:var(--p-r-chip); background:var(--p-karte);
+  color:var(--p-ink); font:700 10px var(--p-font); padding:3px 9px;
+}
+.cst-word b{ color:var(--p-ink); font-weight:900; }
+.cst-word.done{ background:var(--p-ok); color:var(--p-ink); border-color:var(--p-ink); }
+.cst-word.done b{ color:var(--p-ink); }
+.cst-block{ max-width:none; padding:8px 0 12px; border-radius:var(--p-r-kachel); }
+.cst-block.current{ background:none; box-shadow:none; }
+.cst-name{ font:900 15px var(--p-font); color:var(--p-ink); margin-bottom:5px; }
+.cst-cefr{
+  border:var(--p-rahmen); border-radius:var(--p-r-chip); background:var(--p-inaktiv);
+  color:var(--p-ink); font:800 9px var(--p-font); padding:2px 8px;
+}
+.cst-cap{ font:700 11px var(--p-font); color:var(--p-text-2); margin-top:3px; }
+.cst-link{ border-left:3px dotted rgba(31,31,36,.3); }
+.cst-line{ stroke:rgba(31,31,36,.18); }
+.cst-svg.past .cst-line, .cst-svg.pp .cst-line{ stroke:rgba(31,31,36,.18); }
+.cst-line.lit{ stroke:var(--p-ink); stroke-width:1; }
+
+/* Aufklappbare Verb- und Wortlisten auf der Fortschritt-Seite. */
+.uv-cst-chev{ color:var(--p-text-2); }
+.uv-word{
+  border:2px solid var(--p-ink); border-radius:var(--p-r-chip); background:var(--p-karte);
+  color:var(--p-ink); font:700 10px var(--p-font); padding:2px 8px;
+}
+.uv-word.done{ background:var(--p-ok); color:var(--p-ink); }
+.uv-words-head{
+  font:900 9px var(--p-font); letter-spacing:var(--p-ls-mikro); text-transform:uppercase;
+  color:var(--p-text-2); margin:9px 0 4px;
+}
+.uv-weapon-name{ font:800 11px var(--p-font); color:var(--p-ink); }
+.uv-weapon-bar{
+  flex:1; height:9px; border-radius:5px; overflow:hidden; background:var(--p-spur);
+}
+.uv-weapon-fill{ height:100%; border-radius:0; background:var(--p-ink); }
+.uv-weapon-ct{ font:800 10px var(--p-font); color:var(--p-text-2); }
+.uvw-en{ font:900 11px var(--p-font); color:var(--p-ink); min-width:78px; }
+.uvw-half{ flex:1; height:9px; border-radius:5px; overflow:hidden; background:var(--p-spur); }
+.uvw-fill{ height:100%; border-radius:0; }
+.uvw-pct{ font:700 10px var(--p-font); color:var(--p-text-2); }
+/* Navigationspunkte unter dem Sternbild. */
+.uv-dot{
+  width:10px; height:10px; border-radius:50%;
+  border:2px solid var(--p-ink); background:var(--p-karte);
+}
+.uv-dot.active{ background:var(--p-ink); }
+
+/* ══ AUSWAHL-ÜBERLAGERUNGEN (Verben wählen, Werkstoff wählen) ══════════════ */
+.uv-fill-overlay{ background:rgba(31,31,36,.42); padding:18px; }
+.uv-fill-card{
+  border:var(--p-rahmen); border-radius:28px; background:var(--p-karte);
+  box-shadow:none; max-width:400px; max-height:88vh; overflow:hidden;
+  font-family:var(--p-font); color:var(--p-ink);
+}
+.uv-fill-head{ padding:18px 18px 13px; text-align:center; border-bottom:var(--p-trenner); }
+.uv-fill-title{ font:900 19px var(--p-font); color:var(--p-ink); }
+.uv-fill-hint{ font:700 11px/1.5 var(--p-font); color:var(--p-text-3); margin-top:5px; }
+.uv-fill-count{
+  display:inline-flex; margin-top:9px; padding:4px 11px;
+  border:var(--p-rahmen); border-radius:var(--p-r-chip); background:var(--p-gold);
+  font:900 12px var(--p-font); color:var(--p-ink);
+}
+.uv-fill-list{ padding:10px; scrollbar-width:none; }
+.uv-fill-list::-webkit-scrollbar{ display:none; }
+.uv-fill-row{
+  display:flex; align-items:center; gap:10px; padding:10px 12px; cursor:pointer;
+  border:var(--p-rahmen); border-radius:var(--p-r-slot); background:var(--p-karte);
+  margin-bottom:8px;
+}
+.uv-fill-row.sel{ background:var(--p-ok); border-color:var(--p-ink); }
+.uv-fill-cb{ width:20px; height:20px; flex:none; accent-color:var(--p-ink); cursor:pointer; }
+.uv-fill-de{ flex:1; font:900 13px var(--p-font); color:var(--p-ink); }
+.uv-fill-en{ font:700 11px var(--p-font); color:var(--p-text-2); }
+.uv-fill-cefr{
+  border:2px solid var(--p-ink); border-radius:var(--p-r-chip); background:var(--p-inaktiv);
+  color:var(--p-ink); font:800 9px var(--p-font); padding:2px 8px;
+}
+.uv-fill-foot{ gap:10px; padding:12px 16px; border-top:var(--p-trenner); }
+.uv-fill-cancel{
+  flex:1; height:50px;
+  border:var(--p-rahmen); border-radius:var(--p-r-kachel); background:var(--p-inaktiv);
+  color:var(--p-ink); font:800 12px var(--p-font); cursor:pointer;
+}
+.uv-fill-ok{
+  flex:1; height:50px;
+  border:var(--p-rahmen); border-radius:var(--p-r-kachel); background:var(--p-ink);
+  color:var(--p-gold); font:900 12px var(--p-font); cursor:pointer; box-shadow:none;
+}
+
 /* ── Breite Fenster ──────────────────────────────────────────────────────── */
 /* Steht ganz am Ende, damit diese Regeln die Grundfassung ueberschreiben.
    Auf dem Handy laeuft die Kontur des Blatts links und rechts unter den

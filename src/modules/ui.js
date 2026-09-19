@@ -558,8 +558,8 @@ export function uvTrainOpenCreate() {
   const defName = 'Training ' + (_trainingDecks().length + 1);
   overlay.innerHTML = `<div class="uv-fill-card">
     <div class="uv-fill-head">
-      <div class="uv-fill-title">🎯 Neues Trainings-Deck</div>
-      <div class="uv-fill-hint">Wähle bis zu ${UV_TRAIN_MAX} Verben — geübt wird in 🔍 Erkennen · 🔨 Schmieden · 🪄 Verzaubern.</div>
+      <div class="uv-fill-title">Neues Trainings-Deck</div>
+      <div class="uv-fill-hint">Wähle bis zu ${UV_TRAIN_MAX} Verben — geübt wird in Erkennen · Schmieden · Verzaubern.</div>
       <input id="uv-train-name" class="uv-train-name" maxlength="30" value="${defName}"/>
       <div class="uv-form-choice">
         ${_uvFormChipsHtml((f) => `data-forms="${f}"${f === 'both' ? ' data-sel="1"' : ''}`)}
@@ -1405,8 +1405,8 @@ export function uvOpenFill() {
     }
     overlay.innerHTML = `<div class="uv-fill-card">
       <div class="uv-fill-head">
-        <div class="uv-fill-title">⚒️ Was willst du schmieden?</div>
-        <div class="uv-fill-hint">Entsteht in 🔩 Stahl & 🥇 Gold und hilft dir in der 🗺️ Kampagne. Jedes Objekt gibt es nur einmal.</div>
+        <div class="uv-fill-title">Was willst du schmieden?</div>
+        <div class="uv-fill-hint">Entsteht in Stahl und Gold und hilft dir in der Kampagne. Jedes Objekt gibt es nur einmal.</div>
       </div>
       <div class="uv-fill-list">
         ${FORGE_OBJECTS.map((o) => {
@@ -1586,8 +1586,10 @@ function _forgeStation(m) {
   const body = m.unlocked ? _forgeSlider(m) : _forgeItem(m, 'past');
   return `<div class="forge-station${m.unlocked ? '' : ' locked'}${m.complete ? ' complete' : ''}">
     <div class="forge-head">
-      <span class="forge-title">⚒️ ${_auftragName(m.c.idx)}${m.complete ? ' 🌟' : ''}</span>
-      <button class="forge-del" onclick="uvDeleteStation(${m.c.idx})" title="Auftrag löschen" aria-label="Auftrag löschen">🗑</button>
+      ${iconHTML('hammer', 28)}
+      <span class="forge-title">${_auftragName(m.c.idx)}</span>
+      ${m.complete ? iconHTML('star', 14) : ''}
+      <button class="forge-del" onclick="uvDeleteStation(${m.c.idx})" title="Auftrag löschen" aria-label="Auftrag löschen">${iconHTML('trash', 14)}</button>
     </div>
     ${body}
     ${_forgeWords(m)}
@@ -1609,19 +1611,36 @@ function renderStudentUV() {
   // solange genug freie Verben für eine volle Station da sind.
   const remaining = uvAvailableVerbs().length;
   const fillPart = remaining >= CONSTELLATION_SIZE
-    ? `<div class="forge-fill-sub" style="margin-top:8px;">✨ Neuer Auftrag: ${CONSTELLATION_SIZE} Verben wählen · <b>${remaining}</b> noch frei</div>
-       <button class="forge-fill-btn" onclick="uvOpenFill()">✨ Werkstoff wählen</button>`
+    ? `<button class="p-btn p-btn--akzent" style="margin-top:13px;height:52px" onclick="uvOpenFill()">Werkstoff wählen</button>
+       <div class="forge-fill-sub" style="margin-top:10px;">Neuer Auftrag: <b>${CONSTELLATION_SIZE} Verben</b> wählen · <b>${remaining}</b> noch frei</div>`
     : '';
 
   const L = uvLernstand();
   host.style.textAlign = 'center';
   host.style.padding = '0';
+  // Kopf wie im Entwurf: Hammer, Name, Info-Kreis in einer Zeile; darunter die
+  // drei Werte als Kacheln und die Aufforderung fuer einen neuen Auftrag.
   host.innerHTML = `<div class="forge">
     <div class="forge-top">
-      <button class="forge-info" onclick="uvInfo()" aria-label="Info">i</button>
-      <div class="forge-emoji">⚒️</div>
-      <div class="forge-h1">Die Schmiede</div>
-      <div class="forge-stand">🛠️ ${L.complete}/${L.total} Stationen · 🔨 ${L.totalLit}/${L.maxLit} Schritte</div>
+      <div class="forge-kopfzeile">
+        ${iconHTML('hammer', 28)}
+        <div class="forge-h1">Die Schmiede</div>
+        <button class="forge-info" onclick="uvInfo()" aria-label="Info">i</button>
+      </div>
+      <div class="p-kacheln" style="grid-template-columns:repeat(3,1fr);margin:13px 0 0">
+        <div class="p-wertkachel">
+          <div class="p-wertkachel-zahl">${L.complete}/${L.total}</div>
+          <div class="p-wertkachel-lbl">Stationen</div>
+        </div>
+        <div class="p-wertkachel">
+          <div class="p-wertkachel-zahl">${L.totalLit}/${L.maxLit}</div>
+          <div class="p-wertkachel-lbl">Schritte</div>
+        </div>
+        <div class="p-wertkachel p-ton-amber">
+          <div class="p-wertkachel-zahl">${remaining}</div>
+          <div class="p-wertkachel-lbl">Noch frei</div>
+        </div>
+      </div>
       ${fillPart}
     </div>
     ${parts.join('')}
