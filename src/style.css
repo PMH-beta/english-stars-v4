@@ -63,6 +63,10 @@
   --p-schatten-angehoben:6px 8px 0 rgba(31,31,36,.28);
 }
 *{box-sizing:border-box;margin:0;padding:0;}
+/* Die Scrollleiste bekommt ihren Platz dauerhaft reserviert. Ohne das schmaelert
+   ihr Erscheinen — etwa beim Aufklappen einer Sammlung — das Fenster, und die
+   zentrierte Spalte springt seitlich. */
+html{ scrollbar-gutter:stable; }
 html,body{
   touch-action:manipulation;
   -webkit-touch-callout:none;
@@ -1735,11 +1739,24 @@ body.p-app{
 @media (prefers-reduced-motion:reduce){
   body.p-app, .p-screen{ transition:none; }
 }
+
+/* Ab Tablet-Breite fuellt die Spalte das Fenster nicht mehr aus. Dann liegt das
+   Blatt frei auf dem Grundton und braucht seine Kontur ringsum — sonst hat es
+   nur oben eine Kante und laeuft nach unten ins Nichts. Auf dem Handy bleibt es,
+   wie es ist: Seitenkontur unter dem Bildschirmrand, unten offen. */
+@media (min-width:800px){
+  .p-screen{ padding-bottom:26px; }
+  .p-blatt{
+    margin-left:0; margin-right:0;
+    border-bottom:var(--p-rahmen);
+    border-radius:var(--p-r-blatt);
+  }
+}
 /* Der Screen füllt die Höhe und ist auf Handybreite begrenzt. Der Prototyp ist
    auf 402 px gebaut und darf nach unten wachsen; 440 lässt etwas Luft, ohne dass
    die Proportionen auf dem Desktop auseinanderlaufen. */
 .p-screen{
-  width:100%; max-width:440px; margin:0 auto;
+  width:100%; max-width:768px; margin:0 auto;   /* bis Tablet-Breite */
   min-height:100vh; min-height:100dvh;
   background:var(--p-ton,var(--p-lila)); color:var(--p-ink);
   font-family:var(--p-font);
