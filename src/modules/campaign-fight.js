@@ -28,6 +28,7 @@ import { scaledEnemy, FORM_BONUS, TALISMAN_MULT, STORM_BASE_MS, STORM_PER_LETTER
 import { startLetterstorm, stormTarget } from './minigame-letterstorm.js';
 import { startMeteors } from './minigame-meteors.js';
 import { startEcho } from './minigame-echo.js';
+import { iconHTML } from './pixel-icons.js';
 import { startTrueFalse } from './minigame-truefalse.js';
 import { equippedWeapon, equipEffects, equippedGearMap, POTIONS, potionStacks } from './campaign-equipment.js';
 import { enemySpriteSVG } from './pixel-enemies.js';
@@ -380,11 +381,11 @@ function _renderOverlay() {
     <!-- Himmel als fullscreen-Hintergrund, hinter allem anderen. -->
     <div class="cf-scenery">${_arenaScene()}</div>
     <!-- Kopfzeile: schwebt als Pille über dem Himmel — bleibt wie gehabt. -->
-    <div style="position:relative;z-index:3;display:flex;align-items:center;gap:10px;padding:14px 14px 0;flex-shrink:0;">
-      <button id="cf-flee" title="Kampf verlassen (Fortschritt + Einsatz weg)" style="border:none;background:rgba(43,35,80,.6);color:#fff;border-radius:50%;width:38px;height:38px;font-size:1.1rem;cursor:pointer;flex-shrink:0;">✕</button>
-      <div class="cf-pill" style="flex:1;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 16px;">
-        <span style="font-family:'Fredoka One',cursive;color:#fff;font-size:1rem;">${_TITLE[node.type] || _TITLE.fight}</span>
-        <span id="cf-wave" style="font-family:'Fredoka One',cursive;color:#ffd43b;font-size:.85rem;">Welle ${f.wave}</span>
+    <div class="cf-kopf">
+      <button id="cf-flee" class="cf-rund" title="Kampf verlassen (Fortschritt + Einsatz weg)">${iconHTML('close', 28)}</button>
+      <div class="cf-pill cf-kopfleiste">
+        <span class="cf-titel">${_TITLE[node.type] || _TITLE.fight}</span>
+        <span id="cf-wave" class="p-chip p-chip--gold">Welle ${f.wave}</span>
       </div>
     </div>
     <!-- Kein Feedback-Text mehr: alle Ereignisse (Treffer/Heilung/Block) zeigen sich
@@ -405,20 +406,26 @@ function _renderOverlay() {
         <div class="cf-hero" id="cf-hero">${avatarSVG(ensureAvatar(window.SD), { gear: equippedGearMap() })}</div>
         <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
           <div class="cf-enemy${node.type === 'boss' ? ' boss' : ''}" id="cf-enemy">${enemySpriteSVG(node.type)}</div>
-          <div style="width:110px;">
-            <div style="font-size:.72rem;font-weight:800;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.35);text-align:center;margin-bottom:2px;">${enemy.name}: <span id="cf-ehp">${f.enemyHp}</span>/${f.enemyHpMax}</div>
-            <div style="height:9px;background:rgba(0,0,0,.18);border-radius:6px;overflow:hidden;"><div id="cf-ehpbar" style="height:100%;width:${f.enemyHp / f.enemyHpMax * 100}%;background:linear-gradient(90deg,#ff6b6b,#e03131);transition:width .4s;"></div></div>
+          <div class="cf-gegnerkarte">
+            <div class="cf-leiste-kopf">
+              <span class="cf-leiste-lbl">${enemy.name}</span>
+              <span class="cf-leiste-zahl"><span id="cf-ehp">${f.enemyHp}</span>/${f.enemyHpMax}</span>
+            </div>
+            <div class="p-balken p-balken--fehler" style="height:9px;margin-top:6px"><i id="cf-ehpbar" style="width:${f.enemyHp / f.enemyHpMax * 100}%"></i></div>
           </div>
         </div>
       </div>
       <div id="cf-potions" style="position:relative;z-index:3;display:flex;gap:10px;justify-content:center;padding:10px 14px 0;min-height:10px;flex-shrink:0;"></div>
       <div style="position:relative;z-index:3;padding:10px 14px 12px;flex-shrink:0;display:flex;justify-content:center;">
-        <div class="cf-pill" style="width:100%;max-width:320px;padding:9px 16px;display:flex;align-items:center;gap:12px;">
+        <div class="cf-pill cf-lebensleiste">
           <div style="flex:1;min-width:0;">
-            <div style="font-size:.8rem;font-weight:800;color:#ffc9c9;margin-bottom:4px;">❤️ <span id="cf-php">${run.hp}</span> / ${run.hpMax}</div>
-            <div style="height:12px;background:rgba(255,255,255,.2);border-radius:8px;overflow:hidden;"><div id="cf-phpbar" style="height:100%;width:${run.hp / run.hpMax * 100}%;background:linear-gradient(90deg,#ff6b6b,#e03131);transition:width .4s;"></div></div>
+            <div class="cf-leiste-kopf">
+              <span class="cf-leiste-lbl">Leben</span>
+              <span class="cf-leiste-zahl"><span id="cf-php">${run.hp}</span>/${run.hpMax}</span>
+            </div>
+            <div class="p-balken" style="margin-top:6px"><i id="cf-phpbar" style="width:${run.hp / run.hpMax * 100}%"></i></div>
           </div>
-          <div title="${weapon.name}" style="font-family:'Fredoka One',cursive;color:#fff;font-size:.9rem;background:rgba(255,255,255,.14);padding:8px 12px;border-radius:12px;flex-shrink:0;">${weapon.icon} ${weapon.dmg}</div>
+          <div class="cf-waffe" title="${weapon.name}">${iconHTML('sword', 14)}${weapon.dmg}</div>
         </div>
       </div>
     </div>`;

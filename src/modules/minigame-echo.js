@@ -14,6 +14,7 @@
 import { playSfx } from './game.js';
 import { speakWord } from './speech.js';
 import { ensureStormStyle, setDrift } from './minigame-letterstorm.js';
+import { iconHTML } from './pixel-icons.js';
 
 export function startEcho({ host, answer, speakText, choices, prompt, timeLimitMs, onMiss, onResult }) {
   ensureStormStyle();   // cfDrift-Keyframes
@@ -22,18 +23,18 @@ export function startEcho({ host, answer, speakText, choices, prompt, timeLimitM
 
   host.innerHTML = `
     <div style="display:flex;justify-content:center;margin-bottom:16px;">
-      <div style="background:#fff;border-radius:16px;padding:8px 14px 10px 20px;box-shadow:0 3px 8px rgba(0,0,0,.2);">
+      <div class="mg-titelkarte">
         <div style="display:flex;align-items:center;gap:10px;">
-          <div style="font-size:1.15rem;font-weight:800;color:#333;">${prompt || '👂 Welches Wort hörst du?'}</div>
-          <button id="cf-replay" title="Nochmal anhören" style="border:none;background:rgba(43,35,80,.12);color:#2b2350;border-radius:50%;width:40px;height:40px;font-size:1.2rem;cursor:pointer;flex-shrink:0;">🔊</button>
+          <div class="mg-titel">${prompt || 'Welches Wort hörst du?'}</div>
+          <button id="cf-replay" class="mg-hoer" title="Nochmal anhören">${iconHTML('speaker', 28)}</button>
         </div>
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-      <div style="flex:1;height:10px;background:rgba(43,35,80,.25);border-radius:6px;overflow:hidden;">
-        <div id="cf-echobar" style="height:100%;width:100%;background:linear-gradient(90deg,#ffd43b,#f0a500);border-radius:6px;"></div>
+      <div class="mg-zeitspur">
+        <div id="cf-echobar" class="mg-zeitfuell"></div>
       </div>
-      <div id="cf-echosecs" style="font-family:'Fredoka One',cursive;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.4);font-size:.9rem;min-width:34px;text-align:right;"></div>
+      <div id="cf-echosecs" class="mg-sek"></div>
     </div>
     <div id="cf-echofield" style="position:relative;height:min(38dvh,320px);min-height:170px;overflow:hidden;"></div>`;
 
@@ -64,10 +65,9 @@ export function startEcho({ host, answer, speakText, choices, prompt, timeLimitM
     const btn = document.createElement('button');
     const x = (cell.c + 0.5) / cols * 76 + 12;
     const y = (cell.r + 0.5) / rows * 74 + 10;
+    btn.className = 'mg-treiber';
     btn.style.cssText = `position:absolute;left:${x}%;top:${y}%;
-      border:none;background:#fff;color:#333;font-family:'Fredoka One',cursive;font-size:1.15rem;
-      padding:12px 18px;border-radius:16px;box-shadow:0 3px 8px rgba(0,0,0,.25);cursor:pointer;
-      white-space:nowrap;z-index:2;animation:cfDriftC var(--dur,9s) ease-in-out var(--del,0s) infinite;`;
+      animation:cfDriftC var(--dur,9s) ease-in-out var(--del,0s) infinite;`;
     btn.textContent = word;
     btn.onclick = () => {
       if (done || btn._used) return;

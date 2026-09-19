@@ -2721,6 +2721,110 @@ button.p-chip{ cursor:pointer; }
 }
 .p-band--mitte{ z-index:10002; text-align:center; display:block; }
 
+/* ══ KAMPF ═════════════════════════════════════════════════════════════════
+   Kulisse, Figuren und Gegner bleiben Pixel-Art wie bisher. Umgestellt ist nur
+   die Bedienoberflaeche darum: Kopfzeile, Lebensleisten, Traenke, Waffe. */
+.cf-kopf{
+  position:relative; z-index:3; flex-shrink:0;
+  display:flex; align-items:center; gap:10px;
+  padding:calc(14px + env(safe-area-inset-top,0px)) 14px 0;
+}
+/* Runder Knopf zum Verlassen — Rosa wie im Entwurf. */
+.cf-rund{
+  width:38px; height:38px; flex:none; padding:0; cursor:pointer;
+  border:var(--p-rahmen); border-radius:50%; background:#FFD3D7;
+  display:flex; align-items:center; justify-content:center;
+}
+/* Die schwebende Pille wird zur Karte mit Kontur. */
+.cf-pill{
+  border:var(--p-rahmen); border-radius:22px; background:var(--p-karte);
+  backdrop-filter:none; -webkit-backdrop-filter:none;
+}
+.cf-kopfleiste{
+  flex:1; display:flex; align-items:center; justify-content:space-between; gap:10px;
+  padding:9px 13px;
+}
+.cf-titel{
+  font:900 13px var(--p-font); letter-spacing:var(--p-ls-titel);
+  text-transform:uppercase; color:var(--p-ink);
+}
+/* Namen und Zahl ueber den Balken. */
+.cf-leiste-kopf{ display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
+.cf-leiste-lbl{
+  font:800 9px var(--p-font); letter-spacing:var(--p-ls-mikro);
+  text-transform:uppercase; color:var(--p-text-2);
+}
+.cf-leiste-zahl{ font:900 13px var(--p-font); color:var(--p-ink); }
+.cf-gegnerkarte{
+  width:150px;
+  border:var(--p-rahmen); border-radius:var(--p-r-btn); background:var(--p-karte);
+  padding:8px 11px 9px;
+}
+.cf-lebensleiste{
+  width:100%; max-width:340px; padding:10px 13px;
+  display:flex; align-items:center; gap:12px;
+}
+.cf-waffe{
+  display:flex; align-items:center; gap:6px; flex:none;
+  border:var(--p-rahmen); border-radius:var(--p-r-chip-gross); background:var(--p-violett);
+  padding:5px 10px; font:900 12px var(--p-font); color:var(--p-ink);
+}
+/* Trankplaetze im Kampf: gleiche Sprache wie auf der Karte. */
+.cf-potion{
+  width:34px; height:34px; padding:0; flex:none; position:relative;
+  border:var(--p-rahmen); border-radius:var(--p-r-slot); background:var(--p-karte);
+  display:flex; align-items:center; justify-content:center;
+  font-size:16px; line-height:1; cursor:pointer; box-shadow:none;
+}
+.cf-potion .potion-n{
+  position:absolute; right:-5px; bottom:-5px;
+  min-width:16px; height:16px; padding:0 3px;
+  border:2px solid var(--p-ink); border-radius:8px; background:var(--p-gold);
+  color:var(--p-ink); font:900 8px var(--p-font); line-height:12px; text-align:center;
+}
+
+/* ══ MINISPIELE IM KAMPF ═══════════════════════════════════════════════════
+   Spielfeld und Mechanik bleiben. Umgestellt sind die wiederkehrenden Teile:
+   Titelkarte, Zeitbalken, treibende Antwortkacheln. */
+.mg-titelkarte{
+  border:var(--p-rahmen); border-radius:var(--p-r-kachel); background:var(--p-karte);
+  padding:9px 18px 10px; text-align:center; box-shadow:none;
+}
+.mg-titel{ font:900 17px var(--p-font); color:var(--p-ink); }
+.mg-hoer{
+  width:40px; height:40px; flex:none; padding:0; cursor:pointer;
+  border:var(--p-rahmen); border-radius:50%; background:var(--p-inaktiv);
+  display:flex; align-items:center; justify-content:center;
+}
+.mg-zeitspur{
+  flex:1; height:10px; border-radius:var(--p-r-balken); overflow:hidden;
+  border:var(--p-rahmen); background:var(--p-karte); box-sizing:content-box;
+}
+.mg-zeitfuell{ height:100%; width:100%; background:var(--p-gold); }
+.mg-sek{
+  font:900 13px var(--p-font); color:var(--p-ink); min-width:34px; text-align:right;
+}
+/* Wortkarte (Richtig oder falsch) — die Fläche färbt sich bei der Antwort. */
+.mg-wortkarte{
+  border:var(--p-rahmen); border-radius:var(--p-r-kachel); background:var(--p-karte);
+  padding:14px 20px; box-shadow:none; transition:background .2s;
+  display:flex; align-items:center; justify-content:center; gap:12px; flex-wrap:wrap;
+}
+.mg-wort-de{ font:900 21px var(--p-font); color:var(--p-ink); }
+.mg-wort-strich{ font:800 17px var(--p-font); color:var(--p-text-2); }
+.mg-wort-en{ font:900 21px var(--p-font); color:var(--p-violett-text); }
+/* Treibende Antwortkachel (Echo, Meteore). */
+.mg-treiber{
+  border:var(--p-rahmen); border-radius:var(--p-r-kachel); background:var(--p-karte);
+  color:var(--p-ink); font:900 15px var(--p-font); padding:10px 16px;
+  box-shadow:none; cursor:pointer; white-space:nowrap; z-index:2;
+}
+.mg-note{
+  position:absolute; left:50%; top:8px; transform:translateX(-50%); z-index:3;
+  border:var(--p-rahmen); border-radius:var(--p-r-chip); background:var(--p-ok);
+  color:var(--p-ink); font:900 10px var(--p-font); padding:3px 9px;
+}
+
 /* ── Breite Fenster ──────────────────────────────────────────────────────── */
 /* Steht ganz am Ende, damit diese Regeln die Grundfassung ueberschreiben.
    Auf dem Handy laeuft die Kontur des Blatts links und rechts unter den

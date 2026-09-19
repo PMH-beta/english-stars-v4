@@ -51,20 +51,22 @@ export function ensureStormStyle() {
       75%     { transform: translate(calc(-50% + var(--x3)), calc(-50% + var(--y3))); }
     }
     @keyframes cfShake { 0%,100% { translate: 0 0; } 25% { translate: -6px 0; } 75% { translate: 6px 0; } }
-    .cf-tile { position:absolute; width:58px; height:58px; border-radius:14px; border:none;
-      background:#fff; color:#333; font-family:'Fredoka One',cursive; font-size:1.6rem;
-      box-shadow:0 3px 8px rgba(0,0,0,.25); cursor:pointer; padding:0; z-index:2;
+    .cf-tile { position:absolute; width:58px; height:58px; cursor:pointer; padding:0; z-index:2;
+      border:2px solid var(--p-ink); border-radius:var(--p-r-chip-gross);
+      background:var(--p-karte); color:var(--p-ink); font:900 24px var(--p-font);
+      box-shadow:none;
       animation: cfDrift var(--dur,12s) ease-in-out var(--del,0s) infinite; transition: opacity .25s, scale .25s; }
     .cf-tile.cf-hit { opacity:0; scale:.3; pointer-events:none; }
-    .cf-tile.cf-shake { background:#ffd6d6; }
+    .cf-tile.cf-shake { background:var(--p-falsch); }
     .cf-tile.cf-shake span { display:inline-block; animation: cfShake .3s ease; }
     /* Eingabefeld-Kacheln (Wortleiste): gleiche Kachel-Sprache wie die tippbaren
        Buchstaben im Spielfeld — leer = angedeutete Kachel, getroffen = feste weiße Kachel. */
-    .cf-slot { display:inline-flex; align-items:center; justify-content:center; min-width:30px; height:36px;
-      border-radius:10px; border:2px dashed rgba(255,255,255,.6); background:rgba(255,255,255,.12);
-      font-family:'Fredoka One',cursive; font-size:1.15rem; color:#fff; padding:0 4px; box-sizing:border-box;
+    .cf-slot { display:inline-flex; align-items:center; justify-content:center; min-width:32px; height:38px;
+      border:2px dashed var(--p-ink); border-radius:var(--p-r-chip); background:rgba(248,246,236,.45);
+      font:900 17px var(--p-font); color:var(--p-ink); padding:0 5px;
       transition:background .2s, border-color .2s; }
-    .cf-slot.cf-filled { border:2px solid transparent; background:#fff; color:#333; box-shadow:0 2px 6px rgba(0,0,0,.2); }
+    .cf-slot.cf-filled { border:2px solid var(--p-ink); background:var(--p-karte);
+      color:var(--p-ink); box-shadow:none; }
   `;
   document.head.appendChild(st);
 }
@@ -105,15 +107,15 @@ export function startLetterstorm({ host, de, en, prompt, timeLimitMs, guards = 0
 
   host.innerHTML = `
     <div style="display:flex;justify-content:center;margin-bottom:16px;">
-      <div style="background:#fff;border-radius:16px;padding:8px 20px 10px;box-shadow:0 3px 8px rgba(0,0,0,.2);text-align:center;">
-        <div style="font-size:1.5rem;font-weight:800;color:#333;">${prompt || `🇩🇪 ${de}`}</div>
+      <div class="mg-titelkarte">
+        <div class="mg-titel">${prompt || `🇩🇪 ${de}`}</div>
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-      <div style="flex:1;height:10px;background:rgba(43,35,80,.25);border-radius:6px;overflow:hidden;">
-        <div id="cf-timebar" style="height:100%;width:100%;background:linear-gradient(90deg,#ffd43b,#f0a500);border-radius:6px;"></div>
+      <div class="mg-zeitspur">
+        <div id="cf-timebar" class="mg-zeitfuell"></div>
       </div>
-      <div id="cf-secs" style="font-family:'Fredoka One',cursive;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.4);font-size:.9rem;min-width:34px;text-align:right;"></div>
+      <div id="cf-secs" class="mg-sek"></div>
     </div>
     <div id="cf-slots" style="display:flex;justify-content:center;gap:6px;flex-wrap:wrap;padding:0 0 12px;">${slotHtml}</div>
     <div id="cf-field" style="position:relative;height:min(38dvh,320px);min-height:170px;overflow:hidden;"></div>`;
@@ -172,7 +174,7 @@ export function startLetterstorm({ host, de, en, prompt, timeLimitMs, guards = 0
         try { playSfx('click'); } catch (e) {}
         const note = document.createElement('div');
         note.textContent = '🐾 Gefährte hilft!';
-        note.style.cssText = 'position:absolute;left:50%;top:8px;transform:translateX(-50%);font-family:\'Fredoka One\',cursive;font-size:.85rem;color:#69db7c;z-index:3;';
+        note.className = 'mg-note';
         field.appendChild(note);
         setTimeout(() => note.remove(), 1000);
       } else {
@@ -181,7 +183,7 @@ export function startLetterstorm({ host, de, en, prompt, timeLimitMs, guards = 0
         setTimeout(() => btn.classList.remove('cf-shake'), 350);
         endAt -= STORM_PENALTY_MS;
         const bar = host.querySelector('#cf-timebar');
-        if (bar) { bar.style.background = '#e03131'; setTimeout(() => { bar.style.background = 'linear-gradient(90deg,#ffd43b,#f0a500)'; }, 350); }
+        if (bar) { bar.style.background = 'var(--p-falsch)'; setTimeout(() => { bar.style.background = ''; }, 350); }
         if (onMiss) onMiss();
       }
     };

@@ -19,8 +19,8 @@ export function startMeteors({ host, de, answer, choices, prompt, fallMs, onMiss
 
   host.innerHTML = `
     <div style="display:flex;justify-content:center;margin-bottom:16px;">
-      <div style="text-align:center;background:#fff;border-radius:16px;padding:8px 20px 10px;box-shadow:0 3px 8px rgba(0,0,0,.2);">
-        <div style="font-size:1.5rem;font-weight:800;color:#333;">${prompt || `🇩🇪 ${de}`}</div>
+      <div class="mg-titelkarte">
+        <div class="mg-titel">${prompt || `🇩🇪 ${de}`}</div>
       </div>
     </div>
     <!-- Maske statt Hardcut: Meteore faden am oberen/unteren Rand des Himmels weich
@@ -63,8 +63,10 @@ export function startMeteors({ host, de, answer, choices, prompt, fallMs, onMiss
     btn._answer = isAnswer;
     btn.style.cssText = `position:absolute;top:${TOP0}px;left:${10 + (lanes[i] + 0.5) / choices.length * 80}%;
       transform:translateX(-50%);border:none;background:transparent;cursor:pointer;padding:6px;z-index:2;`;
+    // Der Meteor selbst bleibt Emoji — er ist Teil des Spielfelds, nicht der
+    // Oberflaeche, und es gibt kein Pixelsymbol dafuer.
     btn.innerHTML = `<div style="font-size:2.2rem;line-height:1;">☄️</div>
-      <div style="background:#fff;color:#333;font-family:'Fredoka One',cursive;font-size:1.1rem;padding:7px 14px;border-radius:14px;box-shadow:0 3px 8px rgba(0,0,0,.25);margin-top:2px;white-space:nowrap;">${word}</div>`;
+      <div class="mg-treiber" style="margin-top:2px">${word}</div>`;
     btn.onclick = () => {
       if (done || btn._used) return;
       if (isAnswer) {
