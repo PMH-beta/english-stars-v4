@@ -1752,9 +1752,10 @@ body.p-app{
     border-radius:var(--p-r-blatt);
   }
 }
-/* Der Screen füllt die Höhe und ist auf Handybreite begrenzt. Der Prototyp ist
-   auf 402 px gebaut und darf nach unten wachsen; 440 lässt etwas Luft, ohne dass
-   die Proportionen auf dem Desktop auseinanderlaufen. */
+/* Der Screen füllt die Höhe und ist auf Tablet-Breite begrenzt. Der Prototyp ist
+   auf 402 px gebaut und darf nach unten wachsen; darüber hinaus fängt die Spalte
+   bei 768 px ab, damit Karten und Zeilen auf breiten Monitoren nicht auseinander
+   gezogen werden. Ab 800 px Fenster bekommt das Blatt Kontur ringsum (s. u.). */
 .p-screen{
   width:100%; max-width:768px; margin:0 auto;   /* bis Tablet-Breite */
   min-height:100vh; min-height:100dvh;
@@ -2250,4 +2251,165 @@ button.p-chip{ cursor:pointer; }
   border:2px solid var(--p-ink); border-radius:8px; background:var(--p-gold);
   color:var(--p-ink);   /* die alte Regel setzt Weiss — auf Gold unlesbar */
   font:900 8px var(--p-font); line-height:11px; text-align:center;
+}
+
+/* ══ SPIELBILDSCHIRM ═══════════════════════════════════════════════════════
+   Der Grundton folgt dem Modus: Vokabeln Mint, Rechtschreibung Flieder,
+   Aussprache Rosa, Formen Pfirsich. game.js setzt ihn beim Rendern der Frage.
+   Die alten Klassen bleiben — nur ihr Aussehen wechselt, die Spiellogik nicht. */
+
+/* Kopfzeile: Zurueck, Modusname, Serie und Punkte. */
+#game-screen .p-titel-text{ flex:1; text-align:center; }
+.p-hud{ display:flex; gap:7px; flex:none; }
+.p-hud > .p-chip{ border-radius:13px; padding:6px 10px; font-size:11px; }
+
+/* Die Frage steht auf einer eigenen hellen Karte, die Antworten darunter. */
+.p-fragekarte{
+  border:var(--p-rahmen); border-radius:26px; background:var(--p-karte-hell);
+  padding:22px 16px 24px; text-align:center;
+}
+/* #game-card ist nur noch Aufhaenger fuer das Layout. */
+.game-card{
+  background:none; border:0; box-shadow:none; padding:0; margin:0;
+  width:100%; max-width:none; border-radius:0;
+}
+/* Plakette mit Pixelsymbol und Modusname, Flaeche in der Modusfarbe. */
+.badge{
+  display:inline-flex; align-items:center; gap:7px;
+  border:var(--p-rahmen); border-radius:var(--p-r-slot); background:var(--p-info);
+  padding:5px 12px; margin:0;
+  font:800 10px var(--p-font); color:var(--p-ink);
+  text-transform:uppercase; letter-spacing:.12em;
+}
+.badge.spelling { background:var(--p-violett); }
+.badge.pronounce{ background:var(--p-rosa); }
+.badge.forms    { background:var(--p-pfirsich); }
+/* Die Aufgabe selbst — die groesste Schrift im ganzen Design. */
+.question-text{
+  font:900 34px/1.1 var(--p-font); color:var(--p-ink); margin:14px 0 0; text-align:center;
+}
+/* Kleines Sprachkuerzel vor dem Wort. */
+.question-text .q-lang{
+  font:800 12px var(--p-font); color:var(--p-text-2);
+  vertical-align:middle; margin-right:8px; letter-spacing:.1em;
+}
+
+/* Antwortkacheln: zwei Spalten. */
+.choices{
+  display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:12px; width:100%;
+}
+.choice-btn{
+  height:56px; padding:0 10px;
+  border:var(--p-rahmen); border-radius:var(--p-r-karte); background:var(--p-karte);
+  color:var(--p-ink); font:800 15px var(--p-font);
+  display:flex; align-items:center; justify-content:center; cursor:pointer;
+  box-shadow:none; text-align:center;
+}
+.choice-btn.correct{ background:var(--p-ok); }
+.choice-btn.wrong  { background:var(--p-falsch); }
+
+/* Tippfeld und Pruefen-Knopf stehen im Entwurf INNERHALB der Fragekarte. */
+.type-input-wrap{ margin-top:18px; }
+.type-input{
+  width:100%; height:56px;
+  border:var(--p-rahmen); border-radius:var(--p-r-btn); background:var(--p-feld);
+  color:var(--p-ink); padding:0 16px; font:700 14px var(--p-font); text-align:center;
+}
+.type-input:focus{ outline:2px solid var(--p-ink); outline-offset:2px; background:var(--p-karte-hell); }
+.submit-btn{
+  width:100%; height:54px; margin-top:12px;
+  border:var(--p-rahmen); border-radius:var(--p-r-btn); background:var(--p-ton,var(--p-mint));
+  color:var(--p-ink); font:900 14px var(--p-font);
+  display:flex; align-items:center; justify-content:center; gap:8px;
+  cursor:pointer; box-shadow:none;
+}
+
+/* Buchstabenluecke im Wort. */
+.gap-word{ margin-top:14px; display:flex; justify-content:center; gap:4px; flex-wrap:wrap; }
+.gap-cell{
+  min-width:26px; height:44px; padding:0 2px;
+  display:flex; align-items:center; justify-content:center;
+  font:900 28px var(--p-font); color:var(--p-ink);
+}
+.gap-input{
+  border:var(--p-rahmen); border-radius:var(--p-r-slot); background:var(--p-feld);
+  text-align:center; width:34px;
+}
+.gap-input.filled{ background:var(--p-ok); }
+
+/* Aussprache. */
+.pronounce-tip{ font:700 12px/1.5 var(--p-font); color:var(--p-text-3); margin-top:14px; }
+.mic-btn{
+  width:100%; height:56px; margin-top:12px;
+  border:var(--p-rahmen); border-radius:var(--p-r-btn); background:var(--p-rosa);
+  color:var(--p-ink); font:900 15px var(--p-font);
+  display:flex; align-items:center; justify-content:center; gap:9px;
+  cursor:pointer; box-shadow:none;
+}
+.pronounce-result{
+  border:var(--p-rahmen); border-radius:var(--p-r-karte); background:var(--p-karte);
+  padding:11px 13px; margin-top:12px; font:800 12px var(--p-font); color:var(--p-ink);
+}
+#viz-canvas{
+  border:var(--p-rahmen); border-radius:var(--p-r-slot); background:var(--p-feld);
+  width:100%; max-width:300px;
+}
+
+/* Formen ordnen: Ablageplaetze und Kachelvorrat. */
+.order-slots, .order-tray{ margin-top:12px; gap:8px; }
+.order-slot{
+  border:var(--p-rahmen-leer); border-radius:var(--p-r-slot); background:none;
+  min-height:48px; box-shadow:none;
+}
+.order-tile{
+  border:var(--p-rahmen); border-radius:var(--p-r-slot); background:var(--p-karte);
+  color:var(--p-ink); font:800 14px var(--p-font); box-shadow:none;
+}
+.slot-label{ font:800 9px var(--p-font); color:var(--p-text-2); letter-spacing:var(--p-ls-mikro); }
+
+/* ── Rueckmeldung ────────────────────────────────────────────────────────── */
+/* Wartend fuehrt Vondu das Wort, danach faerbt sich die Flaeche: Treffer mint,
+   Fehler rosa. Die Kontur wechselt dabei von gestrichelt auf durchgezogen. */
+.feedback{
+  display:flex; align-items:center; gap:12px; justify-content:space-between;
+  border:var(--p-rahmen-leer); border-radius:var(--p-r-karte); background:var(--p-karte);
+  padding:13px; margin-top:12px; width:100%; max-width:none; min-height:0;
+}
+.feedback.success{ border:var(--p-rahmen); background:var(--p-ok); }
+.feedback.error  { border:var(--p-rahmen); background:var(--p-falsch); }
+.feedback-vondu{ width:48px; height:46px; flex:none; display:block; }
+.feedback-left{ display:flex; flex-direction:column; flex:1; min-width:0; }
+.feedback-text{ font:800 12px/1.45 var(--p-font); color:var(--p-text-akzent); }
+.feedback.success .feedback-text, .feedback.error .feedback-text{ color:var(--p-ink); font-size:13px; }
+.feedback-sub{ font:700 11px var(--p-font); color:var(--p-text-3); margin-top:3px; }
+.next-btn{
+  height:44px; padding:0 16px; flex:none;
+  border:var(--p-rahmen); border-radius:var(--p-r-chip-gross); background:var(--p-karte);
+  color:var(--p-ink); font:900 12px var(--p-font);
+  cursor:pointer; box-shadow:none; white-space:nowrap;
+}
+.speak-btn{
+  margin-top:6px; align-self:flex-start;
+  border:var(--p-rahmen); border-radius:var(--p-r-chip); background:var(--p-karte);
+  color:var(--p-ink); font:800 10px var(--p-font); padding:5px 9px; cursor:pointer; box-shadow:none;
+}
+
+/* Modus-Gesamtfortschritt am Fuss des Blatts. */
+.mode-progress{
+  position:static; border:var(--p-rahmen); border-radius:var(--p-r-karte);
+  background:var(--p-karte-hell); padding:13px 14px; margin-top:12px;
+  width:100%; max-width:none; box-shadow:none;
+}
+.mode-progress-label{
+  display:flex; align-items:baseline; justify-content:space-between;
+  font:900 13px var(--p-font); color:var(--p-ink);
+}
+.mode-progress-label > span:last-child{ font-size:19px; }
+.mode-progress-track{
+  height:10px; border-radius:var(--p-r-balken); overflow:hidden;
+  background:var(--p-spur); margin-top:8px;
+}
+.mode-progress-bar{ height:100%; background:var(--p-ok); }
+.mode-progress-sub{
+  font:700 10px var(--p-font); color:var(--p-text-2); margin-top:6px; text-align:right;
 }

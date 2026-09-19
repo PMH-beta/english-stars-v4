@@ -8,6 +8,8 @@ import { persist } from './storage.js';
 import { markDirty, saveExam, saveProbetest } from './sync.js';
 import { commitDirty } from './dialog.js';
 import { IRREGULAR_PRESET_ID, formDistractors, UV_TRAIN_SUF } from './irregular-verbs.js';
+import { iconHTML } from './pixel-icons.js';
+import { setGrundton } from './screen-shell.js';
 
 // Game state – all on window.* so Commit B functions (still in index.html) can read them as globals
 window.isSchnellModus = false;            // gespiegelter Zustand des AKTIVEN Modus
@@ -613,21 +615,36 @@ function showQuestion() {
   if(window.isUV) updateModeProgress(false);   // Balken auf das aktuelle Teil (Frage-Modus)
 }
 
+// Modusname, Pixelsymbol, Grundton und Plakette gehoeren zusammen — hier an
+// einer Stelle, damit Kopfzeile, Screen-Farbe und Karte nie auseinanderlaufen.
+const MODUS = {
+  vocab:     { titel:'Vokabeln',        icon:'book',   ton:'mint' },
+  spelling:  { titel:'Rechtschreibung', icon:'pencil', ton:'lila' },
+  pronounce: { titel:'Aussprache',      icon:'speaker',ton:'rosa' },
+};
+
 function renderQuestion(q) {
   const card=document.getElementById('game-card');
-  const bLabels={vocab:'🔤 Vokabeln',spelling:'✏️ Rechtschreibung',pronounce:'🎙️ Aussprache'};
-  // UV (Gestaltwandler) hat eigenen Kopf (Form-Plakette etc.) — der generische
-  // Disziplin-Badge oben entfällt dort.
-  let html = window.isUV ? '' : `<div class="badge ${q.badge}">${bLabels[q.badge]||'📝'}</div>`;
+  const m = MODUS[q.badge];
+  // Kopfzeile und Grundton des Screens folgen dem Modus. UV (Gestaltwandler)
+  // bringt seinen eigenen Kopf mit und behaelt darum Pfirsich.
+  const titleEl=document.getElementById('game-title');
+  if(titleEl) titleEl.textContent = window.isUV ? 'Formen' : (m ? m.titel : 'Übung');
+  setGrundton(window.isUV ? 'pfirsich' : (m ? m.ton : 'mint'), document.getElementById('game-screen'));
+  // UV hat eigenen Kopf (Form-Plakette etc.) — die generische Plakette entfaellt dort.
+  let head = window.isUV || !m ? '' : `<div class="badge ${q.badge}">${iconHTML(m.icon,14)}${m.titel}</div>`;
+  const frage = `<div class="question-text">${(q.question||'').replace(/\n/g,'<br>')}</div>`;
+  let html='';
   if(q.type==='mc'){
-    html+=`<div class="question-text">${(q.question||'').replace(/\n/g,'<br>')}</div>`;
+    html+=`<div class="p-fragekarte">${head}${frage}</div>`;
     html+=`<div class="choices">`;
     q.choices.forEach(c=>{
       html+=`<button class="choice-btn" onclick="checkMC(this,'${esc(c)}')">${c}</button>`;
     });
     html+=`</div>`;
   } else if(q.type==='type'){
-    html+=`<div class="question-text">${(q.question||'').replace(/\n/g,'<br>')}</div>`;
+    // Bei „type" liegen Eingabe und Pruefen-Knopf MIT in der Fragekarte.
+    html+=`<div class="p-fragekarte">${head}${frage}`;
     if(q.gap){
       // Lücke INLINE im Wort: der getippte Buchstabe erscheint direkt an seiner
       // Stelle → das Wort steht als Ganzes da (kein separates Kästchen darunter).
@@ -648,15 +665,15 @@ function renderQuestion(q) {
           onkeydown="if(event.key==='Enter')submitType()">
       </div>`;
     }
-    html+=`<button class="submit-btn" onclick="submitType()">Prüfen ✓</button>`;
+    html+=`<button class="submit-btn" onclick="submitType()">Prüfen${iconHTML('check',14)}</button></div>`;
   } else if(q.type==='pronounce'){
-    html+=`<div class="question-text">${(q.question||'').replace(/\n/g,'<br>')}</div>`;
+    html+=`<div class="p-fragekarte">${head}${frage}</div>`;
     html+=`<div class="pronounce-tip" id="pronounce-tip">Drücke den Mikrofon-Button und sprich das Wort auf Englisch!</div>`;
-    html+=`<canvas id="viz-canvas" width="300" height="60" style="display:block;margin:10px auto;border-radius:10px;background:#f5f0ff;"></canvas>`;
-    html+=`<button class="mic-btn" id="mic-btn" onclick="startRecording()">🎙️ Sprechen</button>`;
+    html+=`<canvas id="viz-canvas" width="300" height="60" style="display:block;margin:12px auto 0"></canvas>`;
+    html+=`<button class="mic-btn" id="mic-btn" onclick="startRecording()">${iconHTML('speaker',28)}Sprechen</button>`;
     html+=`<div class="pronounce-result" id="pronounce-result" style="display:none"></div>`;
   } else if(q.type==='order'){
-    html+=`<div class="question-text">${(q.question||'').replace(/\n/g,'<br>')}</div>`;
+    html+=`<div class="p-fragekarte">${head}${frage}</div>`;
     const isL=q.orderKind==='letters';
     html+=`<div class="order-slots${isL?' letters':''}" id="order-slots">`;
     q.slotLabels.forEach((lab,i)=>{ html+=`<div class="order-slot" data-slot="${i}">${lab?`<span class="slot-label">${lab}</span>`:''}</div>`; });
@@ -664,7 +681,7 @@ function renderQuestion(q) {
     html+=`<div class="order-tray${isL?' letters':''}" id="order-tray">`;
     q.tiles.forEach(t=>{ html+=`<div class="order-tile" data-val="${t}">${t}</div>`; });
     html+=`</div>`;
-    html+=`<button class="submit-btn" id="order-check" onclick="checkOrder()" disabled>Prüfen ✓</button>`;
+    html+=`<button class="submit-btn" id="order-check" onclick="checkOrder()" disabled>Prüfen${iconHTML('check',14)}</button>`;
   }
   card.innerHTML=html;
   card.classList.remove('bounce-in');void card.offsetWidth;card.classList.add('bounce-in');
@@ -1096,8 +1113,9 @@ function handleWrong() {
 }
 
 function updateScoreBar() {
-  document.getElementById('streak-display').textContent='🔥 '+window.streak;
-  document.getElementById('points-display').textContent='⭐ '+window.points;
+  // Pixelsymbol statt Emoji — textContent wuerde das Canvas wegwerfen.
+  document.getElementById('streak-display').innerHTML=iconHTML('flame',14)+window.streak;
+  document.getElementById('points-display').innerHTML=iconHTML('starInk',14)+window.points;
 }
 
 // ── SFX ──

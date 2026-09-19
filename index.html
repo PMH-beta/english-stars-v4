@@ -424,36 +424,43 @@
 </div>
 
 <!-- ═══ GAME SCREEN ═══ -->
-<div id="game-screen" style="display:none;width:100%;max-width:640px;flex-direction:column;align-items:center;">
-  <div class="game-top-row">
-    <button class="back-btn" style="margin:0" onclick="confirmHome()">← Zurück</button>
-    <div class="score-bar" style="margin:0">
-      <button class="music-btn" id="music-btn" onclick="toggleMusic()" title="Musik an/aus">🎵</button>
-      <div class="score-pill streak" id="streak-display">🔥 0</div>
-      <div class="score-pill points" id="points-display">⭐ 0</div>
+<div id="game-screen" class="p-screen p-ton-mint" style="display:none">
+  <div class="p-kopf">
+    <div class="p-titel">
+      <button class="p-back" onclick="confirmHome()"><canvas data-icon="back" width="14" height="14" style="width:28px;height:28px;image-rendering:pixelated;flex:none"></canvas></button>
+      <div class="p-titel-text" id="game-title">Vokabeln</div>
+      <!-- Serie und Punkte. game.js schreibt Symbol + Zahl hinein. -->
+      <div class="p-hud">
+        <div class="p-chip p-chip--icon" id="streak-display"></div>
+        <div class="p-chip p-chip--icon p-chip--gold" id="points-display"></div>
+      </div>
+    </div>
+    <!-- Fortschritt der laufenden Runde -->
+    <div class="p-balken p-balken--modus" style="background:var(--p-karte);margin-top:14px">
+      <i id="progress-fill"></i>
     </div>
   </div>
-  <div class="progress-wrap" style="margin-top:9px">
-    <div class="progress-fill" id="progress-fill" style="width:0%"></div>
-  </div>
-  <div class="game-card" id="game-card"></div>
-  <div class="feedback" id="feedback">
-    <div class="feedback-left">
-      <div class="feedback-text" id="fb-text"></div>
-      <div class="feedback-sub"  id="fb-sub"></div>
+  <div class="p-blatt">
+    <div class="game-card" id="game-card"></div>
+    <div class="feedback" id="feedback">
+      <img class="feedback-vondu" src="vondu-logo.svg" alt="Vondu">
+      <div class="feedback-left">
+        <div class="feedback-text" id="fb-text">Vondu wartet auf deine Antwort…</div>
+        <div class="feedback-sub"  id="fb-sub"></div>
+      </div>
+      <button class="next-btn" onclick="nextQuestion()">Weiter</button>
     </div>
-    <button class="next-btn" onclick="nextQuestion()">Weiter →</button>
-  </div>
-  <!-- Modus-Gesamtfortschritt – ganz unten -->
-  <div class="mode-progress" id="mode-progress">
-    <div class="mode-progress-label">
-      <span id="mode-progress-title">Modus-Fortschritt</span>
-      <span id="mode-progress-pct">0%</span>
+    <!-- Modus-Gesamtfortschritt – ganz unten -->
+    <div class="mode-progress" id="mode-progress">
+      <div class="mode-progress-label">
+        <span id="mode-progress-title">Modus-Fortschritt</span>
+        <span id="mode-progress-pct">0%</span>
+      </div>
+      <div class="mode-progress-track">
+        <div class="mode-progress-bar" id="mode-progress-bar" style="width:0%"></div>
+      </div>
+      <div class="mode-progress-sub" id="mode-progress-sub"></div>
     </div>
-    <div class="mode-progress-track">
-      <div class="mode-progress-bar" id="mode-progress-bar" style="width:0%"></div>
-    </div>
-    <div class="mode-progress-sub" id="mode-progress-sub"></div>
   </div>
 </div>
 

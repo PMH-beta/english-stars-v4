@@ -43,6 +43,9 @@ const P_TON = {
   'password-reset-sent-screen': 'mint',
   'new-password-screen': 'pfirsich',
   'email-confirm-screen': 'blau',
+  // Das Spiel setzt den Ton gleich danach genauer (renderQuestion, je Modus);
+  // hier steht nur der Anfangswert, damit die Schale nicht kurz alt aussieht.
+  'game-screen': 'mint',
 };
 
 export function showScreen(id) {
