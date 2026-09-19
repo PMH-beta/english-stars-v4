@@ -1374,11 +1374,12 @@ function showEnd() {
     document.getElementById('stat-points').textContent=window.points;
     document.getElementById('stat-correct').textContent=window.totalCorrect+'/'+totalQ;
     document.getElementById('stat-streak').textContent=window.bestStreak;
-    document.getElementById('end-hs-msg').textContent=newHS?'🎉 Neuer Highscore!':'';
-    document.getElementById('end-emoji').textContent=window.isUV?('🌟 Note '+grade):('📊 Note '+grade);
+    document.getElementById('end-hs-msg').textContent=newHS?'Neuer Highscore!':'';
+    // Bei der Pruefung steht die Note im Kreis statt eines Pokals.
+    document.getElementById('end-emoji').innerHTML='<span class="p-pokal-note">'+grade+'</span>';
     document.getElementById('end-title').textContent=window.isUV?('Vollwandlung — '+gradeText(grade)):gradeText(grade);
     const dateStr=new Date(deck&&deck.lastExam?deck.lastExam.date:Date.now()).toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'});
-    document.getElementById('end-stars').textContent=percent+'% richtig · '+dateStr;
+    document.getElementById('end-stars').innerHTML='<span class="p-endsub">'+percent+'% richtig · '+dateStr+'</span>';
     if(grade<=2) window.spawnConfetti();
     try{playSfx('end');}catch(e){}
     return;
@@ -1406,15 +1407,18 @@ function showEnd() {
   document.getElementById('stat-points').textContent=window.points;
   document.getElementById('stat-correct').textContent=window.totalCorrect;
   document.getElementById('stat-streak').textContent=window.bestStreak;
-  document.getElementById('end-hs-msg').textContent=newHS?'🎉 Neuer Highscore!':'';
+  document.getElementById('end-hs-msg').textContent=newHS?'Neuer Highscore!':'';
   const pct=window.totalCorrect/Math.max(1,window.questionIndex);
-  let emoji,title,stars;
-  if(pct>=.9){emoji='🏆';title='Absolut fantastisch!';stars='⭐⭐⭐';}
-  else if(pct>=.7){emoji='😊';title='Sehr gut gemacht!';stars='⭐⭐';}
-  else if(pct>=.5){emoji='💪';title='Gut versucht!';stars='⭐';}
-  else{emoji='📚';title='Weiter üben!';stars='';}
-  document.getElementById('end-emoji').textContent=emoji;
+  // Pokal und Sterne als Pixelgrafik. Die Zahl der Sterne traegt die Aussage,
+  // das Symbol im Kreis bleibt dasselbe — so wie im Entwurf.
+  let sym,title,sterne;
+  if(pct>=.9){sym='trophy';title='Absolut fantastisch!';sterne=3;}
+  else if(pct>=.7){sym='trophy';title='Sehr gut gemacht!';sterne=2;}
+  else if(pct>=.5){sym='target';title='Gut versucht!';sterne=1;}
+  else{sym='book';title='Weiter üben!';sterne=0;}
+  document.getElementById('end-emoji').innerHTML=iconHTML(sym,56);
   document.getElementById('end-title').textContent=title;
-  document.getElementById('end-stars').textContent=stars;
+  document.getElementById('end-stars').innerHTML=
+    Array.from({length:sterne},()=>'<span class="p-sternfach">'+iconHTML('star',28)+'</span>').join('');
   if(pct>=.8) window.spawnConfetti();
 }

@@ -2519,6 +2519,144 @@ button.p-chip{ cursor:pointer; }
 }
 .cg-dot.active{ background:var(--p-ink); transform:none; }
 
+/* ══ VOKABELVERWALTUNG · PRÜFEN · RUNDENENDE ═══════════════════════════════ */
+
+/* Tab-Leiste der Verwaltung: gleiche Bauweise wie die Aktionsknöpfe der
+   Sammlungskarte — eine Reihe gleich breiter Kacheln, die aktive in Mint. */
+.vm-tabs{
+  display:flex; gap:7px; background:none; border:0; padding:0; border-radius:0;
+  width:100%; overflow-x:auto; scrollbar-width:none;
+}
+.vm-tabs::-webkit-scrollbar{ display:none; }
+.vm-tab{
+  flex:1; min-width:0; height:40px; padding:0 6px;
+  border:var(--p-rahmen); border-radius:var(--p-r-chip-gross); background:var(--p-karte);
+  color:var(--p-ink); font:800 10px var(--p-font);
+  display:flex; align-items:center; justify-content:center; gap:5px;
+  cursor:pointer; box-shadow:none; white-space:nowrap;
+}
+.vm-tab.active{ background:var(--p-ok); font-weight:900; box-shadow:none; color:var(--p-ink); }
+.vm-count{
+  border:0; border-radius:7px; background:var(--p-violett);
+  padding:1px 6px; font:800 9px var(--p-font); color:var(--p-ink);
+}
+.vm-pane{ width:100%; margin-top:12px; }
+
+/* Wortliste: jede Zeile eine eigene Karte, nicht ein Block mit Trennlinien. */
+.vm-list{
+  background:none; border:0; border-radius:0; box-shadow:none; padding:0;
+  display:flex; flex-direction:column; gap:9px;
+}
+.vm-row{
+  border:var(--p-rahmen); border-radius:var(--p-r-btn); background:var(--p-karte);
+  padding:11px 13px; display:flex; align-items:center; gap:10px;
+}
+.vm-row-wort{ flex:1; min-width:0; }
+.vm-row-en{ font:900 13px var(--p-font); color:var(--p-ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.vm-row-de{ font:700 10px var(--p-font); color:var(--p-text-2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.vm-row-arrow{ color:var(--p-text-2); flex:none; font-weight:800; }
+.vm-row-stand{ display:flex; align-items:center; gap:8px; flex:none; }
+.vm-row-pct{ font:900 11px var(--p-font); width:30px; text-align:right; color:var(--p-ink); }
+.vm-row-del, .vm-row-edit{
+  width:30px; height:30px; flex:none; padding:0;
+  border:var(--p-rahmen); border-radius:var(--p-r-chip); background:var(--p-karte);
+  color:var(--p-ink); font-size:12px; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+}
+.vm-row-del{ background:var(--p-falsch); }
+.vm-row-del:hover, .vm-row-edit:hover{ background:var(--p-inaktiv); }
+.vm-empty{ padding:26px 18px; text-align:center; font:700 12px var(--p-font); color:var(--p-text-2); }
+.vm-bottom-bar{ display:flex; gap:10px; width:100%; margin:14px 0 4px; }
+.vm-bottom-bar button{ flex:1; }
+.vm-confirm{
+  border:var(--p-rahmen); border-radius:var(--p-r-btn); background:var(--p-ok);
+  color:var(--p-ink); box-shadow:none;
+}
+.vm-confirm.is-disabled{ background:var(--p-inaktiv); color:var(--p-text-2); box-shadow:none; }
+.vm-rename-btn{
+  border:var(--p-rahmen); border-radius:var(--p-r-chip); background:var(--p-karte);
+  color:var(--p-ink); font:800 10px var(--p-font); box-shadow:none;
+}
+.vm-rename-btn:hover{ background:var(--p-inaktiv); }
+
+/* Mehrzeiliges Textfeld (Text einfügen). */
+.p-textfeld{
+  width:100%; min-height:150px; margin-top:11px; padding:12px 14px; resize:vertical;
+  border:var(--p-rahmen); border-radius:var(--p-r-btn); background:var(--p-inaktiv);
+  color:var(--p-ink); font:700 12px/1.5 ui-monospace,Menlo,monospace;
+}
+.p-textfeld:focus{ outline:2px solid var(--p-ink); outline-offset:2px; background:var(--p-feld); }
+
+/* Scan-Fläche: gestrichelte Ablage, wie jede leere Fläche im Design. */
+.scan-zone{
+  border:var(--p-rahmen-leer); border-radius:var(--p-r-dialog); background:var(--p-karte);
+  box-shadow:none; padding:26px 18px; text-align:center; cursor:pointer;
+  display:flex; flex-direction:column; align-items:center; gap:8px;
+}
+.scan-zone p{ font:700 11px/1.45 var(--p-font); color:var(--p-text-2); margin:0; }
+.scan-preview{ border:var(--p-rahmen); border-radius:var(--p-r-kachel); max-width:100%; }
+.analyzing-pill{
+  border:var(--p-rahmen); border-radius:var(--p-r-chip-gross); background:var(--p-gold);
+  color:var(--p-ink); font:800 11px var(--p-font); padding:8px 13px; box-shadow:none;
+}
+
+/* Vorlagen-Zeilen. */
+.preset-row{
+  border:var(--p-rahmen); border-radius:var(--p-r-btn); background:var(--p-karte);
+  box-shadow:none; padding:11px 13px; margin-bottom:9px;
+}
+.preset-name{ font:900 13px var(--p-font); color:var(--p-ink); }
+.preset-count{ font:700 10px var(--p-font); color:var(--p-text-2); }
+.preset-toggle{
+  border:var(--p-rahmen); border-radius:var(--p-r-chip); background:var(--p-karte);
+  color:var(--p-ink); box-shadow:none;
+}
+.preset-toggle:hover{ background:var(--p-inaktiv); transform:none; }
+.preset-toggle.on{ background:var(--p-ok); }
+
+/* Prüfliste nach dem Scan. */
+.review-list{
+  background:none; border:0; box-shadow:none; padding:0;
+  display:flex; flex-direction:column; gap:9px;
+}
+.review-item{
+  border:var(--p-rahmen); border-radius:var(--p-r-btn); background:var(--p-karte);
+  box-shadow:none; padding:11px 13px; display:flex; align-items:center; gap:9px;
+}
+.review-item input{
+  flex:1; min-width:0; height:40px; padding:0 11px;
+  border:var(--p-rahmen); border-radius:var(--p-r-slot); background:var(--p-feld);
+  color:var(--p-ink); font:700 12px var(--p-font);
+}
+
+/* ── Rundenende ──────────────────────────────────────────────────────────── */
+/* Pokal im Kreis, darunter die verdienten Sterne als eigene Kacheln. */
+.p-pokal{
+  width:82px; height:82px; margin:0 auto;
+  border:var(--p-rahmen); border-radius:50%; background:var(--p-karte);
+  display:flex; align-items:center; justify-content:center;
+}
+.p-pokal-note{ font:900 34px/1 var(--p-font); color:var(--p-ink); }
+.stars-row{ display:flex; justify-content:center; gap:10px; margin-top:10px; min-height:0; font-size:0; }
+.p-sternfach{
+  width:46px; height:46px;
+  border:var(--p-rahmen); border-radius:var(--p-r-kachel); background:var(--p-karte);
+  display:flex; align-items:center; justify-content:center;
+}
+.p-endsub{ font:700 12px var(--p-font); color:var(--p-text-3); }
+.stat-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:18px; }
+.stat-box{
+  border:var(--p-rahmen); border-radius:var(--p-r-karte); background:var(--p-ton,var(--p-karte));
+  padding:13px 8px; text-align:center;
+}
+.stat-num{
+  display:block; font:900 24px/1 var(--p-font); color:var(--p-ink) !important;
+}
+.stat-label{
+  font:800 10px var(--p-font); text-transform:uppercase; letter-spacing:.08em;
+  color:var(--p-text-3);
+}
+
 /* ── Breite Fenster ──────────────────────────────────────────────────────── */
 /* Steht ganz am Ende, damit diese Regeln die Grundfassung ueberschreiben.
    Auf dem Handy laeuft die Kontur des Blatts links und rechts unter den

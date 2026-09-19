@@ -49,6 +49,10 @@ const P_TON = {
   'profile-screen': 'blau',
   'character-screen': 'rosa',
   'stats-screen': 'lila',
+  'apikey-screen': 'mint',
+  'scan-screen': 'mint',
+  'review-screen': 'pfirsich',
+  'end-screen': 'amber',
 };
 
 export function showScreen(id) {

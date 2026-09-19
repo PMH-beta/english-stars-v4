@@ -7,6 +7,7 @@ import { commitDirty } from './dialog.js';
 import { supabase } from './supabase.js';
 import { effectivePct, statKeyFor } from './stats.js';
 import { MAX_PRESET_CATEGORIES } from './config.js';
+import { iconHTML } from './pixel-icons.js';
 
 function _vmDeck() { return window._draftDeck || activeDeck(); }
 
@@ -304,6 +305,19 @@ function _updateVmCount() {
     : deck.vocab.filter(v => !v._presetId).length;
 }
 
+// Lernstand eines einzelnen Wortes in Prozent — Mittel ueber die drei
+// Uebungsarten, dieselbe Rechnung wie in deckProgress.
+function _wortStand(deck, v) {
+  const presetWs = window.SD?.globalPresetStats?.wordStats || {};
+  const ws = v._presetId ? presetWs : deck.wordStats;
+  let summe = 0;
+  for (const suffix of ['_mc', '_sp', '_pr']) {
+    const st = ws[statKeyFor(v.de, v.en, suffix, v._presetId || null)];
+    if (st && st.asked) summe += effectivePct(st);
+  }
+  return Math.round(summe / 3 * 100);
+}
+
 export function renderVocabList() {
   const listEl = document.getElementById('vm-list');
   if (!listEl) return;
@@ -319,25 +333,27 @@ export function renderVocabList() {
   if (items.length === 0) {
     const emptyMsg = search
       ? 'Keine Treffer für "' + window.escHtml(search) + '"'
-      : isPresetPath ? 'Noch keine Vorlage aktiv. Wähle eine im 📦-Tab.' : 'Noch keine Vokabeln. Füge welche hinzu! 👇';
+      : isPresetPath ? 'Noch keine Vorlage aktiv. Wähle eine im Vorlagen-Tab.' : 'Noch keine Vokabeln. Füge welche hinzu.';
     listEl.innerHTML = '<div class="vm-empty">' + emptyMsg + '</div>';
     return;
   }
   listEl.innerHTML = items.map(v => {
-    if (isPresetPath) {
-      return `<div class="vm-row">
-        <div class="vm-row-de">${window.escHtml(v.de)}</div>
-        <div class="vm-row-arrow">→</div>
-        <div class="vm-row-en">${window.escHtml(v.en)}</div>
+    const pct = _wortStand(deck, v);
+    // Balkenfarbe nach Lernstand: sicher mint, auf dem Weg gold, noch nichts sand.
+    const farbe = pct >= 80 ? 'var(--p-ok)' : pct > 0 ? 'var(--p-gold)' : 'var(--p-spur)';
+    const stand = `<div class="vm-row-stand">
+        <div class="p-balken" style="width:60px"><i style="width:${pct}%;background:${farbe}"></i></div>
+        <span class="vm-row-pct">${pct}%</span>
       </div>`;
-    }
+    const woerter = `<div class="vm-row-wort">
+        <div class="vm-row-en">${window.escHtml(v.en)}</div>
+        <div class="vm-row-de">${window.escHtml(v.de)}</div>
+      </div>`;
+    if (isPresetPath) return `<div class="vm-row">${woerter}${stand}</div>`;
     const realIdx = deck.vocab.indexOf(v);
-    return `<div class="vm-row">
-      <div class="vm-row-de">${window.escHtml(v.de)}</div>
-      <div class="vm-row-arrow">→</div>
-      <div class="vm-row-en">${window.escHtml(v.en)}</div>
-      <button class="vm-row-edit" onclick="vmEditWord(${realIdx})" title="Bearbeiten">✏️</button>
-      <button class="vm-row-del" onclick="vmDeleteWord(${realIdx})" title="Löschen">🗑️</button>
+    return `<div class="vm-row">${woerter}${stand}
+      <button class="vm-row-edit" onclick="vmEditWord(${realIdx})" title="Bearbeiten">${iconHTML('pencil', 14)}</button>
+      <button class="vm-row-del" onclick="vmDeleteWord(${realIdx})" title="Löschen">${iconHTML('trash', 14)}</button>
     </div>`;
   }).join('');
 }

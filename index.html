@@ -40,11 +40,18 @@
 </div>
 
 
-<div id="apikey-screen" class="screen" style="display:none">
-  <span class="emoji-big">✅</span>
-  <h2>Kein Key nötig!</h2>
-  <p>Vokabeln scannen funktioniert komplett kostenlos und ohne Internetzugang – direkt im Browser.</p>
-  <button class="big-btn green center" onclick="skipApiKey()">Los geht's! 🚀</button>
+<div id="apikey-screen" class="p-screen p-ton-mint" style="display:none">
+  <div class="p-buehne">
+    <div class="p-dialogkarte">
+      <div class="p-emblem"><canvas data-icon="check" width="14" height="14" style="width:42px;height:42px;image-rendering:pixelated;flex:none"></canvas></div>
+      <div class="p-h1">Kein Key nötig!</div>
+      <div class="p-lead p-lead--eng">Vokabeln scannen funktioniert komplett kostenlos und ohne Internetzugang — direkt im Browser.</div>
+      <div class="p-feldgruppe">
+        <button class="p-btn p-btn--akzent" onclick="skipApiKey()">Los geht's!</button>
+      </div>
+    </div>
+  </div>
+  <div class="p-version"></div>
 </div>
 
 <!-- ═══ AUTH SCREEN ═══ -->
@@ -355,37 +362,42 @@
 </div>
 
 <!-- ═══ SCAN SCREEN ═══ -->
-<div id="scan-screen" style="display:none;width:100%;max-width:580px;flex-direction:column;align-items:center;">
-  <div id="vm-back-area"><button class="back-btn sticky" onclick="vmBack()" style="margin-bottom:14px;">← Zurück</button></div>
-  <h1 id="vm-title" style="margin-bottom:4px">📚 Vokabeln verwalten</h1>
-  <p id="vm-deck-name" style="color:#888;font-size:.85rem;font-weight:700;margin-bottom:14px;text-align:center;"></p>
-
+<div id="scan-screen" class="p-screen p-ton-mint" style="display:none">
+  <div class="p-kopf">
+    <div class="p-titel">
+      <div id="vm-back-area"><button class="p-back" onclick="vmBack()"><canvas data-icon="back" width="14" height="14" style="width:28px;height:28px;image-rendering:pixelated;flex:none"></canvas></button></div>
+      <div class="p-titel-text" id="vm-title">Vokabeln verwalten</div>
+      <div class="p-back-platz"></div>
+    </div>
+    <div id="vm-deck-name" style="text-align:center;font:700 11px var(--p-font);color:var(--p-text-akzent);margin-top:6px"></div>
+  </div>
+  <div class="p-blatt">
   <!-- Tabs -->
   <div class="vm-tabs">
-    <button class="vm-tab active" data-tab="list" onclick="vmTab('list')">📋 Liste <span id="vm-count" class="vm-count">0</span></button>
-    <button class="vm-tab" data-tab="add" onclick="vmTab('add')">➕ Hinzufügen</button>
-    <button class="vm-tab" data-tab="scan" onclick="vmTab('scan')">📷 Scan</button>
-    <button class="vm-tab" data-tab="paste" onclick="vmTab('paste')">📝 Text</button>
-    <button class="vm-tab" data-tab="presets" onclick="vmTab('presets')">📦 Vorlagen</button>
+    <button class="vm-tab active" data-tab="list" onclick="vmTab('list')">Liste <span id="vm-count" class="vm-count">0</span></button>
+    <button class="vm-tab" data-tab="add" onclick="vmTab('add')">+ Neu</button>
+    <button class="vm-tab" data-tab="scan" onclick="vmTab('scan')">Scan</button>
+    <button class="vm-tab" data-tab="paste" onclick="vmTab('paste')">Text</button>
+    <button class="vm-tab" data-tab="presets" onclick="vmTab('presets')">Vorlagen</button>
   </div>
 
   <div id="vm-action-area"></div>
 
   <!-- Tab: Liste -->
   <div class="vm-pane" id="vm-pane-list">
-    <input type="text" id="vm-search" placeholder="🔍 Vokabel suchen..." oninput="renderVocabList()" style="width:100%;padding:10px 14px;border:2px solid #eee;border-radius:11px;font-size:.9rem;margin-bottom:10px;font-family:'Nunito',sans-serif;">
+    <input type="text" id="vm-search" class="p-feld" placeholder="Vokabel suchen…" oninput="renderVocabList()" style="height:48px;margin-bottom:10px">
     <div id="vm-list" class="vm-list"></div>
   </div>
 
   <!-- Tab: Manuell hinzufügen -->
   <div class="vm-pane" id="vm-pane-add" style="display:none;">
-    <div style="background:#fff;padding:16px;border-radius:14px;box-shadow:var(--shadow);width:100%;">
-      <p style="font-size:.85rem;color:#666;margin-bottom:10px;">Neue Vokabel direkt zur Sammlung hinzufügen:</p>
-      <input type="text" id="vm-add-de" placeholder="Deutsch (z.B. Apfel)" style="width:100%;padding:10px 14px;border:2px solid #eee;border-radius:10px;font-size:.95rem;margin-bottom:8px;font-family:'Nunito',sans-serif;">
-      <input type="text" id="vm-add-en" placeholder="Englisch (z.B. apple)" style="width:100%;padding:10px 14px;border:2px solid #eee;border-radius:10px;font-size:.95rem;margin-bottom:10px;font-family:'Nunito',sans-serif;">
-      <button onclick="vmAddManual()" style="width:100%;font-family:'Fredoka One',cursive;font-size:.95rem;padding:12px;background:var(--green);color:white;border:none;border-radius:11px;cursor:pointer;box-shadow:0 4px 0 #3a9b45;">
-        ➕ Vokabel hinzufügen
-      </button>
+    <div class="p-karte p-karte--block">
+      <div class="p-lead" style="text-align:left;margin:0">Neue Vokabel direkt zur Sammlung hinzufügen:</div>
+      <div class="p-feldgruppe" style="margin-top:11px;gap:9px">
+        <input type="text" id="vm-add-de" class="p-feld" style="height:52px;background:var(--p-inaktiv)" placeholder="Deutsch (z.B. Apfel)">
+        <input type="text" id="vm-add-en" class="p-feld" style="height:52px;background:var(--p-inaktiv)" placeholder="Englisch (z.B. apple)">
+        <button onclick="vmAddManual()" class="p-btn p-btn--akzent" style="height:54px;font-size:13px">+ Vokabel hinzufügen</button>
+      </div>
     </div>
   </div>
 
@@ -393,9 +405,9 @@
   <div class="vm-pane" id="vm-pane-scan" style="display:none;">
     <div class="scan-zone" id="scan-zone" onclick="document.getElementById('scan-file').click()">
       <img id="scan-preview" class="scan-preview" alt="Vorschau">
-      <span style="font-size:2.5rem">📸</span>
+      <canvas data-icon="scan" width="14" height="14" style="width:56px;height:56px;image-rendering:pixelated;flex:none"></canvas>
       <p>Bild auswählen oder Kamera öffnen</p>
-      <p style="font-size:.78rem">JPG, PNG – Tesseract-OCR (offline)</p>
+      <p style="font-size:.78rem">JPG, PNG — Tesseract-OCR (offline)</p>
     </div>
     <input type="file" id="scan-file" accept="image/*" capture="environment" style="display:none" onchange="onScanFile(event)">
     <div id="scan-status" style="width:100%;"></div>
@@ -403,16 +415,14 @@
 
   <!-- Tab: Text einfügen -->
   <div class="vm-pane" id="vm-pane-paste" style="display:none;">
-    <div style="background:#fff;padding:14px;border-radius:14px;box-shadow:var(--shadow);width:100%;">
-      <p style="font-size:.85rem;color:#555;line-height:1.5;margin-bottom:8px;">
-        <strong>📱 Beste Erkennung mit dem Handy:</strong><br>
-        <b>iPhone:</b> Foto → lang auf Text drücken → "Text auswählen" → kopieren<br>
+    <div class="p-karte p-karte--block">
+      <div class="p-lead" style="text-align:left;margin:0">
+        <strong>Beste Erkennung mit dem Handy:</strong><br>
+        <b>iPhone:</b> Foto → lang auf Text drücken → „Text auswählen" → kopieren<br>
         <b>Android:</b> Google Lens → Text antippen → kopieren
-      </p>
-      <textarea id="paste-text" placeholder="Text hier einfügen, z.B.:&#10;cafeteria   Cafeteria&#10;place   Platz&#10;to talk   sprechen" style="width:100%;min-height:140px;padding:10px;border:2px solid #ddd;border-radius:10px;font-family:monospace;font-size:.85rem;resize:vertical;"></textarea>
-      <button onclick="parsePastedText()" style="margin-top:8px;font-family:'Fredoka One',cursive;font-size:.9rem;padding:10px 20px;background:var(--purple);color:white;border:none;border-radius:10px;cursor:pointer;width:100%;">
-        ✏️ Text auswerten
-      </button>
+      </div>
+      <textarea id="paste-text" class="p-textfeld" placeholder="Text hier einfügen, z.B.:&#10;cafeteria   Cafeteria&#10;place   Platz&#10;to talk   sprechen"></textarea>
+      <button onclick="parsePastedText()" class="p-btn p-btn--akzent" style="height:52px;font-size:13px;margin-top:10px">Text auswerten</button>
     </div>
   </div>
 
@@ -422,22 +432,25 @@
   <div class="vm-pane" id="vm-pane-deck-stats" style="display:none;"></div>
 
   <!-- Aktionen unten (Draft: Abbrechen/Bestätigen) -->
-  <div id="vm-bottom-area" style="width:100%;"></div>
+  <div id="vm-bottom-area"></div>
+  </div>
 </div>
 
 <!-- ═══ REVIEW SCREEN ═══ -->
-<div id="review-screen" style="display:none;width:100%;max-width:580px;flex-direction:column;align-items:center;">
-  <button class="back-btn sticky" onclick="showScreen('scan-screen')" style="margin-bottom:14px;">← Zurück</button>
-  <h1 style="margin-bottom:4px">✏️ Vokabeln prüfen</h1>
-  <p style="color:#888;font-size:.9rem;font-weight:600;margin-bottom:14px;text-align:center;">Erkannte Wörter prüfen, ergänzen oder löschen</p>
-
-  <div id="review-list" class="review-list"></div>
-
-  <button class="big-btn green center" onclick="confirmAddVocab()" style="width:100%;">
-    <span class="icon-btn">✅</span>
-    <span>Zur Vokabelliste hinzufügen</span>
-  </button>
-  <p id="review-count" style="color:#aaa;font-size:.8rem;font-weight:700;margin-top:8px;"></p>
+<div id="review-screen" class="p-screen p-ton-pfirsich" style="display:none">
+  <div class="p-kopf">
+    <div class="p-titel">
+      <button class="p-back" onclick="showScreen('scan-screen')"><canvas data-icon="back" width="14" height="14" style="width:28px;height:28px;image-rendering:pixelated;flex:none"></canvas></button>
+      <div class="p-titel-text">Vokabeln prüfen</div>
+      <div class="p-back-platz"></div>
+    </div>
+    <div style="text-align:center;font:700 11px var(--p-font);color:var(--p-text-akzent);margin-top:6px">Erkannte Wörter prüfen, ergänzen oder löschen</div>
+  </div>
+  <div class="p-blatt">
+    <div id="review-list" class="review-list"></div>
+    <button class="p-btn p-btn--akzent" onclick="confirmAddVocab()" style="margin-top:12px">Zur Vokabelliste hinzufügen</button>
+    <div id="review-count" style="text-align:center;font:700 10px var(--p-font);color:var(--p-text-2);margin-top:8px"></div>
+  </div>
 </div>
 
 <!-- ═══ GAME SCREEN ═══ -->
@@ -482,18 +495,22 @@
 </div>
 
 <!-- ═══ END SCREEN ═══ -->
-<div id="end-screen" class="screen" style="display:none">
-  <span class="emoji-big" id="end-emoji">🏆</span>
-  <h2 id="end-title">Super!</h2>
-  <div class="stars-row" id="end-stars">⭐⭐⭐</div>
-  <div id="end-hs-msg" style="color:var(--orange);font-weight:800;font-size:.9rem;margin-bottom:5px;"></div>
-  <div class="stat-grid">
-    <div class="stat-box"><span class="stat-num" id="stat-points" style="color:var(--orange)">0</span><span class="stat-label">Punkte</span></div>
-    <div class="stat-box"><span class="stat-num" id="stat-correct" style="color:var(--green)">0</span><span class="stat-label">Richtig</span></div>
-    <div class="stat-box"><span class="stat-num" id="stat-streak"  style="color:var(--blue)">0</span><span class="stat-label">Streak</span></div>
+<div id="end-screen" class="p-screen p-ton-amber" style="display:none">
+  <div class="p-buehne" style="text-align:center;padding-top:18px">
+    <div class="p-pokal" id="end-emoji"><canvas data-icon="trophy" width="14" height="14" style="width:56px;height:56px;image-rendering:pixelated;flex:none"></canvas></div>
+    <div class="p-h1" style="font-size:34px;margin-top:12px" id="end-title">Super!</div>
+    <div class="stars-row" id="end-stars"></div>
+    <div id="end-hs-msg" style="font:800 12px var(--p-font);color:var(--p-ink);margin-top:8px"></div>
+    <div class="stat-grid">
+      <div class="stat-box p-ton-pfirsich"><span class="stat-num" id="stat-points">0</span><span class="stat-label">Punkte</span></div>
+      <div class="stat-box p-ton-mint"><span class="stat-num" id="stat-correct">0</span><span class="stat-label">Richtig</span></div>
+      <div class="stat-box p-ton-blau"><span class="stat-num" id="stat-streak">0</span><span class="stat-label">Streak</span></div>
+    </div>
+    <div class="p-feldgruppe">
+      <button class="p-btn p-btn--sekundaer" id="end-restart-btn" onclick="restartSame()">Nochmal</button>
+      <button class="p-btn p-btn--primaer" onclick="showMenu()">Hauptmenü</button>
+    </div>
   </div>
-  <button class="big-btn green center" id="end-restart-btn" onclick="restartSame()">🔄 Nochmal</button>
-  <button class="big-btn blue  center" onclick="showMenu()">🏠 Hauptmenü</button>
 </div>
 
 <div class="confetti-wrap" id="confetti-wrap"></div>
