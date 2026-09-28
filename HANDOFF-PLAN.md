@@ -26,7 +26,7 @@ Es gibt **keinen Schalter `pastell`** (F-02). Der Rückweg ist `git revert`.
 
 | # | Phase | Fasst an | Offene Fragen | Risiko |
 | --- | --- | --- | --- | --- |
-| **0** | Prüfblatt `dev/sprites.html` | neue Datei; die vier Module nach `src/modules/` kopieren | — | keins |
+| **0** | Prüfblatt `dev/sprites.html` | neue Datei; die fünf Module nach `src/modules/` kopiert | — | **fertig** (`6708961`) |
 | **3** | Gegner | `pixel-enemies.js` → `pixel-enemies-dungeon.js`; Kampfrichtung in `campaign-fight.js` | F-11 | gering |
 | **4** | Figur & Gefährte | `avatar.js`, `storage.js`, `sync.js`, `ui.js`, `campaign-equipment.js` | F-03, F-04, F-05, F-07 | Speicherstand (Avatare entbehrlich, **Decks unantastbar**) |
 | **5** | Gegenstände, Kampfplätze, Lagerfeuer | `pixel-items.js`, `campaign-fight.js`, `campaign-equipment.js`, Schmiede in `ui.js` | F-06, F-10, F-22 | mittel |
@@ -35,20 +35,24 @@ Es gibt **keinen Schalter `pastell`** (F-02). Der Rückweg ist `git revert`.
 | **7b** | App-Tour | neu `tour.js`, dazu `ui.js`, `storage.js`, `sync.js` | F-14 | `tourSeen` muss in die sync-Whitelist |
 | **8** | Aufräumen | alte SVG-Renderer, alter CSS-Block (~1000 Zeilen) | Freigabe | hoch — erst zum Schluss |
 
-## Phase 0 — als Nächstes
+## Wie die Prüfseite erreichbar ist
 
-1. `pixel-hero-fine.js`, `pixel-enemies-dungeon.js`, `pixel-world-fine.js`,
-   `pixel-anim.js`, `ui-anim.js` unverändert nach `src/modules/` kopieren
-   (nicht umformatieren, keine Pixeldaten anfassen).
-2. `dev/sprites.html` anlegen, im Build erreichbar (F-24), mit:
-   36 Gegner vorn und in Kampfrichtung · 10 Vorlagen · 20 Frisuren ·
-   20 Gefährten, auch als Silhouette · 8 Waffen in der Hand · alle Gegenstände
-   in Stahl und Gold · 6 Kampfplätze · Lagerfeuer · alle sechs Abläufe
-   (Stehen, Angriff, Treffer, Sieg, Niederlage, K.O.) für Held, alle 36 Gegner
-   und alle 20 Gefährten · Bogen-Angriff in Schleife.
-3. `npm run build`, dann auf dem Handy `/dev/sprites.html` anschauen.
+Die App wird **aus dem Repo-Wurzelverzeichnis** ausgeliefert, nicht aus `dist/`
+(`.nojekyll` im Root, `PRECACHE` in `sw.js` zeigt auf `./src/modules/*.js`).
+`dev/sprites.html` ist damit ohne Zutun unter `/dev/sprites.html` erreichbar —
+im Dev-Server wie auf der veröffentlichten Seite. `vite.config.js` musste dafür
+nicht angefasst werden. `npm run build` schreibt weiterhin nur `dist/`, was für
+die Auslieferung keine Rolle spielt.
 
-Die Seite ist ab dann die Sichtprüfung für jede weitere Phase.
+## Phase 3 — als Nächstes
+
+1. `pixel-enemies.js` durch `pixel-enemies-dungeon.js` ersetzen.
+   `enemySpriteSVG(kind)` hat dieselbe Signatur, und `ENEMY_POOL` trägt genau
+   die drei Schlüssel, die `node.type` heute schon benutzt
+   (`fight` 20 · `irregular` 8 · `boss` 8).
+2. Im Kampf die Kampfrichtung aus `DUNGEON_ENEMIES_FACING_LEFT` nehmen,
+   zum Helden gedreht.
+3. Vorher F-11 beantworten (Einzelname oder Typ-Name).
 
 ## Was in jeder Phase gilt
 
