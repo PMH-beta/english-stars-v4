@@ -1,0 +1,49 @@
+# Entscheidungen zum Pastell-Handoff
+
+Jede beantwortete Frage aus dem Funktions-Abgleich steht hier. Was hier steht,
+wird nicht noch einmal gefragt und genau so umgesetzt. Format nach
+`design_handoff_english_stars_pastell/CLAUDE-REGELN.md`, Abschnitt 2.
+
+## Dauernde Vorgabe des Nutzers (28.09.2026)
+
+**Die Vokabeldecks sind das Einzige, was wirklich schützenswert ist.** Außer
+Hannah sind alle Konten Testkonten; Kampagnen-Fortschritt, Ausrüstung und
+Avatare dürfen bei einer Migration verloren gehen. Kein Umbau darf `SD.decks`,
+`wordStats` oder die Deck-Tabellen in Supabase anfassen.
+
+## Entschieden
+
+| Nr. | Frage (kurz) | Entscheidung | Phase | Datum |
+| --- | --- | --- | --- | --- |
+| F-01 | Neue Pixel-Art-Module übernehmen? Widerspricht der Entscheidung vom 19.09.2026 („bestehende Pixel-Art bleibt") | **A — alles neu.** Phasen 0, 3, 4, 5, 6 werden gebaut. Die Entscheidung vom 19.09.2026 ist damit aufgehoben. | 0, 3–6 | 28.09.2026 |
+| F-02 | Schalter `pastell` für den Vergleich alt/neu | **Kein Schalter.** Der Rückweg ist `git revert`. Begründung des Nutzers: der Fortschritt der Bestandskonten ist entbehrlich. | alle | 28.09.2026 |
+| F-24 | Wie ist `dev/sprites.html` erreichbar? | **A — im Build**, wie `dev/pixel-icons-test.html` und `dev/bausteine.html`. Damit auch vom Handy über `/dev/sprites.html`. | 0 | 28.09.2026 |
+| — | Neuen Handoff-Stand committen | **Ja**, eigener Commit `12f94b6` (Unterlagen + `CLAUDE.md`, kein App-Code). | — | 28.09.2026 |
+
+## Offen — je Phase zu beantworten
+
+| Nr. | Frage (kurz) | Gebraucht vor |
+| --- | --- | --- |
+| F-11 | Gegnernamen: Einzelname („Moosschleim") oder Typ-Name („Wortgeist")? | Phase 3 |
+| F-03 | Avatar-Merkmale: `ears`, `nose`, `petEars`, `petTail`, `petEyes`, `petPattern` fallen weg; `iris`, `topC`, `pantsC` kommen dazu; `build` 20 → 3 | Phase 4 |
+| F-04 | Gefährten-Zuordnung 0–9 stimmt nicht (Hund/Hase/Vogel/Frosch/Geist ≠ Wolf/Biene/Adler/Schlange/Krake) | Phase 4 |
+| F-05 | Migration `avatarVersion: 2` — einmalig und irreversibel | Phase 4 |
+| F-07 | `equippedGearMap()`: Talisman, Ring und Gefährte sind an der neuen Figur nicht vorgesehen | Phase 4 |
+| F-06 | Stufe „verzaubert" hat im neuen Modul kein Bild (nur `past`/`pp`) | Phase 5 |
+| F-10 | Welcher der 6 Kampfplätze erscheint wann? | Phase 5 |
+| F-22 | Canvas statt inline-SVG für alle Sprites | Phase 5 |
+| F-12 | Gefährte als eigene animierte Figur im Kampf | Phase 6 |
+| F-13 | 7.15/7.16 zeigen Punkte je Welle — die gibt es nicht | Phase 6 |
+| F-09 | Info-Knopf je Station mit den Werten der Waffe | Phase 7 |
+| F-15 | Erster Start: 7 Reiter statt 10 Merkmale | Phase 7 |
+| F-16 | Charakter-Editor: Zurück verwirft + Rückfrage 8.12 (heute speichert Zurück) | Phase 7 |
+| F-17 | 3.5 „kein Key nötig" — heute hängt der Scan am API-Key | Phase 7 |
+| F-18 | 4.11 Selbstbewertung nach dem Sprechen | Phase 7 |
+| F-19 | 5.7 und 5.10 — heute 5 Modi, Design zeigt 6 | Phase 7 |
+| F-20 | 9.2 „App installieren" beim 3. Start | Phase 7 |
+| F-21 | 9.7 Mikrofon-Pegel an die echte Lautstärke koppeln? | Phase 7 |
+| F-08 | „Werkstoff wählen" → „Wörter befüllen", Station löschen entfällt | Phase 7 |
+| F-14 | App-Tour 1.11–1.15, Feld `tourSeen`, Demo-Stand | Phase 7b |
+| F-23 | Precache: 745 KB Sprite-Module ganz oder teilweise in `sw.js` | nebenbei |
+| F-25 | Was liefert die RPC `get_friend_progress` heute? | Phase 7, Bereich 8 |
+| F-26 | Abnahme je Phase: nur `npm run build` oder zusätzlich Headless-Screenshots | nebenbei |
