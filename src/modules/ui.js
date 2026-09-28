@@ -15,7 +15,7 @@ import { IRREGULAR_PRESET_ID, uvAvailableVerbs, CONSTELLATION_SIZE, cefrOf, forg
 import { objectPerkText, renderEquipmentPanel, resetEquipmentSelection, forgedItems, equippedGearMap } from './campaign-equipment.js';
 import { renderFriendsSection, refreshFriendBadge, friendProgress, subscribeFriendRealtime, unsubscribeFriendRealtime } from './friends.js';
 import { renderCampaign, updateTalerBadge, refreshClaimedTaler } from './campaign.js';
-import { itemPartsSVG, itemIconSVG } from './pixel-items.js';
+import { itemTag, forgeTag, forgeScale, PART_ANIM } from './world.js';
 
 const API_KEY_SK = 'es_apikey';
 
@@ -1418,7 +1418,7 @@ export function uvOpenFill() {
           const done = taken && (!row || row.complete);
           // Vorschau in 🔩 Stahl: so sieht das Objekt fertig aus (Gold ist dasselbe
           // Objekt im anderen Material) — der Emoji bleibt nur als Notnagel.
-          const art = itemIconSVG(o.type, 'past');
+          const art = itemTag(o.type, 'past', 2);
           let note;
           if (!taken) note = objectPerkText(o);
           else if (done) note = '✔ fertig geschmiedet';
@@ -1508,9 +1508,31 @@ const FORGE_MAT = {
 // Gemeisterte Teile stehen in vollem Material (built), das nächste zu schmiedende
 // pulsiert in denselben Farben (next) — man sieht also, WAS gerade entsteht — und
 // der Rest bleibt eine farblose Andeutung (ghost).
+// Werkstueck mit Teile-Zustaenden aus pixel-world-fine.js. Die fertigen Teile
+// sind immer die ersten — die Schmiede schaltet der Reihe nach frei —, deshalb
+// reicht ihre ANZAHL: partStates() setzt daraus 'bb' + glühendes Teil + 'ggg'.
+// Kein opacity, kein grayscale (Handoff-Regel 6): der graue Zustand steckt in
+// den Daten, das Glühen in vier Bildern mit 4 fps (_forgeTick).
 function _forgeWeaponSvg(type, steps, nextI, which) {
-  const states = steps.map((s, i) => (s && s.lit) ? 'built' : (i === nextI ? 'next' : 'ghost'));
-  return itemPartsSVG(type, states, which);
+  const fertig = steps.filter((s) => s && s.lit).length;
+  return `<span class="fw-werk" data-werk="${type}:${which}:${fertig}">`
+    + forgeTag(type, which, fertig, _forgeBild) + '</span>';
+}
+
+// Gemeinsamer 4-fps-Takt fuer alle gluehenden Werkstuecke auf dem Schirm.
+let _forgeBild = 0, _forgeTimer = null;
+function _forgeTick() {
+  const werke = document.querySelectorAll('.fw-werk[data-werk]');
+  if (!werke.length) { clearInterval(_forgeTimer); _forgeTimer = null; return; }
+  _forgeBild = (_forgeBild + 1) % PART_ANIM.frames;
+  werke.forEach((el) => {
+    const [type, which, fertig] = el.dataset.werk.split(':');
+    el.innerHTML = forgeTag(type, which, +fertig, _forgeBild);
+  });
+}
+export function startForgeAnim() {
+  if (_forgeTimer) return;
+  _forgeTimer = setInterval(_forgeTick, 1000 / PART_ANIM.fps);
 }
 
 // Eine Waffe (Stahl-Past oder Gold-PP) groß als Mittelpunkt. KEINE Einzel-Schritte
@@ -1649,6 +1671,7 @@ function renderStudentUV() {
     ${parts.join('')}
   </div>`;
   initUvSliders();   // Slider-Wisch + Tap-auf-Schritt (data-play → Runde) binden
+  startForgeAnim();  // 4-fps-Takt fuer das gluehende Teil der Werkstuecke
 }
 
 // Flip-Karte umdrehen (Vorderseite Sternbild ↔ Rückseite Wörter).

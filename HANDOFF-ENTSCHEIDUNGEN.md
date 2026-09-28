@@ -25,14 +25,14 @@ Avatare dürfen bei einer Migration verloren gehen. Kein Umbau darf `SD.decks`,
 | F-05 | Migration auf `avatarVersion: 2` | **A — umrechnen.** Formen per Modulo, Farben über den nächstliegenden Ton. Die Kleidungsfarbe kommt aus der ALTEN Kleidung, weil dort Schnitt und Farbe zusammenhingen. Dry-Run vor dem Einbau gezeigt und freigegeben. | 4 | 29.09.2026 |
 | — | Augenfarbe bei der Migration | **Aus der alten Haarfarbe ableiten** statt bei allen 0 zu lassen — sonst bekämen alle Kinder dieselben Augen. Schwarzes Haar → dunkel, rot → rot, blond → bernstein. | 4 | 29.09.2026 |
 | F-07 | Talisman und Ring an der Figur | **A — akzeptieren.** Die neue Figur trägt sie nicht mehr sichtbar. Wirkung im Kampf und Fach im Profil bleiben unverändert. Der Gefährte steht als eigene Figur daneben. | 4 | 29.09.2026 |
+| F-06 | Stufe „verzaubert" hat im neuen Modul kein Bild | **Keine Frage nötig.** `itemSpriteSVG` hat `tier` schon immer ignoriert — „verzaubert" hatte nie ein eigenes Bild. `itemSprite(typ, material)` bildet dasselbe ab: Stahl oder Gold. Werte und Fortschritt unberührt. | 5 | 29.09.2026 |
+| F-10 | Welcher der 6 Kampfplätze erscheint wann? | **An die Runde gebunden** (Wiese → Abend → Kerker → Kristall → Vulkan → Friedhof, dann von vorn). Keine Funktionsänderung — es ist nur das Hintergrundbild; deshalb ohne Rückfrage entschieden, wie am 29.09. vereinbart. | 5 | 29.09.2026 |
 | — | Neuen Handoff-Stand committen | **Ja**, eigener Commit `12f94b6` (Unterlagen + `CLAUDE.md`, kein App-Code). | — | 28.09.2026 |
 
 ## Offen — je Phase zu beantworten
 
 | Nr. | Frage (kurz) | Gebraucht vor |
 | --- | --- | --- |
-| F-06 | Stufe „verzaubert" hat im neuen Modul kein Bild (nur `past`/`pp`) | Phase 5 |
-| F-10 | Welcher der 6 Kampfplätze erscheint wann? | Phase 5 |
 | F-12 | Gefährte als eigene animierte Figur im Kampf | Phase 6 |
 | F-13 | 7.15/7.16 zeigen Punkte je Welle — die gibt es nicht | Phase 6 |
 | F-09 | Info-Knopf je Station mit den Werten der Waffe | Phase 7 |

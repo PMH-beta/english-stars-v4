@@ -13,7 +13,8 @@
 import { HP_MAX, FIST_DMG, WEAPON_BASE_DMG, WEAPON_GOLD_BONUS, EQUIP_EFFECT, TALISMAN_MULT, RING_POTION_BONUS, COMPANION_GUARDS, WEAPON_PERK, PERK_SCHWERT_DMG, PERK_DOLCH_DODGE, PERK_SPEER_BOSS, PERK_AXT_ELITE, PERK_HAMMER_MULT, PERK_STAB_MS, PERK_BOGEN_FIGHT, PERK_KOLBEN_GUARD, POTION_CHOICES, POTION_HEAL, POTION_POWER, POTION_TIME_MS, POTION_TIME_WAVES } from './campaign-balance.js';
 import { getConstellations, forgeObject } from './irregular-verbs.js';
 import { starLit, SLOTS_PER_FORM } from './irregular-game.js';
-import { renderAvatarInto, itemSpriteSVG } from './avatar.js';
+import { renderAvatarInto } from './avatar.js';
+import { itemTag } from './world.js';
 import { persist } from './storage.js';
 import { markDirty } from './sync.js';
 import { commitDirty } from './dialog.js';
@@ -241,7 +242,7 @@ function _wornItem(c, key) {
 function _slotTile(c, key) {
   const meta = SLOTS[key];
   const it = _wornItem(c, key);
-  const inner = it ? itemSpriteSVG(it.type, it.tier, it.which)
+  const inner = it ? itemTag(it.type, it.which, 1)
     : `<span class="pd-ghost">${meta.px ? iconHTML(meta.px, 28) : meta.icon}</span>`;
   const title = it ? `${it.name} (${it.parts}/${SLOTS_PER_FORM} Teile)` : `${meta.name} — ${meta.desc}`;
   return `<button class="pd-slot${it ? ' filled' : ''}${key === _selSlot ? ' active' : ''}" data-slot="${key}" title="${title}">${inner}
@@ -347,7 +348,7 @@ function _previewHtml(c) {
   if (!it) return '';
   const wornKey = _wornKeyOf(c, it);
   return `<div class="pd-preview">
-    <div class="pd-preview-sprite">${itemSpriteSVG(it.type, it.tier, it.which)}</div>
+    <div class="pd-preview-sprite">${itemTag(it.type, it.which, 1)}</div>
     <div class="pd-preview-info">
       <b>${it.name}</b>
       ${_itemBonuses(it).map(b => `<span>${b}</span>`).join('')}
@@ -381,7 +382,7 @@ export function renderEquipmentPanel() {
     const capacity = Math.max(BAG_COLS, Math.ceil(bagItems.length / BAG_COLS) * BAG_COLS);
     let inv = bagItems.map(it => `<button class="pd-item${it.id === _selId ? ' sel' : ''}" data-item="${it.id}"
         title="${it.name} (${it.parts}/${SLOTS_PER_FORM} Teile, ${it.station})">
-        ${itemSpriteSVG(it.type, it.tier, it.which)}
+        ${itemTag(it.type, it.which, 1)}
       </button>`).join('');
     for (let i = bagItems.length; i < capacity; i++) inv += `<div class="pd-item empty" title="Leerer Platz — schmiede etwas in der ⚒️ Schmiede"></div>`;
     const emptyHint = allOfSlot.length ? '' : `<div class="pd-empty">Noch kein ${SLOTS[_selSlot].name}-Teil geschmiedet — wähle in der ⚒️ Schmiede beim Befüllen ein passendes Objekt und übe seine Verben, dann taucht es hier auf.</div>`;
@@ -500,7 +501,7 @@ function _startCarry() {
   const d = _drag;
   const g = document.createElement('div');
   g.className = 'pd-drag-ghost';
-  g.innerHTML = itemSpriteSVG(d.it.type, d.it.tier, d.it.which);
+  g.innerHTML = itemTag(d.it.type, d.it.which, 1);
   g.style.left = d.x + 'px';
   g.style.top = d.y + 'px';
   document.body.appendChild(g);

@@ -29,7 +29,7 @@ Es gibt **keinen Schalter `pastell`** (F-02). Der Rückweg ist `git revert`.
 | **0** | Prüfblatt `dev/sprites.html` | neue Datei; die fünf Module nach `src/modules/` kopiert | — | **fertig** (`6708961`) |
 | **3** | Gegner | `pixel-enemies.js` → `pixel-enemies-dungeon.js`; Kampfrichtung in `campaign-fight.js` | — | **fertig** |
 | **4** | Figur & Gefährte | `avatar.js`, neu `hero.js`, `campaign-fight.js`, `campaign-equipment.js`, `style.css`, `sw.js` | — | **fertig** |
-| **5** | Gegenstände, Kampfplätze, Lagerfeuer | `pixel-items.js`, `campaign-fight.js`, `campaign-equipment.js`, Schmiede in `ui.js` | F-06, F-10 | mittel |
+| **5** | Gegenstände, Kampfplätze, Lagerfeuer | neu `world.js`; `campaign-fight.js`, `campaign-equipment.js`, `ui.js`, `style.css` | F-27 (Rastplatz-Screen) | **fertig bis auf 6.7** |
 | **6** | Kampf-Animationen | `campaign-fight.js` | F-12, F-13 | mittel — Treffer-Timing wandert in `onHit` |
 | **7** | Screens, ein Commit je Bereich | `index.html`, `ui.js`, `decks.js`, `vocab.js`, `game.js`, `campaign*.js`, `style.css` | F-08, F-09, F-15–F-21, F-25 | gering je Bereich |
 | **7b** | App-Tour | neu `tour.js`, dazu `ui.js`, `storage.js`, `sync.js` | F-14 | `tourSeen` muss in die sync-Whitelist |
@@ -44,18 +44,17 @@ im Dev-Server wie auf der veröffentlichten Seite. `vite.config.js` musste dafü
 nicht angefasst werden. `npm run build` schreibt weiterhin nur `dist/`, was für
 die Auslieferung keine Rolle spielt.
 
-## Phase 5 — als Nächstes
+## Phase 6 — als Nächstes
 
-Gegenstände, Kampfplätze und Lagerfeuer aus `pixel-world-fine.js`: Schmiede mit
-5 Teilen (`PART_NAMES`, `partStates`, `itemPartsCanvasTrimmed`), Profil-Slots,
-`ARENAS` im Kampf, Rastplatz mit `CAMPFIRE_FRAMES` (8 fps). Nie `opacity` oder
-`grayscale`.
+Kampf-Animationen in `campaign-fight.js`: `SpritePlayer`, `ProjectileLayer`,
+`heroCombatSheet`, `enemyCombatSheet` aus `pixel-anim.js`. Kampf-Blätter beim
+Laden des Kampfes bauen. Schaden, Lebensleiste und Ton in `onHit`, bei Bogen und
+Stab erst beim Einschlag. Gefährte synchron über `petBattleSequence`, immer vor
+dem Helden.
 
-**Vorher beantworten: F-06** (Stufe „verzaubert" hat kein Bild) und **F-10**
-(welcher der 6 Kampfplätze wann erscheint).
-
-F-22 (Canvas statt SVG) ist mit Phase 4 entschieden: die Figur läuft über
-Canvas, und der Maßstab wird am Container gemessen, damit er ganzzahlig bleibt.
+**Vorher beantworten: F-12** (Gefährte als eigene Figur im Kampf) und **F-13**
+(7.15/7.16 zeigen Punkte je Welle, die es nicht gibt). Offen aus Phase 5:
+**F-27** (Rastplatz-Screen 6.7).
 
 ## Was in jeder Phase gilt
 
