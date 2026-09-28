@@ -776,27 +776,40 @@ function petShadowOf(img) { const { w, h, col } = img; let yb = -1; for (let y =
 // damit Sprung (dx +4, dy −3) und Zurückzucken (dx −2) nie abgeschnitten werden. Einbau: Canvas um px · Maßstab nach links und pt · Maßstab nach oben versetzen
 // (margin-left/-right: −px·sc, margin-top: −pt·sc), dann steht der Gefährte an derselben Stelle wie ohne Rand.
 export // Gefährte im Kampf (Niederlage: bricht vor Bauch/Beinen des liegenden Helden zusammen, dx +30, damit dessen Gesicht frei bleibt): je Ablauf 4 Bilder. idle 4 fps · attack/hurt/win 8 fps · die 8 fps (Blitz, zuckt, fällt, liegt) · ko 4 fps (liegt, 3 Sterne kreisen).
-// down = Liegebild aus petDown() (ox, hd = Kopfseite); ohne Liegebild (Schlange, Schleim, Krake) sackt der Gefährte flach und breit zusammen. Rand PX passt immer.
-function petFrames(img, anim = 'idle', down = null) {
-  const { w, h, col } = img, sh = petShadowOf(img), H = h + 6, split = sh.fl ? H : sh.yb - 6, GY = sh.fl ? h : sh.yb, PT = 4;
-  const sp = { idle: { dx: [0,0,0,0], dy: [0,0,0,0], up: [0,1,1,0], fl: -1, rs: [1,1,1,1] }, attack: { dx: [0,2,4,1], dy: [0,-3,-2,0], up: [0,0,0,0], fl: -1, rs: [1,.8,.85,1] }, hurt: { dx: [0,-2,-1,0], dy: [0,0,0,0], up: [0,0,0,0], fl: 1, rs: [1,1,1,1] },
-    win: { dx: [0,0,0,0], dy: [0,-3,-4,-1], up: [1,0,0,0], fl: -1, rs: [1,.75,.7,.9] }, die: { dx: [0,6,18,30], dy: [0,0,-3,0], up: [0,1,0,0], fl: 0, rs: [1,1,1,1], dn: [0,0,1,1] }, ko: { dx: [30,30,30,30], dy: [0,0,0,0], up: [0,0,0,0], fl: -1, rs: [1,1,1,1], dn: [1,1,1,1], st: [1,2,3,4] } }[anim] || null;
-  if (!sp) return [];
-  let D = down; if (!D) { const c2 = new Array(w * h).fill(null); for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const sy = Math.round(GY - (GY - y) / .55), sx = Math.round(sh.cx + (x + .5 - sh.cx) / 1.15 - .5); if (sy < 0 || sy > GY || sx < 0 || sx >= w) continue; const v = col[sy * w + sx]; if (v) c2[y * w + x] = v; } D = { w, h, col: c2, ox: 0, hd: 'r' }; }
-  let d0 = 1e9, d1 = -1; for (let k = 0; k < D.col.length; k++) if (D.col[k]) { const x = k % D.w; d0 = Math.min(d0, x); d1 = Math.max(d1, x); } const dox = D.ox || 0, dl = dox + d0, dr = dox + d1;
-  const PX = Math.max(6, -dl + 17, dr - w + 36), W2 = w + 2 * PX, H2 = Math.max(H, D.h + 3) + PT, TK = ['..K..', '.KWK.', 'KWYWK', '.KWK.', '..K..'], TC = { K: '#1F1F24', W: '#FFFFFF', Y: '#FFD66B' }, out = [];
+// Gefährte im Kampf (8 fps): idle/attack/hurt/win je 4 Bilder, Rand 6 px links/rechts, 4 px oben.
+// Niederlage 'die' = 6 Bilder wie beim Helden: Blitz, bäumt sich auf (~rear), wird rückwärts vom Gegner weggeschleudert (~air), landet auf dem Rücken (~down, Kopf links, Beine hoch), federt 1 px nach, liegt.
+// 'ko' = 4 Bilder mit 4 fps: liegt, drei Sterne kreisen über dem Kopf. P = petPoses(kind, color) = { rear, air, down } mit ox/oy zum Stehbild. Jedes Bild trägt px/pt (Rand), damit es an der alten Stelle liegt.
+function petFrames(img, anim = 'idle', P = null) {
+  const { w, h, col } = img, sh = petShadowOf(img), H = h + 6, split = sh.fl ? H : sh.yb - 6, GY = sh.fl ? h : sh.yb;
+  const TK = ['..K..', '.KWK.', 'KWYWK', '.KWK.', '..K..'], TC = { K: '#1F1F24', W: '#FFFFFF', Y: '#FFD66B' }, SHC = '#1F1F2461';
   const lite = v => { const n = parseInt(v.slice(1, 7), 16), m = t => Math.round(t + (255 - t) * .6); return '#' + [n >> 16, (n >> 8) & 255, n & 255].map(t => m(t).toString(16).padStart(2, '0')).join(''); };
-  for (let f = 0; f < 4; f++) { const c = new Array(W2 * H2).fill(null), lie = sp.dn && sp.dn[f], scx = lie ? (dl + dr + 1) / 2 + sp.dx[f] : sh.cx, rx = lie ? Math.max(sh.rx, (dr - dl + 1) * .46) : sh.rx * sp.rs[f];
-    for (let y = 0; y < H; y++) for (let x = -PX; x < w + PX; x++) if (((x + .5 - scx) / rx) ** 2 + ((y + .5 - sh.cy) / sh.ry) ** 2 <= 1) c[(y + PT) * W2 + x + PX] = '#1F1F2461';
-    const put = (xx, yy, v) => { if (xx >= 0 && yy >= 0 && xx < W2 && yy < H2) c[yy * W2 + xx] = v; };
-    if (lie) { for (let y = 0; y < D.h; y++) for (let x = 0; x < D.w; x++) { let v = D.col[y * D.w + x]; if (!v) continue; if (f === sp.fl) v = lite(v); put(x + dox + sp.dx[f] + PX, y + sp.dy[f] + PT, v); } }
-    else for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { let v = col[y * w + x]; if (!v) continue; if (f === sp.fl) v = lite(v); put(x + sp.dx[f] + PX, y + (y < split ? sp.up[f] : 0) + sp.dy[f] + PT, v); }
-    if (sp.st) { const hx = (D.hd === 'l' ? dl + 8 : dr - 8) + sp.dx[f] + PX; let ty = 1e9; for (let y = 0; y < D.h; y++) for (let x = hx - PX - sp.dx[f] - dox - 3; x <= hx - PX - sp.dx[f] - dox + 3; x++) if (x >= 0 && x < D.w && D.col[y * D.w + x]) ty = Math.min(ty, y); ty = (ty < 1e9 ? ty : GY - 12) + PT - 6;
-      for (let k = 0; k < 3; k++) { const an = (sp.st[f] - 1) * Math.PI / 2 + k * 2 * Math.PI / 3, sx = Math.round(hx + 5 * Math.cos(an)), sy = Math.round(ty + 2 * Math.sin(an)); TK.forEach((row, jj) => { for (let ii = 0; ii < 5; ii++) { const ch = row[ii]; if (ch !== '.') put(sx - 2 + ii, sy - 2 + jj, TC[ch]); } }); } }
-    out.push({ w: W2, h: H2, col: c, px: PX, pt: PT }); }
-  return out;
+  const SP = { idle: { dx: [0,0,0,0], dy: [0,0,0,0], up: [0,1,1,0], fl: -1, rs: [1,1,1,1] }, attack: { dx: [0,2,4,1], dy: [0,-3,-2,0], up: [0,0,0,0], fl: -1, rs: [1,.8,.85,1] }, hurt: { dx: [0,-2,-1,0], dy: [0,0,0,0], up: [0,0,0,0], fl: 1, rs: [1,1,1,1] },
+    win: { dx: [0,0,0,0], dy: [0,-3,-4,-1], up: [1,0,0,0], fl: -1, rs: [1,.75,.7,.9] } }[anim];
+  const canvas = (W2, H2) => new Array(W2 * H2).fill(null);
+  const ell = (c, W2, PX, PT, scx, rx) => { for (let y = 0; y < H; y++) for (let x = -PX; x < w + PX; x++) if (((x + .5 - scx) / rx) ** 2 + ((y + .5 - sh.cy) / sh.ry) ** 2 <= 1) c[(y + PT) * W2 + x + PX] = SHC; };
+  if (SP) { const PX = 6, PT = 4, W2 = w + 2 * PX, H2 = H + PT, out = [];
+    for (let f = 0; f < 4; f++) { const c = canvas(W2, H2); ell(c, W2, PX, PT, sh.cx, sh.rx * SP.rs[f]);
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { let v = col[y * w + x]; if (!v) continue; if (f === SP.fl) v = lite(v); const xx = x + SP.dx[f] + PX, yy = y + (y < split ? SP.up[f] : 0) + SP.dy[f] + PT; if (xx >= 0 && yy >= 0 && xx < W2 && yy < H2) c[yy * W2 + xx] = v; }
+      out.push({ w: W2, h: H2, col: c, px: PX, pt: PT }); }
+    return out; }
+  if (anim !== 'die' && anim !== 'ko') return [];
+  const src = P && P.col ? { down: P } : (P || {}), Q = {}; for (const k of ['rear', 'air', 'down']) if (src[k]) Q[k] = Object.assign({ ox: 0, oy: 0, hd: 'l' }, src[k]);
+  const bnd = q => { let a = 1e9, b = -1; for (let k = 0; k < q.col.length; k++) if (q.col[k]) { const x = k % q.w; if (x < a) a = x; if (x > b) b = x; } return [q.ox + a, q.ox + b]; };
+  let X0 = 0, X1 = w - 1, Y0 = 0, Y1 = H - 1; for (const k in Q) { const q = Q[k]; X0 = Math.min(X0, q.ox); X1 = Math.max(X1, q.ox + q.w - 1); Y0 = Math.min(Y0, q.oy); Y1 = Math.max(Y1, q.oy + q.h - 1); }
+  let st = null; const D = Q.down; if (D) { const [dl, dr] = bnd(D), hx = D.hd === 'l' ? dl + 8 : dr - 8; let ty = 1e9; for (let y = 0; y < D.h; y++) for (let x = hx - D.ox - 3; x <= hx - D.ox + 3; x++) if (x >= 0 && x < D.w && D.col[y * D.w + x]) ty = Math.min(ty, y); st = { hx, ty: (ty < 1e9 ? ty + D.oy : GY - 12) - 6 }; Y0 = Math.min(Y0, st.ty - 3); }
+  const PX = Math.max(6, -X0 + 3, X1 - (w - 1) + 3), PT = Math.max(4, -Y0 + 2), W2 = w + 2 * PX, H2 = Math.max(H, Y1 + 2) + PT;
+  const frame = (k, o) => { const c = canvas(W2, H2), q = Q[k], put = (xx, yy, v) => { if (xx >= 0 && yy >= 0 && xx < W2 && yy < H2) c[yy * W2 + xx] = v; };
+    if (!q) { ell(c, W2, PX, PT, sh.cx, sh.rx); for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { let v = col[y * w + x]; if (!v) continue; if (o.li) v = lite(v); put(x + PX, y + PT, v); } }
+    else { const [l, r] = bnd(q); ell(c, W2, PX, PT, (l + r + 1) / 2, k === 'down' ? Math.max(sh.rx, (r - l + 1) * .46) : sh.rx * (k === 'air' ? .65 : .95));
+      for (let y = 0; y < q.h; y++) for (let x = 0; x < q.w; x++) { let v = q.col[y * q.w + x]; if (!v) continue; if (o.li) v = lite(v); put(x + q.ox + PX, y + q.oy + (o.dy || 0) + PT, v); }
+      if (o.st && st) for (let n = 0; n < 3; n++) { const an = (o.st - 1) * Math.PI / 2 + n * 2 * Math.PI / 3, sx = Math.round(st.hx + PX + 5 * Math.cos(an)), sy = Math.round(st.ty + PT + 2 * Math.sin(an)); TK.forEach((row, jj) => { for (let ii = 0; ii < 5; ii++) { const ch = row[ii]; if (ch !== '.') put(sx - 2 + ii, sy - 2 + jj, TC[ch]); } }); } }
+    return { w: W2, h: H2, col: c, px: PX, pt: PT }; };
+  if (anim === 'die') return [frame(null, { li: 1 }), frame('rear', {}), frame('air', {}), frame('down', {}), frame('down', { dy: -1 }), frame('down', {})];
+  return [1, 2, 3, 4].map(s => frame('down', { st: s }));
 }
-export const petBattleFrames = (kind, color, anim = 'idle') => petFrames(petFacing(kind, color, 1), anim, (anim === 'die' || anim === 'ko') ? petDown(kind, color) : null);
+const _PP = {};
+const petPosesC = (kind, color) => _PP[kind + color] || (_PP[kind + color] = petPoses(kind, color));
+export const petBattleFrames = (kind, color, anim = 'idle') => petFrames(petFacing(kind, color, 1), anim, (anim === 'die' || anim === 'ko') ? petPosesC(kind, color) : null);
 // Menü-Bühne (Profil 8.1, Freunde 8.2, Fortschritt 8.3): Figur und Gefährte als EIN Bild mit EINEM Pixel-Schatten, beide in Vorderansicht und im selben Maßstab.
 // Der Gefährte steht rechts leicht vor der Figur: dx = linke Kante seines 40er-Bilds in Figur-Pixeln, dy = seine Bodenlinie liegt so viele Pixel tiefer (steht weiter vorn) und er verdeckt das hintere Bein.
 // Schatten wie shadowed() bzw. petFrames() (#1F1F2461, Figur rx = Fußbreite × .58, ry 2,6; schwebende Gefährten kleiner), als Vereinigung in EINEM Ton gemalt, nie doppelt dunkel.
@@ -835,7 +848,7 @@ export function petBattleSequence(kind, color, anim, start = 4, loop = 16) {
     for (const [a, s0] of prog) { if (f < s0) continue; const e = f - s0;
       if (a === 'win') img = get('win')[e % 4];
       else if (a === 'ko') img = get('ko')[Math.floor(e / 2) % 4];
-      else if (a === 'die') img = e < 4 ? get('die')[e] : get('ko')[Math.floor((e - 4) / 2) % 4];
+      else if (a === 'die') { const L = get('die').length; img = e < L ? get('die')[e] : get('ko')[Math.floor((e - L) / 2) % 4]; }
       else if (e < 4) img = get(a)[e]; }
     return img; });
 }
@@ -950,3 +963,99 @@ function heroDownB(cfg){const stand=turned(()=>hero(Object.assign({},cfg,{face:1
  out.ox=sb.x0-10-2;out.hd='l';return out;}
 
 export {heroLie, heroDownB, BACK_P};
+
+// Rig je Gefährte (Kampfansicht, Blick rechts, 40×40). t: 'quad' (kippt rückwärts über, landet auf dem Rücken, Beine hoch), 'up' (aufrecht: kippt 90° nach hinten auf den Rücken, Füße hoch),
+// 'snake' (Hals klappt nach hinten, Kopf landet links am Boden), 'goo' (Schleim: kippt leicht zurück und zerläuft). C = Körpermitte, E = Körper-Ellipse (bestimmt, wie er aufliegt), H = Drehpunkt am Boden beim Aufbäumen.
+const PR_T={quad:{rear:{th:-.5,P:'hind',dx:-1},air:{th:-1.95,P:'c',dx:-5,dy:-7},down:{th:-Math.PI,P:'c',dx:-7}},
+ up:{rear:{th:-.42,P:'hind',dx:-1},air:{th:-1.15,P:'c',dx:-5,dy:-6},down:{th:-Math.PI/2,P:'c',dx:-7}},
+ snake:{rear:{th:0,P:'c',dx:-1},air:{th:0,P:'c',dx:-2},down:{th:0,P:'c',dx:-3}},
+ goo:{rear:{th:-.2,P:'hind',dx:-1},air:{th:-.5,P:'c',dx:-4,dy:-5},down:{th:-.28,P:'hind',dx:-5,sc:[1.16,.7]}}};
+const LEG=(n,J,reg,b)=>({n,J,u:[0,1],b:b||1.6,reg});
+const PET_RIG={
+ wolf:{C:[19,28],E:[19,28,10.5,6.8],H:[12,38],parts:[{n:'head',J:[26,23],u:[.55,-.83],b:2.4},{n:'tail',J:[9.5,26.5],u:[-.8,-.6],b:2,reg:(x,y)=>x<11.5},
+  LEG('fln',[23.2,33],(x,y)=>x>19.5&&x<24.7),LEG('flf',[26.2,32],(x,y)=>x>=24.7&&x<31),LEG('hln',[11.5,33],(x,y)=>x>6&&x<13.1),LEG('hlf',[14.7,32],(x,y)=>x>=13.1&&x<=19.5)]},
+ fuchs:{C:[19.1,28],E:[19.1,28,10.1,6.8],H:[12.8,38],parts:[{n:'head',J:[26.2,23],u:[.55,-.83],b:2.4},{n:'tail',J:[11,27.5],u:[-1,-.3],b:2,reg:(x,y)=>x<12.5},
+  LEG('fln',[23.6,33],(x,y)=>x>20&&x<25),LEG('flf',[26.5,32],(x,y)=>x>=25&&x<31),LEG('hln',[12.3,33],(x,y)=>x>7&&x<13.9),LEG('hlf',[15.4,32],(x,y)=>x>=13.9&&x<=20)]},
+ katze:{C:[18.5,29],E:[18.5,29,9.5,6.4],H:[12.5,38],parts:[{n:'head',J:[25.5,24.5],u:[.6,-.8],b:2.4},{n:'tail',J:[10,28.5],u:[-.9,-.4],b:2,reg:(x,y)=>x<11},
+  LEG('fln',[22.6,33],(x,y)=>x>19&&x<24.1),LEG('flf',[25.6,32],(x,y)=>x>=24.1&&x<31),LEG('hln',[11.8,33],(x,y)=>x>6&&x<13.3),LEG('hlf',[14.8,32],(x,y)=>x>=13.3&&x<=19)]},
+ drache:{C:[18.6,29],E:[18.6,29,8.7,6.8],H:[13,38],parts:[{n:'head',J:[25.5,24],u:[.6,-.8],b:2.4,reg:(x,y)=>x>=20},{n:'wing',J:[14.5,21.5],u:[-.45,-.9],b:1.6,ns:1,reg:(x,y)=>x<18.5&&y<24.5},
+  {n:'tail',J:[10.5,30.5],u:[-1,.1],b:2,ns:2,reg:(x,y)=>x<10.5&&y>23},
+  LEG('fln',[23.4,33],(x,y)=>x>19.5&&x<24.8),LEG('flf',[26.3,32],(x,y)=>x>=24.8&&x<31),LEG('hln',[12.8,33],(x,y)=>x>7&&x<14.2),LEG('hlf',[15.7,32],(x,y)=>x>=14.2&&x<=19.5)]},
+ hase:{C:[17,30],E:[17,30,8.5,7.5],H:[14,38],parts:[{n:'head',J:[23,25],u:[.5,-.87],b:2.4},LEG('fl',[23,33],(x,y)=>x>20.5),LEG('hl',[14,34.5],(x,y)=>x<=20.5&&x>8,1.4)]},
+ igel:{C:[18.5,30],E:[18.5,28.5,12.8,9.4],H:[16,38],parts:[{n:'head',J:[25.5,31],u:[1,.1],b:2,reg:(x,y)=>y>25},LEG('fl',[24.5,35.4],(x,y)=>x>21&&x<30,1.1),LEG('hl',[15.8,35.4],(x,y)=>x<=21&&x>11,1.1)]},
+ maus:{C:[18.5,31],E:[18.5,31,8.5,6.3],H:[15,38],parts:[{n:'head',J:[23.5,28.5],u:[.75,-.66],b:2.2,reg:(x,y)=>x>20.5},{n:'tail',J:[11,32.5],u:[-1,.1],b:1.5,reg:(x,y)=>x<11.5},
+  LEG('fl',[25,36],(x,y)=>x>21&&y>35,1.1),LEG('hl',[16,36],(x,y)=>x<=21&&x>12&&y>35,1.1)]},
+ axolotl:{C:[19,30.5],E:[19,30.5,9,5.4],H:[14,38],parts:[{n:'head',J:[24.5,27.5],u:[.65,-.76],b:2.4,reg:(x,y)=>x>21.5},{n:'tail',J:[11,30],u:[-1,-.35],b:2,reg:(x,y)=>x<11.5},
+  LEG('fl',[24,33.5],(x,y)=>x>20.5&&y>32,1.5),LEG('hl',[14,33.5],(x,y)=>x<=20.5&&x>9&&y>32,1.5)]},
+ schildkroete:{C:[19,30],E:[19,28,13,9.5],H:[9,38],parts:[{n:'head',J:[30.5,28],u:[1,0],b:1.8,reg:(x,y)=>x>30},LEG('fl',[26,33.5],(x,y)=>x>19&&x<31,1),LEG('hl',[11.5,33.5],(x,y)=>x<=19&&x>4,1)]},
+ biene:{C:[18,26],E:[18,26,10,7.5],H:[12,34],q:{rear:{P:'c',th:-.4,dy:-1}},parts:[{n:'head',J:[25.5,24],u:[1,-.2],b:2,reg:(x,y)=>x>24},{n:'wings',J:[17,18.5],u:[0,-1],b:1.5,ns:1,reg:(x,y)=>y<18.5&&x<23.5}]},
+ adler:{t:'up',C:[18,26],E:[18,25,8.5,10],H:[13,38],parts:[{n:'head',J:[21,19.5],u:[.4,-.9],b:2.2,reg:(x,y)=>y<20.5},{n:'tail',J:[17,34],u:[0,1],b:1.5,reg:(x,y)=>y>33.5}]},
+ papagei:{t:'up',C:[19.5,24],E:[19.5,24,6.8,9.4],H:[15,38],parts:[{n:'head',J:[21,19.5],u:[.35,-.94],b:2.2,reg:(x,y)=>y<20.5&&x>14},{n:'tail',J:[16,32],u:[-.3,1],b:1.8,reg:(x,y)=>y>32.5}]},
+ eule:{t:'up',C:[20,25],E:[20,25,11,12.5],H:[12,38],parts:[{n:'wingL',J:[10,24],u:[-1,.2],b:1.5,ns:1,reg:(x,y)=>x<10.5&&y>18},{n:'wingR',J:[31,24],u:[1,.2],b:1.5,ns:1,reg:(x,y)=>x>30&&y>18},{n:'feet',J:[20,37.2],u:[0,1],b:.8,reg:(x,y)=>y>37.2}]},
+ pinguin:{t:'up',C:[20,25.5],E:[20,25.5,9,11.2],H:[14,38],parts:[{n:'finL',J:[12,22],u:[-.3,1],b:1.5,ns:1,reg:(x,y)=>x<12.5&&y>20},{n:'finR',J:[28,22],u:[.3,1],b:1.5,ns:1,reg:(x,y)=>x>27.5&&y>20},{n:'feet',J:[20,36],u:[0,1],b:1,reg:(x,y)=>y>36.2}]},
+ baer:{t:'up',C:[20,29.5],E:[20,29.5,10,8.2],H:[12,38],parts:[{n:'head',J:[20,22.5],u:[0,-1],b:2,reg:(x,y)=>y<22.5},{n:'armL',J:[11.5,25.5],u:[-.1,1],b:1.5,reg:(x,y)=>x<13.5&&y>23&&y<34},{n:'armR',J:[28.5,25.5],u:[.1,1],b:1.5,reg:(x,y)=>x>26.5&&y>23&&y<34},{n:'feet',J:[20,35],u:[0,1],b:1.2,reg:(x,y)=>y>34.5}]},
+ frosch:{C:[20,29],E:[20,27,11,9.5],H:[12,38],parts:[{n:'legs',J:[20,32.5],u:[0,1],b:1.2,ns:1,reg:(x,y)=>y>32.5}]},
+ krake:{t:'up',C:[20,18],E:[20,18,10.5,10.5],H:[12,39],parts:[{n:'tent',J:[20,27],u:[0,1],b:1.5,reg:(x,y)=>y>26}]},
+ fledermaus:{C:[20,25],E:[20,25,7,8.4],H:[14,34],parts:[{n:'wingL',J:[14,22],u:[-1,.1],b:1.5,ns:1,reg:(x,y)=>x<14},{n:'wingR',J:[26,22],u:[1,.1],b:1.5,ns:1,reg:(x,y)=>x>26}]},
+ schleim:{t:'goo',C:[20,29],E:[20,31.5,12.5,6.6],H:[8,38],parts:[{n:'curl',J:[20.5,19.5],u:[0,-1],b:1.5,reg:(x,y)=>y<19.5}]},
+ schlange:{t:'snake',C:[19,33],E:[19,34,13,4.5],H:[8,38],parts:[{n:'neck',J:[23,28],u:[.25,-.97],b:2,reg:(x,y)=>x>19.5&&y<28.5}]}};
+// Winkel je Pose (Teil relativ zum Körper, Bogenmaß). Negativ = gegen den Uhrzeigersinn.
+const PR_A={
+ wolf:{rear:{head:-.3,fln:.5,flf:.45,tail:.2},air:{head:.6,tail:-1.1,fln:-.5,flf:-.2,hln:.5,hlf:.2},down:{head:1.5,tail:-.9,fln:-.55,flf:-.15,hln:.55,hlf:.15}},
+ fuchs:{rear:{head:-.3,fln:.5,flf:.45,tail:.3},air:{head:.6,tail:-1.1,fln:-.5,flf:-.2,hln:.5,hlf:.2},down:{head:1.5,tail:-.7,fln:-.55,flf:-.15,hln:.55,hlf:.15}},
+ katze:{rear:{head:-.3,fln:.5,flf:.45,tail:.3},air:{head:.6,tail:-1,fln:-.5,flf:-.2,hln:.5,hlf:.2},down:{head:1.5,tail:-.8,fln:-.55,flf:-.15,hln:.55,hlf:.15}},
+ drache:{rear:{head:-.3,fln:.5,flf:.45,wing:.4},air:{head:.6,tail:-.2,wing:.5,fln:-.5,flf:-.2,hln:.5,hlf:.2},down:{head:1.5,tail:-.5,wing:1.5,fln:-.55,flf:-.15,hln:.55,hlf:.15}},
+ hase:{rear:{head:-.3,fl:.5},air:{head:.6,fl:-.4,hl:.4},down:{head:1.5,fl:-.45,hl:.5}},
+ igel:{rear:{head:-.2,fl:.4},air:{head:.4,fl:-.3,hl:.3},down:{head:.9,fl:-.3,hl:.3}},
+ maus:{rear:{head:-.3,fl:.5,tail:.3},air:{head:.6,tail:-.8,fl:-.4,hl:.4},down:{head:1.4,tail:-.6,fl:-.45,hl:.45}},
+ axolotl:{rear:{head:-.3,fl:.5,tail:.3},air:{head:.6,tail:-.8,fl:-.4,hl:.4},down:{head:1.4,tail:-.6,fl:-.45,hl:.45}},
+ schildkroete:{rear:{head:-.2,fl:.3},air:{head:.4,fl:-.3,hl:.3},down:{head:.6,fl:-.35,hl:.35}},
+ biene:{rear:{head:-.2,wings:-.2},air:{head:.4,wings:.2},down:{head:.8,wings:1.6}},
+ adler:{rear:{head:-.2},air:{head:.3,tail:-.3},down:{head:.4,tail:-.5}},
+ papagei:{rear:{head:-.2},air:{head:.3,tail:-.3},down:{head:.4,tail:-.5}},
+ eule:{rear:{wingR:-.2,wingL:-.1},air:{wingR:-.4,wingL:-.2,feet:-.5},down:{wingR:-.25,wingL:.1,feet:-.8}},
+ pinguin:{rear:{finR:-.3,finL:-.1},air:{finR:-.4,finL:-.2,feet:-.6},down:{finR:-.15,finL:0,feet:-.9}},
+ baer:{rear:{head:-.2,armR:-.3,armL:-.1},air:{head:.2,armR:-.5,armL:-.2,feet:-.6},down:{head:.35,armR:-.25,armL:-.1,feet:-.8}},
+ frosch:{rear:{legs:.2},air:{legs:-.3},down:{legs:0}},
+ krake:{rear:{tent:.2},air:{tent:.3},down:{tent:.35}},
+ fledermaus:{rear:{wingR:.3,wingL:-.3},air:{wingR:.4,wingL:-.4},down:{wingR:0,wingL:0}},
+ schleim:{rear:{curl:-.3},air:{curl:-.6},down:{curl:-.9}},
+ schlange:{rear:{neck:-.5},air:{neck:-1.5},down:{neck:-2.45}}};
+for(const k in PR_A){const R=PET_RIG[k];R.q=R.q||{};for(const p in PR_A[k]){R.q[p]=Object.assign({},R.q[p]||{});R.q[p].a=Object.assign({},(R.q[p].a)||{},PR_A[k][p]);}}
+
+
+// ---- Gefährte · Niederlage: kippt NACH HINTEN (vom Gegner weg), landet auf dem Rücken, Kopf links ----
+// Jeder Gefährte hat ein kleines Gelenk-Rig (Kampfansicht, Blick rechts): Körper + Teile (Kopf, Schwanz, Vorder-/Hinterbeine, Flügel …).
+// Teil = { J: Gelenk, u: Achse vom Körper ins Teil, reg: Zusatzbedingung }. Posen: rear (bäumt sich auf, kippt), air (in der Luft), down (liegt).
+// Je Pose: th = Drehung des ganzen Körpers (negativ = nach hinten kippen), P = Drehpunkt ('hind' = Hinterpfoten am Boden, 'c' = Körpermitte),
+// a[teil] = Drehung des Teils gegenüber dem Körper, dx/dy = Versatz. Kontur und Licht rechnet der Sprite-Renderer auf der fertigen Pose neu.
+function petRigPieces(R,pose,GY,OFF){
+ const Q0=((PR_T[R.t||'quad'])||PR_T.quad)[pose]||{},Q1=(R.q&&R.q[pose])||{},Q=Object.assign({},Q0,Q1,{a:Object.assign({},Q0.a||{},Q1.a||{})}),parts=R.parts||[];
+ const piv=Q.P==='hind'?(R.H||[R.C[0]-6,GY]):Q.P==='c'?R.C:Q.P;
+ const SC=Q.sc?{f:(x,y)=>[piv[0]+(x-piv[0])*Q.sc[0],piv[1]+(y-piv[1])*Q.sc[1]],i:(X,Y)=>[piv[0]+(X-piv[0])/Q.sc[0],piv[1]+(Y-piv[1])/Q.sc[1]]}:RG.mv(0,0);
+ const TB=RG.comp(RG.mv(OFF+(Q.dx||0),OFF+(Q.dy||0)),RG.rot(Q.th||0,piv[0],piv[1]),SC);
+ const S=(p,x,y)=>(x-p.J[0])*p.u[0]+(y-p.J[1])*p.u[1];
+ const who=(x,y)=>{for(let k=0;k<parts.length;k++){const p=parts[k];if(S(p,x,y)>-(p.b||2.2)&&(!p.reg||p.reg(x,y)))return k;}return -1;};
+ const out=[RG.pc(TB,(x,y)=>who(x,y)<0)];
+ parts.forEach((p,k)=>{const a=(Q.a&&Q.a[p.n])||0,L=Math.hypot(p.u[0],p.u[1])||1,u=[p.u[0]/L,p.u[1]/L];p.u=u;
+  RG.bend(TB,p.J,u,a,p.b||2.2,p.ns||6).forEach(pc=>{const r0=pc.reg;out.push({f:pc.f,i:pc.i,reg:(x,y)=>who(x,y)===k&&r0(x,y)});});});
+ return {pieces:out,TB};}
+function petPose(kind,color,pose,opt){opt=opt||{};const R=PET_RIG[kind];if(!R)return null;
+ const d=PET_TURN[kind],draw=()=>d?turned(()=>pet(kind,color),1,d,{sort:true}).render():pet(kind,color).render();
+ const base=draw(),sh=petShadowOf(base),GY=sh.fl?Math.round(sh.cy)-1:sh.yb,OFF=44,W=40+2*OFF,H=40+2*OFF;
+ let {pieces,TB}=petRigPieces(R,pose,GY,OFF);
+ let img=rigWith(draw,W,H,{def:pieces,sec:{}});
+ let bb=bboxOf(img);if(bb.x1<0)return null;
+ // Boden: rear bleibt mit den Hinterpfoten stehen, down liegt mit dem Rücken auf dem Boden (Körper-Ellipse bestimmt die Höhe, nicht Kopf oder Schwanz).
+ if(pose==='down'){let lo=-1e9;const E=R.E||[R.C[0],R.C[1],8,6];for(let k=0;k<48;k++){const t=k/48*2*Math.PI,q=TB.f(E[0]+E[2]*Math.cos(t),E[1]+E[3]*Math.sin(t));if(q[1]>lo)lo=q[1];}
+  const sy=Math.round(GY+OFF-lo+(R.sink||0));if(sy){pieces=pieces.map(p=>({reg:p.reg,f:(x,y)=>{const q=p.f(x,y);return [q[0],q[1]+sy];},i:(X,Y)=>p.i(X,Y-sy)}));}
+  img=rigWith(draw,W,H,{def:pieces,sec:{},G:GY+OFF});bb=bboxOf(img);if(bb.x1<0)return null;
+  img=groundImg(img,GY+OFF);bb=bboxOf(img);if(!opt.eyes)xEyes(img.col,img.w,img.h);}
+ else if(pose==='rear'){img=rigWith(draw,W,H,{def:pieces,sec:{},G:GY+OFF});bb=bboxOf(img);}
+ dropIslands(img,24);bb=bboxOf(img);const out=crop(img,bb.x0,bb.y0,bb.x1-bb.x0+1,bb.y1-bb.y0+1);out.ox=bb.x0-OFF;out.oy=bb.y0-OFF;out.hd='l';
+ if(pose==='air'){const lim=GY-2-(out.h-1);if(out.oy>lim)out.oy=lim;}
+ return out;}
+function dropIslands(img,min){const {w,h,col}=img,seen=new Uint8Array(w*h);for(let i=0;i<col.length;i++){if(!col[i]||seen[i])continue;const st=[i],cc=[];seen[i]=1;while(st.length){const q=st.pop();cc.push(q);const x=q%w,y=(q/w)|0;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const X=x+dx,Y=y+dy;if(X<0||Y<0||X>=w||Y>=h)continue;const j=Y*w+X;if(col[j]&&!seen[j]){seen[j]=1;st.push(j);}}}if(cc.length<min)cc.forEach(q=>col[q]=null);}return img;}
+function petPoses(kind,color){const R=PET_RIG[kind];if(!R)return null;const o={};for(const p of ['rear','air','down'])o[p]=petPose(kind,color,p);return o;}
+
+export { petPose, petPoses, PET_RIG };
