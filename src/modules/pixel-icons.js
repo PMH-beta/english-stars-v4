@@ -36,7 +36,8 @@ export const ICON_GRID = 14;   // Backing-Store-Kantenlänge, siehe Skalierungsr
 export const ICON_PAL = {
   K:'#1F1F24', W:'#F8F6EC', A:'#FFD66B', Y:'#FFE9A8', O:'#E0A82E', L:'#C9B8FF', V:'#8B6FE8',
   M:'#B7E3C2', R:'#FFBBC1', S:'#BCE3FF', P:'#FFD6A5', F:'#FF8A3D',
-  G:'#C3CDD9', D:'#8A97A3', N:'#A9703F', B:'#6B4423'
+  G:'#C3CDD9', D:'#8A97A3', N:'#A9703F', B:'#6B4423',
+  E:'#D64545'   // neu im Stand vom 28.09.2026
 };
 
 export const ICONS = {
@@ -146,7 +147,81 @@ export const ICONS = {
     '.RRRRRRRRRR.','..RRRRRRRR..'] },
   gem:{ rows:['.SSSSSS.','SSSSSSSS','SWWWWWWS','SSSSSSSS','.SSSSSS.','..SSSS..','...SS...'] },
   portal:{ rows:[
-    '...LLLLL...','..LLLLLLL..','.LLKKKKKLL.','LLKLLLLLKLL','LLKLLKKLKLL','LLKLKLLLKLL','LLKLLKKKKLL','LLKLLLLLLLL','.LLKKKKKKL.','..LLLLLLL..','...LLLLL...'] }
+    '...LLLLL...','..LLLLLLL..','.LLKKKKKLL.','LLKLLLLLKLL','LLKLLKKLKLL','LLKLKLLLKLL','LLKLLKKKKLL','LLKLLLLLLLL','.LLKKKKKKL.','..LLLLLLL..','...LLLLL...'] },
+
+
+  // ── Nachtrag aus dem Handoff-Stand vom 28.09.2026 ─────────────────────────
+  // Diese Symbole brauchen die Screen-Fragmente; unsere Fassung kannte sie noch
+  // nicht. Unveraendert aus ICONS in "English Stars UI Pastell.dc.html".
+  checkLight:{ noOutline:true, rows:[
+    '............WW','...........WWW','..........WWW.','.........WWW..','........WWW...','.......WWW....',
+    '......WWW.....','WW...WWW......','WWW.WWW.......','.WWWWW........','..WWW.........','...WW.........'] },
+  mic:{ rows:[
+    '...GGG...','..GDGDG..','..GGGGG..','..GDGDG..','..GGGGG..','..GDGDG..','..GGGGG..','...GGG...','....G....',
+    '....G....','.GGGGGGG.'] },
+  lupe:{ rows:[
+    '...GGGGG...','..GG...GG..','.GG.....GG.','.G.......G.','.G.......G.','.G.......G.','.GG.....GG.','..GG...GG..',
+    '...GGGGG...','.......DDD.','........DDD'] },
+  friends:{ rows:[
+    '.LL......LL.','LLLL....LLLL','LLLL....LLLL','.LL......LL.','...LLLLLL...','..LLLLLLLL..','.LLLLLLLLLL.',
+    'LLLLLLLLLLLL'] },
+  cloud:{ rows:[
+    '....SSSS....','..SSSSSSSS..','.SSSSSSSSSS.','SSSSSSSSSSSS','SSSSSSSSSSSS','.SSSSSSSSSS.'] },
+  calendar:{ rows:[
+    '.KK.....KK.','.KK.....KK.','SSSSSSSSSSS','SSSSSSSSSSS','WWWWWWWWWWW','WKWKWKWKWKW','WWWWWWWWWWW','WKWKWKWKWKW',
+    'WWWWWWWWWWW'] },
+  box:{ rows:[
+    'NNNNNNNNNN','NNNNNNNNNN','BBBBBBBBBB','BBBBNNBBBB','BBBBNNBBBB','BBBBNNBBBB','BBBBNNBBBB','BBBBBBBBBB'] },
+  chart:{ rows:[
+    '......SSSS','......SSSS','...MMMSSSS','...MMMSSSS','AAAMMMSSSS','AAAMMMSSSS','AAAMMMSSSS','KKKKKKKKKK'] },
+  refresh:{ noOutline:true, rows:[
+    '....KKKKKK....','..KKKKKKKKKK..','.KKK......KKK.','.KK.....KKKKKK','KK.......KKKK.','KK........KK..',
+    'KK............','KK............','KK.........KK.','.KK.......KK..','.KKK.....KKK..','..KKKKKKKKK...',
+    '....KKKKKK....'] },
+  hourglass:{ rows:[
+    'KKKKKKKKK','.YYYYYYY.','..YYYYY..','...YYY...','....Y....','...AYA...','..AAAAA..','.AAAAAAA.','KKKKKKKKK'] },
+  heart:{ rows:[
+    '.RR.....RR.','RRWRRRRRRRR','RRWRRRRRRRR','RRRRRRRRRRR','.RRRRRRRRR.','..RRRRRRR..','...RRRRR...','....RRR....',
+    '.....R.....'] },
+  skull:{ rows:[
+    '..WWWWW..','.WWWWWWW.','WWWWWWWWW','WKKWWWKKW','WKKWWWKKW','WWWWWWWWW','.WWWWWWW.','.WKWKWKW.','.WWWWWWW.'] },
+  flag:{ rows:[
+    'KAAAAAAA.','KAAAAAA..','KMMMMM...','KMMMM....','KRRR.....','K........','K........','K........'] },
+  install:{ rows:[
+    '.GGGGGGG.','.GDDDDDG.','.GDDADDG.','.GDDADDG.','.GAAAAAG.','.GDAAADG.','.GDDADDG.','.GDDDDDG.','.GGGGGGG.'] },
+  toolbox:{ rows:[
+    '....KKKKK....','...KKKKKKK...','NNNNNNNNNNNNN','NNNNNNNNNNNNN','BBBBBBBBBBBBB','BBBBBKKKBBBBB','BBBBBBBBBBBBB',
+    'BBBBBBBBBBBBB','BBBBBBBBBBBBB'] },
+  order:{ rows:[
+    'MMMMM...SSSSS','MMMMM...SSSSS','MMMMM...SSSSS','MMMMM...SSSSS','.............','.............','.............',
+    'PPPPP...AAAAA','PPPPP...AAAAA','PPPPP...AAAAA','PPPPP...AAAAA'] },
+  wand:{ rows:[
+    '........AAA','.......AAA.','......AAA..','.....KKK...','....KKK....','...KKK.....','..KKK......','.KKK.......',
+    'KKK........'] },
+  catHair:{ rows:[
+    '..NNNNNN..','.NNNNNNNNN','NNNNNNNNNN','NNPPPNNNNN','NPPPPPPPPN','NPKPPPPKPN','NPPPPPPPPN','.PPPRRPPP.',
+    '..PPPPPP..'] },
+  catSkin:{ rows:[
+    '..WWWWWW..','.WWPWWNWW.','WWPPWNNWWW','WWWWWWWBBW','WWW..WWBBW','WWW..WWWWW','.WWWWWWWW.','..WWWWWW..'] },
+  catEye:{ noOutline:true, rows:[
+    '...KKKKK...','.KKWWWWWKK.','KWWWSSSWWWK','KWWSSKSSWWK','KWWWSSSWWWK','.KKWWWWWKK.','...KKKKK...'] },
+  catMouth:{ noOutline:true, rows:[
+    'K.........K','KK.......KK','.KKKKKKKKK.','.KRRRRRRRK.','..KRRRRRK..','...KKKKK...'] },
+  catTop:{ rows:[
+    '.SSS..SSS.','SSSSSSSSSS','SSSSSSSSSS','SSSSSSSSSS','..SSSSSS..','..SSSSSS..','..SSSSSS..','..SSSSSS..'] },
+  catPants:{ rows:[
+    'BBBBABBB','VVVVVVVV','VVVVVVVV','VVV..VVV','VVV..VVV','VVV..VVV','VVV..VVV','VVV..VVV'] },
+  catBuild:{ rows:[
+    '...PPP...','..PPPPP..','..PPPPP..','...PPP...','.LLLLLLL.','LLLLLLLLL','LLLLLLLLL','.LLLLLLL.','.LL...LL.',
+    '.LL...LL.'] },
+  flameR:{ rows:[
+    '.....F...','....FF...','...FFF...','..FFFFF..','..FFFYF..','.FFFYYFF.','.FFYYYFF.','.FFFFFFF.','..FFFFF..'] },
+  flameL:{ rows:[
+    '...F.....','...FF....','...FFF...','..FFFFF..','..FYFFF..','.FFYYFFF.','.FFYYYFF.','.FFFFFFF.','..FFFFF..'] },
+  campfireR:{ rows:[
+    '.....F...','....FF...','..FFFYF..','..FFYFF..','...FFF...','.........','NNNNNNNNN','.NNNNNNN.'] },
+  campfireL:{ rows:[
+    '...F.....','...FF....','..FYFFF..','..FFYFF..','...FFF...','.........','NNNNNNNNN','.NNNNNNN.'] },
 };
 
 export const ICON_NAMES = Object.keys(ICONS);
