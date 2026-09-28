@@ -3222,3 +3222,51 @@ button.p-chip{ cursor:pointer; }
     border-radius:var(--p-r-blatt);
   }
 }
+
+/* ══ Rastplatz (Screen 6.7) ═══════════════════════════════════════════════════
+   Eigener Screen statt Toast. Aufbau aus dem Fragment: Kampfplatz „abend" als
+   Kulisse, Karte mit Lebensleiste, darunter die Bühne mit Figur und Lagerfeuer.
+   Werte und Abstände 1:1 aus dem Markup des Entwurfs. */
+.rest-ov{
+  position:fixed;inset:0;z-index:8000;display:flex;flex-direction:column;
+  overflow:hidden;background:#bfe6ff;
+}
+.rest-kopf{position:relative;z-index:6;display:flex;justify-content:center;padding:12px 14px 0}
+/* Kein Glas-Pill: ueber hellem Abendhimmel war weisse Schrift darauf kaum zu
+   lesen. Gleiche Anmutung wie der Weiter-Knopf. */
+.rest-titel{
+  padding:8px 18px;border:var(--p-rahmen);border-radius:18px;
+  background:var(--p-ink);color:var(--p-gold);
+  font:900 13px var(--p-font);letter-spacing:.06em;
+}
+.rest-mitte{
+  position:relative;z-index:5;flex:1;display:flex;flex-direction:column;
+  justify-content:center;padding:12px 14px;
+}
+.rest-karte{
+  border:var(--p-rahmen);border-radius:26px;background:var(--p-blatt);padding:20px 18px 18px;
+}
+.rest-h1{font:900 19px var(--p-font);color:var(--p-ink)}
+.rest-tx{font:700 12px/1.5 var(--p-font);color:var(--p-text-akzent);margin-top:4px}
+.rest-zeile{display:flex;justify-content:space-between;align-items:center;margin-top:16px}
+.rest-lbl{display:inline-flex;align-items:center;gap:6px;font:900 11px var(--p-font);color:var(--p-text-2)}
+.rest-zahl{font:900 14px var(--p-font);color:var(--p-ink);font-variant-numeric:tabular-nums}
+/* Zugewinn als schraffiertes Stück direkt hinter dem alten Stand — so sieht man,
+   WIE VIEL das Feuer gebracht hat, nicht nur den neuen Wert. */
+.rest-bar{
+  position:relative;height:14px;border:var(--p-rahmen);border-radius:8px;
+  overflow:hidden;background:#F3EFE6;margin-top:7px;
+}
+.rest-bar-alt{position:absolute;left:0;top:0;bottom:0;background:var(--p-mint)}
+.rest-bar-neu{
+  position:absolute;top:0;bottom:0;border-left:2px solid var(--p-ink);
+  background:repeating-linear-gradient(90deg,#8FD3A0 0 6px,#B7E3C2 6px 12px);
+}
+.rest-plus{display:flex;justify-content:flex-end;margin-top:8px}
+.rest-weiter{
+  width:100%;height:52px;margin-top:14px;border:var(--p-rahmen);border-radius:18px;
+  background:var(--p-ink);color:var(--p-gold);font:900 14px var(--p-font);cursor:pointer;
+}
+.rest-buehne{position:relative;z-index:2;flex:none;height:300px}
+.rest-held{position:absolute;left:60px;top:14px;width:108px;height:174px;z-index:3}
+.rest-feuer{position:absolute;left:214px;top:78px;z-index:3}

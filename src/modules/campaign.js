@@ -21,6 +21,8 @@ import { iconHTML } from './pixel-icons.js';
 import { HP_MAX, REST_HEAL, BOSS_WIN_TALER } from './campaign-balance.js';
 import { openFight, fightPoolReady, verbsReady, loadPresetSupply } from './campaign-fight.js';
 import { equipEffects, openPotionChoice, POTIONS, potionStacks } from './campaign-equipment.js';
+import { arenaSVG, campfireTag, CAMPFIRE_FRAMES, CAMPFIRE_FPS } from './world.js';
+import { renderAvatarInto } from './avatar.js';
 
 const ROWS = 13;            // Reihe 0 = Start (unten), Reihe ROWS-1 = Boss (oben)
 const COLS = 5;
@@ -238,6 +240,60 @@ export function updateTalerBadge() {
   if (b) b.textContent = bossWinCount();
 }
 
+// ── Rastplatz (Screen 6.7) ───────────────────────────────────────────────────
+// Eigener Screen statt Toast: Abend-Kampfplatz, Lagerfeuer in 8 fps, die Figur
+// daneben, darunter die Lebensleiste mit dem Zugewinn als schraffiertem Stück.
+// Die Heilung selbst ist unverändert (REST_HEAL, auf hpMax gedeckelt) — der
+// Screen zeigt sie nur.
+let _restTimer = null;
+
+function _removeRest() {
+  clearInterval(_restTimer); _restTimer = null;
+  document.getElementById('camp-rest')?.remove();
+}
+
+function _renderRest(run, before) {
+  _removeRest();
+  const gewinn = run.hp - before;
+  const pctVor = Math.max(0, Math.min(100, before / run.hpMax * 100));
+  const pctZu = Math.max(0, Math.min(100 - pctVor, gewinn / run.hpMax * 100));
+  const ov = document.createElement('div');
+  ov.id = 'camp-rest';
+  ov.className = 'rest-ov p-ton-mint';
+  ov.innerHTML = `
+    <div class="cf-scenery">${arenaSVG('abend')}</div>
+    <div class="rest-kopf"><span class="rest-titel">Rastplatz</span></div>
+    <div class="rest-mitte">
+      <div class="rest-karte">
+        <div class="rest-h1">Ausgeruht</div>
+        <div class="rest-tx">Das Feuer wärmt. Du sammelst Kraft für den Weg zum Boss.</div>
+        <div class="rest-zeile">
+          <span class="rest-lbl">${iconHTML('heart', 14)} Leben</span>
+          <span class="rest-zahl">${before} → ${run.hp}/${run.hpMax}</span>
+        </div>
+        <div class="rest-bar">
+          <i class="rest-bar-alt" style="width:${pctVor}%"></i>
+          <i class="rest-bar-neu" style="left:${pctVor}%;width:${pctZu}%"></i>
+        </div>
+        <div class="rest-plus"><span class="p-chip p-chip--gold">+${gewinn} Leben</span></div>
+        <button class="rest-weiter" id="rest-weiter">Weiter</button>
+      </div>
+    </div>
+    <div class="rest-buehne">
+      <div class="rest-held" id="rest-held"></div>
+      <div class="rest-feuer" id="rest-feuer">${campfireTag(0, 2)}</div>
+    </div>`;
+  document.body.appendChild(ov);
+  renderAvatarInto('rest-held', window.SD, {});
+  let bild = 0;
+  _restTimer = setInterval(() => {
+    bild = (bild + 1) % CAMPFIRE_FRAMES.length;
+    const el = document.getElementById('rest-feuer');
+    if (el) el.innerHTML = campfireTag(bild, 2); else _removeRest();
+  }, 1000 / CAMPFIRE_FPS);
+  document.getElementById('rest-weiter')?.addEventListener('click', () => { _removeRest(); renderCampaign(); });
+}
+
 // ── Kartengenerierung (prozedural, DAG von unten nach oben) ──
 function generateMap() {
   const grid = Array.from({ length: ROWS }, () => ({}));   // grid[row][col] = node
@@ -353,12 +409,13 @@ export function campaignNode(id) {
   run.pos = id;
   if (!run.visited.includes(id)) run.visited.push(id);
   if (node.type === 'rest') {
-    // 🔥 Rastplatz: ausruhen (+HP, gedeckelt).
+    // 🔥 Rastplatz: ausruhen (+HP, gedeckelt). Die Heilung ist unverändert —
+    // seit Screen 6.7 sieht man sie nur, statt sie im Vorbeigehen zu bekommen.
     const before = run.hp;
     run.hp = Math.min(run.hpMax, run.hp + REST_HEAL);
     _saveCampaign();
     renderCampaign();
-    window.esToast?.('🔥 Ausgeruht: +' + (run.hp - before) + ' HP');
+    _renderRest(run, before);
     return;
   }
   if (node.type === 'treasure') {
