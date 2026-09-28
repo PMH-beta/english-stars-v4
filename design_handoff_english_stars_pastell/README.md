@@ -1,5 +1,7 @@
 # Handoff: English Stars — Pastell-Redesign (UI + Pixel-Art-Ikonografie)
 
+> **Einstieg für Claude Code: `START-HERE.md`** (Phasenplan, Prompts, Platzhalter). Maßgebliche Screen-Liste: `SCREENS.md` (106 Screens). Der Abschnitt „Screens / Views“ weiter unten beschreibt noch den ersten Stand mit 32 Screens.
+
 ## Overview
 „English Stars" ist ein Vokabel-Lernspiel mit Kampf-Modi (Deutsch → Englisch). Dieses Paket
 beschreibt ein vollständiges visuelles Redesign der App: eine **Pastell-Oberfläche mit
@@ -438,3 +440,71 @@ In der Produktion gehört an diese Stelle das offizielle Google-Asset nach deren
 
 `English Stars UI.dc.html` (die frühere, kräftigere „Acid"-Fassung) liegt weiter im Projekt und
 ist bewusst nicht Teil dieses Pakets — sie dient nur dem Vergleich.
+
+
+---
+
+## Nachtrag N01–N54 (Stand v4.0.387)
+
+Die Datei enthält jetzt **106 Screens**: die ursprünglichen 32 plus sechs Nachtrag-Abschnitte am Ende,
+jeweils mit Überschrift „Nachtrag A–F". Jeder Screen ist mit seiner N-Nummer beschriftet — das ist die
+Zuordnung zu `design_handoff_nachtrag/NACHTRAG.md` im Repo.
+
+| Abschnitt | Screens | Kernpunkte |
+| --- | --- | --- |
+| A · Vokabeln | N01–N11 | Leerzustand, Aufbau-Dialog, Vorlagen, Text/Scan, Statistik, Probetest mit Note |
+| B · Spielmodi | N12–N22 | Aussprache in 4 Zuständen, Selbstbewertung, Fehler, Wiederholung, **Schnellmodus = Amber-Chip „Schnellmodus" im Kopf**, 6 Formen-Aufgaben + Plaketten (Stahlblau = Simple Past, Gold = Past Participle, Lila = alle drei) |
+| C · Formen & Schmiede | N23–N29 | Trainings-Deck mit 3 Disziplinen, Deck-Anlage, Statistik, mehrere Stationen mit Stahl/Gold-Wischen, Objektwahl, Befüllen, Info |
+| D · Kampagne & Kampf | N30–N41 | Kampagne gesperrt/bereit/zu wenig/gratis, Schatz, **Rastplatz als eigene Szene**, 4 Minispiele im neuen Kampf-Layout, **3 getrennte Kampf-Enden**, Trank-Info, Schutz-Meldungen |
+| E · Profil | N42–N47 | Freunde (Anfragen/Liste/Gesendet), Suche mit 4 Zuständen, Ausrüstung + Vorschau, Freundes-Fortschritt, erster Start |
+| F · Überall | N48–N54 | **Installieren = einmaliges Vondu-Popup beim 3. Start**, Toast, Speichern, Lade-Skelett, Musik, Ziehen zum Neuladen, **Version einmal unter dem Ladebalken** |
+
+### Neues Kampf-Layout (gilt für alle Minispiele)
+Die Szene ist vollflächig; darüber **eine** Aufgabenkarte oben: farbiger Kopf mit Aufgabe und
+deutschem Wort, darunter das Spielfeld (Antworten, Zeitbalken, Fächer). Unten rechts die
+Gegner-Leiste, unten die Lebensleiste mit Trank-Chip. Keine frei schwebenden Elemente mehr —
+Meteore und treibende Wörter bleiben innerhalb der Aufgabenkarte.
+
+### Neue Pixel-Symbole
+`mic, lupe, friends, cloud, calendar, box, chart, refresh, hourglass, heart, skull, flag, install,
+toolbox, order, wand, checkLight` sowie der Sprite `meteor` (14 × 12). Gleiche Regeln wie oben:
+nur ganzzahlige Vielfache anzeigen.
+
+## Nachtrag · Feine Pixel-Art für Gegner, Figur und Gefährten
+
+Gegner, Spielfigur und Gefährten sind jetzt im selben feinen Pixel-Stil gezeichnet (Formen mit 5-stufiger Schattierung, farbiger Kontur, Licht von oben links). Überblick in der Referenzdatei: **7 · Kampf → „Gegner · Dungeon-Stil"** und **8.11 · Charakter-Baukasten**.
+
+| Datei | Inhalt | ersetzt |
+| --- | --- | --- |
+| `app/pixel-enemies-dungeon.js` | 36 Gegner als fertige Pixeldaten (20 Übung · 8 Elite · 8 Bosse), `enemySpriteSVG(kind)` | `pixel-enemies.js` (gleiche Signatur) |
+| `app/pixel-hero-fine.js` | Laufzeit-Renderer für Figur und Gefährten: `renderHero(cfg)`, `renderHead(cfg)`, `renderPet(kind, color)` | Zeichenteil von `avatar.js` |
+
+**Optionen:** 20 Frisuren · 12 Augen · 12 Münder · 16 Oberteile · 16 Hosen · 3 Staturen · 16 Hauttöne (8 davon Fantasie) · 12 Haarfarben · 12 Kleidungsfarben · 8 Augenfarben · 20 Gefährten × 3 Farben. Ausrüstung (`gear`) zeichnet Helm, Rüstung, Beinschienen, Armschienen und die Waffe in Stahl oder Gold direkt an die Figur.
+
+**Anzeige:** Figur 54 × 81 → im Kampf 2× (108 × 162), Gegner 72 × 72 / Bosse 96 × 96 → 2×, Gefährte 40 × 40 → 2×. Nur ganzzahlig skalieren, immer mit `image-rendering: pixelated`.
+
+## Nachtrag · Kampf-Animationen
+
+Referenz: **7.2 · Kampf-Animationen** (Live-Vorschau, Einzelbilder, Ablauf eines Treffers). In allen Kampf-Screens laufen die Animationen bereits; 7.5 zeigt den Gegner-Angriff mit Treffer am Helden, 7.6 den Angriff des Helden.
+
+| Animation | fps | Bilder | Inhalt |
+| --- | --- | --- | --- |
+| `idle` Stehen | 4 | 4, Schleife | Rumpf sinkt 1 px, Kopf folgt ein Bild später. Schleime wabbeln, Fliegende schweben 2 px (Schatten wird kleiner). |
+| `attack` Angriff | 8 | 6 | 2× Ausholen, Vorstoß mit Wischspur, **Treffer-Bild (Index 3, 375 ms)** mit Funke, 2× Rückzug |
+| `hurt` Treffer | 8 | 5 | weißer Blitz mit Tintenkontur, Rot-Ton, 5 px Rückstoß, zurück |
+
+**Aufbau:** `app/pixel-anim.js` erzeugt aus der Kampf-Figur ein Blatt mit allen Bildern (`heroCombatSheet(avatarCfg)`, `enemyCombatSheet(key)`) – einmal pro Kampf, dauert wenige Millisekunden. Gegner brauchen keine eigenen Animationszeichnungen; der Held bekommt drei Schlüsselposen mit seiner aktuellen Waffe (Speer stößt, Schwert/Axt/Hammer hauen im Bogen, ohne Waffe Faustschlag).
+
+**Einbau in `campaign-fight.js`:**
+```js
+import { SpritePlayer, heroCombatSheet, enemyCombatSheet } from './pixel-anim.js';
+const held   = new SpritePlayer(heldCanvas,   heroCombatSheet(avatar));      // Canvas absolut im Container der Figur
+const gegner = new SpritePlayer(gegnerCanvas, enemyCombatSheet(gegnerKey));
+// richtige Antwort
+held.play('attack', { onHit: () => { gegner.play('hurt'); zeigeSchaden(schaden); } });
+// falsche Antwort
+gegner.play('attack', { onHit: () => { held.play('hurt'); zeigeSchaden(schaden, 'held'); } });
+```
+Schadenszahl, Lebensleiste und Ton gehören in `onHit`, nicht an den Start des Angriffs – nur so sitzen sie auf dem Treffer-Bild. Nach `onEnd` läuft jede Figur automatisch wieder in `idle`.
+
+**Regeln:** Bilder hart wechseln (kein CSS-Übergang, kein Easing), Canvas nur ganzzahlig skalieren. Alle Bilder einer Figur haben dieselbe Größe; `ox/oy` geben an, wo die ruhende Figur im Bild liegt, damit sie beim Wechsel nicht springt. Bei `prefers-reduced-motion` spielt der Player nur das Treffer- bzw. Blitz-Bild. Neue Gegner bekommen ihren Steh-Stil über `STYLE` (`breathe`, `wobble`, `hover`). Offen: eigener Ablauf für den Bogen (Spannen und Loslassen).
