@@ -1,0 +1,9 @@
+<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><title>Fragment</title>
+<style>body{margin:0;background:#8a8a92;display:flex;justify-content:center;padding:0}
+canvas[data-paint]{background:rgba(31,31,36,.12)}</style></head><body>
+<div id="h"></div>
+<script>
+const datei = new URLSearchParams(location.search).get('f');
+fetch('../design_handoff_english_stars_pastell/screens/' + datei)
+  .then(r => r.text()).then(t => { document.getElementById('h').innerHTML = t; });
+</script></body></html>

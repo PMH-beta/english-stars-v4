@@ -1864,7 +1864,7 @@ export function showMenu() {
   hideFeedback();
   showScreen('menu-screen');
   document.getElementById('menu-player-name').textContent = window.SD.playerName;
-  renderAvatarInto('menu-avatar', window.SD, { headOnly: true });
+  renderAvatarInto('menu-avatar', window.SD, { bust: true, scale: 2 });
   updateTalerBadge();                          // Taler sofort aus lokalem Stand
   refreshClaimedTaler().catch(() => {});       // 100%-Teilabschnitte nachzählen (retroaktiv)
   const ft = document.getElementById('menu-footer'); if (ft) ft.style.display = 'flex';

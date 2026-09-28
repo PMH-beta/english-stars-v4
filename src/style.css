@@ -1908,12 +1908,27 @@ body.p-app{
 }
 
 /* ── Spielerbanner ───────────────────────────────────────────────────────── */
-.p-banner{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+/* Spielerbanner nach Fragment 2.3: eine Karte mit Kontur, darin links das
+   Brustbild im 60er-Rahmen, rechts der Weg zum Fortschritt. Die Figur ist 64 px
+   breit und wird vom Rahmen leicht beschnitten — so will es der Entwurf, statt
+   sie krumm herunterzuskalieren. */
+.p-banner{
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  border:var(--p-rahmen); border-radius:var(--p-r-dialog); background:var(--p-karte);
+  padding:5px 7px 5px 5px;
+}
 .p-banner-links{ display:flex; align-items:center; gap:10px; min-width:0; }
 .p-avatar{
-  width:44px; height:44px; flex:none;
-  border:var(--p-rahmen); border-radius:var(--p-r-kachel); background:var(--p-karte);
+  width:60px; height:60px; flex:none;
+  border:var(--p-rahmen); border-radius:var(--p-r-btn); background:var(--p-lila);
   display:flex; align-items:center; justify-content:center; overflow:hidden; font-size:22px;
+}
+/* „Fortschritt": 44 px hoch, Trophäe davor (Fragment 2.3). */
+.p-fortschritt{
+  display:inline-flex; align-items:center; gap:6px; flex:none;
+  height:44px; padding:0 12px 0 10px; border:none; border-radius:15px;
+  background:var(--p-inaktiv); color:var(--p-text-2);
+  font:800 11px var(--p-font); white-space:nowrap; cursor:pointer;
 }
 .p-banner-name{ font:900 17px var(--p-font); }
 .p-banner-stats{

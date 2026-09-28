@@ -20,6 +20,10 @@ import { hero, crop, toCanvas, renderHeroWithPet, renderPet, renderPetSilhouette
 // Maße der Rohgrafik: ganze Figur und Kopf-Ausschnitt (34 × 34 ab (10, 0)).
 export const HERO_W = 54, HERO_H = 87;
 export const HEAD_W = 34, HEAD_H = 34;
+// Brustbild (Kopf + Schultern), wie es das Spielerbanner zeigt: 32 x 32 ab x = 11,
+// in 2x also 64 x 64 in einem 60er-Rahmen mit overflow:hidden — genau die Maße
+// aus Fragment 2.3.
+export const BUST_W = 32, BUST_H = 32;
 
 // ── Ausrüstung: Item-Objekte der App → Form, die hero() versteht ─────────────
 // campaign-equipment.equippedGearMap() liefert ganze Items mit { slot, which,
@@ -42,8 +46,8 @@ export function gearFor(map) {
 const _cache = new Map();
 const CACHE_MAX = 160;
 
-function _key(cfg, gear, headOnly, scale) {
-  return JSON.stringify([cfg, gear || 0, headOnly ? 1 : 0, scale]);
+function _key(cfg, gear, art, scale) {
+  return JSON.stringify([cfg, gear || 0, art, scale]);
 }
 
 function _merken(k, url) {
@@ -57,21 +61,27 @@ export function clearHeroCache() { _cache.clear(); }
 
 // ── Zeichnen ────────────────────────────────────────────────────────────────
 
-/** Figur (oder nur der Kopf) als Data-URL, ganzzahlig skaliert. */
-export function heroURL(cfg, { gear, headOnly = false, scale = 2 } = {}) {
+/** Ausschnitt einer Figur: ganze Figur, Brustbild oder nur der Kopf. */
+export function ausschnitt(opts) { return opts.bust ? 'bust' : opts.headOnly ? 'head' : 'voll'; }
+export const MASSE = { voll: [HERO_W, HERO_H], bust: [BUST_W, BUST_H], head: [HEAD_W, HEAD_H] };
+
+/** Figur (ganz, Brustbild oder Kopf) als Data-URL, ganzzahlig skaliert. */
+export function heroURL(cfg, { gear, headOnly = false, bust = false, scale = 2 } = {}) {
   const s = Math.max(1, Math.round(scale));
-  const k = _key(cfg, gear, headOnly, s);
+  const art = bust ? 'bust' : headOnly ? 'head' : 'voll';
+  const k = _key(cfg, gear, art, s);
   const da = _cache.get(k);
   if (da) return da;
   const voll = hero(gear ? { ...cfg, gear } : cfg).render();
-  const img = headOnly ? crop(voll, 10, 0, HEAD_W, HEAD_H) : voll;
+  const img = bust ? crop(voll, 11, 0, BUST_W, BUST_H)
+    : headOnly ? crop(voll, 10, 0, HEAD_W, HEAD_H) : voll;
   return _merken(k, toCanvas(img, s).toDataURL('image/png'));
 }
 
 /** Dasselbe als fertiges <img>-Tag für Aufrufstellen, die einen String einsetzen. */
 export function imgTag(cfg, opts = {}) {
   const s = Math.max(1, Math.round(opts.scale ?? 2));
-  const b = opts.headOnly ? [HEAD_W, HEAD_H] : [HERO_W, HERO_H];
+  const b = MASSE[ausschnitt(opts)];
   return `<img src="${heroURL(cfg, { ...opts, scale: s })}" width="${b[0] * s}" height="${b[1] * s}"`
     + ` alt="" style="image-rendering:pixelated;display:block;flex:none">`;
 }

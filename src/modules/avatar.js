@@ -19,7 +19,7 @@ import { markDirty } from './sync.js';
 import { commitDirty } from './dialog.js';
 import { itemGroupSVG, itemIconSVG, matPalette, gemPalette } from './pixel-items.js';
 // Paletten der NEUEN Figur — nur für die Migration (nächstliegender Farbton).
-import { imgTag, petTag, gearFor, fitScale, HERO_W, HERO_H, HEAD_W, HEAD_H, petLabel } from './hero.js';
+import { imgTag, petTag, gearFor, fitScale, MASSE, ausschnitt, petLabel } from './hero.js';
 import { SKIN as NEU_SKIN, HAIR as NEU_HAIR, CLOTH as NEU_CLOTH, IRIS as NEU_IRIS } from './pixel-hero-fine.js';
 
 // Reihenfolge + Beschriftung der Einstell-Zeilen; anchor = vertikale Position der
@@ -1045,11 +1045,7 @@ const HELM_BRIM = 23;
 let _clipN = 0;
 
 export function avatarSVG(cfg, opts = {}) {
-  return imgTag(cfg, {
-    gear: gearFor(opts.gear),
-    headOnly: !!opts.headOnly,
-    scale: Math.max(1, Math.round(opts.scale ?? 2)),
-  });
+  return imgTag(cfg, { ...opts, gear: gearFor(opts.gear), scale: Math.max(1, Math.round(opts.scale ?? 2)) });
 }
 
 /**
@@ -1061,9 +1057,12 @@ export function renderAvatarInto(elId, sd, opts = {}) {
   const el = document.getElementById(elId);
   if (!el) return;
   const cfg = ensureAvatar(sd);
-  const headOnly = !!opts.headOnly;
-  const s = fitScale(el, headOnly ? HEAD_W : HERO_W, headOnly ? HEAD_H : HERO_H, opts.scale ?? 2);
-  el.innerHTML = imgTag(cfg, { gear: gearFor(opts.gear), headOnly, scale: s });
+  const [bw, bh] = MASSE[ausschnitt(opts)];
+  // Ein ausdruecklich gesetzter Massstab gilt, auch wenn die Grafik dann ueber den
+  // Rahmen hinausragt: das Brustbild im Spielerbanner ist 64 px breit und wird vom
+  // 60er-Rahmen bewusst beschnitten (Fragment 2.3). Ohne Angabe wird gemessen.
+  const s = opts.scale ? Math.max(1, Math.round(opts.scale)) : fitScale(el, bw, bh, 2);
+  el.innerHTML = imgTag(cfg, { ...opts, gear: gearFor(opts.gear), scale: s });
 }
 
 // ────────────────────────────────────────────────
@@ -1232,7 +1231,7 @@ export function avatarSet(key, v) {
   persist(sd);
   if (window.currentUser) markDirty('profile');   // Pending-Flag überlebt auch Hardware-Zurück
   renderCharacter();
-  renderAvatarInto('menu-avatar', sd, { headOnly: true });
+  renderAvatarInto('menu-avatar', sd, { bust: true, scale: 2 });
   renderAvatarInto('prof-avatar', sd, { headOnly: true });
 }
 
