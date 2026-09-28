@@ -28,8 +28,8 @@ Es gibt **keinen Schalter `pastell`** (F-02). Der Rückweg ist `git revert`.
 | --- | --- | --- | --- | --- |
 | **0** | Prüfblatt `dev/sprites.html` | neue Datei; die fünf Module nach `src/modules/` kopiert | — | **fertig** (`6708961`) |
 | **3** | Gegner | `pixel-enemies.js` → `pixel-enemies-dungeon.js`; Kampfrichtung in `campaign-fight.js` | — | **fertig** |
-| **4** | Figur & Gefährte | `avatar.js`, `storage.js`, `sync.js`, `ui.js`, `campaign-equipment.js` | F-03, F-04, F-05, F-07 | Speicherstand (Avatare entbehrlich, **Decks unantastbar**) |
-| **5** | Gegenstände, Kampfplätze, Lagerfeuer | `pixel-items.js`, `campaign-fight.js`, `campaign-equipment.js`, Schmiede in `ui.js` | F-06, F-10, F-22 | mittel |
+| **4** | Figur & Gefährte | `avatar.js`, neu `hero.js`, `campaign-fight.js`, `campaign-equipment.js`, `style.css`, `sw.js` | — | **fertig** |
+| **5** | Gegenstände, Kampfplätze, Lagerfeuer | `pixel-items.js`, `campaign-fight.js`, `campaign-equipment.js`, Schmiede in `ui.js` | F-06, F-10 | mittel |
 | **6** | Kampf-Animationen | `campaign-fight.js` | F-12, F-13 | mittel — Treffer-Timing wandert in `onHit` |
 | **7** | Screens, ein Commit je Bereich | `index.html`, `ui.js`, `decks.js`, `vocab.js`, `game.js`, `campaign*.js`, `style.css` | F-08, F-09, F-15–F-21, F-25 | gering je Bereich |
 | **7b** | App-Tour | neu `tour.js`, dazu `ui.js`, `storage.js`, `sync.js` | F-14 | `tourSeen` muss in die sync-Whitelist |
@@ -44,16 +44,18 @@ im Dev-Server wie auf der veröffentlichten Seite. `vite.config.js` musste dafü
 nicht angefasst werden. `npm run build` schreibt weiterhin nur `dist/`, was für
 die Auslieferung keine Rolle spielt.
 
-## Phase 4 — als Nächstes
+## Phase 5 — als Nächstes
 
-Figur und Gefährte: Adapter statt `avatarSVG` mit `renderHero`, `renderHead`,
-`renderPet`, `renderHeroWithPet`; `equippedGearMap()` anschließen; Figuren
-cachen (Schlüssel: Avatar + Ausrüstung).
+Gegenstände, Kampfplätze und Lagerfeuer aus `pixel-world-fine.js`: Schmiede mit
+5 Teilen (`PART_NAMES`, `partStates`, `itemPartsCanvasTrimmed`), Profil-Slots,
+`ARENAS` im Kampf, Rastplatz mit `CAMPFIRE_FRAMES` (8 fps). Nie `opacity` oder
+`grayscale`.
 
-**Vorher beantworten: F-03, F-04, F-05, F-07.** Das ist die einzige Phase, die
-den Spielstand irreversibel anfasst — davor ein Blick ins DB-Backup und ein
-Dry-Run, der für den echten Spielstand zeigt, welche Figur herauskommt.
-Die Vokabeldecks bleiben in jedem Fall unberührt.
+**Vorher beantworten: F-06** (Stufe „verzaubert" hat kein Bild) und **F-10**
+(welcher der 6 Kampfplätze wann erscheint).
+
+F-22 (Canvas statt SVG) ist mit Phase 4 entschieden: die Figur läuft über
+Canvas, und der Maßstab wird am Container gemessen, damit er ganzzahlig bleibt.
 
 ## Was in jeder Phase gilt
 

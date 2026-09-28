@@ -1329,28 +1329,32 @@ body.in-game .mode-progress{display:block;}
   flex-shrink:0;width:100%;max-width:420px;margin:0 auto;padding:0 24px;box-sizing:border-box;
 }
 @media (max-height:700px){
-  .cf-hero{width:84px;height:126px;}
-  .cf-enemy{width:110px;height:110px;}
-  .cf-enemy.boss{width:148px;height:148px;}
+  .cf-hero{width:54px;height:87px;}
+  .cf-enemy{width:72px;height:78px;}
+  .cf-enemy.boss{width:96px;height:102px;}
   .cf-grass{top:33px;}
   .cf-hills{height:33px;}
 }
 @media (max-height:480px){   /* z.B. Handy quer oder Tastatur offen */
   .cf-ground-wrap{padding-top:4px;}
-  .cf-hero{width:58px;height:87px;}
-  .cf-enemy{width:76px;height:76px;}
-  .cf-enemy.boss{width:100px;height:100px;}
+  .cf-hero{width:54px;height:87px;}
+  .cf-enemy{width:72px;height:78px;}
+  .cf-enemy.boss{width:96px;height:102px;}
   .cf-grass{top:21px;}
   .cf-hills{height:21px;}
 }
-.cf-hero{width:108px;height:162px;position:relative;z-index:1;}
+/* Ganzzahlige Vielfache der Rohgrafik (Handoff-Regel 6): Figur 54 × 87,
+   Gegner 72 × 78, Boss 96 × 102. Die Flächen sind deshalb exakt 2× bzw. 1×
+   dieser Maße — sonst rechnet fitScale auf den kleineren Maßstab herunter
+   oder das Gegner-SVG wird krumm gestreckt. */
+.cf-hero{width:108px;height:174px;position:relative;z-index:1;}
 /* Ruhe-Animation: der Held atmet (2 Frames), der Gegner flackert als Flamme
    (3 Frames, leichtes Zucken in der Höhe) — beide hart gesteppt, kein Easing. */
 .cf-hero svg{animation:cfIdleHero 2s steps(1,end) infinite;}
 .cf-hero.hit svg{animation:none;filter:brightness(2.4);}
 @keyframes cfIdleHero{0%,49%{transform:translateY(0);}50%,100%{transform:translateY(-2px);}}
-.cf-enemy{width:142px;height:142px;flex:none;position:relative;z-index:1;}
-.cf-enemy.boss{width:192px;height:192px;}
+.cf-enemy{width:144px;height:156px;flex:none;position:relative;z-index:1;}
+.cf-enemy.boss{width:192px;height:204px;}
 .cf-enemy svg{animation:cfIdleEnemy 1.05s steps(1,end) infinite;transform-origin:50% 100%;}
 /* Nur Versatz, kein scaleY mehr: die Dungeon-Gegner sind Pixel-Art und dürfen
    ausschließlich ganzzahlig skaliert werden (Handoff-Regel 6) — ein scaleY(1.03)

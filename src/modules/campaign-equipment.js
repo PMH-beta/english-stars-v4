@@ -13,7 +13,7 @@
 import { HP_MAX, FIST_DMG, WEAPON_BASE_DMG, WEAPON_GOLD_BONUS, EQUIP_EFFECT, TALISMAN_MULT, RING_POTION_BONUS, COMPANION_GUARDS, WEAPON_PERK, PERK_SCHWERT_DMG, PERK_DOLCH_DODGE, PERK_SPEER_BOSS, PERK_AXT_ELITE, PERK_HAMMER_MULT, PERK_STAB_MS, PERK_BOGEN_FIGHT, PERK_KOLBEN_GUARD, POTION_CHOICES, POTION_HEAL, POTION_POWER, POTION_TIME_MS, POTION_TIME_WAVES } from './campaign-balance.js';
 import { getConstellations, forgeObject } from './irregular-verbs.js';
 import { starLit, SLOTS_PER_FORM } from './irregular-game.js';
-import { avatarSVG, ensureAvatar, itemSpriteSVG } from './avatar.js';
+import { renderAvatarInto, itemSpriteSVG } from './avatar.js';
 import { persist } from './storage.js';
 import { markDirty } from './sync.js';
 import { commitDirty } from './dialog.js';
@@ -397,7 +397,7 @@ export function renderEquipmentPanel() {
     <div class="pd-wrap">
       <div class="pd-col">${PD_LEFT.map(k => _slotTile(c, k)).join('')}</div>
       <div class="pd-center">
-        <div class="pd-avatar">${avatarSVG(ensureAvatar(window.SD), { gear: _gearMap(c) })}</div>
+        <div class="pd-avatar" id="pd-avatar"></div>
       </div>
       <div class="pd-col">${PD_RIGHT.map(k => _slotTile(c, k)).join('')}</div>
     </div>

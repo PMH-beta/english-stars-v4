@@ -45,6 +45,9 @@ const PRECACHE = [
   // sofort offline genutztes Gerät ohne Gegner da. pixel-enemies.js bleibt bis
   // Phase 8 daneben stehen (Aufräumen erst nach Freigabe).
   './src/modules/pixel-enemies-dungeon.js', './src/modules/enemies.js',
+  // Neue Figur + ihre Anbindung (Phase 4). avatar.js laedt sie statisch, also
+  // gehoeren sie in den Precache. avatar.js selbst bleibt bis Phase 8 stehen.
+  './src/modules/pixel-hero-fine.js', './src/modules/hero.js',
   './src/modules/pwa.js', './src/modules/screen-shell.js',
   './src/modules/speech.js', './src/modules/startup.js', './src/modules/stats.js',
   './src/modules/storage.js', './src/modules/supabase.js', './src/modules/sync.js',

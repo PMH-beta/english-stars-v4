@@ -32,7 +32,7 @@ import { iconHTML } from './pixel-icons.js';
 import { startTrueFalse } from './minigame-truefalse.js';
 import { equippedWeapon, equipEffects, equippedGearMap, POTIONS, potionStacks } from './campaign-equipment.js';
 import { pickEnemyKey, enemyName, enemyBattleSVG } from './enemies.js';
-import { avatarSVG, ensureAvatar } from './avatar.js';
+import { renderAvatarInto } from './avatar.js';
 import { playSfx } from './game.js';
 import { effectivePct, statKeyFor } from './stats.js';
 import { getConstellations, IRREGULAR_VERBS, IRREGULAR_PRESET_ID, verbsByEns } from './irregular-verbs.js';
@@ -407,7 +407,7 @@ function _renderOverlay() {
       <div class="cf-hills">${_hillsScene()}</div>
       <div class="cf-grass"></div>
       <div class="cf-arena">
-        <div class="cf-hero" id="cf-hero">${avatarSVG(ensureAvatar(window.SD), { gear: equippedGearMap() })}</div>
+        <div class="cf-hero" id="cf-hero"></div>
         <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
           <div class="cf-enemy${node.type === 'boss' ? ' boss' : ''}" id="cf-enemy">${enemyBattleSVG(enemyKey)}</div>
           <div class="cf-gegnerkarte">
@@ -434,6 +434,10 @@ function _renderOverlay() {
       </div>
     </div>`;
   document.body.appendChild(ov);
+  // Erst jetzt zeichnen: renderAvatarInto misst den Container, um die Figur
+  // ganzzahlig zu skalieren (Handoff-Regel 6). Vor dem Einhaengen hat .cf-hero
+  // noch keine Groesse.
+  renderAvatarInto('cf-hero', window.SD, { gear: equippedGearMap() });
   _el('cf-flee').onclick = () => {
     // Verlassen zählt wie Tod (verhindert Welle-neu-würfeln durch Fliehen+Fortsetzen) —
     // deshalb vorher fragen, mit demselben Blur-Hintergrund-Dialog wie „Aufgeben". Welle

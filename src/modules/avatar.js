@@ -18,30 +18,32 @@ import { persist } from './storage.js';
 import { markDirty } from './sync.js';
 import { commitDirty } from './dialog.js';
 import { itemGroupSVG, itemIconSVG, matPalette, gemPalette } from './pixel-items.js';
+// Paletten der NEUEN Figur — nur für die Migration (nächstliegender Farbton).
+import { imgTag, petTag, gearFor, fitScale, HERO_W, HERO_H, HEAD_W, HEAD_H, petLabel } from './hero.js';
+import { SKIN as NEU_SKIN, HAIR as NEU_HAIR, CLOTH as NEU_CLOTH, IRIS as NEU_IRIS } from './pixel-hero-fine.js';
 
 // Reihenfolge + Beschriftung der Einstell-Zeilen; anchor = vertikale Position der
 // Pfeile (% der Sprite-Höhe, 96 Rasterzeilen) am jeweils veränderten Körperteil.
 export const AVATAR_FEATURES = [
-  { key: 'hair',      icon: '💇', label: 'Haare',     anchor: 8 },
-  { key: 'hairColor', icon: '🎨', label: 'Haarfarbe', anchor: 8 },
-  { key: 'eyes',  icon: '👀', label: 'Augen',     anchor: 25 },
-  { key: 'ears',  icon: '👂', label: 'Ohren',     anchor: 28 },
-  { key: 'nose',  icon: '👃', label: 'Nase',      anchor: 31 },
-  { key: 'mouth', icon: '👄', label: 'Mund',      anchor: 36 },
-  { key: 'skin',  icon: '🖐️', label: 'Hautfarbe', anchor: 50 },
-  { key: 'top',   icon: '👕', label: 'Oberteil',  anchor: 58 },
-  { key: 'pants', icon: '👖', label: 'Hose',      anchor: 80 },
-  { key: 'build', icon: '🧍', label: 'Statur',    anchor: 70 },
+  { key: 'hair',   icon: '💇', label: 'Frisur',     anchor: 8 },
+  { key: 'hairC',  icon: '🎨', label: 'Haarfarbe',  anchor: 8 },
+  { key: 'skin',   icon: '🖐️', label: 'Hautfarbe', anchor: 50 },
+  { key: 'eyes',   icon: '👀', label: 'Augen',      anchor: 25 },
+  { key: 'iris',   icon: '🌈', label: 'Augenfarbe', anchor: 25 },
+  { key: 'mouth',  icon: '👄', label: 'Mund',       anchor: 36 },
+  { key: 'top',    icon: '👕', label: 'Oberteil',   anchor: 58 },
+  { key: 'topC',   icon: '🎨', label: 'Oberteil-Farbe', anchor: 58 },
+  { key: 'pants',  icon: '👖', label: 'Hose',       anchor: 80 },
+  { key: 'pantsC', icon: '🎨', label: 'Hosen-Farbe', anchor: 80 },
+  { key: 'build',  icon: '🧍', label: 'Statur',     anchor: 70 },
 ];
 
 // Gefährten-Merkmale (eigene Leiste, wenn der Gefährte angewählt ist).
+// Die neue Figur kennt nur Tier und Farbe — Ohren, Schwanz, Augen und Muster
+// sind mit der Migration weggefallen (F-03).
 export const PET_FEATURES = [
-  { key: 'pet',        icon: '🐾', label: 'Tier' },
-  { key: 'petEars',    icon: '👂', label: 'Ohren' },
-  { key: 'petTail',    icon: '➰', label: 'Schwanz' },
-  { key: 'petEyes',    icon: '👀', label: 'Augen' },
-  { key: 'petPattern', icon: '🎨', label: 'Muster' },
-  { key: 'petColor',   icon: '🌈', label: 'Farbe' },
+  { key: 'pet',      icon: '🐾', label: 'Tier' },
+  { key: 'petColor', icon: '🌈', label: 'Farbe' },
 ];
 
 // Varianten pro Merkmal: Charakter je 20, Gefährten-Teile je 10.
@@ -50,6 +52,64 @@ const COUNTS = {
   build: 20, top: 20, pants: 20,
   pet: 10, petEars: 10, petTail: 10, petEyes: 10, petPattern: 10, petColor: 10,
 };
+
+// ── Migration auf die neue Figur (avatarVersion 2) ───────────────────────────
+// Entschieden am 29.09.2026: F-03 A (sechs Merkmale fallen ersatzlos weg),
+// F-04 A (Gefährten-Zahlen 0–9 direkt übernehmen), F-05 A (umrechnen statt
+// zurücksetzen). Siehe HANDOFF-ENTSCHEIDUNGEN.md.
+//
+// Formen per Modulo, Farben über den nächstliegenden Ton der neuen Palette.
+// Die Kleidungsfarbe kommt aus der ALTEN Kleidung: dort steckte die Farbe noch
+// im Schnitt (TOPS[7] = „T-Shirt Herz, rosa"), in der neuen Figur sind Schnitt
+// und Farbe getrennt. So behält das Kind wenigstens seine Farbe.
+export const AVATAR_VERSION = 2;
+
+export const NEUE_COUNTS = {
+  skin: 16, hair: 20, hairC: 12, eyes: 12, iris: 8, mouth: 12,
+  top: 16, topC: 12, pants: 16, pantsC: 12, build: 3,
+  pet: 20, petColor: 6,
+};
+
+// Abstand im RGB-Würfel — reicht für „welcher Ton kommt dem alten am nächsten".
+function _naechsterTon(hex, palette) {
+  const z = (h) => { const n = parseInt(String(h).slice(1, 7), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
+  const [r, g, b] = z(hex);
+  let best = 0, bestD = Infinity;
+  palette.forEach((p, i) => {
+    const [pr, pg, pb] = z(p);
+    const d = (r - pr) ** 2 + (g - pg) ** 2 + (b - pb) ** 2;
+    if (d < bestD) { bestD = d; best = i; }
+  });
+  return best;
+}
+
+/**
+ * Alter Avatar → neuer Avatar. Reine Funktion, schreibt nichts.
+ * @param {object} a - Avatar im alten Format
+ * @returns {object} Avatar im neuen Format (ohne avatarVersion)
+ */
+export function migrateAvatar(a) {
+  const alt = (k) => { const v = Number(a && a[k]); return Number.isInteger(v) && v >= 0 && v < COUNTS[k] ? v : 0; };
+  const iTop = alt('top'), iPants = alt('pants');
+  return {
+    skin:     _naechsterTon(SKIN[alt('skin')], NEU_SKIN),
+    hair:     alt('hair') % NEUE_COUNTS.hair,
+    hairC:    _naechsterTon(HAIR_COLORS[alt('hairColor')], NEU_HAIR),
+    eyes:     alt('eyes') % NEUE_COUNTS.eyes,
+    // Augenfarbe gab es vorher nicht. Statt alle Kinder mit derselben Farbe
+    // loszuschicken, wird sie aus der alten HAARFARBE abgeleitet (Entscheidung
+    // 29.09.2026): dunkles Haar → dunkle Augen, braunes → braun, und so fort.
+    iris:     _naechsterTon(HAIR_COLORS[alt('hairColor')], NEU_IRIS),
+    mouth:    alt('mouth') % NEUE_COUNTS.mouth,
+    top:      iTop % NEUE_COUNTS.top,
+    topC:     _naechsterTon(TOPS[iTop].c, NEU_CLOTH),
+    pants:    iPants % NEUE_COUNTS.pants,
+    pantsC:   _naechsterTon(PANTS[iPants].c, NEU_CLOTH),
+    build:    alt('build') % NEUE_COUNTS.build,
+    pet:      alt('pet'),                               // F-04 A: 0–9 unverändert
+    petColor: alt('petColor') % NEUE_COUNTS.petColor,
+  };
+}
 
 // 16 natürliche Hauttöne + 4 Fantasie-Töne (Kinder-App: darf Spaß machen).
 const SKIN = [
@@ -64,26 +124,33 @@ const INK = '#2c2c34';   // Augen/Mund-Tinte (dunkles Blaugrau statt Schwarz)
 
 export function defaultAvatar() {
   return {
-    skin: 0, build: 4, hair: 0, hairColor: 5, eyes: 0, nose: 0, mouth: 0, ears: 2,
-    top: 0, pants: 0,
-    pet: 0, petEars: 0, petTail: 0, petEyes: 0, petPattern: 0, petColor: 0,
+    skin: 1, hair: 0, hairC: 1, eyes: 0, iris: 0, mouth: 0,
+    top: 1, topC: 0, pants: 0, pantsC: 6, build: 1,
+    pet: 0, petColor: 0,
+    avatarVersion: AVATAR_VERSION,
   };
 }
 
-// Stellt sicher, dass sd.avatar existiert und alle Keys gültig sind.
+/**
+ * Stellt sicher, dass sd.avatar existiert und alle Werte im gültigen Bereich
+ * liegen. Ein Spielstand im alten Format wird dabei EINMALIG umgerechnet
+ * (migrateAvatar) und trägt danach avatarVersion 2 — der Weg wird nie wieder
+ * betreten. Geschrieben wird erst, wenn der Spielstand ohnehin gespeichert wird.
+ */
 export function ensureAvatar(sd) {
   const d = defaultAvatar();
-  const a = (sd && typeof sd.avatar === 'object' && sd.avatar) ? sd.avatar : {};
-  const out = {};
-  for (const k of Object.keys(d)) {
+  let a = (sd && typeof sd.avatar === 'object' && sd.avatar) ? sd.avatar : {};
+  if (a.avatarVersion !== AVATAR_VERSION && Object.keys(a).length) a = migrateAvatar(a);
+  const out = { avatarVersion: AVATAR_VERSION };
+  for (const k of Object.keys(NEUE_COUNTS)) {
     const v = Number(a[k]);
-    out[k] = (Number.isInteger(v) && v >= 0 && v < COUNTS[k]) ? v : d[k];
+    out[k] = (Number.isInteger(v) && v >= 0 && v < NEUE_COUNTS[k]) ? v : d[k];
   }
   if (sd) sd.avatar = out;
   return out;
 }
 
-const wrapK = (key, n) => ((n % COUNTS[key]) + COUNTS[key]) % COUNTS[key];
+const wrapK = (key, n) => ((n % NEUE_COUNTS[key]) + NEUE_COUNTS[key]) % NEUE_COUNTS[key];
 
 // ────────────────────────────────────────────────
 //  PIXEL-HELFER
@@ -961,7 +1028,10 @@ function petPixels(cfg, which, locked) {
 }
 // Eigenständiges Tier-SVG (Editor-Bühne + Varianten-Kacheln).
 export function petSVG(cfg, opts = {}) {
-  return `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges" style="width:100%;height:100%;display:block;image-rendering:pixelated;">${petPixels(cfg, opts.which || null, !!opts.locked)}</svg>`;
+  return petTag(cfg.pet, cfg.petColor, {
+    scale: Math.max(1, Math.round(opts.scale ?? 2)),
+    locked: !!opts.locked,
+  });
 }
 
 // ────────────────────────────────────────────────
@@ -975,34 +1045,25 @@ const HELM_BRIM = 23;
 let _clipN = 0;
 
 export function avatarSVG(cfg, opts = {}) {
-  const headOnly = !!opts.headOnly;
-  const skin = SKIN[cfg.skin] || SKIN[0];
-  // Mit Helm wird das Haar an der Krempe abgeschnitten: sonst stehen Pony, Zöpfe
-  // oder Afro über der Helmkuppel heraus, als läge der Helm dahinter. Langes Haar
-  // UNTERHALB der Krempe bleibt und schaut unter dem Helm hervor.
-  const helm = !!(opts.gear && opts.gear.head);
-  const cid = 'es-helm-' + (++_clipN);
-  const hair = (svg) => (helm ? `<g clip-path="url(#${cid})">${svg}</g>` : svg);
-  const inner =
-    (helm ? `<defs><clipPath id="${cid}"><rect x="0" y="${HELM_BRIM}" width="64" height="${96 - HELM_BRIM}"/></clipPath></defs>` : '') +
-    hair(hairBackSVG(cfg.hair, cfg.hairColor)) +
-    (headOnly ? '' : bodySVG(cfg, skin)) +
-    neckSVG(skin) +
-    headSVG(skin) +
-    earsSVG(cfg.ears, skin) +
-    eyesSVG(cfg.eyes) +
-    noseSVG(cfg.nose, skin) +
-    mouthSVG(cfg.mouth) +
-    hair(hairSVG(cfg.hair, cfg.hairColor)) +
-    (headOnly ? '' : gearSVG(cfg, opts.gear));
-  const vb = headOnly ? '10 0 44 44' : '0 0 64 96';
-  return `<svg viewBox="${vb}" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges" style="width:100%;height:100%;display:block;image-rendering:pixelated;">${inner}</svg>`;
+  return imgTag(cfg, {
+    gear: gearFor(opts.gear),
+    headOnly: !!opts.headOnly,
+    scale: Math.max(1, Math.round(opts.scale ?? 2)),
+  });
 }
 
+/**
+ * Figur in ein Element zeichnen. Der Maßstab wird am Container GEMESSEN, damit
+ * die Pixel ganzzahlig skaliert bleiben (Handoff-Regel 6) — die Grafik wird
+ * also nie per width:100% in eine beliebige Fläche gezogen.
+ */
 export function renderAvatarInto(elId, sd, opts = {}) {
   const el = document.getElementById(elId);
   if (!el) return;
-  el.innerHTML = avatarSVG(ensureAvatar(sd), opts);
+  const cfg = ensureAvatar(sd);
+  const headOnly = !!opts.headOnly;
+  const s = fitScale(el, headOnly ? HEAD_W : HERO_W, headOnly ? HEAD_H : HERO_H, opts.scale ?? 2);
+  el.innerHTML = imgTag(cfg, { gear: gearFor(opts.gear), headOnly, scale: s });
 }
 
 // ────────────────────────────────────────────────
@@ -1031,8 +1092,8 @@ export function setCharacterGear(map) { _charGear = map || null; }
 // Teile, die das gerade bearbeitete Merkmal verdecken würden, bleiben weg — man
 // sieht also immer, was man gerade ändert, und trotzdem seine Ausrüstung.
 const GEAR_HIDDEN_BY = {
-  hair: ['head'], hairColor: ['head'], ears: ['head'],
-  top: ['body', 'arms'], pants: ['legs'], build: ['body', 'arms', 'legs'],
+  hair: ['head'], hairC: ['head'], eyes: ['head'], iris: ['head'], mouth: ['head'], skin: ['head'],
+  top: ['body', 'arms'], topC: ['body', 'arms'], pants: ['legs'], pantsC: ['legs'], build: ['body', 'arms', 'legs'],
 };
 function _stageGear() {
   if (!_charGear) return null;
@@ -1079,8 +1140,8 @@ export function renderCharacter() {
   const grid = document.getElementById('character-variants');
   if (grid) {
     const key = _activeFeature;
-    const headKeys = ['hair', 'hairColor', 'eyes', 'ears', 'nose', 'mouth', 'skin'];
-    grid.innerHTML = Array.from({ length: COUNTS[key] }, (_, v) => {
+    const headKeys = ['hair', 'hairC', 'eyes', 'iris', 'mouth', 'skin'];
+    grid.innerHTML = Array.from({ length: NEUE_COUNTS[key] }, (_, v) => {
       const preview = avatarSVG({ ...cfg, [key]: v }, { headOnly: headKeys.includes(key) });
       const on = cfg[key] === v;
       return `<button class="cg-tile${on ? ' sel' : ''}" onclick="avatarSet('${key}',${v})" aria-label="${key} ${v + 1}">${preview}</button>`;
@@ -1133,10 +1194,9 @@ function _renderPetEditor(cfg) {
   const grid = document.getElementById('character-variants');
   if (grid) {
     const key = _activePetFeature;
-    const names = key === 'pet' ? PET_NAMES : PET_PART_NAMES[key];
-    grid.innerHTML = Array.from({ length: COUNTS[key] }, (_, v) => {
+    grid.innerHTML = Array.from({ length: NEUE_COUNTS[key] }, (_, v) => {
       const preview = petSVG({ ...cfg, [key]: v }, { which: _petInfo.which });
-      const name = names ? names[v] : `${v + 1}`;
+      const name = key === 'pet' ? petLabel(v) : `Farbe ${v + 1}`;
       return `<button class="cg-tile cg-pet${cfg[key] === v ? ' sel' : ''}" onclick="avatarSet('${key}',${v})" title="${name}" aria-label="${name}">${preview}</button>`;
     }).join('');
   }
@@ -1167,7 +1227,7 @@ export function avatarPickStep(dir) {
 export function avatarSet(key, v) {
   const sd = window.SD;
   const cfg = ensureAvatar(sd);
-  if (!(key in COUNTS) || !Number.isInteger(v)) return;
+  if (!(key in NEUE_COUNTS) || !Number.isInteger(v)) return;
   cfg[key] = wrapK(key, v);
   persist(sd);
   if (window.currentUser) markDirty('profile');   // Pending-Flag überlebt auch Hardware-Zurück
