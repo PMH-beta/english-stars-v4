@@ -3270,3 +3270,16 @@ button.p-chip{ cursor:pointer; }
 .rest-buehne{position:relative;z-index:2;flex:none;height:300px}
 .rest-held{position:absolute;left:60px;top:14px;width:108px;height:174px;z-index:3}
 .rest-feuer{position:absolute;left:214px;top:78px;z-index:3}
+
+/* ══ Kampf-Figuren (Phase 6) ══════════════════════════════════════════════════
+   Held, Gegner und Gefährte laufen über SpritePlayer; die alten CSS-Animationen
+   (cfHeroAttack, cfIdle*, .poof, .cheer, .down) greifen nicht mehr — sie hingen
+   an <svg> bzw. an Klassen, die niemand mehr setzt, und fallen in Phase 8 weg.
+
+   Ebenen nach START-HERE: Gefährte 3 über Held 2, im Angriff 7 über 6. Der
+   Gefährte liegt INNERHALB des Helden-Containers, seine 3 gilt also dort; die
+   6 hebt Held samt Gefährtem vor den Gegner. */
+.cf-flug{position:absolute;inset:0;width:100%;height:100%;z-index:8;pointer-events:none;}
+.cf-pet{position:absolute;left:38px;bottom:-4px;z-index:3;}
+.cf-hero{z-index:2;}
+.cf-hero.vorn{z-index:6;}

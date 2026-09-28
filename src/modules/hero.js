@@ -15,7 +15,7 @@
 // Menü zeichnet sie bei jedem Render neu. Der Zwischenspeicher hat als Schlüssel
 // Avatar + Ausrüstung + Maßstab, genau wie im Handoff verlangt.
 
-import { hero, crop, toCanvas, renderHeroWithPet, renderPet, renderPetSilhouette, PETS } from './pixel-hero-fine.js';
+import { hero, crop, toCanvas, renderHeroWithPet, renderPet, renderPetSilhouette, petBattleFrames, petBattleSequence, PET_BATTLE, PETS } from './pixel-hero-fine.js';
 
 // Maße der Rohgrafik: ganze Figur und Kopf-Ausschnitt (34 × 34 ab (10, 0)).
 export const HERO_W = 54, HERO_H = 87;
@@ -112,6 +112,66 @@ export function petTag(petIdx, colorIdx, { scale = 2, locked = false } = {}) {
   let url = _cache.get(k);
   if (!url) url = _merken(k, (locked ? renderPetSilhouette(kind, s) : renderPet(kind, petColorHex(petIdx, colorIdx), s)).toDataURL('image/png'));
   return `<img src="${url}" alt="" style="image-rendering:pixelated;display:block;flex:none">`;
+}
+
+// ── Gefährte im Kampf ───────────────────────────────────────────────────────
+/**
+ * Spielt die Bildfolgen eines Gefährten in einem Element ab, synchron zum
+ * Helden. `petBattleSequence(kind, farbe, 'attack@4')` liefert den gemeinsamen
+ * 16er-Takt: die ersten vier Schritte steht der Gefährte noch, ab Schritt 4
+ * springt er mit — also genau dann, wenn der Angriff des Helden trifft.
+ * Stehen läuft mit 4 fps, alles andere mit 8 fps (Handoff-Regel 6).
+ */
+export function createPetPlayer(el, kind, color, scale = 2) {
+  const s = Math.max(1, Math.round(scale));
+  const zeig = (img) => {
+    const cv = toCanvas(img, s);
+    Object.assign(cv.style, { imageRendering: 'pixelated', display: 'block' });
+    el.replaceChildren(cv);
+  };
+  let timer = null, idle = petBattleFrames(kind, color, 'idle');
+  const ruhe = () => {
+    clearInterval(timer);
+    let i = 0;
+    zeig(idle[0]);
+    timer = setInterval(() => { i = (i + 1) % idle.length; zeig(idle[i]); }, 1000 / PET_BATTLE.idleFps);
+  };
+  ruhe();
+  return {
+    /** name: 'attack' | 'hurt' | 'win' | 'die' | 'ko'. Danach zurück ins Stehen. */
+    play(name) {
+      clearInterval(timer);
+      if (name === 'win' || name === 'ko') {
+        const f = petBattleFrames(kind, color, name);
+        let i = 0;
+        zeig(f[0]);
+        timer = setInterval(() => { i = (i + 1) % f.length; zeig(f[i]); },
+          1000 / (name === 'ko' ? PET_BATTLE.idleFps : PET_BATTLE.actionFps));
+        return;
+      }
+      if (name === 'die') {
+        const f = petBattleFrames(kind, color, 'die');
+        let i = 0;
+        zeig(f[0]);
+        timer = setInterval(() => {
+          i++;
+          if (i >= f.length) { clearInterval(timer); this.play('ko'); return; }
+          zeig(f[i]);
+        }, 1000 / PET_BATTLE.actionFps);
+        return;
+      }
+      // Angriff und Treffer laufen im gemeinsamen Takt mit dem Helden.
+      const folge = petBattleSequence(kind, color, name + '@4').slice(0, 8);
+      let i = 0;
+      zeig(folge[0]);
+      timer = setInterval(() => {
+        i++;
+        if (i >= folge.length) { clearInterval(timer); ruhe(); return; }
+        zeig(folge[i]);
+      }, 1000 / PET_BATTLE.actionFps);
+    },
+    destroy() { clearInterval(timer); },
+  };
 }
 
 /**

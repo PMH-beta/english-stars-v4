@@ -29,8 +29,8 @@ Es gibt **keinen Schalter `pastell`** (F-02). Der Rückweg ist `git revert`.
 | **0** | Prüfblatt `dev/sprites.html` | neue Datei; die fünf Module nach `src/modules/` kopiert | — | **fertig** (`6708961`) |
 | **3** | Gegner | `pixel-enemies.js` → `pixel-enemies-dungeon.js`; Kampfrichtung in `campaign-fight.js` | — | **fertig** |
 | **4** | Figur & Gefährte | `avatar.js`, neu `hero.js`, `campaign-fight.js`, `campaign-equipment.js`, `style.css`, `sw.js` | — | **fertig** |
-| **5** | Gegenstände, Kampfplätze, Lagerfeuer | neu `world.js`; `campaign-fight.js`, `campaign-equipment.js`, `ui.js`, `style.css` | F-27 (Rastplatz-Screen) | **fertig bis auf 6.7** |
-| **6** | Kampf-Animationen | `campaign-fight.js` | F-12, F-13 | mittel — Treffer-Timing wandert in `onHit` |
+| **5** | Gegenstände, Kampfplätze, Lagerfeuer | neu `world.js`; `campaign-fight.js`, `campaign-equipment.js`, `ui.js`, `campaign.js`, `style.css` | — | **fertig** |
+| **6** | Kampf-Animationen | `campaign-fight.js`, `hero.js`, `style.css` | — | **fertig** |
 | **7** | Screens, ein Commit je Bereich | `index.html`, `ui.js`, `decks.js`, `vocab.js`, `game.js`, `campaign*.js`, `style.css` | F-08, F-09, F-15–F-21, F-25 | gering je Bereich |
 | **7b** | App-Tour | neu `tour.js`, dazu `ui.js`, `storage.js`, `sync.js` | F-14 | `tourSeen` muss in die sync-Whitelist |
 | **8** | Aufräumen | alte SVG-Renderer, alter CSS-Block (~1000 Zeilen) | Freigabe | hoch — erst zum Schluss |
@@ -44,17 +44,21 @@ im Dev-Server wie auf der veröffentlichten Seite. `vite.config.js` musste dafü
 nicht angefasst werden. `npm run build` schreibt weiterhin nur `dist/`, was für
 die Auslieferung keine Rolle spielt.
 
-## Phase 6 — als Nächstes
+## Phase 7 — als Nächstes
 
-Kampf-Animationen in `campaign-fight.js`: `SpritePlayer`, `ProjectileLayer`,
-`heroCombatSheet`, `enemyCombatSheet` aus `pixel-anim.js`. Kampf-Blätter beim
-Laden des Kampfes bauen. Schaden, Lebensleiste und Ton in `onHit`, bei Bogen und
-Stab erst beim Einschlag. Gefährte synchron über `petBattleSequence`, immer vor
-dem Helden.
+Die Screens nach `SCREENS.md`, Bereich 1 bis 9, ein Commit je Bereich. Jeder
+Screen wie sein Fragment: Aufbau, Texte, Abstände, Farben, Icons.
+UI-Animationen mit `createUiAnimator({ icon, idleFrames })` aus `ui-anim.js` am
+gemeinsamen 8-fps-Takt. Den Charakter-Editor (1.9, 1.10, 8.4–8.10) nach
+„Charakter-Editor" in START-HERE.
 
-**Vorher beantworten: F-12** (Gefährte als eigene Figur im Kampf) und **F-13**
-(7.15/7.16 zeigen Punkte je Welle, die es nicht gibt). Offen aus Phase 5:
-**F-27** (Rastplatz-Screen 6.7).
+**Offene Fragen je Bereich:** F-08 (Schmiede: „Wörter befüllen", Löschen
+entfällt) · F-09 (Info-Knopf je Station) · F-15 (7 Reiter beim ersten Start) ·
+F-16 (Zurück verwirft, Rückfrage 8.12) · F-17 (Scan ohne Key) · F-18
+(Selbstbewertung) · F-19 (5.7 und 5.10) · F-20 („App installieren" beim
+3. Start) · F-21 (Mikrofon-Pegel) · F-25 (Freund-Fortschritt).
+
+Danach 7b (App-Tour, F-14) und zuletzt 8 (Aufräumen, nur mit Freigabe).
 
 ## Was in jeder Phase gilt
 

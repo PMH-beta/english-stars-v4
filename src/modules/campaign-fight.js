@@ -33,7 +33,9 @@ import { startTrueFalse } from './minigame-truefalse.js';
 import { equippedWeapon, equipEffects, equippedGearMap, POTIONS, potionStacks } from './campaign-equipment.js';
 import { pickEnemyKey, enemyName, enemyBattleSVG } from './enemies.js';
 import { arenaSVG, arenaForRound } from './world.js';
-import { renderAvatarInto } from './avatar.js';
+import { renderAvatarInto, ensureAvatar } from './avatar.js';
+import { heroCombatSheet, enemyCombatSheet, SpritePlayer, ProjectileLayer } from './pixel-anim.js';
+import { gearFor, createPetPlayer, petKind, petColorHex } from './hero.js';
 import { playSfx } from './game.js';
 import { effectivePct, statKeyFor } from './stats.js';
 import { getConstellations, IRREGULAR_VERBS, IRREGULAR_PRESET_ID, verbsByEns } from './irregular-verbs.js';
@@ -274,7 +276,14 @@ export function openFight({ run, node, save, onEnd, round, stat }) {
   // enemyKey = welcher der 36 Gegner auftritt. Bleibt für den ganzen Kampf gleich,
   // liegt aber bewusst NUR hier und nicht im Spielstand — wie bisher wird beim
   // Fortsetzen eines Kampfes neu gewürfelt.
-  _ctx = { run, node, enemy, enemyKey: pickEnemyKey(node.type), weapon: equippedWeapon(), eff: equipEffects(), save, onEnd, stat, mg: null, round, cfPreset: false, cfDecks: new Set() };
+  const enemyKey = pickEnemyKey(node.type);
+  // Kampf-Blaetter EINMAL beim Laden bauen (Handoff-Regel 6) - ein Helden-Blatt
+  // kostet rund 110 ms, beim ersten Angriff waere das ein sichtbarer Haenger.
+  const heroCfg = { ...ensureAvatar(window.SD), gear: gearFor(equippedGearMap()) };
+  _ctx = { run, node, enemy, enemyKey, heroCfg,
+    heroSheet: heroCombatSheet(heroCfg), enemySheet: enemyCombatSheet(enemyKey),
+    players: null, layer: null,
+    weapon: equippedWeapon(), eff: equipEffects(), save, onEnd, stat, mg: null, round, cfPreset: false, cfDecks: new Set() };
   _renderOverlay();
   _startWave();
 }
@@ -362,9 +371,10 @@ function _renderOverlay() {
          Figuren bleiben an ihrer normalen Position, Kopf/Schultern ragen in den Himmel. -->
     <div class="cf-ground-wrap">
       <div class="cf-arena">
-        <div class="cf-hero" id="cf-hero"></div>
+        <canvas class="cf-flug" id="cf-flug"></canvas>
+        <div class="cf-hero" id="cf-hero"><div class="cf-pet" id="cf-pet"></div></div>
         <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
-          <div class="cf-enemy${node.type === 'boss' ? ' boss' : ''}" id="cf-enemy">${enemyBattleSVG(enemyKey)}</div>
+          <div class="cf-enemy${node.type === 'boss' ? ' boss' : ''}" id="cf-enemy"></div>
           <div class="cf-gegnerkarte">
             <div class="cf-leiste-kopf">
               <span class="cf-leiste-lbl">${enemyName(enemyKey) || enemy.name}</span>
@@ -392,7 +402,7 @@ function _renderOverlay() {
   // Erst jetzt zeichnen: renderAvatarInto misst den Container, um die Figur
   // ganzzahlig zu skalieren (Handoff-Regel 6). Vor dem Einhaengen hat .cf-hero
   // noch keine Groesse.
-  renderAvatarInto('cf-hero', window.SD, { gear: equippedGearMap() });
+  _buildPlayers();
   _el('cf-flee').onclick = () => {
     // Verlassen zählt wie Tod (verhindert Welle-neu-würfeln durch Fliehen+Fortsetzen) —
     // deshalb vorher fragen, mit demselben Blur-Hintergrund-Dialog wie „Aufgeben". Welle
@@ -409,6 +419,41 @@ function _renderOverlay() {
     } else leave();
   };
   _renderPotions();
+}
+
+// ── Figuren im Kampf ────────────────────────────────────────────────────────
+// Held, Gegner und Gefaehrte laufen ueber SpritePlayer bzw. createPetPlayer.
+// Massstab am Container gemessen, damit er ganzzahlig bleibt: der Held misst
+// ruhend 54 x 87, der Gegner 72 x 78 (Boss 96 x 102).
+function _buildPlayers() {
+  if (!_ctx) return;
+  const heroEl = _el('cf-hero'), enemyEl = _el('cf-enemy'), petEl = _el('cf-pet'), flug = _el('cf-flug');
+  if (!heroEl || !enemyEl) return;
+  const boss = _ctx.node.type === 'boss';
+  const hs = Math.max(1, Math.round(heroEl.clientWidth / 54));
+  const es = Math.max(1, Math.round(enemyEl.clientWidth / (boss ? 96 : 72)));
+  const hero = new SpritePlayer(document.createElement('canvas'), _ctx.heroSheet, { scale: hs });
+  heroEl.insertBefore(hero.cv, petEl || null);
+  let feind = null;
+  if (_ctx.enemySheet) { feind = new SpritePlayer(document.createElement('canvas'), _ctx.enemySheet, { scale: es }); enemyEl.appendChild(feind.cv); }
+  else enemyEl.innerHTML = enemyBattleSVG(_ctx.enemyKey);   // Notnagel ohne Kampf-Blatt
+  // Gefaehrte nur, wenn einer geschmiedet und angelegt ist - seine Wirkung
+  // (COMPANION_GUARDS) haengt unveraendert an der Ausruestung, nicht am Bild.
+  let pet = null;
+  const gm = equippedGearMap();
+  if (petEl && gm && gm.companion) {
+    const a = ensureAvatar(window.SD);
+    pet = createPetPlayer(petEl, petKind(a.pet), petColorHex(a.pet, a.petColor), hs);
+  }
+  _ctx.players = { hero, feind, pet };
+  if (flug) { try { _ctx.layer = new ProjectileLayer(flug, { scale: hs }); } catch (e) { _ctx.layer = null; } }
+}
+
+function _destroyPlayers() {
+  const p = _ctx && _ctx.players;
+  if (!p) return;
+  p.hero?.destroy(); p.feind?.destroy(); p.pet?.destroy();
+  _ctx.players = null; _ctx.layer = null;
 }
 
 function _setBars() {
@@ -481,17 +526,38 @@ function _impactBurst(overId, color) {
   }
 }
 
-// Schlag-Sequenz: Angreifer holt aus und schlägt zu (Waffe schwingt mit), beim
-// Aufschlag blinkt und taumelt das Ziel, Splitter stieben weg und die Schadenszahl
-// steigt auf. Der Versatz passt zur Vorstoß-Phase der Angriffs-Animation (45 %).
-function _strike(attackerId, targetId, dmgText, color) {
-  _anim(attackerId, 'attack', 500);
-  setTimeout(() => {
-    _hitFlash(targetId);
-    _anim(targetId, 'shake', 340);
-    _impactBurst(targetId, color);
-    _damagePop(targetId, dmgText, color);
-  }, 210);
+// Ein Schlagabtausch. Der Angreifer spielt seinen Angriff; SCHADEN, LEBENSLEISTE
+// und TON haengen am Treffer-Bild (onHit), nicht am Start des Angriffs
+// (Handoff-Regel 6). Bei Bogen und Stab feuert onHit erst beim Einschlag des
+// Geschosses - dafuer bekommt der Spieler `target` und die Pfeil-Ebene mit.
+// `treffer` wendet den Schaden an, `danach` laeuft, wenn der Angriff durch ist.
+function _strike(wer, dmgText, color, treffer, danach) {
+  const p = _ctx && _ctx.players;
+  const held = wer === 'hero';
+  const ziel = held ? 'cf-enemy' : 'cf-hero';
+  if (!p || !p.hero) {   // ohne Figuren (Notnagel): Schaden sofort, ohne Animation
+    treffer(); _damagePop(ziel, dmgText, color); if (danach) danach();
+    return;
+  }
+  const angreifer = held ? p.hero : p.feind;
+  const getroffen = held ? p.feind : p.hero;
+  const onHit = () => {
+    treffer();
+    _damagePop(ziel, dmgText, color);
+    _impactBurst(ziel, color);
+    getroffen?.play('hurt');
+    if (!held) p.pet?.play('hurt');   // der Gefaehrte zuckt mit
+  };
+  if (!angreifer) { onHit(); if (danach) danach(); return; }
+  // Waehrend des Angriffs liegen Held und Gefaehrte vor dem Gegner.
+  const heroEl = _el('cf-hero');
+  if (held && heroEl) heroEl.classList.add('vorn');
+  if (held) p.pet?.play('attack');
+  angreifer.play('attack', {
+    target: getroffen, layer: _ctx.layer,
+    onHit,
+    onEnd: () => { if (held && heroEl) heroEl.classList.remove('vorn'); if (danach) danach(); },
+  });
 }
 
 // Fehlgriff in EINEM Minispiel (falscher Buchstabe, falscher Meteor, falsches Wort,
@@ -505,8 +571,8 @@ function _onMiss() {
   _ctx.waveMiss = true;
   run.hp = Math.max(0, run.hp - STORM_MISS_DMG);
   _setBars();
-  _hitFlash('cf-hero');
-  _anim('cf-hero', 'shake', 340);
+  _ctx.players?.hero?.play('hurt');
+  _ctx.players?.pet?.play('hurt');
   _impactBurst('cf-hero', '#ff8787');
   _damagePop('cf-hero', '−' + STORM_MISS_DMG, '#ff8787');
   save();
@@ -791,13 +857,21 @@ function _onWave(success) {
     if (hammer) dmg *= PERK_HAMMER_MULT;
     const tali = node.type === 'irregular' && eff.talisman;
     if (tali) dmg = Math.round(dmg * TALISMAN_MULT);
-    f.enemyHp = Math.max(0, f.enemyHp - dmg);
-    _setBars();
     // Alle Zusatz-Effekte (Formen-Bonus/Hammer/Talisman) direkt in die Schadenszahl,
     // die über dem Gegner aufsteigt — keine separate Text-Anzeige mehr nötig.
-    _strike('cf-hero', 'cf-enemy', '−' + dmg + (bonus ? ' ✨' : '') + (hammer ? ' 🔨' : '') + (tali ? ' 🧿' : ''), '#c084fc');
-    try { playSfx('correct'); } catch (e) {}
-    if (f.enemyHp <= 0) { run.fight = null; save(); _endScreen(true); return; }
+    _strike('hero', '−' + dmg + (bonus ? ' ✨' : '') + (hammer ? ' 🔨' : '') + (tali ? ' 🧿' : ''), '#c084fc',
+      () => {
+        f.enemyHp = Math.max(0, f.enemyHp - dmg);
+        _setBars();
+        try { playSfx('correct'); } catch (e) {}
+      },
+      () => {
+        if (!_ctx) return;
+        if (f.enemyHp <= 0) { const wellen = f.wave; run.fight = null; save(); _endScreen(true, wellen); return; }
+        f.wave++; save();
+        setTimeout(() => { if (_ctx) _startWave(); }, 300);
+      });
+    return;
   } else if (f.shield) {
     // 🛡️ Schildtrank: wehrt genau eine verlorene Welle ab. Popup über dem eigenen
     // Character statt Text-Feedback — analog zu Schaden über dem Gegner.
@@ -814,11 +888,19 @@ function _onWave(success) {
     _damagePop('cf-hero', '🪖 Block!', '#69db7c');
     try { playSfx('click'); } catch (e) {}
   } else {
-    run.hp = Math.max(0, run.hp - enemy.dmg);
-    _setBars();
-    _strike('cf-enemy', 'cf-hero', '−' + enemy.dmg, '#ff8787');
-    try { playSfx('wrong'); } catch (e) {}
-    if (run.hp <= 0) { save(); _endScreen(false); return; }
+    _strike('enemy', '−' + enemy.dmg, '#ff8787',
+      () => {
+        run.hp = Math.max(0, run.hp - enemy.dmg);
+        _setBars();
+        try { playSfx('wrong'); } catch (e) {}
+      },
+      () => {
+        if (!_ctx) return;
+        if (run.hp <= 0) { save(); _endScreen(false); return; }
+        f.wave++; save();
+        setTimeout(() => { if (_ctx) _startWave(); }, 300);
+      });
+    return;
   }
   f.wave++;
   save();
@@ -848,29 +930,30 @@ function _confettiBurst() {
   setTimeout(() => wrap.remove(), 2600);
 }
 
-function _endScreen(victory) {
-  const { node, round } = _ctx;
+function _endScreen(victory, wellen = 0) {
+  const { node, round, players } = _ctx;
   const boss = node.type === 'boss';
   const bossWin = victory && boss;
   const stage = _el('cf-stage');
   if (victory) try { playSfx('end'); } catch (e) {}
+  // Sieg und Niederlage kommen aus dem Modul (7.15/7.16 bzw. 7.17):
+  // play('win') laeuft in Schleife, play('die') geht von selbst in 'ko' ueber -
+  // nicht selbst zurueck auf 'idle' schalten (Handoff-Regel 6).
   if (victory) {
-    // Jeder besiegte Gegner zerplatzt (siehe .cf-enemy.poof), der Held reißt die
-    // Waffe hoch und hüpft (.cf-hero.cheer) — beim Boss zusätzlich Konfetti.
-    const enemyEl = _el('cf-enemy');
-    if (enemyEl) enemyEl.classList.add('poof');
-    const heroEl = _el('cf-hero');
-    if (heroEl) heroEl.classList.add('cheer');
+    players?.feind?.play('die');
+    players?.hero?.play('win');
+    players?.pet?.play('win');
     if (bossWin) _confettiBurst();
   } else {
-    // Niederlage: der Held sackt zur Seite weg (.cf-hero.down).
-    const heroEl = _el('cf-hero');
-    if (heroEl) heroEl.classList.add('down');
+    players?.hero?.play('die');
+    players?.pet?.play('die');
+    players?.feind?.play('win');
   }
   if (stage) stage.innerHTML = `<div style="display:flex;justify-content:center;padding:20px 16px;">
     <div style="background:#fff;border-radius:20px;padding:28px 24px;box-shadow:0 4px 14px rgba(0,0,0,.22);max-width:300px;text-align:center;">
       <div style="font-size:4rem;margin-bottom:12px;">${victory ? (boss ? '👑' : '🎉') : '💀'}</div>
       <div class="p-dlg-titel" style="margin-bottom:10px">${bossWin ? `🐉 Boss Nr. ${round + 1} besiegt!` : victory ? 'Gewonnen!' : 'Besiegt …'}</div>
+      ${victory && wellen > 0 ? `<div class="p-chip p-chip--gold" style="margin-bottom:12px">${wellen} ${wellen === 1 ? 'Welle' : 'Wellen'} gewonnen</div>` : ''}
       <div style="font-size:.9rem;font-weight:700;color:#777;margin-bottom:${bossWin ? 14 : 22}px;line-height:1.5;">${victory
         ? (boss ? 'Du hast dich bis ganz nach oben gekämpft — der Lauf ist geschafft!' : 'Der Weg ist frei — wähle den nächsten Knoten.')
         : `Deine HP sind auf 0 — der Lauf ist vorbei und der Einsatz (2 🪙) weg.${round > 0 ? ' Der Aufstieg beginnt wieder bei Runde 1.' : ''}`}</div>
@@ -886,6 +969,7 @@ function _endScreen(victory) {
 
 function _close(result) {
   if (_ctx?.mg) _ctx.mg.destroy();
+  _destroyPlayers();
   const onEnd = _ctx?.onEnd;
   _markCfDirty();
   _ctx = null;

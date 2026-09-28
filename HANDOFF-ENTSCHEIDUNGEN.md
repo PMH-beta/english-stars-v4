@@ -27,14 +27,15 @@ Avatare dürfen bei einer Migration verloren gehen. Kein Umbau darf `SD.decks`,
 | F-07 | Talisman und Ring an der Figur | **A — akzeptieren.** Die neue Figur trägt sie nicht mehr sichtbar. Wirkung im Kampf und Fach im Profil bleiben unverändert. Der Gefährte steht als eigene Figur daneben. | 4 | 29.09.2026 |
 | F-06 | Stufe „verzaubert" hat im neuen Modul kein Bild | **Keine Frage nötig.** `itemSpriteSVG` hat `tier` schon immer ignoriert — „verzaubert" hatte nie ein eigenes Bild. `itemSprite(typ, material)` bildet dasselbe ab: Stahl oder Gold. Werte und Fortschritt unberührt. | 5 | 29.09.2026 |
 | F-10 | Welcher der 6 Kampfplätze erscheint wann? | **An die Runde gebunden** (Wiese → Abend → Kerker → Kristall → Vulkan → Friedhof, dann von vorn). Keine Funktionsänderung — es ist nur das Hintergrundbild; deshalb ohne Rückfrage entschieden, wie am 29.09. vereinbart. | 5 | 29.09.2026 |
+| F-12 | Gefährte als eigene Figur im Kampf | **Ohne Rückfrage gebaut.** Seine Wirkung (COMPANION_GUARDS) ändert sich nicht — seit Phase 4 war er nur unsichtbar geworden. Er steht jetzt neben dem Helden, springt beim Angriff mit und zuckt beim Treffer. | 6 | 29.09.2026 |
+| F-13 | 7.15/7.16 zeigen Punkte je Welle | **C — Wellen zählen statt Punkte.** Der Sieg-Screen zeigt „N Wellen gewonnen" aus `run.fight.wave`. Keine neue Spielregel, kein neues Feld. | 6 | 29.09.2026 |
+| F-27 | Rastplatz-Screen 6.7 gibt es heute nicht | **A — Screen bauen.** Kampfplatz „abend", Lagerfeuer in 8 fps, Lebensleiste mit dem Zugewinn, Knopf „Weiter". Die Heilung bleibt exakt REST_HEAL und gedeckelt. | 5 | 29.09.2026 |
 | — | Neuen Handoff-Stand committen | **Ja**, eigener Commit `12f94b6` (Unterlagen + `CLAUDE.md`, kein App-Code). | — | 28.09.2026 |
 
 ## Offen — je Phase zu beantworten
 
 | Nr. | Frage (kurz) | Gebraucht vor |
 | --- | --- | --- |
-| F-12 | Gefährte als eigene animierte Figur im Kampf | Phase 6 |
-| F-13 | 7.15/7.16 zeigen Punkte je Welle — die gibt es nicht | Phase 6 |
 | F-09 | Info-Knopf je Station mit den Werten der Waffe | Phase 7 |
 | F-15 | Erster Start: 7 Reiter statt 10 Merkmale | Phase 7 |
 | F-16 | Charakter-Editor: Zurück verwirft + Rückfrage 8.12 (heute speichert Zurück) | Phase 7 |
