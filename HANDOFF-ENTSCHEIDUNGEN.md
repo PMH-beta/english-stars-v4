@@ -18,13 +18,14 @@ Avatare dürfen bei einer Migration verloren gehen. Kein Umbau darf `SD.decks`,
 | F-01 | Neue Pixel-Art-Module übernehmen? Widerspricht der Entscheidung vom 19.09.2026 („bestehende Pixel-Art bleibt") | **A — alles neu.** Phasen 0, 3, 4, 5, 6 werden gebaut. Die Entscheidung vom 19.09.2026 ist damit aufgehoben. | 0, 3–6 | 28.09.2026 |
 | F-02 | Schalter `pastell` für den Vergleich alt/neu | **Kein Schalter.** Der Rückweg ist `git revert`. Begründung des Nutzers: der Fortschritt der Bestandskonten ist entbehrlich. | alle | 28.09.2026 |
 | F-24 | Wie ist `dev/sprites.html` erreichbar? | **A — im Build**, wie `dev/pixel-icons-test.html` und `dev/bausteine.html`. Damit auch vom Handy über `/dev/sprites.html`. | 0 | 28.09.2026 |
+| F-11 | Gegnername im Kampf: Einzelname oder Typ-Name? | **A — Einzelname.** Die Lebensleiste zeigt „Moosschleim" statt „Wortgeist". Die Titelzeile trägt weiterhin den Knotentyp („⚔️ Übung"), die Information geht also nicht verloren. | 3 | 29.09.2026 |
+| F-23 | Wie werden die 402 KB Gegner-Sprites geladen? | **Statisch + vorgecacht.** Normaler Import in `campaign-fight.js`, Eintrag im PRECACHE von `sw.js`. Bewusst in Kauf genommen: der App-Start lädt und parst 402 KB mehr. | 3 | 29.09.2026 |
 | — | Neuen Handoff-Stand committen | **Ja**, eigener Commit `12f94b6` (Unterlagen + `CLAUDE.md`, kein App-Code). | — | 28.09.2026 |
 
 ## Offen — je Phase zu beantworten
 
 | Nr. | Frage (kurz) | Gebraucht vor |
 | --- | --- | --- |
-| F-11 | Gegnernamen: Einzelname („Moosschleim") oder Typ-Name („Wortgeist")? | Phase 3 |
 | F-03 | Avatar-Merkmale: `ears`, `nose`, `petEars`, `petTail`, `petEyes`, `petPattern` fallen weg; `iris`, `topC`, `pantsC` kommen dazu; `build` 20 → 3 | Phase 4 |
 | F-04 | Gefährten-Zuordnung 0–9 stimmt nicht (Hund/Hase/Vogel/Frosch/Geist ≠ Wolf/Biene/Adler/Schlange/Krake) | Phase 4 |
 | F-05 | Migration `avatarVersion: 2` — einmalig und irreversibel | Phase 4 |
@@ -44,6 +45,5 @@ Avatare dürfen bei einer Migration verloren gehen. Kein Umbau darf `SD.decks`,
 | F-21 | 9.7 Mikrofon-Pegel an die echte Lautstärke koppeln? | Phase 7 |
 | F-08 | „Werkstoff wählen" → „Wörter befüllen", Station löschen entfällt | Phase 7 |
 | F-14 | App-Tour 1.11–1.15, Feld `tourSeen`, Demo-Stand | Phase 7b |
-| F-23 | Precache: 745 KB Sprite-Module ganz oder teilweise in `sw.js` | nebenbei |
 | F-25 | Was liefert die RPC `get_friend_progress` heute? | Phase 7, Bereich 8 |
 | F-26 | Abnahme je Phase: nur `npm run build` oder zusätzlich Headless-Screenshots | nebenbei |

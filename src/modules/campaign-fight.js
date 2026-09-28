@@ -31,7 +31,7 @@ import { startEcho } from './minigame-echo.js';
 import { iconHTML } from './pixel-icons.js';
 import { startTrueFalse } from './minigame-truefalse.js';
 import { equippedWeapon, equipEffects, equippedGearMap, POTIONS, potionStacks } from './campaign-equipment.js';
-import { enemySpriteSVG } from './pixel-enemies.js';
+import { pickEnemyKey, enemyName, enemyBattleSVG } from './enemies.js';
 import { avatarSVG, ensureAvatar } from './avatar.js';
 import { playSfx } from './game.js';
 import { effectivePct, statKeyFor } from './stats.js';
@@ -270,7 +270,10 @@ export function openFight({ run, node, save, onEnd, round, stat }) {
   }
   // cfPreset/cfDecks merken sich, welche Stat-Töpfe der Kampf angefasst hat (siehe
   // _record/_markCfDirty).
-  _ctx = { run, node, enemy, weapon: equippedWeapon(), eff: equipEffects(), save, onEnd, stat, mg: null, round, cfPreset: false, cfDecks: new Set() };
+  // enemyKey = welcher der 36 Gegner auftritt. Bleibt für den ganzen Kampf gleich,
+  // liegt aber bewusst NUR hier und nicht im Spielstand — wie bisher wird beim
+  // Fortsetzen eines Kampfes neu gewürfelt.
+  _ctx = { run, node, enemy, enemyKey: pickEnemyKey(node.type), weapon: equippedWeapon(), eff: equipEffects(), save, onEnd, stat, mg: null, round, cfPreset: false, cfDecks: new Set() };
   _renderOverlay();
   _startWave();
 }
@@ -373,7 +376,7 @@ function _hillsScene() {
 // die Landschafts-Arena mit Spieler (links) und Gegner (rechts).
 function _renderOverlay() {
   _removeOverlay();
-  const { run, node, enemy, weapon } = _ctx;
+  const { run, node, enemy, weapon, enemyKey } = _ctx;
   const f = run.fight;
   const ov = document.createElement('div');
   ov.id = 'cf-overlay';
@@ -406,10 +409,10 @@ function _renderOverlay() {
       <div class="cf-arena">
         <div class="cf-hero" id="cf-hero">${avatarSVG(ensureAvatar(window.SD), { gear: equippedGearMap() })}</div>
         <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
-          <div class="cf-enemy${node.type === 'boss' ? ' boss' : ''}" id="cf-enemy">${enemySpriteSVG(node.type)}</div>
+          <div class="cf-enemy${node.type === 'boss' ? ' boss' : ''}" id="cf-enemy">${enemyBattleSVG(enemyKey)}</div>
           <div class="cf-gegnerkarte">
             <div class="cf-leiste-kopf">
-              <span class="cf-leiste-lbl">${enemy.name}</span>
+              <span class="cf-leiste-lbl">${enemyName(enemyKey) || enemy.name}</span>
               <span class="cf-leiste-zahl"><span id="cf-ehp">${f.enemyHp}</span>/${f.enemyHpMax}</span>
             </div>
             <div class="p-balken p-balken--fehler" style="height:9px;margin-top:6px"><i id="cf-ehpbar" style="width:${f.enemyHp / f.enemyHpMax * 100}%"></i></div>

@@ -40,6 +40,11 @@ const PRECACHE = [
   './src/modules/minigame-echo.js', './src/modules/minigame-letterstorm.js',
   './src/modules/minigame-meteors.js', './src/modules/minigame-truefalse.js',
   './src/modules/pixel-enemies.js', './src/modules/pixel-icons.js', './src/modules/pixel-items.js',
+  // Dungeon-Gegner (Pastell-Redesign). campaign-fight.js importiert sie statisch,
+  // also müssen sie mit in den Precache — sonst steht ein frisch installiertes,
+  // sofort offline genutztes Gerät ohne Gegner da. pixel-enemies.js bleibt bis
+  // Phase 8 daneben stehen (Aufräumen erst nach Freigabe).
+  './src/modules/pixel-enemies-dungeon.js', './src/modules/enemies.js',
   './src/modules/pwa.js', './src/modules/screen-shell.js',
   './src/modules/speech.js', './src/modules/startup.js', './src/modules/stats.js',
   './src/modules/storage.js', './src/modules/supabase.js', './src/modules/sync.js',

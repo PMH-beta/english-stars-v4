@@ -1352,10 +1352,14 @@ body.in-game .mode-progress{display:block;}
 .cf-enemy{width:142px;height:142px;flex:none;position:relative;z-index:1;}
 .cf-enemy.boss{width:192px;height:192px;}
 .cf-enemy svg{animation:cfIdleEnemy 1.05s steps(1,end) infinite;transform-origin:50% 100%;}
+/* Nur Versatz, kein scaleY mehr: die Dungeon-Gegner sind Pixel-Art und dürfen
+   ausschließlich ganzzahlig skaliert werden (Handoff-Regel 6) — ein scaleY(1.03)
+   verschmiert das Raster. Das eigentliche Stehen kommt in Phase 6 mit 4 fps aus
+   dem Modul (SpritePlayer) und löst diese CSS-Animation ab. */
 @keyframes cfIdleEnemy{
-  0%,32%{transform:translateY(0) scaleY(1);}
-  33%,65%{transform:translateY(-2px) scaleY(1.03);}
-  66%,100%{transform:translateY(-1px) scaleY(.98);}
+  0%,32%{transform:translateY(0);}
+  33%,65%{transform:translateY(-2px);}
+  66%,100%{transform:translateY(-1px);}
 }
 .cf-enemy.hit svg{animation:none;filter:brightness(2.4);}
 .cf-enemy.poof svg{animation:cfBossPoof .6s ease-in forwards;}

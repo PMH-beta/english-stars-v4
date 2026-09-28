@@ -27,7 +27,7 @@ Es gibt **keinen Schalter `pastell`** (F-02). Der Rückweg ist `git revert`.
 | # | Phase | Fasst an | Offene Fragen | Risiko |
 | --- | --- | --- | --- | --- |
 | **0** | Prüfblatt `dev/sprites.html` | neue Datei; die fünf Module nach `src/modules/` kopiert | — | **fertig** (`6708961`) |
-| **3** | Gegner | `pixel-enemies.js` → `pixel-enemies-dungeon.js`; Kampfrichtung in `campaign-fight.js` | F-11 | gering |
+| **3** | Gegner | `pixel-enemies.js` → `pixel-enemies-dungeon.js`; Kampfrichtung in `campaign-fight.js` | — | **fertig** |
 | **4** | Figur & Gefährte | `avatar.js`, `storage.js`, `sync.js`, `ui.js`, `campaign-equipment.js` | F-03, F-04, F-05, F-07 | Speicherstand (Avatare entbehrlich, **Decks unantastbar**) |
 | **5** | Gegenstände, Kampfplätze, Lagerfeuer | `pixel-items.js`, `campaign-fight.js`, `campaign-equipment.js`, Schmiede in `ui.js` | F-06, F-10, F-22 | mittel |
 | **6** | Kampf-Animationen | `campaign-fight.js` | F-12, F-13 | mittel — Treffer-Timing wandert in `onHit` |
@@ -44,15 +44,16 @@ im Dev-Server wie auf der veröffentlichten Seite. `vite.config.js` musste dafü
 nicht angefasst werden. `npm run build` schreibt weiterhin nur `dist/`, was für
 die Auslieferung keine Rolle spielt.
 
-## Phase 3 — als Nächstes
+## Phase 4 — als Nächstes
 
-1. `pixel-enemies.js` durch `pixel-enemies-dungeon.js` ersetzen.
-   `enemySpriteSVG(kind)` hat dieselbe Signatur, und `ENEMY_POOL` trägt genau
-   die drei Schlüssel, die `node.type` heute schon benutzt
-   (`fight` 20 · `irregular` 8 · `boss` 8).
-2. Im Kampf die Kampfrichtung aus `DUNGEON_ENEMIES_FACING_LEFT` nehmen,
-   zum Helden gedreht.
-3. Vorher F-11 beantworten (Einzelname oder Typ-Name).
+Figur und Gefährte: Adapter statt `avatarSVG` mit `renderHero`, `renderHead`,
+`renderPet`, `renderHeroWithPet`; `equippedGearMap()` anschließen; Figuren
+cachen (Schlüssel: Avatar + Ausrüstung).
+
+**Vorher beantworten: F-03, F-04, F-05, F-07.** Das ist die einzige Phase, die
+den Spielstand irreversibel anfasst — davor ein Blick ins DB-Backup und ein
+Dry-Run, der für den echten Spielstand zeigt, welche Figur herauskommt.
+Die Vokabeldecks bleiben in jedem Fall unberührt.
 
 ## Was in jeder Phase gilt
 
