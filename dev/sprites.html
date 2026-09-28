@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sprites — Pastell-Handoff</title>
+<!--
+  Entwickler-Werkzeug, NICHT Teil der App-Oberfläche. Aufrufen unter /dev/sprites.html
+  (Dev-Server wie ausgelieferte Seite — die App wird aus dem Repo-Wurzelverzeichnis
+  serviert, siehe .nojekyll und PRECACHE in sw.js).
+
+  Phase 0 des Pastell-Handoffs: die Sichtprüfung für alle weiteren Phasen. Zeigt
+  ausschließlich das, was die Module aus dem Handoff selbst zeichnen — hier wird
+  nichts nachgezeichnet, nichts eingefärbt und keine Pixeldatei angefasst.
+
+  Gebaut wird beim Scrollen (IntersectionObserver): ein Kampf-Blatt kostet auf dem
+  Handy leicht eine halbe Sekunde, 36 Gegner auf einmal wären unbenutzbar.
+-->
+<style>
+  :root{
+    --bg:#1F1F24; --karte:#2A2A31; --kante:#3D3D46;
+    --text:#EDEAE0; --text2:#A7A3B0; --gold:#FFD66B; --orange:#FF8A3D;
+    --font:'Nunito',system-ui,-apple-system,'Segoe UI',sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font:700 13px/1.5 var(--font);
+       padding:0 0 80px;-webkit-text-size-adjust:100%}
+  canvas,svg{image-rendering:pixelated}
+
+  header{position:sticky;top:0;z-index:10;background:#16161A;border-bottom:2px solid var(--kante);
+         padding:12px 16px 10px}
+  h1{margin:0 0 2px;font:900 17px var(--font)}
+  .hinweis{font:700 11px/1.45 var(--font);color:var(--text2);max-width:62ch}
+  nav{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px}
+  nav a{font:900 10px var(--font);color:var(--bg);background:var(--gold);text-decoration:none;
+        padding:4px 9px;border-radius:11px}
+
+  section{padding:22px 16px 0;scroll-margin-top:118px}
+  h2{margin:0 0 3px;font:900 15px var(--font);color:var(--gold)}
+  .sub{margin:0 0 12px;font:700 11px/1.45 var(--font);color:var(--text2);max-width:70ch}
+
+  .raster{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(104px,1fr))}
+  .raster.weit{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+  .raster.breit{grid-template-columns:repeat(auto-fill,minmax(230px,1fr))}
+  .karte{background:var(--karte);border:2px solid var(--kante);border-radius:12px;padding:8px;
+         display:flex;flex-direction:column;align-items:center;gap:6px;overflow:hidden}
+  .lbl{font:900 10px var(--font);text-align:center;line-height:1.25;word-break:break-word}
+  .lbl small{display:block;font:700 9px var(--font);color:var(--text2);margin-top:1px}
+  .buehne{display:flex;align-items:flex-end;justify-content:center;min-height:64px;width:100%}
+
+  /* Container einer animierten Figur: so groß wie ihr Ruhebild. Der SpritePlayer legt
+     seinen Canvas absolut hinein und versetzt ihn um -ox/-oy — Angriffsbilder ragen
+     bewusst heraus, deshalb nie abschneiden. */
+  .figur{position:relative;overflow:visible;flex:none}
+  /* Sechs Abläufe nebeneinander, seitlich scrollbar: Angriffsbilder sind bis zu
+     dreimal so breit wie das Ruhebild, in einem Raster würden sie sich überlappen. */
+  .ablauf{display:flex;gap:14px;width:100%;overflow-x:auto;overflow-y:visible;padding:0 0 8px}
+  .zelle{display:flex;flex-direction:column;align-items:center;gap:4px;flex:none}
+  .zelle .buehne{min-height:0}
+  .zelle span{font:900 9px var(--font);color:var(--text2)}
+
+  .lade{font:700 10px var(--font);color:var(--text2);padding:18px 0}
+  .fehlt{font:900 10px var(--font);color:var(--orange);padding:10px 0;text-align:center}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Sprites · Pastell-Handoff</h1>
+  <p class="hinweis">Phase 0 · Sichtprüfung. Alles auf dieser Seite kommt unverändert aus
+    <code>pixel-hero-fine.js</code>, <code>pixel-enemies-dungeon.js</code>,
+    <code>pixel-world-fine.js</code> und <code>pixel-anim.js</code>.
+    Abläufe, die von selbst enden (Angriff, Treffer, Niederlage), werden zum Anschauen alle paar
+    Sekunden neu gestartet. Stimmt eine Grafik nicht, bitte melden — nicht nachzeichnen.</p>
+  <nav>
+    <a href="#gegner">36 Gegner</a>
+    <a href="#vorlagen">10 Vorlagen</a>
+    <a href="#frisuren">20 Frisuren</a>
+    <a href="#gefaehrten">20 Gefährten</a>
+    <a href="#waffenhand">Waffen in der Hand</a>
+    <a href="#gegenstaende">Gegenstände</a>
+    <a href="#plaetze">6 Kampfplätze</a>
+    <a href="#lagerfeuer">Lagerfeuer</a>
+    <a href="#heldablauf">Held · 6 Abläufe</a>
+    <a href="#bogen">Bogen-Angriff</a>
+    <a href="#gegnerablauf">Gegner · 6 Abläufe</a>
+    <a href="#petablauf">Gefährten · 6 Abläufe</a>
+  </nav>
+</header>
+
+<section id="gegner">
+  <h2>36 Gegner — vorn und in Kampfrichtung</h2>
+  <p class="sub">Links die Vorderansicht (<code>DUNGEON_ENEMIES</code>), rechts die Kampfansicht nach
+    links zum Helden (<code>DUNGEON_ENEMIES_FACING_LEFT</code>). Gruppiert nach
+    <code>ENEMY_POOL</code> — genau die drei Schlüssel, die <code>node.type</code> heute schon nutzt.</p>
+  <div id="gegner-raster"></div>
+</section>
+
+<section id="vorlagen">
+  <h2>10 Vorlagen</h2>
+  <p class="sub"><code>PRE</code> in <code>pixel-hero-fine.js</code> — die fertigen Figur-Vorlagen,
+    jeweils <code>renderHero(cfg, 2)</code>.</p>
+  <div class="raster" id="vorlagen-raster"></div>
+</section>
+
+<section id="frisuren">
+  <h2>20 Frisuren</h2>
+  <p class="sub">Kopf-Ausschnitt wie im Charakter-Editor (<code>renderHead</code>, 34 × 34 ab (10, 0)),
+    hier in 3×. Namen aus <code>HAIR_N</code>.</p>
+  <div class="raster" id="frisuren-raster"></div>
+</section>
+
+<section id="gefaehrten">
+  <h2>20 Gefährten — Vorderansicht und Silhouette</h2>
+  <p class="sub">Links <code>renderPet</code> in der ersten der sechs Farben, rechts
+    <code>renderPetSilhouette</code> für „noch nicht freigespielt“ (Screen 8.10).</p>
+  <div class="raster weit" id="pets-raster"></div>
+</section>
+
+<section id="waffenhand">
+  <h2>8 Waffen in der Hand</h2>
+  <p class="sub">Dieselbe Figur in Kampfansicht (<code>renderHeroFacing</code>) mit je einer der
+    <code>WEAPON_TYPES</code>, angelegt über <code>gear.weapon</code>. Oben Stahl, unten Gold.</p>
+  <div class="raster weit" id="waffenhand-raster"></div>
+</section>
+
+<section id="gegenstaende">
+  <h2>Alle Gegenstände in Stahl und Gold</h2>
+  <p class="sub">8 Waffen (<code>WEAPONS</code>) und 7 Ausrüstungsteile (<code>ITEMS</code>) über
+    <code>itemSprite(typ, material)</code>. <code>past</code> = Stahl (Simple Past),
+    <code>pp</code> = Gold (Past Participle).</p>
+  <div class="raster weit" id="items-raster"></div>
+</section>
+
+<section id="plaetze">
+  <h2>6 Kampfplätze</h2>
+  <p class="sub"><code>ARENAS</code> in <code>pixel-world-fine.js</code>, je 201 × 437, hier 1×.</p>
+  <div class="raster breit" id="arenen-raster"></div>
+</section>
+
+<section id="lagerfeuer">
+  <h2>Lagerfeuer</h2>
+  <p class="sub"><code>CAMPFIRE_FRAMES</code>, 6 Bilder mit 8 fps in 2× (Screen 6.7 Rastplatz).
+    Rechts daneben die Einzelbilder und <code>CAMPFIRE</code> für statische Stellen.</p>
+  <div class="raster weit" id="feuer-raster"></div>
+</section>
+
+<section id="heldablauf">
+  <h2>Held — alle sechs Abläufe</h2>
+  <p class="sub">Stehen 4 fps · Angriff, Treffer, Sieg, Niederlage 8 fps · K.O. 4 fps.
+    <code>heroCombatSheet</code> wählt Posen, Ablauf, Projektil und Aufprall selbst aus der
+    angelegten Waffe. Eine Zeile je Waffenart, dazu „ohne Waffe“.</p>
+  <div id="held-raster"></div>
+</section>
+
+<section id="bogen">
+  <h2>Bogen-Angriff in Schleife</h2>
+  <p class="sub">Held mit Bogen gegen einen Gegner, Pfeil über <code>ProjectileLayer</code>.
+    Der Pfeil startet bei Bild 3, <code>onHit</code> kommt beim Einschlag — der Gegner spielt
+    genau dann „Treffer“. Darunter dasselbe mit dem Stab (Zauberkugel).</p>
+  <div id="bogen-buehne"></div>
+</section>
+
+<section id="gegnerablauf">
+  <h2>Alle 36 Gegner — sechs Abläufe</h2>
+  <p class="sub">Angriffsart (<code>ATK_OF</code>) und Niederlage (<code>DIE_OF</code>) wählt
+    <code>enemyCombatSheet</code> selbst. Die drei Geister lösen sich auf (<code>fade</code>) und
+    haben deshalb kein Liegebild.</p>
+  <div id="gegnerablauf-raster"></div>
+</section>
+
+<section id="petablauf">
+  <h2>Alle 20 Gefährten — sechs Abläufe</h2>
+  <p class="sub"><code>petBattleFrames(art, farbe, ablauf)</code>, je 4 Bilder.
+    Stehen und K.O. 4 fps, alles andere 8 fps. Schwebende Gefährten (Biene, Fledermaus) wippen
+    ganz und werfen einen kleineren Schatten.</p>
+  <div id="petablauf-raster"></div>
+</section>
+
+<script type="module">
+import {
+  hero, pet, PRE, PETS, HAIR_N, WEAPON_TYPES,
+  renderHero, renderHead, renderPet, renderPetSilhouette, renderHeroFacing,
+  toCanvas, turned, shadowed, petBattleFrames,
+} from '../src/modules/pixel-hero-fine.js';
+
+import {
+  DUNGEON_ENEMIES, DUNGEON_ENEMIES_FACING_LEFT, ENEMY_POOL,
+} from '../src/modules/pixel-enemies-dungeon.js';
+
+import {
+  ARENAS, WEAPONS, ITEMS, CAMPFIRE, CAMPFIRE_FRAMES, CAMPFIRE_FPS,
+  itemSprite, spriteToCanvas,
+} from '../src/modules/pixel-world-fine.js';
+
+import { heroCombatSheet, enemyCombatSheet, SpritePlayer, ProjectileLayer } from '../src/modules/pixel-anim.js';
+
+// ── kleine Helfer, nur fürs Anzeigen ────────────────────────────────────────
+const el = (tag, cls, txt) => { const n = document.createElement(tag); if (cls) n.className = cls; if (txt != null) n.textContent = txt; return n; };
+const karte = (...kinder) => { const k = el('div', 'karte'); kinder.forEach((c) => c && k.appendChild(c)); return k; };
+const buehne = (...kinder) => { const b = el('div', 'buehne'); kinder.forEach((c) => c && b.appendChild(c)); return b; };
+const label = (text, klein) => { const l = el('div', 'lbl', text); if (klein) { const s = el('small', null, klein); l.appendChild(s); } return l; };
+
+// Erst bauen, wenn die Karte in Sichtweite kommt — sonst rechnet das Handy minutenlang.
+const beobachter = new IntersectionObserver((eintraege) => {
+  for (const e of eintraege) {
+    if (!e.isIntersecting) continue;
+    beobachter.unobserve(e.target);
+    const bau = e.target._bau;
+    if (bau) { e.target._bau = null; requestAnimationFrame(() => { e.target.textContent = ''; bau(e.target); }); }
+  }
+}, { rootMargin: '300px 0px' });
+
+function spaeter(host, bau) { host.appendChild(el('div', 'lade', 'wird gezeichnet …')); host._bau = bau; beobachter.observe(host); }
+
+// Eine Figur mit SpritePlayer: Container in der Größe des RUHEBILDS, Canvas absolut darin,
+// versetzt um -ox/-oy. Die Bilder eines Ablaufs sind größer als das Ruhebild (der Held misst
+// ruhend 54 × 87, holt mit dem Speer aber über 153 Pixel Breite aus) und ragen deshalb nach
+// allen Seiten heraus. Der Überstand wird als Rand reserviert — sonst überlappen sich die
+// Figuren gegenseitig, statt dass man den Ausfallschritt sieht.
+function figur(sheet, basis, anim, scale = 2) {
+  const box = el('div', 'figur');
+  box.style.width = basis.w * scale + 'px';
+  box.style.height = basis.h * scale + 'px';
+  box.style.margin = [
+    Math.max(0, sheet.oy) * scale,
+    Math.max(0, sheet.fw - sheet.ox - basis.w) * scale,
+    Math.max(0, sheet.fh - sheet.oy - basis.h) * scale,
+    Math.max(0, sheet.ox) * scale,
+  ].map((v) => v + 'px').join(' ');
+  const cv = document.createElement('canvas');
+  box.appendChild(cv);
+  const player = new SpritePlayer(cv, sheet, { scale });
+  player.play(anim);
+  // idle, win und ko laufen von selbst in Schleife; die übrigen enden — zum Anschauen neu starten.
+  if (anim === 'attack' || anim === 'hurt' || anim === 'die') {
+    const ms = anim === 'die' ? 4200 : 2000;
+    box._timer = setInterval(() => player.play(anim), ms);
+  }
+  return { box, player };
+}
+
+const ABLAEUFE = ['idle', 'attack', 'hurt', 'win', 'die', 'ko'];
+const ABLAUF_NAMEN = { idle: 'Stehen', attack: 'Angriff', hurt: 'Treffer', win: 'Sieg', die: 'Niederlage', ko: 'K.O.' };
+
+function ablaufZeile(sheet, basis, scale = 2) {
+  const reihe = el('div', 'ablauf');
+  for (const a of ABLAEUFE) {
+    const zelle = el('div', 'zelle');
+    zelle.appendChild(buehne(figur(sheet, basis, a, scale).box));
+    zelle.appendChild(el('span', null, ABLAUF_NAMEN[a]));
+    reihe.appendChild(zelle);
+  }
+  return reihe;
+}
+
+// Bildfolge aus fertigen Bildern (Gefährten) im festen Takt abspielen. Die Bilder werden
+// EINMAL zu Canvas gerechnet und danach nur noch ein- und ausgeblendet — sonst legt jeder
+// Takt neue Elemente an (20 Gefährten × 6 Abläufe × 8 fps).
+// toCanvas() skaliert den Backing-Store, der Canvas ist also schon in seiner Anzeigegröße.
+function folge(bilder, fps, scale = 2) {
+  const box = el('div', 'figur');
+  const canvases = bilder.map((b) => toCanvas(b, scale));
+  box.style.width = canvases[0].width + 'px';
+  box.style.height = canvases[0].height + 'px';
+  canvases.forEach((c, i) => { c.style.position = 'absolute'; c.style.left = '0'; c.style.top = '0'; c.style.display = i ? 'none' : 'block'; box.appendChild(c); });
+  let i = 0;
+  setInterval(() => {
+    canvases[i].style.display = 'none';
+    i = (i + 1) % canvases.length;
+    canvases[i].style.display = 'block';
+  }, 1000 / fps);
+  return box;
+}
+
+// Grundfigur für alle Held-Abschnitte: die erste Vorlage.
+const HELD = PRE[0];
+const heldBasis = (cfg) => shadowed(turned(() => hero(Object.assign({}, cfg, { face: 1 })), 1, 34, { sort: false }).render());
+
+// ── 1 · 36 Gegner, vorn und in Kampfrichtung ────────────────────────────────
+{
+  const host = document.getElementById('gegner-raster');
+  const GRUPPEN = [['fight', '👾 Wortgeist-Knoten'], ['irregular', '🌀 Gestaltwandler-Knoten'], ['boss', '👑 Boss-Knoten']];
+  for (const [schluessel, titel] of GRUPPEN) {
+    const keys = ENEMY_POOL[schluessel];
+    host.appendChild(label(titel, keys.length + ' Gegner'));
+    const raster = el('div', 'raster weit');
+    raster.style.margin = '6px 0 16px';
+    for (const k of keys) {
+      const sp = DUNGEON_ENEMIES[k], links = DUNGEON_ENEMIES_FACING_LEFT[k];
+      const b = buehne();
+      b.appendChild(spriteToCanvas(sp, 1));
+      b.appendChild(links ? spriteToCanvas(links, 1) : el('div', 'fehlt', 'keine Kampfansicht'));
+      b.style.gap = '6px';
+      raster.appendChild(karte(b, label(sp.name || k, k)));
+    }
+    host.appendChild(raster);
+  }
+}
+
+// ── 2 · 10 Vorlagen ─────────────────────────────────────────────────────────
+{
+  const host = document.getElementById('vorlagen-raster');
+  PRE.forEach((cfg, i) => host.appendChild(karte(buehne(renderHero(cfg, 2)), label('Vorlage ' + (i + 1)))));
+}
+
+// ── 3 · 20 Frisuren ─────────────────────────────────────────────────────────
+{
+  const host = document.getElementById('frisuren-raster');
+  HAIR_N.forEach((name, i) => {
+    const cfg = Object.assign({}, HELD, { hair: i });
+    host.appendChild(karte(buehne(renderHead(cfg, 3)), label(name, i)));
+  });
+}
+
+// ── 4 · 20 Gefährten, Vorderansicht und Silhouette ──────────────────────────
+{
+  const host = document.getElementById('pets-raster');
+  PETS.forEach(([art, name, farben], i) => {
+    const b = buehne(renderPet(art, farben[0], 2), renderPetSilhouette(art, 2));
+    b.style.gap = '8px';
+    host.appendChild(karte(b, label(name, art + ' · ' + farben.length + ' Farben · ' + i)));
+  });
+}
+
+// ── 5 · 8 Waffen in der Hand ────────────────────────────────────────────────
+{
+  const host = document.getElementById('waffenhand-raster');
+  for (const typ of WEAPON_TYPES) {
+    const b = buehne();
+    b.style.gap = '4px';
+    for (const which of ['past', 'pp']) {
+      b.appendChild(renderHeroFacing(Object.assign({}, HELD, { gear: { weapon: { type: typ, which } } }), 1, 2));
+    }
+    host.appendChild(karte(b, label(typ, 'Stahl · Gold')));
+  }
+}
+
+// ── 6 · Alle Gegenstände in Stahl und Gold ──────────────────────────────────
+{
+  const host = document.getElementById('items-raster');
+  const zeige = (typ, gruppe) => {
+    const b = buehne();
+    b.style.gap = '10px';
+    for (const mat of ['past', 'pp']) {
+      const sp = itemSprite(typ, mat);
+      b.appendChild(sp ? spriteToCanvas(sp, 2) : el('div', 'fehlt', 'fehlt'));
+    }
+    host.appendChild(karte(b, label(typ, gruppe)));
+  };
+  Object.keys(WEAPONS).forEach((t) => zeige(t, 'Waffe'));
+  Object.keys(ITEMS).forEach((t) => zeige(t, 'Ausrüstung'));
+}
+
+// ── 7 · 6 Kampfplätze ───────────────────────────────────────────────────────
+{
+  const host = document.getElementById('arenen-raster');
+  for (const [name, sp] of Object.entries(ARENAS)) {
+    const k = karte(buehne(spriteToCanvas(sp, 1)), label(name, sp.w + ' × ' + sp.h));
+    host.appendChild(k);
+  }
+}
+
+// ── 8 · Lagerfeuer ──────────────────────────────────────────────────────────
+{
+  const host = document.getElementById('feuer-raster');
+  const bewegt = el('div', 'figur');
+  const feuer = CAMPFIRE_FRAMES.map((f) => spriteToCanvas(f, 2));
+  bewegt.style.width = CAMPFIRE_FRAMES[0].w * 2 + 'px';
+  bewegt.style.height = CAMPFIRE_FRAMES[0].h * 2 + 'px';
+  feuer.forEach((c, n) => { c.style.position = 'absolute'; c.style.left = '0'; c.style.top = '0'; c.style.display = n ? 'none' : 'block'; bewegt.appendChild(c); });
+  let i = 0;
+  setInterval(() => {
+    feuer[i].style.display = 'none';
+    i = (i + 1) % feuer.length;
+    feuer[i].style.display = 'block';
+  }, 1000 / CAMPFIRE_FPS);
+  host.appendChild(karte(buehne(bewegt), label('CAMPFIRE_FRAMES', CAMPFIRE_FRAMES.length + ' Bilder · ' + CAMPFIRE_FPS + ' fps')));
+  host.appendChild(karte(buehne(spriteToCanvas(CAMPFIRE, 2)), label('CAMPFIRE', 'statisch')));
+  CAMPFIRE_FRAMES.forEach((f, n) => host.appendChild(karte(buehne(spriteToCanvas(f, 2)), label('Bild ' + n))));
+}
+
+// ── 9 · Held, alle sechs Abläufe, je Waffenart ──────────────────────────────
+{
+  const host = document.getElementById('held-raster');
+  const arten = [null, ...WEAPON_TYPES];
+  for (const typ of arten) {
+    const cfg = typ ? Object.assign({}, HELD, { gear: { weapon: { type: typ, which: 'past' } } }) : HELD;
+    const block = el('div');
+    block.style.margin = '0 0 18px';
+    block.appendChild(label(typ || 'ohne Waffe', typ ? 'Stahl' : 'Faustschlag'));
+    const bereich = el('div');
+    bereich.style.marginTop = '6px';
+    spaeter(bereich, (h) => h.appendChild(ablaufZeile(heroCombatSheet(cfg), heldBasis(cfg), 2)));
+    block.appendChild(bereich);
+    host.appendChild(block);
+  }
+}
+
+// ── 10 · Bogen- und Stab-Angriff in Schleife ────────────────────────────────
+{
+  const host = document.getElementById('bogen-buehne');
+  const ZIEL = 'goblin';
+  for (const typ of ['bogen', 'stab']) {
+    const block = el('div');
+    block.style.margin = '0 0 20px';
+    block.appendChild(label(typ === 'bogen' ? 'Bogen · Pfeil fliegt, onHit beim Einschlag' : 'Stab · Zauberkugel, Aufprall statt Funke'));
+    const bereich = el('div');
+    bereich.style.marginTop = '8px';
+    spaeter(bereich, (h) => {
+      const cfg = Object.assign({}, HELD, { gear: { weapon: { type: typ, which: 'past' } } });
+      const heldBlatt = heroCombatSheet(cfg), gegnerBlatt = enemyCombatSheet(ZIEL);
+      // Bühne mit Pfeil-Ebene darüber (data-pxa-scene in 7.2).
+      const szene = el('div');
+      Object.assign(szene.style, { position: 'relative', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between',
+        gap: '24px', maxWidth: '520px', background: 'var(--karte)', border: '2px solid var(--kante)',
+        borderRadius: '12px', padding: '16px 18px', overflow: 'visible' });
+      const h1 = figur(heldBlatt, heldBasis(cfg), 'idle', 2);
+      const g1 = figur(gegnerBlatt, DUNGEON_ENEMIES_FACING_LEFT[ZIEL], 'idle', 2);
+      clearInterval(h1.box._timer); clearInterval(g1.box._timer);
+      szene.appendChild(h1.box); szene.appendChild(g1.box);
+      const leinwand = document.createElement('canvas');
+      Object.assign(leinwand.style, { position: 'absolute', inset: '0', width: '100%', height: '100%' });
+      szene.appendChild(leinwand);
+      h.appendChild(szene);
+      requestAnimationFrame(() => {
+        const ebene = new ProjectileLayer(leinwand, { scale: 2 });
+        const schuss = () => h1.player.play('attack', {
+          target: g1.player, layer: ebene,
+          onHit: () => g1.player.play('hurt'),
+        });
+        schuss();
+        setInterval(schuss, 2600);
+      });
+    });
+    block.appendChild(bereich);
+    host.appendChild(block);
+  }
+}
+
+// ── 11 · Alle 36 Gegner, sechs Abläufe ──────────────────────────────────────
+{
+  const host = document.getElementById('gegnerablauf-raster');
+  for (const [gruppe, keys] of Object.entries(ENEMY_POOL)) {
+    host.appendChild(label(gruppe, keys.length + ' Gegner'));
+    for (const k of keys) {
+      const block = el('div');
+      block.style.margin = '6px 0 18px';
+      block.appendChild(label(DUNGEON_ENEMIES[k].name || k, k));
+      const bereich = el('div');
+      bereich.style.marginTop = '6px';
+      spaeter(bereich, (h) => {
+        const blatt = enemyCombatSheet(k);
+        if (!blatt) { h.appendChild(el('div', 'fehlt', 'kein Kampf-Blatt — keine Kampfansicht hinterlegt')); return; }
+        h.appendChild(ablaufZeile(blatt, DUNGEON_ENEMIES_FACING_LEFT[k], 2));
+      });
+      block.appendChild(bereich);
+      host.appendChild(block);
+    }
+  }
+}
+
+// ── 12 · Alle 20 Gefährten, sechs Abläufe ───────────────────────────────────
+{
+  const host = document.getElementById('petablauf-raster');
+  const FPS = { idle: 4, attack: 8, hurt: 8, win: 8, die: 8, ko: 4 };
+  for (const [art, name, farben] of PETS) {
+    const block = el('div');
+    block.style.margin = '0 0 18px';
+    block.appendChild(label(name, art));
+    const bereich = el('div');
+    bereich.style.marginTop = '6px';
+    spaeter(bereich, (h) => {
+      const reihe = el('div', 'ablauf');
+      for (const a of ABLAEUFE) {
+        const zelle = el('div', 'zelle');
+        zelle.appendChild(buehne(folge(petBattleFrames(art, farben[0], a), FPS[a], 2)));
+        zelle.appendChild(el('span', null, ABLAUF_NAMEN[a]));
+        reihe.appendChild(zelle);
+      }
+      h.appendChild(reihe);
+    });
+    block.appendChild(bereich);
+    host.appendChild(block);
+  }
+}
+</script>
+</body>
+</html>
