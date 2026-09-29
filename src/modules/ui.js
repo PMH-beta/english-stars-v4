@@ -2756,6 +2756,8 @@ export async function submitPasswordReset() {
     if (errEl) { errEl.textContent = err; errEl.style.display = 'block'; }
     return;
   }
+  const an = document.getElementById('pw-reset-sent-email');   // „… an <Adresse> geschickt" (1.5)
+  if (an) an.textContent = email;
   showScreen('password-reset-sent-screen');
 }
 

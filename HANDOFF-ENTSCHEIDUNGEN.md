@@ -57,6 +57,7 @@ Avatare dürfen bei einer Migration verloren gehen. Kein Umbau darf `SD.decks`,
 | F-34 | 6.6 Zeittrank „+5 Sekunden in jedem Minispiel“ — heute „+5 s für 3 Wellen“ | Phase 7, Bereich 6 |
 | F-35 | 7.16 Boss besiegt: Knopf „Zur Kampagne“ (heute startet „Neue Runde starten“ sofort den nächsten Lauf); Chip „+1 Taler“ fehlt im Entwurf | Phase 7, Bereich 7 |
 | F-36 | 7.15 zeigt keine Wellen mehr — F-13 („N Wellen gewonnen“) aufheben? | Phase 7, Bereich 7 |
+| F-37 | 1.5 „Mail ist raus!“: Knopf „Erneut senden“ für den Reset-Link (gibt es heute nicht) | Phase 7, Bereich 1 |
 
 ## Ohne Rückfrage entschieden (Aussehen) — Phase 7
 

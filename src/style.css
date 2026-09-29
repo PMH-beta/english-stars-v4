@@ -1840,8 +1840,9 @@ body.p-app{
 }
 
 /* ── Buttons ─────────────────────────────────────────────────────────────── */
+/* Außenmaß: Fragment 54 + 2 × 2 Rahmen (die Referenz rechnet ohne box-sizing). */
 .p-btn{
-  width:100%; height:54px;
+  width:100%; height:58px;
   border:var(--p-rahmen); border-radius:var(--p-r-btn);
   background:var(--p-karte); color:var(--p-ink);
   display:flex; align-items:center; justify-content:center; gap:9px;
@@ -1862,9 +1863,11 @@ body.p-app{
 .p-feld{
   width:100%; height:56px;
   border:var(--p-rahmen); border-radius:var(--p-r-btn);
-  background:var(--p-feld); color:var(--p-ink);
+  background:var(--p-karte); color:var(--p-ink);
   padding:0 16px; font:700 14px var(--p-font);
 }
+/* Leer in Kartenfarbe (Fragmente 1.2–1.6), ausgefüllt „Eingabefeld gefüllt". */
+.p-feld:not(:placeholder-shown){ background:var(--p-feld); }
 .p-feld::placeholder{ color:var(--p-text-2); }
 
 /* ── Fortschrittsbalken ──────────────────────────────────────────────────── */
@@ -2021,9 +2024,9 @@ body.p-app{
 /* Willkommenskarte im Anmelde-Screen: Fläche im Grundton der Karte, nicht des Screens. */
 .p-dialogkarte--akzent{ background:var(--p-amber); padding:20px 18px; text-align:left; }
 
-/* Emblem: 76×76-Kachel mit dem Leitsymbol des Screens, Fläche im Screen-Ton. */
+/* Emblem: 76×76-Kachel (+ Rahmen = 80) mit dem Leitsymbol des Screens, Fläche im Screen-Ton. */
 .p-emblem{
-  width:76px; height:76px; margin:0 auto 16px;
+  width:80px; height:80px; margin:0 auto 16px;
   border:var(--p-rahmen); border-radius:26px; background:var(--p-ton,var(--p-lila));
   display:flex; align-items:center; justify-content:center;
 }
@@ -2049,7 +2052,7 @@ body.p-app{
 /* „oder"-Trenner zwischen E-Mail-Weg und Google. Beide Wege stehen gleichwertig
    nebeneinander — der E-Mail-Weg muss immer erreichbar bleiben. */
 .p-oder{ display:flex; align-items:center; gap:10px; margin:14px 0 12px; }
-.p-oder::before, .p-oder::after{ content:''; flex:1; height:2px; background:var(--p-ink); }
+.p-oder::before, .p-oder::after{ content:''; flex:1; height:2px; background:rgba(31,31,36,.25); }
 .p-oder > span{
   font:800 10px var(--p-font); text-transform:uppercase; letter-spacing:.12em; color:var(--p-text-2);
 }
@@ -2057,7 +2060,7 @@ body.p-app{
 /* Google-Knopf: das Fremdlogo sitzt in einem eigenen 30×30-Slot links. */
 .p-google{ gap:9px; font:800 13px var(--p-font); }
 .p-google-slot{
-  width:30px; height:30px; flex:none;
+  width:34px; height:34px; flex:none;
   border:var(--p-rahmen); border-radius:11px; background:var(--p-inaktiv);
   display:flex; align-items:center; justify-content:center;
 }
@@ -2105,7 +2108,12 @@ body.p-app{
 }
 
 /* Namensfeld: größer und mittig, es ist das einzige Feld auf dem Screen. */
-.p-feld--name{ height:58px; background:var(--p-inaktiv); text-align:center; font:800 16px var(--p-font); }
+.p-feld--name{ height:62px; background:var(--p-inaktiv); text-align:center; font:800 16px var(--p-font); }   /* 58 + Rahmen (1.8) */
+/* „Wir haben geprüft" über der Adresse (1.7). */
+.p-hinweis-kicker{
+  font:700 11px var(--p-font); color:var(--p-text-2); margin-top:10px; text-align:center;
+  letter-spacing:.06em; text-transform:uppercase;
+}
 
 /* ── App-Chrome auf umgestellten Screens ─────────────────────────────────── */
 /* Versionsanzeige und Musikknopf sind global und liegen ausserhalb der Screens.
@@ -2129,7 +2137,14 @@ body.p-app .music-vol-btn{
    Vondu-Lockup und eine Willkommenskarte in Amber, Registrieren stattdessen das
    Brief-Emblem über mittiger Überschrift — ui.js schaltet nur die Klasse um. */
 #auth-screen.is-signup #auth-lockup{ display:none; }
-#auth-screen.is-signup .p-blatt{ margin-top:24px; }
+#auth-screen .p-blatt{ margin-top:10px; }   /* Fragment 1.2: Blatt 10 px unter dem Lockup */
+#auth-screen:not(.is-signup) .p-feldgruppe{ margin-top:14px; }
+/* Registrieren (1.3): kein Blatt, sondern eine helle Karte auf dem Grundton. */
+#auth-screen.is-signup .p-blatt{
+  flex:none; margin:20px 16px 0; border:var(--p-rahmen); border-radius:28px;
+  background:var(--p-karte-hell); padding:24px 18px 22px;
+}
+#auth-screen.is-signup .p-oder::before, #auth-screen.is-signup .p-oder::after{ background:var(--p-ink); }
 #auth-screen.is-signup #auth-emblem{ display:flex; }
 #auth-screen.is-signup #auth-intro{
   border:0; border-radius:0; background:none; padding:0;
