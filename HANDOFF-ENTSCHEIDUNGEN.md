@@ -41,7 +41,7 @@ Avatare dürfen bei einer Migration verloren gehen. Kein Umbau darf `SD.decks`,
 | F-16 | Charakter-Editor: Zurück verwirft + Rückfrage 8.12 (heute speichert Zurück) | Phase 7 |
 | F-17 | 3.5 „Kein Key nötig!“: den Screen gibt es (`apikey-screen`, jetzt wie 3.5), er wird aber nie gezeigt — der Scan braucht keinen Key. Irgendwo zeigen oder stillgelegt lassen? | Phase 7, Bereich 3 |
 | F-18 | 4.11 Selbstbewertung nach dem Sprechen | Phase 7 |
-| F-19 | 5.7 und 5.10 — heute 5 Modi, Design zeigt 6 | Phase 7 |
+| F-19 | 5.7 und 5.10 — heute 5 Modi, Design zeigt 6. **Neuer Befund (29.09.):** beide Spielformen gibt es schon (`bErkennenFix` = falsche Form korrigieren, `bSchmiedenGap` = fehlender Buchstabe, beide über `bDisc`); die Frage ist damit wohl gegenstandslos — bitte bestätigen | Phase 7 |
 | F-20 | 9.2 „App installieren" beim 3. Start | Phase 7 |
 | F-21 | 9.7 Mikrofon-Pegel an die echte Lautstärke koppeln? | Phase 7 |
 | F-08 | „Werkstoff wählen" → „Wörter befüllen", Station löschen entfällt | Phase 7 |
@@ -70,6 +70,7 @@ Avatare dürfen bei einer Migration verloren gehen. Kein Umbau darf `SD.decks`,
 | F-47 | 4.12 Fortschrittskarte im Probetest: „0/20 · gemischt aus 2 Sammlungen“ statt „3/5 richtig · Note 2“ (heute mit laufender Note) | Phase 7, Bereich 4 |
 | F-48 | 4.10 Knopf „Nochmal versuchen“ nach falscher Aussprache — heute ist eine falsch erkannte Aussprache endgültig (Rückmeldung + „Weiter“) | Phase 7, Bereich 4 |
 | F-49 | 4.11 beim Selbstbewerten kein Mikrofon mehr — heute kann man dort mit „Nochmal“ noch einmal sprechen | Phase 7, Bereich 4 |
+| F-50 | 5.3 zeigt den Trainingsplatz ohne Einklapp-Karte (Überschrift, Knopf und Decks immer offen); 5.1 (älter) und heute: einklappbar | Phase 7, Bereich 5 |
 
 ## Ohne Rückfrage entschieden (Aussehen) — Phase 7
 
@@ -111,3 +112,6 @@ Avatare dürfen bei einer Migration verloren gehen. Kein Umbau darf `SD.decks`,
 | 4.7–4.10 Aussprache | runder Knopf mit Mikrofon, Zustand als Text darunter („Tippen und sprechen“, „Ich höre zu…“, „Richtig!“, „Das klang anders“, dazu „Nochmal“/„Bereite vor…“ ohne Emoji), Kasten „Gehört“ mit dem erkannten Wort; Meldungen (Mikrofon verweigert, lädt …) stehen im selben Kasten ohne „Gehört“. Kein Warte-Kasten bei Aussprache. Nach der Antwort bleibt die Rückmeldung mit „Weiter“ (4.9/4.10 zeigen keine). | 29.09.2026 |
 | 4.8 Pegel | bis F-21 entschieden ist, der heutige Visualizer (nur beim Zuhören sichtbar) statt der 9 Balken — daher ist die Karte 37 px höher als 4.8. | 29.09.2026 |
 | 4.11 / F-18 | Die Selbstbewertung erscheint wie heute nur, wenn die Erkennung nichts verstanden hat (= Option B aus F-18); gebaut ist das Aussehen aus 4.11 samt Vondu-Hinweis. Abstand Karte–Hinweis 12 px (im Fragment 0). | 29.09.2026 |
+| 5.3 Deck-Karte | nach 5.3 (Nachtrag) in der einklappbaren Außenkarte aus 5.1 (F-50) — daher 32 px schmaler, senkrecht deckungsgleich. „Formen wählen“ nach dem Zurücksetzen mit den Kacheln aus 5.4. | 29.09.2026 |
+| 5.4/5.12 Dialoge | senkrecht mittig wie alle Dialoge (Entwurf: oben bei 52 bzw. 70 px), Liste scrollt. Stufe A1 mint, A2 pfirsich, ab B1 rosa (wie Schwierigkeit in 3.2; B2/C1 zeigt der Entwurf nicht). Hinweis nur „Anlegen erst bei genau 10“ — „+ 3 weitere Verben“ im Fragment bezieht sich auf die gekürzte Liste. Belegte Verben: Stufen-Chip „vergeben“, Zeile blass. „Abbrechen“ voll deckend (im Fragment wie „Anlegen“ blass). | 29.09.2026 |
+| 5.5 Statistik | wie 5.5 für beide Formen; bei nur einer Form eine Formen-Spalte. Prozent wie bisher aus gemeisterten Verben. | 29.09.2026 |

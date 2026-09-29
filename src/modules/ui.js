@@ -433,18 +433,12 @@ function _uvClaimedByTrack() {
   return m;
 }
 
-// Die drei Formen-Chips (Anlege-Popup + Deck-Karte nach Reset) — bewusst
-// unterschiedlich gefärbt (Stahl-Blau / Gold / Verlauf), damit die Wahl sichtbar ist.
+// Die drei Formen-Chips (Anlege-Popup + Deck-Karte nach Reset) wie in 5.4:
+// drei gleich breite Kacheln, die gewählte in Flieder.
 function _uvFormChipsHtml(attrs) {
-  return `<button class="uv-form-chip past" ${attrs('past')}>
-      <span class="fc-title">⏱ Simple Past</span><span class="fc-sub">2. Form — went</span>
-    </button>
-    <button class="uv-form-chip pp" ${attrs('pp')}>
-      <span class="fc-title">✓ Participle</span><span class="fc-sub">3. Form — gone</span>
-    </button>
-    <button class="uv-form-chip both" ${attrs('both')}>
-      <span class="fc-title">⏱✓ Beide</span><span class="fc-sub">went &amp; gone</span>
-    </button>`;
+  return `<button class="uv-form-chip past" ${attrs('past')}><span class="fc-title">Simple Past</span></button>
+    <button class="uv-form-chip pp" ${attrs('pp')}><span class="fc-title">Participle</span></button>
+    <button class="uv-form-chip both" ${attrs('both')}><span class="fc-title">Beide</span></button>`;
 }
 
 // Ein Trainings-Deck als auf-/zuklappbare Karte (wie Vokabelsammlungen): Kopf
@@ -468,44 +462,53 @@ function _trainDeckCardHtml(deck) {
   const id = deck.id;
   const open = id === _uvTrainExpandedId;
   const formsChips = deck.uvForms === 'open'
-    ? `<div class="uv-form-choice" style="margin-bottom:12px;">
+    ? `<div class="uv-form-choice">
         ${_uvFormChipsHtml((f) => `onclick="uvTrainChooseForms('${id}','${f}')"`)}
       </div>`
     : '';
+  // Karte nach 5.3: Name, „N Verben · Formen", Taler-Chip, Prozent und Chevron,
+  // Balken in Flieder; offen die drei Disziplinen und die drei Aktionen.
   const ts = UV_TRACK_STYLE[_uvTrack(deck)];
-  return `<div class="deck-card${open ? ' expanded' : ''}" style="border:1.5px solid ${ts.color}55;box-shadow:none;margin-bottom:10px;">
-    <div class="deck-header" onclick="uvTrainToggleDeck('${id}')" style="cursor:pointer;">
-      <div class="p-symbolkachel" style="background:${ts.bg};color:var(--p-ink);font:900 ${ts.icon.length > 1 ? '12' : '17'}px var(--p-font)">${ts.icon}</div>
-      <div class="deck-info">
-        <div class="deck-name">${window.escHtml(deck.name)}</div>
-        <div class="deck-meta"><span>📝 ${(deck.vocab || []).length} Verben</span><span style="font-size:.70rem;font-weight:800;background:${ts.bg};color:${ts.color};padding:2px 7px;border-radius:20px;">${ts.icon} ${ts.label}</span><span title="Freigespielte Taler (Erkennen / Schmieden / Verzaubern je 100 %)" style="font-size:.70rem;font-weight:800;background:rgba(201,151,0,.14);color:#a67c00;padding:2px 7px;border-radius:20px;">🪙 ${talerEarned}/3</span></div>
-        <div class="deck-progress-mini"><div class="deck-progress-mini-fill" style="width:${pct}%"></div></div>
+  const talerChip = talerEarned === 3
+    ? `<span class="p-chip p-chip--gold p-chip--icon">${iconHTML('coin', 14)}3/3 Taler</span>`
+    : `<span class="p-chip p-chip--unverdient p-chip--icon">${iconHTML('coinOff', 14)}${talerEarned}/3 Taler</span>`;
+  const disziplin = (name, icon, ton, p, disc) => {
+    const t = p.total || 0;
+    const dp = t > 0 ? Math.min(100, Math.round((p.score / t) * 100)) : 0;
+    const chip = t > 0 && p.mastered === t
+      ? `<span class="p-chip p-chip--gold p-chip--icon">${iconHTML('coin', 14)}+1 Taler</span>`
+      : `<span class="p-chip p-chip--unverdient p-chip--icon">${iconHTML('coinOff', 14)}+1 Taler</span>`;
+    return `<button class="tp-disz" onclick="startUvTraining('${id}','${disc}')">
+      <span class="tp-disz-kopf"><span class="tp-disz-kachel" style="background:${ton}">${iconHTML(icon, 28)}</span>
+        <span class="tp-disz-name">${name}</span><span class="tp-disz-pct">${dp}%</span></span>
+      <span class="p-balken tp-disz-balken"><i style="width:${dp}%"></i></span>
+      <span class="tp-disz-fuss"><span>${p.mastered}/${t} gemeistert</span>${chip}</span>
+    </button>`;
+  };
+  return `<div class="tp-deck${open ? ' is-offen' : ''}">
+    <div class="tp-deck-kopf" onclick="uvTrainToggleDeck('${id}')">
+      <div class="p-wachs">
+        <div class="tp-deck-name">${window.escHtml(deck.name)}</div>
+        <div class="tp-deck-meta">${(deck.vocab || []).length} Verben · ${ts.label}</div>
+        <div class="p-sammlung-chips">${talerChip}</div>
       </div>
-      <div class="deck-pct">${pct}%</div>
-      <div class="deck-chevron">▼</div>
+      <div class="p-sammlung-rechts">
+        <div class="p-sammlung-pct">${pct}%</div>
+        <div class="p-chevron">${iconHTML('chevron', 14)}${iconHTML('chevronUpLight', 14)}</div>
+      </div>
     </div>
-    <div class="deck-body">
+    <div class="p-balken tp-deck-balken"><i style="width:${pct}%"></i></div>
+    ${open ? `<div class="tp-deck-offen">
       ${formsChips}
-      <div class="mode-buttons">
-        <button class="p-moduszeile p-moduszeile--vokabeln" onclick="startUvTraining('${id}','erkennen')">
-          <span class="p-moduszeile-name">Erkennen</span>
-          <span class="p-zeilensub" style="display:block;font-size:10px">${renderModeSubBy(per[0])}</span>
-        </button>
-        <button class="p-moduszeile p-moduszeile--rechtschreibung" onclick="startUvTraining('${id}','schmieden')">
-          <span class="p-moduszeile-name">Schmieden</span>
-          <span class="p-zeilensub" style="display:block;font-size:10px">${renderModeSubBy(per[1])}</span>
-        </button>
-        <button class="p-moduszeile p-moduszeile--aussprache" onclick="startUvTraining('${id}','verzaubern')">
-          <span class="p-moduszeile-name">Verzaubern</span>
-          <span class="p-zeilensub" style="display:block;font-size:10px">${renderModeSubBy(per[2])}</span>
-        </button>
+      ${disziplin('Erkennen', 'target', 'var(--p-blau)', per[0], 'erkennen')}
+      ${disziplin('Schmieden', 'hammer', 'var(--p-pfirsich)', per[1], 'schmieden')}
+      ${disziplin('Verzaubern', 'wand', 'var(--p-lila)', per[2], 'verzaubern')}
+      <div class="tp-aktionen">
+        <button class="tp-aktion" onclick="uvTrainOpenStats('${id}')">${iconHTML('chart', 14)}Statistik</button>
+        <button class="tp-aktion" onclick="uvTrainReset('${id}')">${iconHTML('refresh', 14)}Zurücksetzen</button>
+        <button class="tp-aktion tp-aktion--gefahr" onclick="uvTrainDelete('${id}')">${iconHTML('trash', 14)}Löschen</button>
       </div>
-      <div class="deck-actions">
-        <button class="deck-action-btn" onclick="uvTrainOpenStats('${id}')">📊 Statistik</button>
-        <button class="deck-action-btn" onclick="uvTrainReset('${id}')">🔄 Zurücksetzen</button>
-        <button class="deck-action-btn danger" onclick="uvTrainDelete('${id}')">🗑️ Löschen</button>
-      </div>
-    </div>
+    </div>` : ''}
   </div>`;
 }
 
@@ -517,23 +520,21 @@ export function renderUvTrainingSection() {
   const sub = decks.length
     ? decks.length + ' Deck' + (decks.length === 1 ? '' : 's') + ' · zum Aufklappen tippen'
     : `Eigene Übungsdecks aus genau ${UV_TRAIN_SIZE} Verben`;
-  // Zeilenkarte wie der Probetest. Bewusst KEINE Klasse, die auf die inneren
-  // Trainings-Deck-Karten durchschlaegt — die klappen einzeln auf.
+  // Zeilenkarte wie in 5.1 (einklappbar, Frage F-50). Die Klasse is-offen
+  // wirkt nur auf den eigenen Kopf — die Deck-Karten klappen einzeln auf.
   let html =
-    '<div class="p-zeilenkarte">'
+    '<div class="p-zeilenkarte tp-platz' + (open ? ' is-offen' : '') + '">'
     + '<div class="p-zeilenkarte-kopf" onclick="toggleUvTraining()" style="cursor:pointer;">'
     + '<div class="p-symbolkachel p-ton-rosa">' + iconHTML('target', 28) + '</div>'
     + '<div class="p-wachs"><div class="p-zeilentitel">Trainingsplatz</div>'
     + '<div class="p-zeilensub">' + sub + '</div></div>'
-    + '<div class="p-chevron">' + iconHTML(open ? 'chevronUp' : 'chevron', 14) + '</div>'
+    + '<div class="p-chevron">' + iconHTML('chevron', 14) + iconHTML('chevronUpLight', 14) + '</div>'
     + '</div>';
   if (open) {
-    html += '<div class="p-karte-trenner">'
-      + '<button onclick="uvTrainOpenCreate()" class="p-btn p-btn--akzent" style="height:46px;font-size:13px">Neues Trainings-Deck</button>'
+    html += '<button onclick="uvTrainOpenCreate()" class="tp-neu">Neues Trainings-Deck</button>'
       + (decks.length
         ? decks.map(_trainDeckCardHtml).join('')
-        : '<div class="p-zeilensub" style="text-align:center;padding:10px 0 2px;">Noch kein Trainings-Deck angelegt.</div>')
-      + '</div>';
+        : '<div class="p-zeilensub tp-leer">Noch kein Trainings-Deck angelegt.</div>');
   }
   html += '</div>';
   el.innerHTML = html;
@@ -557,23 +558,26 @@ export function uvTrainOpenCreate() {
   const sel = new Set();
   let formsSel = 'both';
   const defName = 'Training ' + (_trainingDecks().length + 1);
-  overlay.innerHTML = `<div class="uv-fill-card">
+  // Aussehen nach 5.4: Titel, Name, Formen, Verben mit Zähler, zwei Knöpfe.
+  overlay.innerHTML = `<div class="uv-fill-card tp-neu-karte">
     <div class="uv-fill-head">
       <div class="uv-fill-title">Neues Trainings-Deck</div>
-      <div class="uv-fill-hint">Wähle genau ${UV_TRAIN_SIZE} Verben — geübt wird in Erkennen · Schmieden · Verzaubern.</div>
+      <div class="tp-kicker">Name</div>
       <input id="uv-train-name" class="uv-train-name" maxlength="30" value="${defName}"/>
+      <div class="tp-kicker">Formen</div>
       <div class="uv-form-choice">
         ${_uvFormChipsHtml((f) => `data-forms="${f}"${f === 'both' ? ' data-sel="1"' : ''}`)}
       </div>
-      <div class="uv-fill-count"><span id="uv-train-n">0</span>/${UV_TRAIN_SIZE}</div>
+      <div class="tp-kicker-zeile"><div class="tp-kicker">Verben</div><span class="uv-fill-count"><span id="uv-train-n">0</span>/${UV_TRAIN_SIZE}</span></div>
     </div>
     <div class="uv-fill-list">
       <div class="uv-fill-slide" id="uv-train-slide">
       ${all.map((v) => `<label class="uv-fill-row" data-en="${window.escHtml(v.en)}" data-cefr="${cefrOf(v)}">
         <input type="checkbox" class="uv-fill-cb"/>
+        <span class="uv-fill-haken">${iconHTML('checkLight', 14)}</span>
         <span class="uv-fill-de">${window.escHtml(v.de)}</span>
         <span class="uv-fill-en">${window.escHtml(v.en)}</span>
-        <span class="uv-fill-cefr">${cefrOf(v)}</span>
+        <span class="uv-fill-cefr" data-stufe="${cefrOf(v)}">${cefrOf(v)}</span>
       </label>`).join('')}
       </div>
     </div>
@@ -581,6 +585,7 @@ export function uvTrainOpenCreate() {
       <button class="uv-fill-cancel" id="uv-train-cancel">Abbrechen</button>
       <button class="uv-fill-ok" id="uv-train-ok" disabled>Anlegen</button>
     </div>
+    <div class="tp-neu-hinweis">Anlegen erst bei genau ${UV_TRAIN_SIZE}</div>
   </div>`;
   overlay.querySelector('[data-sel]').classList.add('sel');
   const slide = overlay.querySelector('#uv-train-slide');
@@ -603,7 +608,7 @@ export function uvTrainOpenCreate() {
       if (lock && cb.checked) { cb.checked = false; sel.delete(en); row.classList.remove('sel'); }
       cb.disabled = lock;
       row.classList.toggle('used', lock);
-      row.querySelector('.uv-fill-cefr').textContent = lock ? '🎯 vergeben' : row.getAttribute('data-cefr');
+      row.querySelector('.uv-fill-cefr').textContent = lock ? 'vergeben' : row.getAttribute('data-cefr');
     });
     updateCount();
   };
@@ -748,12 +753,16 @@ export function uvTrainOpenStats(id) {
   const deck = window.SD?.decks?.[id];
   if (!deck) return;
   showScreen('scan-screen');
+  // Formen-Seite: Grundton Flieder wie 5.5 (showScreen setzt beim nächsten
+  // Aufruf wieder den Grundton des Verwaltens).
+  setGrundton('lila', document.getElementById('scan-screen'));
   const title = document.getElementById('vm-title');
   if (title) title.textContent = 'Statistik';
   const ic = document.getElementById('vm-title-icon');
   if (ic) ic.style.display = 'none';
+  // Kopf wie 5.5: nur „Statistik", der Name steht in der Übersichtskarte.
   const dn = document.getElementById('vm-deck-name');
-  if (dn) dn.textContent = 'Statistik: ' + deck.name;
+  if (dn) dn.textContent = '';
   const ba = document.getElementById('vm-back-area');
   if (ba) ba.innerHTML = '<button class="p-back" onclick="showMenu()"><canvas data-icon="back" width="14" height="14" style="width:28px;height:28px;image-rendering:pixelated;flex:none"></canvas></button>';
   const tabsEl = document.querySelector('.vm-tabs');
@@ -780,56 +789,45 @@ export function uvTrainOpenStats(id) {
   const total = per.reduce((s, p) => s + p.total, 0);
   const mastered = per.reduce((s, p) => s + p.mastered, 0);
   const pct = total ? Math.round(mastered / total * 100) : 0;
-  const done = total > 0 && mastered === total;
-  const tileBg = done
-    ? 'background:var(--p-ok);border-color:var(--p-ink);'
-    : `background:linear-gradient(to right,var(--p-ok) ${pct}%,var(--p-karte) ${pct}%);border-color:var(--p-ink);`;
-  const tileRight = done
-    ? '<span style="font-size:.72rem;font-weight:700;color:#2a8a4a;background:rgba(58,170,92,.15);padding:3px 9px;border-radius:20px;white-space:nowrap;flex-shrink:0;">✓ erledigt</span>'
-    : `<span style="font:900 14px var(--p-font);color:var(--p-ink);flex:none">${pct}%</span>`;
-  const tileHtml = `<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:6px;">
-    <div class="preset-row" style="${tileBg}">
-      <div class="preset-info">
-        <span class="preset-name">${window.escHtml(deck.name)}</span>
-        <span class="preset-count">${verbs.length} Verben · ${_uvFormsLabel(deck)}</span>
-      </div>
-      ${tileRight}
+  // Übersichtskarte wie 5.5: Name, Verben · Formen, Prozent, Balken in Flieder.
+  const tileHtml = `<div class="vm-gesamt">
+    <div class="vm-gesamt-kopf">
+      <div class="p-wachs"><div class="vm-gesamt-name">${window.escHtml(deck.name)}</div>
+        <div class="vm-gesamt-sub">${verbs.length} Verben · ${UV_TRACK_STYLE[_uvTrack(deck)].label}</div></div>
+      <div class="vm-gesamt-pct">${pct}%</div>
     </div>
+    <div class="p-balken vm-gesamt-balken vm-gesamt-balken--lila"><i data-ui="fill" data-c="64" style="width:${pct}%"></i></div>
   </div>`;
 
-  // Wort-Tabellen wie bei Vokabel-Decks (_wordTablesHtml-Optik): eine Tabelle
-  // je DISZIPLIN (Erkennen/Schmieden/Verzaubern = das Pendant zu MC/Recht-
-  // schreibung/Aussprache). Übt das Deck nur eine Form, sind die Spalten exakt
-  // wie bei Vokabeln (Stand + Richtig/Falsch); bei „beide" bekommt jede Form
-  // eine kombinierte Zelle (Badge + Punkte), sonst wird es auf dem Handy zu breit.
-  const single = forms.length === 1;
+  // Je Disziplin eine Tabelle wie 5.5: Deutsch, Englisch und je geübter Form
+  // die Form mit einem Feld daneben — mint mit Haken (gemeistert), gold mit
+  // Sanduhr (in Arbeit), gestrichelt (noch nicht geübt).
   const statOf = (v, suf) => ws[statKeyFor(v.de, v.en, suf, IRREGULAR_PRESET_ID)];
-  const formCell = (s) => {
-    const st = wordStatus(s, 3);
-    return `<td><span class="ws-badge ${st.cls}">${st.label}</span><div style="margin-top:3px;">${wrongDots(s)}</div></td>`;
+  const feld = (s) => {
+    if (!s || !s.asked) return '<span class="tp-st-feld is-leer"></span>';
+    return wordStatus(s, 3).cls === 'ws-green'
+      ? `<span class="tp-st-feld is-fertig">${iconHTML('check', 14)}</span>`
+      : `<span class="tp-st-feld is-dran">${iconHTML('hourglass', 14)}</span>`;
   };
+  const DISZ_ICON = { erkennen: 'target', schmieden: 'hammer', verzaubern: 'wand' };
+  const spalten = forms.map((f) => (f === 'past'
+    ? { kopf: 'Past', seite: 'rechts', wort: (v) => v.past, suf: 'past' }
+    : { kopf: 'Particip.', seite: 'links', wort: (v) => v.pp, suf: 'pp' }));
+  const raster = `grid-template-columns:1fr .8fr${' 1fr 40px'.repeat(spalten.length)}`;
   const makeTable = (disc) => {
     const d = FORGE_DISC[disc], sufs = UV_TRAIN_SUF[disc];
-    const head = single
-      ? '<th>Deutsch</th><th>Englisch</th><th>Stand</th><th>Richtig/Falsch</th>'
-      : '<th>Deutsch</th><th>Englisch</th><th>⏱ Simple Past</th><th>✓ Participle</th>';
-    const rows = verbs.map((v) => {
-      let cells;
-      if (single) {
-        const s = statOf(v, sufs[forms[0]]);
-        const st = wordStatus(s, 3);
-        cells = `<td><span class="ws-badge ${st.cls}">${st.label}</span></td><td>${wrongDots(s)}</td>`;
-      } else {
-        cells = formCell(statOf(v, sufs.past)) + formCell(statOf(v, sufs.pp));
-      }
-      return `<tr><td>${window.escHtml(v.de)}</td><td>${window.escHtml(v.en)}</td>${cells}</tr>`;
-    }).join('');
-    return `<h3 class="p-kicker" style="border:0;padding:0;margin:16px 0 8px">${d.icon} ${d.name}</h3>
-<table class="word-table"><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table>`;
+    const kopf = `<div class="tp-st-kopf" style="${raster}"><span>Deutsch</span><span>Engl.</span>`
+      + spalten.map((sp) => `<span class="tp-st-${sp.seite}">${sp.kopf}</span><span></span>`).join('') + '</div>';
+    const rows = verbs.map((v) => `<div class="tp-st-zeile" style="${raster}">
+        <span class="tp-st-de">${window.escHtml(v.de)}</span><span>${window.escHtml(v.en)}</span>`
+      + spalten.map((sp) => `<span class="tp-st-form tp-st-${sp.seite}">${window.escHtml(sp.wort(v) || '')}</span>${feld(statOf(v, sufs[sp.suf]))}`).join('')
+      + '</div>').join('');
+    return `<div class="vm-st-kicker">${iconHTML(DISZ_ICON[disc], 14)}<div>${d.name}</div></div>
+<div class="vm-st-karte">${kopf}${rows}</div>`;
   };
   pane.innerHTML = verbs.length
     ? tileHtml + ['erkennen', 'schmieden', 'verzaubern'].map(makeTable).join('')
-    : '<p style="text-align:center;color:#999;padding:20px;">Keine Verben.</p>';
+    : '<div class="vm-empty">Keine Verben.</div>';
 }
 
 // ── Probetest: ephemerer Misch-Test über bis zu 2 Vokabelsammlungen ──
@@ -1424,12 +1422,12 @@ export function uvOpenFill() {
           const art = itemTag(o.type, 'past', 1);
           let note;
           if (!taken) note = objectPerkText(o);
-          else if (done) note = '✔ fertig geschmiedet';
-          else note = `⚒️ wird geschmiedet${row ? ' · ' + row.scorePct + ' %' : ''}`;
+          else if (done) note = 'fertig geschmiedet';
+          else note = `wird geschmiedet${row ? ' · ' + row.scorePct + ' %' : ''}`;
           return `<button class="uv-obj-row${chosenObj === o.type ? ' sel' : ''}${taken ? ' taken' : ''}" data-obj="${o.type}"${taken ? ' disabled' : ''}>
           <span class="uv-obj-ic">${art || o.icon}</span>
           <span class="uv-obj-tx"><b>${o.name}</b><span class="uv-obj-perk">${note}</span></span>
-          <span class="uv-obj-go">${taken ? (done ? '✔' : '⚒️') : '›'}</span>
+          <span class="uv-obj-go">${taken ? iconHTML(done ? 'check' : 'hammer', 14) : '›'}</span>
         </button>`;
         }).join('')}
       </div>
@@ -1445,18 +1443,23 @@ export function uvOpenFill() {
 
   function showWordStep() {
     const ob = FORGE_OBJECTS.find((o) => o.type === chosenObj);
+    // Kopf nach 5.12: Werkstück unbegonnen (erstes Teil glüht) in der Goldkachel.
+    const werk = ob ? `<span class="uv-befuellen-kachel"><span class="fw-werk" data-werk="${ob.type}:past:0:1">${forgeTag(ob.type, 'past', 0, _forgeBild, 1)}</span></span>` : '';
     overlay.innerHTML = `<div class="uv-fill-card">
       <div class="uv-fill-head">
-        <div class="uv-fill-title">${ob ? ob.icon + ' ' + ob.name : '✨ Auftrag'} befüllen</div>
-        <div class="uv-fill-hint">Wähle genau ${N} Wörter, die du üben willst.</div>
-        <div class="uv-fill-count"><span id="uv-fill-n">${sel.size}</span>/${N}</div>
+        <div class="uv-befuellen-kopf">${werk}
+          <div><div class="uv-fill-title">${ob ? ob.name : 'Auftrag'} befüllen</div>
+          <div class="uv-fill-hint">Wähle genau ${N} Wörter, die du üben willst</div></div>
+        </div>
+        <div class="tp-kicker-zeile"><div class="tp-kicker">Verben</div><span class="uv-fill-count"><span id="uv-fill-n">${sel.size}</span>/${N}</span></div>
       </div>
       <div class="uv-fill-list">
         ${avail.map((v) => `<label class="uv-fill-row${sel.has(v.en) ? ' sel' : ''}" data-en="${window.escHtml(v.en)}">
           <input type="checkbox" class="uv-fill-cb"${sel.has(v.en) ? ' checked' : ''}/>
+          <span class="uv-fill-haken">${iconHTML('checkLight', 14)}</span>
           <span class="uv-fill-de">${window.escHtml(v.de)}</span>
           <span class="uv-fill-en">${window.escHtml(v.en)}</span>
-          <span class="uv-fill-cefr">${cefrOf(v)}</span>
+          <span class="uv-fill-cefr" data-stufe="${cefrOf(v)}">${cefrOf(v)}</span>
         </label>`).join('')}
       </div>
       <div class="uv-fill-foot">
@@ -1466,6 +1469,7 @@ export function uvOpenFill() {
     </div>`;
     const nEl = overlay.querySelector('#uv-fill-n');
     const okBtn = overlay.querySelector('#uv-fill-ok');
+    startForgeAnim();   // glühendes Teil in der Kachel (4 fps)
     overlay.querySelector('#uv-fill-back').addEventListener('click', showObjectStep);
     overlay.querySelectorAll('.uv-fill-row').forEach((row) => {
       const cb = row.querySelector('.uv-fill-cb');
@@ -1529,8 +1533,9 @@ function _forgeTick() {
   if (!werke.length) { clearInterval(_forgeTimer); _forgeTimer = null; return; }
   _forgeBild = (_forgeBild + 1) % PART_ANIM.frames;
   werke.forEach((el) => {
-    const [type, which, fertig] = el.dataset.werk.split(':');
-    el.innerHTML = forgeTag(type, which, +fertig, _forgeBild);
+    // Optional ein vierter Wert: Maßstab (Befüllen-Kachel 5.12 zeigt 1×).
+    const [type, which, fertig, scale] = el.dataset.werk.split(':');
+    el.innerHTML = forgeTag(type, which, +fertig, _forgeBild, scale ? +scale : null);
   });
 }
 export function startForgeAnim() {

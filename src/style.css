@@ -4214,3 +4214,151 @@ button.p-chip{ cursor:pointer; }
 #game-screen.ist-aussprache .feedback:not(.show):not(.is-selbst){ display:none; }
 .feedback.is-selbst:not(.show) .feedback-warten{ display:none; }
 .feedback.is-selbst:not(.show) .feedback-selbst{ display:block; }
+
+/* ══ FORMEN · TRAININGSPLATZ nach Fragment 5.1/5.3–5.5, 5.12 (Phase 7, Bereich 5)
+   Außen die einklappbare Karte aus 5.1 (Frage F-50), innen die Deck-Karte aus
+   5.3 mit den drei Disziplinen; Anlage-Dialog 5.4, Befüllen 5.12, Statistik
+   5.5. Außenmaße = Fragmentwert + Rahmen. */
+.p-zeilenkarte.tp-platz{ border-radius:24px; background:var(--p-karte-hell); padding:14px; }
+.tp-platz .p-symbolkachel{ width:48px; height:48px; border-radius:15px; }
+.tp-platz .p-zeilentitel{ font-size:16px; }
+.tp-platz .p-zeilensub{ margin-top:1px; }
+.tp-neu{
+  display:flex; align-items:center; justify-content:center; width:100%; height:54px; margin-top:12px;
+  border:var(--p-rahmen); border-radius:17px; background:var(--p-lila);
+  font:900 13px var(--p-font); color:var(--p-ink); cursor:pointer;
+}
+.tp-leer{ text-align:center; padding:10px 0 2px; }
+/* Deck-Karte (5.3). */
+.tp-deck{ margin-top:12px; border:var(--p-rahmen); border-radius:24px; background:var(--p-karte); padding:14px; }
+.tp-deck-kopf{ display:flex; align-items:flex-start; gap:10px; cursor:pointer; }
+.tp-deck-name{ font:900 17px var(--p-font); color:var(--p-ink); }
+.tp-deck-meta{ font:700 11px var(--p-font); color:var(--p-text-2); margin-top:2px; }
+.tp-deck .p-chip{ border-radius:11px; }
+.tp-deck.is-offen > .tp-deck-kopf .p-chevron{ background:var(--p-ink); }
+.tp-deck.is-offen > .tp-deck-kopf .p-chevron [data-icon="chevron"]{ display:none; }
+.tp-deck.is-offen > .tp-deck-kopf .p-chevron [data-icon="chevronUpLight"]{ display:block; }
+.tp-deck-balken{ margin-top:9px; }
+.tp-deck-balken > i{ background:var(--p-lila); }
+.tp-deck-offen{
+  display:flex; flex-direction:column; gap:9px;
+  border-top:var(--p-trenner); margin-top:13px; padding-top:13px;
+}
+/* Disziplin-Zeile: Kachel + Name + Prozent, Balken in Tinte, darunter Taler. */
+.tp-disz{
+  display:block; width:100%; text-align:left; cursor:pointer;
+  border:var(--p-rahmen); border-radius:18px; background:var(--p-karte-hell); padding:12px 13px;
+  font-family:var(--p-font); color:var(--p-ink);
+}
+.tp-disz-kopf{ display:flex; align-items:center; gap:10px; }
+.tp-disz-kachel{
+  width:40px; height:40px; flex:none; border:var(--p-rahmen); border-radius:16px;
+  display:flex; align-items:center; justify-content:center;
+}
+.tp-disz-name{ flex:1; min-width:0; font:900 14px var(--p-font); }
+.tp-disz-pct{ font:900 16px var(--p-font); }
+.tp-disz-balken{ display:block; height:11px; border-radius:7px; margin-top:9px; }
+.tp-disz-balken > i{ background:var(--p-ink); }
+.tp-disz-fuss{ display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:8px; }
+.tp-disz-fuss > span:first-child{ font:700 10px var(--p-font); color:var(--p-text-3); }
+.tp-disz .p-chip{ border-radius:11px; }
+.tp-aktionen{ display:flex; gap:8px; margin-top:3px; }
+.tp-aktion{
+  flex:1; height:48px; display:flex; align-items:center; justify-content:center; gap:6px;
+  border:var(--p-rahmen); border-radius:15px; background:var(--p-karte);
+  font:800 11px var(--p-font); color:var(--p-ink); cursor:pointer;
+}
+.tp-aktion--gefahr{ background:var(--p-falsch); }
+/* Formen-Wahl (5.4): drei gleich breite Kacheln 40 + Rahmen, die gewählte flieder. */
+.uv-form-choice{ display:flex; gap:6px; margin-top:6px; }
+.uv-form-chip, .uv-form-chip.past, .uv-form-chip.pp, .uv-form-chip.both{
+  flex:1; height:44px; padding:0 4px; justify-content:center; gap:0;
+  border:var(--p-rahmen); border-radius:14px; background:var(--p-karte); box-shadow:none; color:var(--p-ink);
+}
+.uv-form-chip .fc-title{ font:800 11px var(--p-font); color:var(--p-ink); }
+.uv-form-chip.sel, .uv-form-chip.past.sel, .uv-form-chip.pp.sel, .uv-form-chip.both.sel{
+  background:var(--p-lila); border-color:var(--p-ink); box-shadow:none;
+}
+.uv-form-chip.sel .fc-title{ font-weight:900; }
+.uv-form-chip.sel .fc-title::after{ content:none; }
+
+/* Dialoge „Neues Trainings-Deck" (5.4) und „… befüllen" (5.12). */
+.uv-fill-card{ border-radius:28px; background:var(--p-karte-hell); padding:18px 18px 16px; }
+.uv-fill-head{ padding:0; text-align:left; border-bottom:0; flex:none; }
+.uv-fill-title{ font:900 20px var(--p-font); }
+.uv-fill-hint{ font:700 11.5px var(--p-font); color:var(--p-text-2); margin-top:0; }
+.tp-kicker{ font:900 10px var(--p-font); letter-spacing:.14em; text-transform:uppercase; color:var(--p-text-2); margin-top:12px; }
+.tp-kicker-zeile{ display:flex; justify-content:space-between; align-items:center; margin-top:14px; }
+.tp-kicker-zeile .tp-kicker{ margin-top:0; }
+.uv-fill-count{
+  margin-top:0; padding:3px 9px; border-radius:11px; font:800 10px var(--p-font);
+}
+.uv-train-name{
+  display:block; width:100%; height:52px; margin-top:6px; padding:0 14px;
+  border:var(--p-rahmen); border-radius:16px; background:var(--p-feld);
+  font:800 14px var(--p-font); color:var(--p-ink); outline:none;
+}
+.uv-train-name:focus{ border-color:var(--p-ink); outline:2px solid var(--p-ink); outline-offset:2px; }
+.uv-fill-list{ padding:0; margin-top:8px; }
+.uv-fill-row{
+  position:relative; gap:10px; padding:6px 11px; margin-bottom:7px;
+  border:var(--p-rahmen); border-radius:14px; background:var(--p-karte);
+}
+.uv-fill-row.sel{ background:var(--p-ok); }
+.uv-fill-row.used{ opacity:.45; }
+.uv-fill-row .uv-fill-cb{ position:absolute; width:1px; height:1px; opacity:0; pointer-events:none; }
+.uv-fill-haken{
+  width:28px; height:28px; flex:none; border:var(--p-rahmen); border-radius:8px; background:var(--p-karte-hell);
+  display:flex; align-items:center; justify-content:center;
+}
+.uv-fill-haken canvas{ visibility:hidden; }
+.uv-fill-row.sel .uv-fill-haken{ background:var(--p-ink); }
+.uv-fill-row.sel .uv-fill-haken canvas{ visibility:visible; }
+.uv-fill-de{ font:800 12px var(--p-font); }
+.uv-fill-en{ font:900 12px var(--p-font); color:var(--p-ink); }
+/* Stufe wie die Schwierigkeit in 3.2: A1 mint, A2 pfirsich, ab B1 rosa. */
+.uv-fill-cefr{ border-radius:11px; padding:3px 9px; font:800 10px var(--p-font); background:var(--p-rosa); flex:none; }
+.uv-fill-cefr[data-stufe="A1"]{ background:var(--p-ok); }
+.uv-fill-cefr[data-stufe="A2"]{ background:var(--p-pfirsich); }
+.uv-fill-row.used .uv-fill-cefr{ background:var(--p-inaktiv); }
+.uv-fill-foot{ gap:10px; padding:0; margin-top:14px; border-top:0; flex:none; }
+.uv-fill-cancel, .uv-fill-ok{ height:58px; border-radius:18px; font:900 14px var(--p-font); }
+#uv-fill-back{ background:var(--p-karte); }
+.uv-fill-ok:disabled{ background:var(--p-inaktiv); color:var(--p-ink); opacity:.55; cursor:default; }
+.tp-neu-hinweis{ font:700 10px var(--p-font); color:var(--p-text-2); text-align:center; margin-top:8px; flex:none; }
+/* Kopf von 5.12: Werkstück in der Goldkachel (48 + Rahmen), Titel daneben. */
+.uv-befuellen-kopf{ display:flex; align-items:center; gap:11px; }
+.uv-befuellen-kachel{
+  width:52px; height:52px; flex:none; border:var(--p-rahmen); border-radius:16px; background:var(--p-gold);
+  display:flex; align-items:center; justify-content:center;
+}
+
+/* Statistik des Trainings-Decks (5.5): Formen mit Feld daneben. */
+.vm-gesamt-balken--lila > i{ background:var(--p-lila); }
+.tp-st-kopf, .tp-st-zeile{ display:grid; gap:6px; }
+.tp-st-kopf{
+  padding:10px 12px; background:var(--p-inaktiv); border-bottom:var(--p-rahmen);
+  font:900 9px var(--p-font); letter-spacing:.08em; text-transform:uppercase; color:var(--p-ink);
+}
+.tp-st-zeile{ align-items:center; padding:8px 12px; font:700 11px var(--p-font); color:var(--p-ink); }
+.tp-st-zeile + .tp-st-zeile{ border-top:var(--p-zeilentrenner); }
+.tp-st-de{ font-weight:800; }
+.tp-st-rechts{ text-align:right; justify-self:stretch; }
+.tp-st-links{ text-align:left; justify-self:stretch; }
+.tp-st-form{ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.tp-st-feld{
+  justify-self:center; width:26px; height:24px; flex:none; border-radius:8px;
+  display:flex; align-items:center; justify-content:center;
+}
+.tp-st-feld.is-fertig{ border:var(--p-rahmen); background:var(--p-ok); }
+.tp-st-feld.is-dran{ border:var(--p-rahmen); background:var(--p-gold); }
+.tp-st-feld.is-leer{ border:2px dashed rgba(31,31,36,.35); }
+/* Seiten ohne Untertitel (5.5): Titel mittig zum Zurück-Knopf. */
+.vm-kopf:has(#vm-deck-name:empty){ align-items:center; }
+.vm-kopf:has(#vm-deck-name:empty) .vm-titel{ display:flex; justify-content:center; letter-spacing:.18em; }
+/* Ohne Reiter beginnt der Inhalt direkt oben im Blatt (5.5). */
+.vm-tabs{ margin-bottom:0; }
+.vm-tabs:empty ~ .vm-pane{ margin-top:0; }
+/* Dialoge 5.4/5.12 stehen 14 px vom Rand. */
+.uv-fill-overlay{ padding:14px; }
+.vm-kopf:has(#vm-deck-name:empty) #vm-deck-name{ display:none; }
