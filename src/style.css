@@ -4074,6 +4074,7 @@ button.p-chip{ cursor:pointer; }
 .sp-nochmal-chip{ display:flex; justify-content:center; margin-top:12px; }
 .sp-nochmal-chip .p-chip{ border-radius:11px; }
 .sp-nochmal-text{ font:700 12px/1.55 var(--p-font); color:var(--p-text-akzent); margin-top:14px; }
+.sp-los{ margin-top:20px; }
 #game-screen.is-nochmal .feedback, #game-screen.is-nochmal .next-btn--unten,
 #game-screen.is-nochmal .mode-progress{ display:none; }
 
@@ -4187,9 +4188,11 @@ button.p-chip{ cursor:pointer; }
 .mic-btn.recording .mic-ring{ display:block; }
 .mic-label{ font:900 13px var(--p-font); color:var(--p-ink); margin-top:16px; }
 #game-card.mic-hoert .mic-label{ margin-top:30px; }
-/* Pegel: bis zur Antwort auf F-21 der heutige Visualizer, nur beim Zuhören. */
-#viz-canvas{ display:none; margin:10px auto 0; }
-#game-card.mic-pegel #viz-canvas{ display:block; }
+/* Pegel (4.8, F-21): 9 Tintenbalken, Höhe aus der echten Lautstärke (speech.js),
+   nur beim Zuhören. */
+.mic-balken{ display:none; gap:4px; align-items:center; justify-content:center; height:26px; margin-top:10px; }
+.mic-balken > span{ width:5px; height:4px; background:var(--p-ink); border-radius:2px; flex:none; }
+#game-card.mic-pegel .mic-balken{ display:flex; }
 /* Kasten „Gehört": gestrichelt, bei richtig mint, bei falsch rosa. */
 .pronounce-result, .pronounce-result.heard{
   display:flex; align-items:center; gap:10px; text-align:left;
@@ -4963,3 +4966,27 @@ body.p-app .music-vol-btn{ bottom:calc(88px + env(safe-area-inset-bottom,0px)); 
   border:var(--p-rahmen); border-radius:14px; background:var(--p-karte);
   font:800 11px var(--p-font); color:var(--p-ink);
 }
+
+/* ══ SCHNELLMODUS IM SPIEL 4.5 (F-45) ══════════════════════════════════════
+   Chip unter dem Titel; statt Warte-Kasten und Fortschrittskarte ein
+   gestrichelter Hinweis. Treffer/Fehler erscheinen wie sonst. */
+.sp-titel-spalte{ display:flex; flex-direction:column; align-items:center; gap:5px; min-width:0; }
+.sp-schnell-chip{ display:none; border-radius:11px; }
+.sp-schnell-hinweis{
+  display:none; margin-top:12px; padding:11px 14px; align-items:center; gap:9px;
+  border:2px dashed rgba(31,31,36,.55); border-radius:18px; background:var(--p-chip-leer);
+  font:800 11px var(--p-font); color:#4A4A52;
+}
+#game-screen.ist-schnell .sp-schnell-chip{ display:inline-flex; }
+#game-screen.ist-schnell .sp-schnell-hinweis{ display:flex; }
+#game-screen.ist-schnell .mode-progress{ display:none; }
+#game-screen.ist-schnell .feedback:not(.show):not(.is-selbst){ display:none; }
+
+/* Probetest (4.12): „DE“ und Antworten in 15 px, Wort 14 px unter der Plakette —
+   wie im Fragment (4.1: 14/16 px, 12 px). */
+#game-screen.ist-pruefung .question-text .q-lang{ font-size:15px; }
+#game-screen.ist-pruefung .choice-btn{ font-size:15px; }
+#game-screen.ist-pruefung .question-text:not(.mit-instr){ margin-top:14px; }
+
+/* Aussprache falsch, erster Versuch (4.10, F-48): „Nochmal versuchen" in der Karte. */
+.sp-nochmal-versuchen{ margin-top:14px; gap:8px; }

@@ -616,7 +616,7 @@ function showQuestion() {
       window.wrongQueue=[];
       window.questionIndex=0;
       // Zwischenkarte nach 4.4; sie verdeckt Warte-Kasten und Fortschritt.
-      // Weiter geht es wie bisher nach 2 s von selbst (Knopf „Los": Frage F-46).
+      // Weiter geht es mit „Los" (F-46) — das Kind bestimmt das Tempo.
       const card=document.getElementById('game-card');
       const n=window.questionPool.length;
       card.innerHTML=`<div class="sp-nochmal">
@@ -624,9 +624,11 @@ function showQuestion() {
         <div class="sp-nochmal-titel">Jetzt nochmal die ${n} ${n===1?'falsche Frage':'falschen Fragen'}!</div>
         <div class="sp-nochmal-chip"><span class="p-chip p-chip--icon p-chip--gold">${iconHTML('starInk',14)}Punkte zählen halb</span></div>
         <div class="sp-nochmal-text">Nur was daneben ging, läuft noch einmal — danach ist die Runde fertig.</div>
+        <button class="p-btn p-btn--primaer sp-los">Los</button>
       </div>`;
       document.getElementById('game-screen')?.classList.add('is-nochmal');
-      setTimeout(()=>showQuestion(),2000);return;
+      card.querySelector('.sp-los')?.addEventListener('click',()=>showQuestion(),{once:true});
+      return;
     }
     showEnd();return;
   }
@@ -701,13 +703,13 @@ function renderQuestion(q) {
       : `<button class="submit-btn" onclick="submitType()">Prüfen${iconHTML('check',14)}</button></div>`;
   } else if(q.type==='pronounce'){
     // Aussprache nach 4.7–4.10: runder Mikrofon-Knopf (Ringe beim Zuhören),
-    // Zustand darunter, Pegel (heutiger Visualizer, Frage F-21), Kasten „Gehört".
+    // Zustand darunter, Pegel als 9 Balken (echte Lautstärke, F-21), Kasten „Gehört".
     html+=`<div class="p-fragekarte">${head}${frage}
       <div class="mic-rund-platz"><button class="mic-btn" id="mic-btn" onclick="startRecording()" data-ui="pulse" data-a="4">`
       +`<span class="mic-ring mic-ring--1" data-ui="ring" data-a="9" data-d="0"></span>`
       +`<span class="mic-ring mic-ring--2" data-ui="ring" data-a="7" data-d="6"></span>${iconHTML('mic',56)}</button></div>
       <div class="mic-label" id="pronounce-tip">Tippen und sprechen</div>
-      <canvas id="viz-canvas" width="300" height="60"></canvas>
+      <div class="mic-balken" id="mic-balken">${'<span></span>'.repeat(9)}</div>
       <div class="pronounce-result" id="pronounce-result"></div>
     </div>`;
   } else if(q.type==='order'){
@@ -728,6 +730,9 @@ function renderQuestion(q) {
   // Aussprache zeigt keinen Warte-Kasten (4.7–4.10), nur Vondus Hinweis bei 4.11.
   document.getElementById('game-screen')?.classList.toggle('ist-aussprache', q.type==='pronounce');
   document.getElementById('game-screen')?.classList.toggle('ist-formen', !!window.isUV);
+  // Schnellmodus (4.5, F-45): Chip unter dem Titel, Hinweis statt Warten/Fortschritt.
+  document.getElementById('game-screen')?.classList.toggle('ist-schnell', !!(window.isSchnellModus && !window.isExamMode));
+  document.getElementById('game-screen')?.classList.toggle('ist-pruefung', !!window.isExamMode);
   if(q.type==='pronounce') gehoert(document.getElementById('pronounce-result'), '—', 'wort');
   if(q.type==='type') setTimeout(()=>document.getElementById('type-input')?.focus(),120);
   if(q.type==='order') initOrderDnD();
@@ -1017,10 +1022,37 @@ export async function evaluateWithClaude(recognizedText, targetWord) {
     return false;
   });
   if(window.answered) return;
+  // Erster Fehlversuch (F-48, Fragment 4.10): noch nicht werten — das Kind
+  // bekommt „Nochmal versuchen", gewertet wird erst der zweite Versuch.
+  if(!ok && !window._pronounceAttempts){
+    if(document.getElementById('nochmal-versuchen')) return;   // Nachzügler desselben Versuchs
+    setMicFinalStatus(false);
+    _zeigeNochmalVersuchen();
+    return;
+  }
   window.answered=true;
   setMicFinalStatus(ok);
   if(ok) handlePronounceCorrect();
   else handleWrong();
+}
+
+// Knopf „Nochmal versuchen" in der Fragekarte (4.10). Tippen setzt den Kasten
+// „Gehört" zurück und hört noch einmal zu (retryPronounce zählt den Versuch).
+function _zeigeNochmalVersuchen() {
+  const card=document.getElementById('game-card');
+  const ziel=card&&(card.querySelector('.p-fragekarte')||card);
+  if(!ziel) return;
+  const b=document.createElement('button');
+  b.id='nochmal-versuchen';
+  b.className='p-btn sp-nochmal-versuchen';
+  b.innerHTML=iconHTML('refresh',14)+'Nochmal versuchen';
+  b.onclick=()=>{
+    b.remove();
+    const res=document.getElementById('pronounce-result');
+    if(res){ res.classList.remove('is-falsch','is-richtig'); delete res.dataset.ui; }
+    retryPronounce();
+  };
+  ziel.appendChild(b);
 }
 
 export function setMicFinalStatus(ok) {
@@ -1288,13 +1320,12 @@ function updateModeProgress(animate) {
     const barPct=totalQ>0 ? Math.round(answered/totalQ*100) : 0;
     if(titleEl) titleEl.innerHTML=iconHTML('chart',14)+'Prüfung';
     if(pctEl) pctEl.textContent=barPct+'%';
+    // Ohne laufende Note (F-47, Fragment 4.12): beantwortet/gesamt und woraus
+    // der Test gemischt ist. Die Note kommt erst am Ende (4.14).
     if(subEl){
-      if(answered===0){
-        subEl.textContent='0/0 · –';
-      } else {
-        const liveGrade=calcGrade(window.totalCorrect/answered);
-        subEl.textContent=window.totalCorrect+'/'+answered+' richtig · Note '+liveGrade;
-      }
+      const n=(window.isProbetest&&window._probetestDecks||[]).length;
+      const woher=n>1 ? ' · gemischt aus '+n+' Sammlungen' : n===1 ? ' · aus 1 Sammlung' : '';
+      subEl.textContent=answered+'/'+totalQ+woher;
     }
     if(barEl) barEl.style.width=barPct+'%';
     window._lastModePct=barPct;

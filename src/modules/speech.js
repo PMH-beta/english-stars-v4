@@ -374,6 +374,46 @@ function _ensureAudioCtx() {
   } catch(e) { _audioCtx = null; }
 }
 
+// ── Pegel (4.8, F-21) ──
+// Die echte Lautstärke steuert die 9 Balken unter „Ich höre zu" und die zwei
+// Ringe um den Mikrofon-Knopf — in harten Stufen im gemeinsamen 8-fps-Takt
+// (125 ms), wie die übrigen UI-Animationen. Balken: dieselben 5 Höhen wie
+// data-ui="bars" (4–24 px). Ringe: 4 Stufen aus Größe und Deckkraft von
+// data-ui="ring"; solange keine Messung kommt, läuft der Ring-Takt wie bisher.
+let _pegelZeit = 0;
+function _zeigePegel(buf, t) {
+  if (t - _pegelZeit < 125) return;
+  _pegelZeit = t;
+  const balken = document.querySelectorAll('#mic-balken > span');
+  if (balken.length) {
+    const je = Math.max(1, Math.floor(buf.length / 2 / balken.length));   // untere Hälfte = Sprache
+    balken.forEach((b, i) => {
+      let sum = 0;
+      for (let k = 0; k < je; k++) sum += buf[i * je + k];
+      const stufe = Math.min(4, Math.floor(sum / je / 255 * 5));
+      const h = (4 + stufe * 5) + 'px';
+      if (b.style.height !== h) b.style.height = h;
+    });
+  }
+  let sum = 0;
+  for (let i = 0; i < buf.length; i++) sum += buf[i];
+  const lvl = sum / buf.length / 255;
+  const stufe = lvl < 0.06 ? 0 : lvl < 0.14 ? 1 : lvl < 0.26 ? 2 : 3;
+  document.querySelectorAll('#mic-btn .mic-ring').forEach((r, i) => {
+    if (r.dataset.ui) r.removeAttribute('data-ui');
+    r.style.transform = 'scale(' + (1 + Math.max(0, stufe - 1) * (i === 0 ? 9 : 7) / 100) + ')';
+    r.style.opacity = String([0, 0.35, 0.6, 0.9][stufe]);
+  });
+}
+// Messung vorbei: Balken flach, Ringe zurück in den Takt.
+function _pegelRuhe() {
+  document.querySelectorAll('#mic-balken > span').forEach((b) => { b.style.height = ''; });
+  document.querySelectorAll('#mic-btn .mic-ring').forEach((r, i) => {
+    r.style.transform = ''; r.style.opacity = '';
+    r.dataset.a = i === 0 ? '9' : '7'; r.dataset.d = i === 0 ? '0' : '6'; r.dataset.ui = 'ring';
+  });
+}
+
 // Grafik und Visualizer-Stream bereinigen — AudioContext und mic-Stream bleiben intakt.
 function _clearVisualizerState() {
   if (_vizAF) { cancelAnimationFrame(_vizAF); _vizAF = null; }
@@ -384,15 +424,12 @@ function _clearVisualizerState() {
     try { _vizStream.getTracks().forEach(t => t.stop()); } catch(e) {}
     _vizStream = null;
   }
-  const canvas = document.getElementById('viz-canvas');
-  if (canvas) { const ctx = canvas.getContext('2d'); ctx.clearRect(0, 0, canvas.width, canvas.height); }
+  _pegelRuhe();
 }
 
 export function startVisualizer(stream) {
   _clearVisualizerState();
   if (!stream) return;
-  const canvas = document.getElementById('viz-canvas');
-  if (!canvas) return;
   try {
     // _audioCtx wurde synchron in startRecording() angelegt und resumed.
     // Fallback: neu erstellen; bei 'suspended' aufwecken (iOS kann Context zwischen
@@ -410,24 +447,10 @@ export function startVisualizer(stream) {
     _vizSrc.connect(_vizGain);
     _vizGain.connect(_analyser);
     const buf = new Uint8Array(_analyser.frequencyBinCount);
-    const ctx = canvas.getContext('2d');
-    const W = canvas.width, H = canvas.height;
-    let _lastDraw = 0;
     function draw(ts) {
       _vizAF = requestAnimationFrame(draw);
-      if (ts - _lastDraw < 33) return;
-      _lastDraw = ts;
       _analyser.getByteFrequencyData(buf);
-      ctx.clearRect(0, 0, W, H);
-      const barW = W / buf.length * 2;
-      let x = 0;
-      for (let i = 0; i < buf.length; i++) {
-        const h = buf[i] / 255 * H;
-        const hue = 200 + buf[i] / 2;
-        ctx.fillStyle = `hsl(${hue},90%,60%)`;
-        ctx.fillRect(x, H - h, barW - 1, h);
-        x += barW;
-      }
+      _zeigePegel(buf, ts);
     }
     requestAnimationFrame(draw);
   } catch(e) {}
@@ -509,8 +532,7 @@ export async function voskStart(onResult, onError) {
     const src = ctx.createMediaStreamSource(stream);
     _voskRec = {rec, ctx, src, stream, vizAF: null};
     try {
-      const canvas = document.getElementById('viz-canvas');
-      if (canvas) {
+      {
         const vizAnalyser = ctx.createAnalyser();
         vizAnalyser.fftSize = 256;
         vizAnalyser.smoothingTimeConstant = 0.6;
@@ -522,25 +544,11 @@ export async function voskStart(onResult, onError) {
         _voskRec.vizAnalyser = vizAnalyser;
         _voskRec.vizGain = vizGain;
         const buf = new Uint8Array(vizAnalyser.frequencyBinCount);
-        const cctx = canvas.getContext('2d');
-        const W = canvas.width, H = canvas.height;
-        let _lastDraw = 0;
         function drawViz(t) {
           if (!_voskRec) return;
           _voskRec.vizAF = requestAnimationFrame(drawViz);
-          if (t - _lastDraw < 33) return;
-          _lastDraw = t;
           vizAnalyser.getByteFrequencyData(buf);
-          cctx.clearRect(0, 0, W, H);
-          const barW = W / buf.length * 2;
-          let x = 0;
-          for (let i = 0; i < buf.length; i++) {
-            const h = buf[i] / 255 * H;
-            const hue = 200 + buf[i] / 2;
-            cctx.fillStyle = `hsl(${hue},90%,60%)`;
-            cctx.fillRect(x, H - h, barW - 1, h);
-            x += barW;
-          }
+          _zeigePegel(buf, t);
         }
         drawViz(0);
       }
@@ -580,8 +588,7 @@ export function voskStop() {
   _voskRec = null;
   _micActive = false;
   _scheduleIosMusicResume();
-  const canvas = document.getElementById('viz-canvas');
-  if (canvas) { const cctx = canvas.getContext('2d'); cctx.clearRect(0, 0, canvas.width, canvas.height); }
+  _pegelRuhe();
 }
 
 // ════════════════════════════════════════════════

@@ -470,7 +470,11 @@
     <!-- Kopf nach 4.3/4.12: Zurück, Modusname, Serie und Punkte. -->
     <div class="sp-kopf">
       <button class="p-back" onclick="confirmHome()"><canvas data-icon="back" width="14" height="14" style="width:28px;height:28px;image-rendering:pixelated;flex:none"></canvas></button>
-      <div class="sp-titel" id="game-title">Vokabeln</div>
+      <!-- Titel; im Schnellmodus (4.5) mit Chip darunter -->
+      <div class="sp-titel-spalte">
+        <div class="sp-titel" id="game-title">Vokabeln</div>
+        <span class="p-chip p-chip--icon p-chip--gold sp-schnell-chip"><canvas data-icon="flame" data-ui="swap" data-seq="flame,flameR,flame,flameL" data-d="0" width="14" height="14" style="width:14px;height:14px;image-rendering:pixelated;flex:none"></canvas>Schnellmodus</span>
+      </div>
       <!-- Serie und Punkte. game.js schreibt Symbol + Zahl hinein. -->
       <div class="p-hud">
         <div class="p-chip p-chip--icon" id="streak-display"></div>
@@ -495,6 +499,8 @@
       <button class="next-btn" onclick="nextQuestion()">Weiter</button>
     </div>
     <button class="next-btn next-btn--unten" onclick="nextQuestion()">Weiter</button>
+    <!-- Schnellmodus (4.5): statt Warte-Kasten und Fortschritt nur dieser Hinweis -->
+    <div class="sp-schnell-hinweis"><canvas data-icon="flame" data-ui="swap" data-seq="flame,flameR,flame,flameL" data-d="4" width="14" height="14" style="width:14px;height:14px;image-rendering:pixelated;flex:none"></canvas>Schnellmodus — zählt nicht in die Statistik</div>
     <!-- Modus-Gesamtfortschritt – ganz unten -->
     <div class="mode-progress" id="mode-progress">
       <div class="mode-progress-label">
