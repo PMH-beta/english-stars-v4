@@ -20,9 +20,10 @@ import { commitDirty } from './dialog.js';
 import { iconHTML } from './pixel-icons.js';
 import { HP_MAX, REST_HEAL, BOSS_WIN_TALER } from './campaign-balance.js';
 import { openFight, fightPoolReady, verbsReady, loadPresetSupply } from './campaign-fight.js';
-import { equipEffects, openPotionChoice, POTIONS, potionStacks } from './campaign-equipment.js';
+import { equipEffects, openPotionChoice, POTIONS, POTION_TON, potionStacks } from './campaign-equipment.js';
 import { arenaSVG, campfireTag, CAMPFIRE_FRAMES, CAMPFIRE_FPS } from './world.js';
 import { renderAvatarInto } from './avatar.js';
+import { dungeonEnemySVG } from './pixel-enemies-dungeon.js';
 
 const ROWS = 13;            // Reihe 0 = Start (unten), Reihe ROWS-1 = Boss (oben)
 const COLS = 5;
@@ -30,16 +31,20 @@ const PATHS = 6;            // Anzahl generierter Pfade von unten nach oben
 export const STAKE_COST = 2;
 const UNLOCK_NEED = 2;      // so viele 100%-Deck-Modi (Taler) zum Freischalten
 
-// Knotentypen. Farbe und Pixelsymbol folgen der Bedeutung, die die Farbe im
-// uebrigen Design schon hat: Kampf rosa wie der Kampfbildschirm, Formen
-// pfirsich wie der Formen-Tab, Rast mint, Schatz hellblau, Boss flieder.
+// Knotentypen. Farben nach Fragment 6.1: Kampf pfirsich, Rast rosa, Schatz
+// hellblau, Boss flieder. Die „Unregelmäßigen" zeigt 6.1 nur ausgegraut — ihr
+// Portal ist in der Vorschau 6.2 flieder, das übernehmen wir.
 const NODE = {
-  fight:     { icon: 'sword',    ton: 'var(--p-rosa)',     label: 'Übung' },
-  irregular: { icon: 'portal',   ton: 'var(--p-pfirsich)', label: 'Unregelmäßige' },
-  rest:      { icon: 'campfire', ton: 'var(--p-mint)',     label: 'Rastplatz' },
+  fight:     { icon: 'sword',    ton: 'var(--p-pfirsich)', label: 'Übung' },
+  irregular: { icon: 'portal',   ton: 'var(--p-lila)',     label: 'Unregelmäßige' },
+  rest:      { icon: 'campfire', ton: 'var(--p-rosa)',     label: 'Rastplatz' },
   treasure:  { icon: 'gem',      ton: 'var(--p-blau)',     label: 'Schatz' },
   boss:      { icon: 'crownBig', ton: 'var(--p-lila)',     label: 'Boss' },
 };
+
+// Lagerfeuer flackern überall gleich (Übersicht 9.7): 4 Bilder mit 4 fps.
+const _flackern = (html, d = 0) =>
+  html.replace('<canvas ', `<canvas data-ui="swap" data-seq="campfire,campfireL,campfire,campfireR" data-d="${d}" `);
 
 // Gewichtete Zufallswahl: höheres Gewicht = wahrscheinlicher, aber nie ausgeschlossen.
 function _weightedPick(arr, weightFn) {
@@ -262,20 +267,20 @@ function _renderRest(run, before) {
   ov.className = 'rest-ov p-ton-mint';
   ov.innerHTML = `
     <div class="cf-scenery">${arenaSVG('abend')}</div>
-    <div class="rest-kopf"><span class="rest-titel">Rastplatz</span></div>
+    <div class="rest-kopf"><span class="rest-titel">${_flackern(iconHTML('campfire', 14))}Rastplatz</span></div>
     <div class="rest-mitte">
       <div class="rest-karte">
         <div class="rest-h1">Ausgeruht</div>
         <div class="rest-tx">Das Feuer wärmt. Du sammelst Kraft für den Weg zum Boss.</div>
         <div class="rest-zeile">
-          <span class="rest-lbl">${iconHTML('heart', 14)} Leben</span>
+          <span class="rest-lbl">Leben</span>
           <span class="rest-zahl">${before} → ${run.hp}/${run.hpMax}</span>
         </div>
         <div class="rest-bar">
           <i class="rest-bar-alt" style="width:${pctVor}%"></i>
           <i class="rest-bar-neu" style="left:${pctVor}%;width:${pctZu}%"></i>
         </div>
-        <div class="rest-plus"><span class="p-chip p-chip--gold">+${gewinn} Leben</span></div>
+        <div class="rest-plus"><span class="rest-chip">${iconHTML('heart', 14).replace('<canvas ', '<canvas data-ui="beat" data-c="12" ')}+${gewinn} Leben</span></div>
         <button class="rest-weiter" id="rest-weiter">Weiter</button>
       </div>
     </div>
@@ -515,26 +520,41 @@ export function campPotionInfo(el, key) {
   const info = POTIONS[key];
   if (!info || !el) return;
   const r = el.getBoundingClientRect();
+  // Sprechblase wie Fragment 6.8 (N33). Die Tränke sitzen oben rechts in der
+  // Kopfkarte, rechts daneben ist kein Platz — die Blase hängt deshalb darunter,
+  // rechtsbündig, der Zipfel zeigt nach oben auf den Trank.
   const tip = document.createElement('div');
   tip.id = 'camp-potion-tip';
+  tip.className = 'p-trank-blase';
   tip.dataset.key = key;
-  const left = Math.min(window.innerWidth - 16, Math.max(16, r.left + r.width / 2));
-  tip.style.cssText = `position:fixed;left:${left}px;top:${r.bottom + 6}px;transform:translateX(-50%);
-    background:#2b2350;color:#fff;font-family:'Nunito',sans-serif;font-size:.76rem;font-weight:700;
-    line-height:1.4;padding:9px 13px;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.32);
-    z-index:9000;max-width:200px;text-align:center;`;
-  tip.innerHTML = `<div style="font:900 12px var(--p-font);margin-bottom:2px">${info.icon} ${info.name}</div>${info.desc}`;
+  const right = Math.max(16, window.innerWidth - r.right);
+  tip.style.cssText = `right:${right}px;top:${r.bottom + 10}px;`;
+  tip.innerHTML = `<span class="p-trank-blase-zipfel" style="right:${Math.round(r.width / 2) - 6}px"></span>`
+    + `<div class="p-trank-blase-name">${info.name}</div>`
+    + `<div class="p-trank-blase-text">${info.desc}. Nochmal tippen schließt.</div>`;
   document.body.appendChild(tip);
   setTimeout(() => { if (tip.parentNode) tip.remove(); }, 3500);
 }
 
 // ── Rendering ──
-// Vorschau-Karte: eine stabile Beispiel-Karte für die Startansicht (nicht spielbar),
-// damit man die Karte auch ohne genug Taler sieht. Pro Session einmal erzeugt.
-let _previewMap = null;
-function _preview() {
-  if (!_previewMap) _previewMap = generateMap();
-  return { map: _previewMap, pos: null, visited: [] };
+// Vorschau (Fragmente 6.2–6.5): eine feste kleine Beispielkarte über dem
+// Startkasten — Boss oben, zwei Ebenen, Start unten. Nicht spielbar; sie zeigt
+// nur, wie eine Karte aussieht. Bis Phase 7 stand hier eine volle Zufallskarte.
+function _vorschauHtml() {
+  const k = (ton, inhalt, boss) =>
+    `<div class="p-vk-knoten${boss ? ' p-vk-knoten--boss' : ''}" style="background:${ton}">${inhalt}</div>`;
+  const strich = '<div class="p-vk-strich"></div>';
+  return `<div class="p-vk-titel">So sieht eine Karte aus — mit ${STAKE_COST} Taler geht's los</div>
+  <div class="p-vk-karte">
+    <div class="p-vk-reihe p-vk-reihe--mitte">${k('var(--p-rosa)', `<div class="p-vk-lich">${dungeonEnemySVG('lichHead')}</div>`, true)}</div>
+    ${strich}
+    <div class="p-vk-reihe">${k('var(--p-pfirsich)', _flackern(iconHTML('campfire', 28)))}${k('var(--p-karte)', iconHTML('sword', 28))}${k('var(--p-gold)', iconHTML('box', 28))}</div>
+    ${strich}
+    <div class="p-vk-reihe">${k('var(--p-karte)', iconHTML('sword', 28))}${k('var(--p-lila)', iconHTML('portal', 28))}</div>
+    ${strich}
+    <div class="p-vk-reihe p-vk-reihe--mitte">${k('var(--p-mint)', iconHTML('flag', 28))}</div>
+    <div class="p-vk-chipplatz"><span class="p-vk-chip">Vorschau</span></div>
+  </div>`;
 }
 
 export function renderCampaign() {
@@ -569,12 +589,11 @@ function _renderCampaignNow(host) {
   }
   updateTalerBadge();
   if (!c.run) {
-    // Startansicht (gesperrt / Einsatz) + darunter die Karte als Vorschau.
-    host.innerHTML = _startScreenHtml() + _mapHtml(_preview(), true);
-    _drawEdges(_preview());
+    // Startansicht: Vorschau, darunter gesperrt / Einsatz / gratis (6.2–6.5).
+    host.innerHTML = _startScreenHtml();
     return;
   }
-  host.innerHTML = _mapHtml(c.run, false);
+  host.innerHTML = _mapHtml(c.run);
   _drawEdges(c.run);
   // Frischer Lauf: zum Startbereich (unten) scrollen, damit die Startknoten sichtbar sind.
   if (c.run.pos == null) {
@@ -583,77 +602,83 @@ function _renderCampaignNow(host) {
   }
 }
 
+// Startkasten unter der Vorschau: gesperrt (6.2), gratis nach Boss-Sieg (6.5),
+// sonst Einsatz mit genug (6.3) oder zu wenig Talern (6.4). Regeln unverändert.
 function _startScreenHtml() {
   const c = _camp();
   const claimed = c.claimed.length;
   const avail = talerAvailable();
-  const box = (inner) => `<div class="p-dialogkarte" style="text-align:center">
-    <div class="p-emblem p-ton-amber">${iconHTML('map', 42)}</div>
-    <div class="p-h1">Kampagne</div>
-    ${inner}</div>`;
+  const kopf = (kachelTon, icon, titel, text) => `<div class="p-kstart-kopf">
+      <div class="p-kstart-kachel" style="background:${kachelTon}">${iconHTML(icon, 28)}</div>
+      <div class="p-wachs"><div class="p-kstart-titel">${titel}</div><div class="p-kstart-text" style="margin-top:2px">${text}</div></div>
+    </div>`;
+  let box;
   if (claimed < UNLOCK_NEED) {
-    return box(`<div class="p-lead">
-      Bring erst <b>${UNLOCK_NEED} Übungsarten</b> (z. B. Vokabeln) in deinen Sammlungen auf <b>100 %</b>, um die Kampagne freizuschalten.</div>
-      <div class="p-feldgruppe"><div class="p-karte p-reihe" style="justify-content:center;gap:7px">
-        ${iconHTML('coin', 14)}<span style="font:900 13px var(--p-font)">Freigeschaltet: ${claimed} / ${UNLOCK_NEED}</span>
-      </div></div>`);
+    const pct = Math.round(Math.min(claimed, UNLOCK_NEED) / UNLOCK_NEED * 100);
+    box = `<div class="p-kstart">
+      ${kopf('var(--p-inaktiv)', 'lock', 'Noch gesperrt', `Bring erst ${UNLOCK_NEED} Übungsarten auf 100 %.`)}
+      <div class="p-kstart-frei"><span>Freigeschaltet</span><span>${claimed}/${UNLOCK_NEED}</span></div>
+      <div class="p-kstart-balken"><i style="width:${pct}%"></i></div>
+    </div>`;
+  } else if (c.freeStart) {   // Boss gerade besiegt → dieser Lauf kostet nichts
+    box = `<div class="p-kstart p-kstart--hell">
+      ${kopf('var(--p-gold)', 'crownBig', 'Boss besiegt!', 'Der nächste Lauf kostet dich nichts.')}
+      <button onclick="startCampaignRun()" class="p-kstart-btn p-kstart-btn--gratis">${iconHTML('flag', 14)}Neuen Lauf starten · gratis</button>
+    </div>`;
+  } else {
+    const canStart = avail >= STAKE_COST;
+    const fehlt = STAKE_COST - avail;
+    box = `<div class="p-kstart">
+      <div class="p-kstart-titel">Setze ${STAKE_COST} Taler ein</div>
+      ${canStart ? '<div class="p-kstart-text" style="margin-top:3px">Kämpf dich bis zum Boss. Verlierst du, ist der Einsatz weg.</div>' : ''}
+      <div class="p-kstart-taler"><span>Deine Taler</span><b>${iconHTML('coin', 14)}${avail}</b></div>
+      <button onclick="startCampaignRun()" ${canStart ? '' : 'disabled'} class="p-kstart-btn${canStart ? '' : ' is-aus'}">${iconHTML(canStart ? 'coin' : 'lock', 14)}Kampagne starten · ${STAKE_COST} Taler</button>
+      ${canStart ? '' : `<div class="p-kstart-fehlt">${fehlt === 1
+        ? 'Dir fehlt 1 Taler — schließ eine Übungsart auf 100 % ab.'
+        : `Dir fehlen ${fehlt} Taler — schließ ${fehlt} Übungsarten auf 100 % ab.`}</div>`}
+    </div>`;
   }
-  const free = c.freeStart;   // Boss gerade besiegt → dieser Lauf kostet nichts
-  const canStart = free || avail >= STAKE_COST;
-  return box(`
-    <div class="p-lead">
-      ${free
-        ? 'Boss besiegt! Dein <b>nächster Lauf ist kostenlos</b> — kämpf dich über die Karte zum nächsten Boss.'
-        : `Setze <b>${STAKE_COST} Taler</b> ein und kämpf dich über die Karte zum Boss.`}
-      Fällst du (Leben auf 0), ist der Einsatz verloren.
-    </div>
-    <div class="p-feldgruppe">
-      <div class="p-karte p-reihe" style="justify-content:center;gap:7px">
-        ${iconHTML('coin', 14)}<span style="font:900 13px var(--p-font)">Deine Taler: ${avail}</span>
-      </div>
-      <button onclick="startCampaignRun()" ${canStart ? '' : 'disabled'}
-        class="p-btn p-btn--primaer" style="${canStart ? '' : 'opacity:.45;cursor:not-allowed'}">
-        Kampagne starten ${free ? '(kostenlos)' : `(${STAKE_COST} Taler)`}</button>
-    </div>
-    ${canStart ? '' : `<div class="p-lead">Nicht genug Taler — bring weitere Übungsarten auf 100 %.</div>`}`);
+  return _vorschauHtml() + box;
 }
 
-const _MAP_H = ROWS * 78;   // px Gesamthöhe der Karte
+// Reihenabstand wie Fragment 6.1 (82 px von Mitte zu Mitte).
+const _MAP_H = ROWS * 82;   // px Gesamthöhe der Karte
 
-function _mapHtml(run, preview) {
+function _mapHtml(run) {
   let nodesHtml = '';
+  let offenN = 0;
   for (const id in run.map.nodes) {
     const n = run.map.nodes[id];
     const x = (n.col + 0.5) / COLS * 100;
     const y = (ROWS - 1 - n.row + 0.5) / ROWS * 100;
     const meta = NODE[n.type];
     const isBoss = n.type === 'boss';
-    // Der Boss sitzt groesser auf der Karte — 70 statt 46, Radius 24 statt 16.
-    const size = isBoss ? 70 : 46;
+    // Außenmaße wie Fragment 6.1: 46 + Rahmen, der Boss 70 + Rahmen.
+    const size = isBoss ? 74 : 50;
     const radius = isBoss ? 'var(--p-r-dialog)' : 'var(--p-r-kachel)';
-    let bg, opacity, click, cursor, klasse;
-    if (preview) {
-      bg = 'var(--p-inaktiv)'; opacity = '.6'; click = ''; cursor = 'default'; klasse = '';
-    } else {
-      const reachable = _isReachable(run, n);
-      const isCur = run.pos === id;
-      const visited = run.visited.includes(id);
-      // Aktueller Knoten in Tinte gefuellt, erreichbare mit Goldring, gesperrte
-      // blass auf Sand — so steht es in der Spezifikation.
-      bg = isCur ? 'var(--p-ink)' : (reachable || visited) ? meta.ton : 'var(--p-inaktiv)';
-      opacity = (reachable || visited || isCur) ? '1' : '.45';
-      klasse = reachable && !isCur ? ' p-knoten--offen' : '';
-      click = reachable ? `onclick="campaignNode('${id}')"` : '';
-      cursor = reachable ? 'pointer' : 'default';
-    }
-    nodesHtml += `<button ${click} title="${meta.label}" class="p-knoten${klasse}"
+    const reachable = _isReachable(run, n);
+    const isCur = run.pos === id;
+    const visited = run.visited.includes(id);
+    // Aktueller Knoten in Tinte, erreichbare in ihrer Farbe mit Goldring, alle
+    // übrigen auf Sand mit blassem Symbol (die Kachel selbst bleibt satt). Der
+    // Boss steht immer in Farbe mit Goldring und schwebt: er ist das Ziel (6.1).
+    const offen = (reachable && !isCur) || isBoss;
+    const bg = isCur ? 'var(--p-ink)' : (reachable || visited || isBoss) ? meta.ton : 'var(--p-inaktiv)';
+    const blass = !(reachable || visited || isCur || isBoss);
+    let icon = iconHTML(meta.icon, isBoss ? 56 : 28);
+    if (n.type === 'rest') icon = _flackern(icon, n.row % 4);
+    if (isBoss) icon = icon.replace('<canvas ', '<canvas data-ui="bob" data-a="2" ');
+    if (blass) icon = `<span class="p-knoten-blass">${icon}</span>`;
+    // Goldring wächst im Takt (data-ui="halo"), jeder offene Punkt 2 Takte versetzt.
+    const halo = offen ? ` data-ui="halo" data-d="${isBoss ? 0 : 2 * ++offenN}"` : '';
+    const click = reachable ? `onclick="campaignNode('${id}')"` : '';
+    const cursor = reachable ? 'pointer' : 'default';
+    nodesHtml += `<button ${click} title="${meta.label}" class="p-knoten${offen ? ' p-knoten--offen' : ''}"${halo}
       style="left:${x}%;top:${y}%;width:${size}px;height:${size}px;border-radius:${radius};
-      background:${bg};opacity:${opacity};cursor:${cursor};">${iconHTML(meta.icon, isBoss ? 56 : 28)}</button>`;
+      background:${bg};cursor:${cursor};">${icon}</button>`;
   }
   let header;
-  if (preview) {
-    header = `<div style="font-size:.8rem;color:#8a83a5;font-weight:700;text-align:center;margin:4px 0 6px;">🔍 So sieht eine Karte aus — mit ${STAKE_COST} 🪙 geht's los</div>`;
-  } else {
+  {   // Kopfkarte des laufenden Laufs (Fragment 6.1)
     const hpPct = Math.max(0, Math.round(run.hp / run.hpMax * 100));
     const statusText = run.fight
       ? 'Ein Kampf wartet auf dich — tippe einen Punkt an'
@@ -665,7 +690,7 @@ function _mapHtml(run, preview) {
     // Gleiche Tränke liegen auf EINEM Platz mit kleiner Anzahl in der Ecke; mindestens
     // drei Plätze stehen immer da (leer gestrichelt), damit man sieht, wo etwas hinkommt.
     const slots = potionStacks(run.potions).map(s =>
-      `<button onclick="campPotionInfo(this,'${s.key}')" class="camp-slot">${POTIONS[s.key].icon}${
+      `<button onclick="campPotionInfo(this,'${s.key}')" class="camp-slot" style="background:${POTION_TON[s.key] || 'var(--p-karte)'}">${iconHTML('potion', 14)}${
         s.count > 1 ? `<span class="potion-n">${s.count}</span>` : ''}</button>`);
     while (slots.length < 3) slots.push('<div class="camp-slot empty"></div>');
     const potionsHtml = `<div style="display:flex;gap:6px;">${slots.join('')}</div>`;
@@ -688,7 +713,7 @@ function _mapHtml(run, preview) {
     <div class="p-reihe" style="gap:10px;margin-top:12px">
       <div class="p-wachs">
         <div style="display:flex;justify-content:space-between;align-items:baseline">
-          <span style="font:800 9px var(--p-font);letter-spacing:var(--p-ls-mikro);text-transform:uppercase;color:var(--p-text-2)">Leben</span>
+          <span style="font:800 9px var(--p-font);letter-spacing:.1em;text-transform:uppercase;color:var(--p-text-2)">Leben</span>
           <span style="font:900 13px var(--p-font)">${run.hp}/${run.hpMax}</span>
         </div>
         <div class="p-balken" style="margin-top:5px"><i style="width:${hpPct}%"></i></div>
@@ -700,7 +725,7 @@ function _mapHtml(run, preview) {
   }
   // Die Karte liegt in einer eigenen Karte mit Legende — welcher Pfad jetzt offen
   // ist und welcher spaeter kommt, ist sonst nicht zu unterscheiden.
-  const legende = preview ? '' : `
+  const legende = `
     <div class="p-reihe" style="justify-content:space-between;margin-bottom:12px">
       <div class="p-kicker" style="border:0;padding:0">Pfad wählen</div>
       <div class="p-reihe" style="gap:7px;font:800 10px var(--p-font);color:var(--p-text-2)">
@@ -737,7 +762,7 @@ function _drawEdges(run) {
       // Weitere liegt blass dahinter. Pfade laufen HINTER den Knoten (z-index).
       const done = run.visited.includes(id) && run.visited.includes(bid);
       const offen = done || run.pos === id || (run.pos == null && a.row === 0);
-      lines += `<line x1="${pa.x}" y1="${pa.y}" x2="${pb.x}" y2="${pb.y}" stroke="${offen ? '#1F1F24' : '#9B968A'}" stroke-width="${offen ? 4 : 3}" stroke-dasharray="${offen ? '5 4' : '4 6'}" stroke-linecap="butt" vector-effect="non-scaling-stroke"/>`;
+      lines += `<line x1="${pa.x}" y1="${pa.y}" x2="${pb.x}" y2="${pb.y}" stroke="${offen ? '#1F1F24' : '#9B968A'}" stroke-width="4" stroke-dasharray="${offen ? '5 4' : '4 6'}" stroke-linecap="butt" vector-effect="non-scaling-stroke"/>`;
     }
   }
   svg.innerHTML = lines;

@@ -2385,8 +2385,116 @@ button.p-chip{ cursor:pointer; }
   display:flex; align-items:center; justify-content:center;
 }
 /* Erreichbar: Goldring mit Tintenkante aussen herum. Kein Schatten im Sinne des
-   Designs — kein Versatz, keine Weichzeichnung, nur eine zweite Kontur. */
+   Designs — kein Versatz, keine Weichzeichnung, nur eine zweite Kontur. Im Takt
+   wächst er 4 → 5 → 6 → 5 px (data-ui="halo"); das hier ist der Ruhezustand. */
 .p-knoten--offen{ box-shadow:0 0 0 4px var(--p-gold), 0 0 0 6px var(--p-ink); }
+/* Nicht erreichbar: die Kachel bleibt satt, nur das Symbol ist blass (6.1). */
+.p-knoten-blass{ display:flex; opacity:.45; }
+
+/* Die alte Regel #mode-campaign (helles Panel mit Rand und Schatten) legte eine
+   weiße Fläche unter die Karte. Im Entwurf liegt alles direkt auf dem Blatt. */
+#mode-campaign{ background:none; border:0; border-radius:0; padding:0; box-shadow:none; }
+
+/* ── Kampagne: Vorschau und Startkasten (Fragmente 6.2–6.5) ─────────────── */
+.p-vk-titel{ font:800 12px var(--p-font); color:var(--p-text-akzent); text-align:center; margin-bottom:10px; }
+/* Hellamber nur für diese Fläche — so steht es im Fragment. */
+.p-vk-karte{
+  position:relative; border:var(--p-rahmen); border-radius:var(--p-r-dialog);
+  background:#F8E7B8; padding:16px 14px;
+}
+.p-vk-reihe{ display:flex; justify-content:space-around; }
+.p-vk-reihe--mitte{ justify-content:center; }
+/* Außenmaße: 44 bzw. 62 + Rahmen. */
+.p-vk-knoten{
+  width:48px; height:48px; flex:none;
+  border:var(--p-rahmen); border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+}
+.p-vk-knoten--boss{ width:66px; height:66px; }
+.p-vk-lich{ width:52px; height:52px; }
+/* Gestrichelte Verbindung: 2 px Linie links in einem 4 px breiten Kasten. */
+.p-vk-strich{ width:4px; height:18px; margin:0 auto; border-left:2px dashed rgba(31,31,36,.45); }
+.p-vk-chipplatz{ position:absolute; left:10px; top:10px; }
+.p-vk-chip{
+  display:inline-flex; align-items:center; gap:5px;
+  border:var(--p-rahmen); border-radius:11px; background:var(--p-karte-hell);
+  padding:3px 9px; font:800 10px var(--p-font); white-space:nowrap;
+}
+.p-kstart{
+  margin-top:12px; border:var(--p-rahmen); border-radius:22px; background:var(--p-karte); padding:14px;
+}
+.p-kstart--hell{ background:var(--p-karte-hell); }
+.p-kstart-kopf{ display:flex; align-items:center; gap:11px; }
+.p-kstart-kachel{
+  width:50px; height:50px; flex:none;
+  border:var(--p-rahmen); border-radius:var(--p-r-kachel);
+  display:flex; align-items:center; justify-content:center;
+}
+.p-kstart-titel{ font:900 15px var(--p-font); }
+.p-kstart-text{ font:700 11.5px/1.45 var(--p-font); color:var(--p-text-akzent); }
+.p-kstart-frei{
+  display:flex; justify-content:space-between; margin-top:12px;
+  font:800 10px var(--p-font); text-transform:uppercase; letter-spacing:.1em;
+}
+.p-kstart-balken{ height:11px; border-radius:7px; overflow:hidden; background:var(--p-spur); margin-top:6px; }
+.p-kstart-balken > i{ display:block; height:100%; background:var(--p-ink); }
+.p-kstart-taler{
+  display:flex; justify-content:space-between; align-items:center; margin-top:12px;
+  border:var(--p-rahmen); border-radius:var(--p-r-chip-gross); background:var(--p-karte-hell);
+  padding:9px 12px; font:800 11px var(--p-font);
+}
+.p-kstart-taler > b{ display:inline-flex; align-items:center; gap:6px; font:900 15px var(--p-font); }
+/* Startknopf: Fragment 54 + Rahmen. */
+.p-kstart-btn{
+  width:100%; height:58px; margin-top:12px;
+  border:var(--p-rahmen); border-radius:18px; background:var(--p-ink); color:var(--p-gold);
+  display:flex; align-items:center; justify-content:center; gap:8px;
+  font:900 14px var(--p-font); cursor:pointer;
+}
+.p-kstart-btn.is-aus{ background:var(--p-inaktiv); color:var(--p-ink); opacity:.55; cursor:not-allowed; }
+.p-kstart-btn--gratis{ background:var(--p-ok); color:var(--p-ink); }
+.p-kstart-fehlt{
+  margin-top:10px; border:var(--p-rahmen-unverdient); border-radius:var(--p-r-chip-gross);
+  background:var(--p-chip-leer); padding:10px 12px;
+  font:800 11px/1.45 var(--p-font); color:#4A4A52;
+}
+
+/* Schatz gefunden (Fragment 6.6). Außenmaße: Emblem 68 + Rahmen, Kachel 50 + Rahmen. */
+.p-dlg-grund.p-schatz-grund{ padding:18px; background:rgba(31,31,36,.45); }
+.p-dlg-karte.p-schatz-karte{ max-width:366px; background:var(--p-karte-hell); padding:22px 18px 18px; }
+.p-schatz-emblem{
+  width:72px; height:72px; margin:0 auto;
+  border:var(--p-rahmen); border-radius:var(--p-r-kachel); background:var(--p-gold);
+  display:flex; align-items:center; justify-content:center;
+}
+.p-schatz-titel{ font:900 22px var(--p-font); text-align:center; margin-top:12px; }
+.p-schatz-sub{ font:700 12px var(--p-font); color:var(--p-text-akzent); text-align:center; margin-top:5px; }
+.p-schatz-liste{ display:flex; flex-direction:column; gap:9px; margin-top:14px; }
+.p-schatz-zeile{
+  width:100%; display:flex; align-items:center; gap:12px; text-align:left;
+  border:var(--p-rahmen); border-radius:18px; background:var(--p-karte); padding:12px;
+  font-family:var(--p-font); color:var(--p-ink); cursor:pointer;
+}
+.p-schatz-kachel{
+  width:54px; height:54px; flex:none;
+  border:var(--p-rahmen); border-radius:var(--p-r-kachel);
+  display:flex; align-items:center; justify-content:center;
+}
+.p-schatz-name{ display:block; font:900 14px var(--p-font); }
+.p-schatz-text{ display:block; font:700 11px var(--p-font); color:var(--p-text-akzent); }
+
+/* Trank-Info auf der Karte (Fragment 6.8, N33): helle Sprechblase. */
+.p-trank-blase{
+  position:fixed; z-index:9000; max-width:240px;
+  border:var(--p-rahmen); border-radius:var(--p-r-kachel); background:var(--p-karte-hell);
+  padding:10px 12px; font-family:var(--p-font); color:var(--p-ink);
+}
+.p-trank-blase-zipfel{
+  position:absolute; top:-8px; width:12px; height:12px; background:var(--p-karte-hell);
+  border-left:var(--p-rahmen); border-top:var(--p-rahmen); transform:rotate(45deg);
+}
+.p-trank-blase-name{ font:900 13px var(--p-font); }
+.p-trank-blase-text{ font:700 11px var(--p-font); color:var(--p-text-akzent); }
 
 /* Legende unter „Pfad wählen": zwei Strichproben. */
 .p-pfad-probe{ display:inline-block; width:22px; height:4px; }
@@ -2397,9 +2505,9 @@ button.p-chip{ cursor:pointer; }
   background:repeating-linear-gradient(90deg,#9B968A 0 4px,transparent 4px 10px);
 }
 
-/* Tränkeplätze: belegte tragen Kontur, freie bleiben gestrichelt. */
+/* Tränkeplätze: belegte tragen Kontur, freie bleiben gestrichelt (28 + Rahmen). */
 .camp-slot{
-  width:28px; height:28px; padding:0; flex:none;
+  width:32px; height:32px; padding:0; flex:none;
   border:var(--p-rahmen); border-radius:var(--p-r-chip); background:var(--p-karte);
   display:flex; align-items:center; justify-content:center;
   font-size:14px; line-height:1; cursor:pointer; position:relative;
@@ -3391,29 +3499,29 @@ button.p-chip{ cursor:pointer; }
   overflow:hidden;background:#bfe6ff;
 }
 .rest-kopf{position:relative;z-index:6;display:flex;justify-content:center;padding:12px 14px 0}
-/* Kein Glas-Pill: ueber hellem Abendhimmel war weisse Schrift darauf kaum zu
-   lesen. Gleiche Anmutung wie der Weiter-Knopf. */
+/* Etikett wie Fragment 6.7: Pfirsich, Tinte, flackerndes Lagerfeuer davor. */
 .rest-titel{
-  padding:8px 18px;border:var(--p-rahmen);border-radius:18px;
-  background:var(--p-ink);color:var(--p-gold);
-  font:900 13px var(--p-font);letter-spacing:.06em;
+  display:inline-flex;align-items:center;gap:5px;white-space:nowrap;
+  padding:6px 14px;border:var(--p-rahmen);border-radius:11px;
+  background:var(--p-pfirsich);color:var(--p-ink);
+  font:900 12px var(--p-font);letter-spacing:.12em;text-transform:uppercase;
 }
 .rest-mitte{
   position:relative;z-index:5;flex:1;display:flex;flex-direction:column;
   justify-content:center;padding:12px 14px;
 }
 .rest-karte{
-  border:var(--p-rahmen);border-radius:26px;background:var(--p-blatt);padding:20px 18px 18px;
+  border:var(--p-rahmen);border-radius:26px;background:var(--p-karte-hell);padding:20px 18px 18px;
 }
-.rest-h1{font:900 19px var(--p-font);color:var(--p-ink)}
+.rest-h1{font:900 24px var(--p-font);color:var(--p-ink)}
 .rest-tx{font:700 12px/1.5 var(--p-font);color:var(--p-text-akzent);margin-top:4px}
-.rest-zeile{display:flex;justify-content:space-between;align-items:center;margin-top:16px}
-.rest-lbl{display:inline-flex;align-items:center;gap:6px;font:900 11px var(--p-font);color:var(--p-text-2)}
-.rest-zahl{font:900 14px var(--p-font);color:var(--p-ink);font-variant-numeric:tabular-nums}
+.rest-zeile{display:flex;justify-content:space-between;align-items:baseline;margin-top:16px}
+.rest-lbl{font:800 9px var(--p-font);letter-spacing:.11em;text-transform:uppercase;color:var(--p-text-2)}
+.rest-zahl{font:900 15px var(--p-font);color:var(--p-ink)}
 /* Zugewinn als schraffiertes Stück direkt hinter dem alten Stand — so sieht man,
    WIE VIEL das Feuer gebracht hat, nicht nur den neuen Wert. */
 .rest-bar{
-  position:relative;height:14px;border:var(--p-rahmen);border-radius:8px;
+  position:relative;height:18px;border:var(--p-rahmen);border-radius:8px;
   overflow:hidden;background:#F3EFE6;margin-top:7px;
 }
 .rest-bar-alt{position:absolute;left:0;top:0;bottom:0;background:var(--p-mint)}
@@ -3422,8 +3530,14 @@ button.p-chip{ cursor:pointer; }
   background:repeating-linear-gradient(90deg,#8FD3A0 0 6px,#B7E3C2 6px 12px);
 }
 .rest-plus{display:flex;justify-content:flex-end;margin-top:8px}
+.rest-chip{
+  display:inline-flex;align-items:center;gap:5px;white-space:nowrap;
+  border:var(--p-rahmen);border-radius:11px;background:var(--p-mint);
+  padding:3px 10px;font:900 11px var(--p-font);color:var(--p-ink);
+}
+/* Außenmaße: Balken 14 + Rahmen, Weiter 52 + Rahmen. */
 .rest-weiter{
-  width:100%;height:52px;margin-top:14px;border:var(--p-rahmen);border-radius:18px;
+  width:100%;height:56px;margin-top:14px;border:var(--p-rahmen);border-radius:18px;
   background:var(--p-ink);color:var(--p-gold);font:900 14px var(--p-font);cursor:pointer;
 }
 .rest-buehne{position:relative;z-index:2;flex:none;height:300px}

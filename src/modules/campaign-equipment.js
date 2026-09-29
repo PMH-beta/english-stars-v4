@@ -152,10 +152,17 @@ export function equipEffects() { return _effectsOf(_eq().equipment); }
 
 // ── Tränke ───────────────────────────────────────────────────────────────────
 export const POTIONS = {
-  heal:   { icon: '❤️', name: 'Heiltrank',   desc: `+${POTION_HEAL} HP sofort` },
-  shield: { icon: '🛡️', name: 'Schildtrank', desc: 'wehrt die nächste verlorene Welle ab' },
+  heal:   { icon: '❤️', name: 'Heiltrank',   desc: `+${POTION_HEAL} Leben sofort` },
+  shield: { icon: '🛡️', name: 'Schildtrank', desc: 'Wehrt eine verlorene Welle ab' },
   power:  { icon: '💪', name: 'Krafttrank',  desc: `+${POTION_POWER} Schaden bis Kampfende` },
   time:   { icon: '⏳', name: 'Zeittrank',   desc: `+${POTION_TIME_MS / 1000} s Zeit für ${POTION_TIME_WAVES} Wellen` },
+};
+
+// Kachelfarbe je Trank; gezeichnet wird überall dasselbe Pixel-Icon „potion"
+// (Fragmente 6.6, 6.8, 7.4). Den Krafttrank zeigt kein Fragment — Pfirsich ist
+// ein Vorschlag, damit er sich von den drei anderen abhebt.
+export const POTION_TON = {
+  heal: 'var(--p-rosa)', shield: 'var(--p-blau)', time: 'var(--p-lila)', power: 'var(--p-pfirsich)',
 };
 
 // Gleiche Tränke zu EINEM Feld zusammenfassen (Reihenfolge des ersten Auftretens),
@@ -179,16 +186,21 @@ export function openPotionChoice({ onPick }) {
   for (let i = keys.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [keys[i], keys[j]] = [keys[j], keys[i]]; }
   const n = Math.min(keys.length, POTION_CHOICES + equipEffects().potionBonus);
   const choices = keys.slice(0, n);
+  // Aussehen nach Fragment 6.6: Truhe auf Gold, Tränke als Zeilen mit Farbkachel.
+  // Antippen nimmt den Trank sofort (wie bisher) — ob es wie im Entwurf erst eine
+  // Auswahl mit Haken und dann „Nehmen" gibt, ist offen (Frage F-33).
   const ov = document.createElement('div');
-  ov.className = 'adv-backdrop';
-  ov.innerHTML = `<div class="adv-card">
-    <div class="adv-card-icon">💎</div>
-    <div class="adv-card-title">Schatz gefunden!</div>
-    <div class="adv-card-sub">Wähle einen Trank für diesen Lauf:</div>
-    ${choices.map(k => `<button class="adv-choice" data-potion="${k}">
-      <span class="adv-choice-icon">${POTIONS[k].icon}</span>
-      <span class="adv-choice-txt"><b>${POTIONS[k].name}</b><br><span>${POTIONS[k].desc}</span></span>
+  ov.className = 'p-dlg-grund p-schatz-grund';
+  ov.innerHTML = `<div class="p-dlg-karte p-schatz-karte">
+    <div class="p-schatz-emblem">${iconHTML('box', 42)}</div>
+    <div class="p-schatz-titel">Schatz gefunden!</div>
+    <div class="p-schatz-sub">Wähle einen Trank für diesen Lauf</div>
+    <div class="p-schatz-liste">
+    ${choices.map(k => `<button class="p-schatz-zeile" data-potion="${k}">
+      <span class="p-schatz-kachel" style="background:${POTION_TON[k]}">${iconHTML('potion', 28)}</span>
+      <span class="p-wachs"><span class="p-schatz-name">${POTIONS[k].name}</span><span class="p-schatz-text">${POTIONS[k].desc}</span></span>
     </button>`).join('')}
+    </div>
   </div>`;
   ov.addEventListener('click', (e) => {
     const b = e.target.closest('[data-potion]');

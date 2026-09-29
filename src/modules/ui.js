@@ -1417,7 +1417,9 @@ export function uvOpenFill() {
           const done = taken && (!row || row.complete);
           // Vorschau in 🔩 Stahl: so sieht das Objekt fertig aus (Gold ist dasselbe
           // Objekt im anderen Material) — der Emoji bleibt nur als Notnagel.
-          const art = itemTag(o.type, 'past', 2);
+          // 1×: so sah es bisher tatsächlich aus (itemTag hat den Maßstab bis
+          // zur Korrektur in world.js verloren); der Dialog kommt in Bereich 5 neu.
+          const art = itemTag(o.type, 'past', 1);
           let note;
           if (!taken) note = objectPerkText(o);
           else if (done) note = '✔ fertig geschmiedet';

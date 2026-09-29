@@ -29,9 +29,16 @@ function _hole(k, bauen) {
   _cache.set(k, v);
   return v;
 }
-const _tag = (cv) => cv
-  ? `<img src="${cv.toDataURL('image/png')}" width="${cv.width}" height="${cv.height}" alt="" style="image-rendering:pixelated;display:block;flex:none">`
-  : '';
+// spriteToCanvas() malt in Originalgröße und setzt den Maßstab nur als CSS-Größe;
+// itemPartsCanvasTrimmed() vergrößert die Leinwand selbst. Die Anzeigegröße ist
+// deshalb die CSS-Größe, wenn gesetzt — sonst ging der Maßstab verloren (Feuer
+// und Gegenstände standen in 1× statt 2×).
+const _tag = (cv) => {
+  if (!cv) return '';
+  const w = parseInt(cv.style.width, 10) || cv.width;
+  const h = parseInt(cv.style.height, 10) || cv.height;
+  return `<img src="${cv.toDataURL('image/png')}" width="${w}" height="${h}" alt="" style="image-rendering:pixelated;display:block;flex:none">`;
+};
 
 // ── Material ────────────────────────────────────────────────────────────────
 // 'past' = Stahl (Simple Past), 'pp' = Gold (Past Participle). Die Stufe
