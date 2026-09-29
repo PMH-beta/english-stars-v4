@@ -2454,15 +2454,15 @@ export function showFeedback(ok, text, sub) {
   const fb = document.getElementById('feedback');
   fb.className = 'feedback show ' + (ok ? 'success' : 'error');
   document.getElementById('fb-text').textContent = text;
-  document.getElementById('fb-sub').textContent = sub;
+  // sub kommt aus game.js mit bereits maskierter Antwort (<strong>…</strong>, 4.3).
+  document.getElementById('fb-sub').innerHTML = sub;
   let speakEl = document.getElementById('fb-speak');
   if (!ok && window.currentQ && window.currentQ.type === 'pronounce') {
     if (!speakEl) {
       speakEl = document.createElement('button');
       speakEl.id = 'fb-speak';
       speakEl.className = 'speak-btn';
-      speakEl.style.marginTop = '6px';
-      speakEl.textContent = '🔊 Richtige Aussprache anhören';
+      speakEl.innerHTML = iconHTML('speaker', 14) + 'Richtige Aussprache anhören';
       const left = document.querySelector('.feedback-left');
       if (left) left.appendChild(speakEl);
     }

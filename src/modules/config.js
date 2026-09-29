@@ -1,7 +1,7 @@
 // src/modules/config.js
 // Zentrale Konstanten und Konfiguration
 
-export const APP_VERSION = 'v4.0.410';
+export const APP_VERSION = 'v4.0.411';
 
 export const QPERROUND = 20;
 export const EXAM_QUESTIONS = 30;
@@ -17,7 +17,7 @@ export function calcGrade(pct) {
 }
 
 export function gradeText(grade) {
-  return ['','Sehr gut! 🌟','Gut! 👍','Befriedigend','Ausreichend','Mangelhaft','Ungenügend'][grade] || '';
+  return ['','Sehr gut!','Gut!','Befriedigend','Ausreichend','Mangelhaft','Ungenügend'][grade] || '';
 }
 
 export const EMA_ALPHA = 0.45; // Faktor für gewichteten Durchschnitt der letzten Antworten

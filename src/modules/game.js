@@ -67,18 +67,20 @@ function wrongVocab(correct, n=3) {
 }
 
 // ── Question Builders ──
+// de/instr tragen die Aufgabe fürs Pastell-Layout (4.3, 4.6, 4.7): Kürzel „DE"
+// vor dem Wort, darüber bei Rechtschreibung die Anweisung.
 function bVocabMC(item) {
   return {type:'mc',badge:'vocab',statKey:statKeyFor(item.de, item.en, '_mc', item._presetId||null),_presetId:item._presetId||null,
-    question:`🇩🇪 ${item.de}`,hint:'',
+    question:`🇩🇪 ${item.de}`,de:item.de,hint:'',
     choices:shuffle([item.en,...wrongVocab(item,3)]),answer:item.en};
 }
 function bVocabType(item) {
   return {type:'type',badge:'spelling',statKey:statKeyFor(item.de, item.en, '_sp', item._presetId||null),_presetId:item._presetId||null,
-    question:`✏️ Schreibe auf Englisch:\n🇩🇪 ${item.de}`,hint:'',answer:item.en};
+    question:`✏️ Schreibe auf Englisch:\n🇩🇪 ${item.de}`,de:item.de,instr:'Schreibe auf Englisch',hint:'',answer:item.en};
 }
 function bVocabPronounce(item) {
   return {type:'pronounce',badge:'pronounce',statKey:statKeyFor(item.de, item.en, '_pr', item._presetId||null),_presetId:item._presetId||null,
-    question:`🎙️ Sprich auf Englisch:\n🇩🇪 ${item.de}`,hint:'',answer:item.en};
+    question:`🎙️ Sprich auf Englisch:\n🇩🇪 ${item.de}`,de:item.de,hint:'',answer:item.en};
 }
 
 // ── Verb-Transformationsfragen (Gestaltwandler, Spec §3–5) ──
@@ -603,13 +605,22 @@ function showQuestion() {
       window.questionPool=window.wrongQueue.slice();
       window.wrongQueue=[];
       window.questionIndex=0;
+      // Zwischenkarte nach 4.4; sie verdeckt Warte-Kasten und Fortschritt.
+      // Weiter geht es wie bisher nach 2 s von selbst (Knopf „Los": Frage F-46).
       const card=document.getElementById('game-card');
-      card.innerHTML='<div style="padding:20px;font-size:1.1rem;font-weight:700;color:var(--orange)">'+
-        '🔄 Jetzt nochmal die '+window.questionPool.length+' falschen Fragen!<br><span style="font-size:.85rem;color:#888;font-weight:600">Punkte zählen halb.</span></div>';
+      const n=window.questionPool.length;
+      card.innerHTML=`<div class="sp-nochmal">
+        <div class="sp-nochmal-kachel">${iconHTML('refresh',42)}</div>
+        <div class="sp-nochmal-titel">Jetzt nochmal die ${n} ${n===1?'falsche Frage':'falschen Fragen'}!</div>
+        <div class="sp-nochmal-chip"><span class="p-chip p-chip--icon p-chip--gold">${iconHTML('starInk',14)}Punkte zählen halb</span></div>
+        <div class="sp-nochmal-text">Nur was daneben ging, läuft noch einmal — danach ist die Runde fertig.</div>
+      </div>`;
+      document.getElementById('game-screen')?.classList.add('is-nochmal');
       setTimeout(()=>showQuestion(),2000);return;
     }
     showEnd();return;
   }
+  document.getElementById('game-screen')?.classList.remove('is-nochmal');
   document.getElementById('progress-fill').style.width=(window.questionIndex/window.questionPool.length*100)+'%';
   window.currentQ=window.questionPool[window.questionIndex];
   renderQuestion(window.currentQ);
@@ -619,30 +630,36 @@ function showQuestion() {
 // Modusname, Pixelsymbol, Grundton und Plakette gehoeren zusammen — hier an
 // einer Stelle, damit Kopfzeile, Screen-Farbe und Karte nie auseinanderlaufen.
 const MODUS = {
-  vocab:     { titel:'Vokabeln',        icon:'book',   ton:'mint' },
-  spelling:  { titel:'Rechtschreibung', icon:'pencil', ton:'lila' },
-  pronounce: { titel:'Aussprache',      icon:'speaker',ton:'rosa' },
+  vocab:     { titel:'Vokabeln',        chip:'Vokabeln',            icon:'book',   ton:'mint' },
+  spelling:  { titel:'Rechtschreibung', chip:'Rechtschreibung',     icon:'pencil', ton:'lila' },
+  pronounce: { titel:'Aussprache',      chip:'Sprich auf Englisch', icon:'mic',    ton:'rosa' },
 };
 
 function renderQuestion(q) {
   const card=document.getElementById('game-card');
   const m = MODUS[q.badge];
   // Kopfzeile und Grundton des Screens folgen dem Modus. UV (Gestaltwandler)
-  // bringt seinen eigenen Kopf mit und behaelt darum Pfirsich.
+  // bringt seinen eigenen Kopf mit und behaelt darum Pfirsich. Der Probetest
+  // heißt im Kopf „Probetest" (4.12), die Plakette zeigt die Aufgabe.
   const titleEl=document.getElementById('game-title');
-  if(titleEl) titleEl.textContent = window.isUV ? 'Formen' : (m ? m.titel : 'Übung');
+  if(titleEl) titleEl.textContent = window.isUV ? 'Formen' : window.isExamMode ? 'Probetest' : (m ? m.titel : 'Übung');
   setGrundton(window.isUV ? 'pfirsich' : (m ? m.ton : 'mint'), document.getElementById('game-screen'));
   // UV hat eigenen Kopf (Form-Plakette etc.) — die generische Plakette entfaellt dort.
-  let head = window.isUV || !m ? '' : `<div class="badge ${q.badge}">${iconHTML(m.icon,14)}${m.titel}</div>`;
-  const frage = `<div class="question-text">${(q.question||'').replace(/\n/g,'<br>')}</div>`;
+  let head = window.isUV || !m ? '' : `<div class="badge ${q.badge}">${iconHTML(m.icon,14)}${m.chip}</div>`;
+  // Aufgabe wie im Entwurf: Kürzel „DE" vor dem Wort, bei Rechtschreibung die
+  // Anweisung darüber. UV bringt sein eigenes HTML in q.question mit.
+  const frage = q.de != null
+    ? (q.instr ? `<div class="q-instr">${q.instr}</div>` : '')
+      + `<div class="question-text${q.instr ? ' mit-instr' : ''}"><span class="q-lang">DE</span>${window.escHtml(q.de)}</div>`
+    : `<div class="question-text">${(q.question||'').replace(/\n/g,'<br>')}</div>`;
   let html='';
   if(q.type==='mc'){
-    html+=`<div class="p-fragekarte">${head}${frage}</div>`;
-    html+=`<div class="choices">`;
+    // Antworten liegen in der Fragekarte (4.3, 4.5, 4.12).
+    html+=`<div class="p-fragekarte">${head}${frage}<div class="choices">`;
     q.choices.forEach(c=>{
       html+=`<button class="choice-btn" onclick="checkMC(this,'${esc(c)}')">${c}</button>`;
     });
-    html+=`</div>`;
+    html+=`</div></div>`;
   } else if(q.type==='type'){
     // Bei „type" liegen Eingabe und Pruefen-Knopf MIT in der Fragekarte.
     html+=`<div class="p-fragekarte">${head}${frage}`;
@@ -661,7 +678,7 @@ function renderQuestion(q) {
       html+=`<div class="gap-word">${cells}</div>`;
     } else {
       html+=`<div class="type-input-wrap">
-        <input class="type-input" id="type-input" type="text" placeholder="Englisch tippen..."
+        <input class="type-input" id="type-input" type="text" placeholder="Englisch tippen…"
           autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
           onkeydown="if(event.key==='Enter')submitType()">
       </div>`;
@@ -685,7 +702,6 @@ function renderQuestion(q) {
     html+=`<button class="submit-btn" id="order-check" onclick="checkOrder()" disabled>Prüfen${iconHTML('check',14)}</button>`;
   }
   card.innerHTML=html;
-  card.classList.remove('bounce-in');void card.offsetWidth;card.classList.add('bounce-in');
   if(q.type==='type') setTimeout(()=>document.getElementById('type-input')?.focus(),120);
   if(q.type==='order') initOrderDnD();
 }
@@ -820,10 +836,18 @@ export function checkMC(btn, chosen) {
   if(window.answered)return;window.answered=true;
   document.querySelectorAll('.choice-btn').forEach(b=>b.disabled=true);
   const ok=chosen.toLowerCase()===window.currentQ.answer.toLowerCase();
-  btn.classList.add(ok?'correct':'wrong');
-  if(!ok) document.querySelectorAll('.choice-btn').forEach(b=>{
-    if(b.textContent.trim().toLowerCase()===window.currentQ.answer.toLowerCase()) b.classList.add('correct');
-  });
+  // Wie 4.3: richtige Kachel mint mit Haken (Pop), gewählte falsche rosa mit
+  // Kreuz (Wackeln).
+  const markRichtig=b=>{ b.classList.add('correct'); b.insertAdjacentHTML('afterbegin', iconHTML('check',14).replace('<canvas ','<canvas data-ui="pop" data-c="24" data-d="6" ')); };
+  if(ok) markRichtig(btn);
+  else {
+    btn.classList.add('wrong');
+    btn.insertAdjacentHTML('afterbegin', iconHTML('close',14));
+    btn.dataset.c='24'; btn.dataset.d='20'; btn.dataset.ui='shake';
+    document.querySelectorAll('.choice-btn').forEach(b=>{
+      if(b.textContent.trim().toLowerCase()===window.currentQ.answer.toLowerCase()) markRichtig(b);
+    });
+  }
   ok?handleCorrect():handleWrong();
 }
 
@@ -835,7 +859,8 @@ export function submitType() {
   const corrects=window.currentQ.answer.split('/').map(x=>x.trim().toLowerCase());
   const ok=corrects.includes(val.toLowerCase());
   inp.classList.add(ok?'correct':'wrong');
-  if(!ok)inp.classList.add('shake');
+  // Wackeln wie die falsche Kachel in 4.3 (8 Takte, dann Ruhe).
+  if(!ok){ inp.dataset.c='24'; inp.dataset.d='20'; inp.dataset.ui='shake'; }
   ok?handleCorrect():handleWrong();
 }
 
@@ -1037,12 +1062,13 @@ function handleCorrect() {
     if(window.isSchnellModus&&window.currentQ.statKey) window.schnellDone.add(window.currentQ.statKey);
     updateScoreBar();
     updateModeProgress(true);
+    // Texte ohne Emoji wie im Entwurf („Top! +10 Punkte", 4.2).
     const correctTexts={
-      first:['🎯 Richtig!','✨ Super!','👍 Top!','💫 Klasse!','🌟 Genau!'],
-      streak3:['🔥 Dreierpack!','🔥 Auf der Welle!','🔥 Stark!'],
-      streak5:['⚡ Fünfer-Combo!','🚀 Unaufhaltsam!','💥 Genial!'],
-      streak7:['🏆 Sieben am Stück!','👑 Du bist unschlagbar!','💎 Perfekt!'],
-      streak10:['🎆 ZEHN am Stück! WOW!','🦾 Unglaublich!','🌠 Legendär!']
+      first:['Richtig!','Super!','Top!','Klasse!','Genau!'],
+      streak3:['Dreierpack!','Auf der Welle!','Stark!'],
+      streak5:['Fünfer-Combo!','Unaufhaltsam!','Genial!'],
+      streak7:['Sieben am Stück!','Du bist unschlagbar!','Perfekt!'],
+      streak10:['ZEHN am Stück! WOW!','Unglaublich!','Legendär!']
     };
     function pick(arr){return arr[Math.floor(Math.random()*arr.length)];}
     let baseMsg;
@@ -1051,7 +1077,7 @@ function handleCorrect() {
     else if(window.streak>=5) baseMsg=pick(correctTexts.streak5);
     else if(window.streak>=3) baseMsg=pick(correctTexts.streak3);
     else baseMsg=pick(correctTexts.first);
-    const msg=window.isRetryPhase?baseMsg+' +'+bonus+' Pkt (Wiederholung)':baseMsg+' +'+bonus+' Pkt';
+    const msg=window.isRetryPhase?baseMsg+' +'+bonus+' Punkte (Wiederholung)':baseMsg+' +'+bonus+' Punkte';
     showFeedback(true,msg,'');
     if(window.currentQ&&window.currentQ.type==='pronounce') setMicFinalStatus(true);
     try{ playSfx(window.streak>=3?'streak':'correct'); }catch(e){}
@@ -1063,7 +1089,7 @@ function handleCorrect() {
     if(window.streak===5||window.streak===10) window.spawnConfetti();
   }catch(e){
     console.error('handleCorrect:',e);
-    try{ showFeedback(true,'✅ Richtig!',''); }catch(e2){}
+    try{ showFeedback(true,'Richtig!',''); }catch(e2){}
   }
 }
 
@@ -1076,10 +1102,8 @@ function handleWrong() {
     if(!window.isFreePlay&&!window.isExamMode&&!window.isSchnellModus) recordStat(window.currentQ,false);
     updateScoreBar();
     updateModeProgress(true);
-    const c=document.getElementById('game-card');
-    if(c){c.classList.add('shake');setTimeout(()=>c.classList.remove('shake'),280);}
     if(window.currentQ&&window.currentQ.type==='pronounce') setMicFinalStatus(false);
-    let headline='❌ Nicht ganz!';
+    let headline='Nicht ganz!';
     let close=false;
     if(window.currentQ&&window.currentQ.type==='type'){
       const inp=document.getElementById('type-input');
@@ -1097,13 +1121,14 @@ function handleWrong() {
       }
     }
     const wrongTexts={
-      close:['😬 Knapp daneben!','💭 Fast hattest du es!','🎯 So nah dran!'],
-      normal:['❌ Nicht ganz!','🤔 Daneben!','📝 Üben hilft!','💪 Gleich nochmal!']
+      close:['Knapp daneben!','Fast hattest du es!','So nah dran!'],
+      normal:['Nicht ganz!','Daneben!','Üben hilft!','Gleich nochmal!']
     };
     function pickW(arr){return arr[Math.floor(Math.random()*arr.length)];}
     headline=pickW(close?wrongTexts.close:wrongTexts.normal);
     const isPronounce=window.currentQ&&window.currentQ.type==='pronounce';
-    const subText=isPronounce?'🔊 Hör dir die richtige Aussprache an':('Richtige Antwort: '+(window.currentQ&&window.currentQ.answer||'?'));
+    // Eine Zeile wie 4.3: „Üben hilft! Richtige Antwort: **brown**".
+    const subText=isPronounce?'Hör dir die richtige Aussprache an':('Richtige Antwort: <strong>'+window.escHtml(window.currentQ&&window.currentQ.answer||'?')+'</strong>');
     showFeedback(false,headline,subText);
     try{ playSfx('wrong'); }catch(e){}
     if(window.currentQ&&window.currentQ.answer){
@@ -1112,13 +1137,14 @@ function handleWrong() {
     }
   }catch(e){
     console.error('handleWrong:',e);
-    try{ showFeedback(false,'❌ Nicht ganz!',''); }catch(e2){}
+    try{ showFeedback(false,'Nicht ganz!',''); }catch(e2){}
   }
 }
 
 function updateScoreBar() {
   // Pixelsymbol statt Emoji — textContent wuerde das Canvas wegwerfen.
-  document.getElementById('streak-display').innerHTML=iconHTML('flame',14)+window.streak;
+  // Flamme flackert im Takt (swap flame/flameR/flame/flameL wie im Entwurf).
+  document.getElementById('streak-display').innerHTML=iconHTML('flame',14).replace('<canvas ','<canvas data-ui="swap" data-seq="flame,flameR,flame,flameL" data-d="0" ')+window.streak;
   document.getElementById('points-display').innerHTML=iconHTML('starInk',14)+window.points;
 }
 
@@ -1191,9 +1217,9 @@ function progressForCurrentMode() {
   if(window.isUV && window._uvProgress){
     // Slot-Runde: Fortschritt + Titel beziehen sich auf das AKTUELLE Teil (Disziplin).
     const star=window._uvStar;
-    const discTitles={erkennen:'🔍 Erkennen',schmieden:'🔨 Schmieden',verzaubern:'🪄 Verzaubern'};
-    const title = (star && discTitles[star.discipline]) || '⚒️ Schmiede';
-    return {...window._uvProgress(), title};
+    const discTitles={erkennen:['Erkennen','lupe'],schmieden:['Schmieden','hammer'],verzaubern:['Verzaubern','wand']};
+    const [title, icon] = (star && discTitles[star.discipline]) || ['Schmiede','hammer'];
+    return {...window._uvProgress(), title, icon};
   }
   const presetWs = window.SD?.globalPresetStats?.wordStats || {};
   const deckWs = window.SD?.wordStats || {};
@@ -1211,14 +1237,15 @@ function progressForCurrentMode() {
     });
     return {score,mastered,total:window.VOCAB.length};
   }
-  if(window.mode==='vocab')    return {...pf('_mc'),title:'🔤 Vokabeln'};
-  if(window.mode==='spelling') return {...pf('_sp'),title:'📝 Rechtschreibung'};
-  if(window.mode==='pronounce')return {...pf('_pr'),title:'🎙️ Aussprache'};
+  // Titel ohne Emoji, das Symbol steht daneben (Fortschrittskarte 4.7, 4.12).
+  if(window.mode==='vocab')    return {...pf('_mc'),title:'Vokabeln',icon:'book'};
+  if(window.mode==='spelling') return {...pf('_sp'),title:'Rechtschreibung',icon:'pencil'};
+  if(window.mode==='pronounce')return {...pf('_pr'),title:'Aussprache',icon:'mic'};
   if(window.mode==='mixed_vocab'){
     const a=pf('_mc'),b=pf('_sp'),c=pf('_pr');
     return {score:Math.min(a.score,b.score,c.score),
             mastered:Math.min(a.mastered,b.mastered,c.mastered),
-            total:window.VOCAB.length,title:'🎯 Alle gemischt'};
+            total:window.VOCAB.length,title:'Alle gemischt',icon:'target'};
   }
   return {score:0,mastered:0,total:window.VOCAB.length,title:'Modus'};
 }
@@ -1237,7 +1264,7 @@ function updateModeProgress(animate) {
     const answered=window.answered ? window.questionIndex+1 : window.questionIndex;
     const totalQ=window.questionPool.length;
     const barPct=totalQ>0 ? Math.round(answered/totalQ*100) : 0;
-    if(titleEl) titleEl.textContent='📊 Prüfung';
+    if(titleEl) titleEl.innerHTML=iconHTML('chart',14)+'Prüfung';
     if(pctEl) pctEl.textContent=barPct+'%';
     if(subEl){
       if(answered===0){
@@ -1254,7 +1281,7 @@ function updateModeProgress(animate) {
 
   const p=progressForCurrentMode();
   const pct=Math.min(100,Math.round((p.score/p.total)*100));
-  if(titleEl) titleEl.textContent=p.title;
+  if(titleEl){ titleEl.textContent=p.title; if(p.icon) titleEl.insertAdjacentHTML('afterbegin', iconHTML(p.icon,14)); }
   if(pctEl) pctEl.textContent=pct+'%';
   if(subEl) subEl.textContent=p.mastered+'/'+p.total+' gemeistert';
   if(barEl){
@@ -1374,17 +1401,17 @@ function showEnd() {
     }
     const newHS=window.points>=window.SD.highscore&&window.points>0;
     showScreen('end-screen');
+    _endeVorbereiten(true);
     { const rb=document.getElementById('end-restart-btn'); if(rb) rb.style.display=window.isProbetest?'none':''; }
-    document.getElementById('stat-points').textContent=window.points;
-    document.getElementById('stat-correct').textContent=window.totalCorrect+'/'+totalQ;
-    document.getElementById('stat-streak').textContent=window.bestStreak;
-    document.getElementById('end-hs-msg').textContent=newHS?'Neuer Highscore!':'';
-    // Bei der Pruefung steht die Note im Kreis statt eines Pokals.
+    _endeZahlen(window.points, window.totalCorrect+'/'+totalQ, window.bestStreak, true);
+    document.getElementById('end-hs-msg').innerHTML=newHS?_hsChip():'';
+    // Bei der Pruefung steht die Note im Kreis statt eines Pokals (4.14).
     document.getElementById('end-emoji').innerHTML='<span class="p-pokal-note">'+grade+'</span>';
     document.getElementById('end-title').textContent=window.isUV?('Vollwandlung — '+gradeText(grade)):gradeText(grade);
+    document.getElementById('end-title').insertAdjacentHTML('beforeend', iconHTML('flag',28));
     const dateStr=new Date(deck&&deck.lastExam?deck.lastExam.date:Date.now()).toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'});
-    document.getElementById('end-stars').innerHTML='<span class="p-endsub">'+percent+'% richtig · '+dateStr+'</span>';
-    if(grade<=2) window.spawnConfetti();
+    document.getElementById('end-stars').innerHTML='<span class="p-endsub">'+percent+' % richtig · '+dateStr+'</span>';
+    if(grade<=2) _endKonfetti();
     try{playSfx('end');}catch(e){}
     return;
   }
@@ -1407,11 +1434,10 @@ function showEnd() {
     return;
   }
   showScreen('end-screen');
+  _endeVorbereiten(false);
   { const rb=document.getElementById('end-restart-btn'); if(rb) rb.style.display=''; }
-  document.getElementById('stat-points').textContent=window.points;
-  document.getElementById('stat-correct').textContent=window.totalCorrect;
-  document.getElementById('stat-streak').textContent=window.bestStreak;
-  document.getElementById('end-hs-msg').textContent=newHS?'Neuer Highscore!':'';
+  _endeZahlen(window.points, window.totalCorrect, window.bestStreak, false);
+  document.getElementById('end-hs-msg').innerHTML=newHS?_hsChip():'';
   const pct=window.totalCorrect/Math.max(1,window.questionIndex);
   // Pokal und Sterne als Pixelgrafik. Die Zahl der Sterne traegt die Aussage,
   // das Symbol im Kreis bleibt dasselbe — so wie im Entwurf.
@@ -1420,9 +1446,67 @@ function showEnd() {
   else if(pct>=.7){sym='trophy';title='Sehr gut gemacht!';sterne=2;}
   else if(pct>=.5){sym='target';title='Gut versucht!';sterne=1;}
   else{sym='book';title='Weiter üben!';sterne=0;}
-  document.getElementById('end-emoji').innerHTML=iconHTML(sym,56);
+  // 4.13: Symbol wippt, drei Funkel-Sterne, die Sterne ploppen nacheinander.
+  document.getElementById('end-emoji').innerHTML=iconHTML(sym,56).replace('<canvas ','<canvas data-ui="bob" data-a="2" ')+_FUNKELN;
   document.getElementById('end-title').textContent=title;
   document.getElementById('end-stars').innerHTML=
-    Array.from({length:sterne},()=>'<span class="p-sternfach">'+iconHTML('star',28)+'</span>').join('');
+    Array.from({length:sterne},(_,i)=>`<span class="p-sternfach" data-ui="pop" data-c="48" data-d="${3+3*i}">${iconHTML('star',28)}</span>`).join('');
   if(pct>=.8) window.spawnConfetti();
+}
+
+// ── Rundenende-Helfer (4.13 / 4.14) ──
+const _FUNKELN =
+  '<canvas data-ui="sparkle" data-d="0" width="7" height="7" style="position:absolute;right:-22px;top:-8px;width:21px;height:21px;image-rendering:pixelated"></canvas>'
+  + '<canvas data-ui="sparkle" data-d="6" width="7" height="7" style="position:absolute;left:-24px;top:14px;width:21px;height:21px;image-rendering:pixelated"></canvas>'
+  + '<canvas data-ui="sparkle" data-d="11" width="7" height="7" style="position:absolute;right:-14px;bottom:-12px;width:14px;height:14px;image-rendering:pixelated"></canvas>';
+
+function _hsChip(){
+  return `<span class="p-hs-chip" data-ui="pulse" data-a="4">${iconHTML('starInk',14)}Neuer Highscore!</span>`;
+}
+
+// Probetest-Ende (4.14) als Karte mit Notenkreis; normales Ende (4.13) ohne.
+function _endeVorbereiten(note){
+  const scr=document.getElementById('end-screen');
+  if(!scr) return;
+  scr.classList.toggle('is-note', note);
+  scr.querySelector('.sp-konfetti')?.remove();
+  const kreis=document.getElementById('end-emoji');
+  if(kreis){ if(note){ kreis.dataset.c='48'; kreis.dataset.d='2'; kreis.dataset.ui='pop'; } else { delete kreis.dataset.ui; kreis.style.transform=''; kreis.style.opacity=''; } }
+  const lbl=document.getElementById('stat-streak')?.parentElement?.querySelector('.stat-label');
+  if(lbl) lbl.textContent = note ? 'Serie' : 'Streak';
+}
+
+// Zahlen neu anlegen: ui-anim merkt sich den Startwert von data-ui="count" am
+// Element — ein wiederverwendetes Element zählte sonst zum alten Wert.
+function _endeZahlen(punkte, richtig, serie, zaehlen){
+  [['stat-points',punkte],['stat-correct',richtig],['stat-streak',serie]].forEach(([id,wert])=>{
+    const alt=document.getElementById(id); if(!alt) return;
+    const neu=alt.cloneNode(false);
+    neu.removeAttribute('style');
+    neu.textContent=wert;
+    if(zaehlen){ neu.dataset.c='48'; neu.dataset.d='44'; neu.dataset.ui='count'; }
+    else delete neu.dataset.ui;
+    alt.replaceWith(neu);
+  });
+}
+
+// Konfetti hinter der Notenkarte (4.14): Plättchen fallen im Takt, bis das
+// nächste Rundenende es ersetzt.
+function _endKonfetti(){
+  const scr=document.getElementById('end-screen');
+  const buehne=scr?.querySelector('.p-buehne');
+  if(!buehne) return;
+  const farben=['#FFBBC1','#BCE3FF','#C9B8FF','#B7E3C2','#FFD6A5'];
+  const w=buehne.clientWidth||402, h=buehne.clientHeight||840;
+  let html='';
+  for(let i=0;i<17;i++){
+    const x=Math.round(Math.random()*(w-14)), y=Math.round(Math.random()*(h-17));
+    const dreh=Math.round(Math.random()*70-35);
+    html+=`<span style="position:absolute;left:${x}px;top:${y}px;background:${farben[i%farben.length]};transform:rotate(${dreh}deg);z-index:${i%3===0?3:1}"></span>`;
+  }
+  const box=document.createElement('div');
+  box.className='sp-konfetti';
+  box.innerHTML=html;
+  box.dataset.ui='confetti';
+  buehne.prepend(box);
 }

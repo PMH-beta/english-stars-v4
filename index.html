@@ -481,9 +481,10 @@
 <!-- ═══ GAME SCREEN ═══ -->
 <div id="game-screen" class="p-screen p-ton-mint" style="display:none">
   <div class="p-kopf">
-    <div class="p-titel">
+    <!-- Kopf nach 4.3/4.12: Zurück, Modusname, Serie und Punkte. -->
+    <div class="sp-kopf">
       <button class="p-back" onclick="confirmHome()"><canvas data-icon="back" width="14" height="14" style="width:28px;height:28px;image-rendering:pixelated;flex:none"></canvas></button>
-      <div class="p-titel-text" id="game-title">Vokabeln</div>
+      <div class="sp-titel" id="game-title">Vokabeln</div>
       <!-- Serie und Punkte. game.js schreibt Symbol + Zahl hinein. -->
       <div class="p-hud">
         <div class="p-chip p-chip--icon" id="streak-display"></div>
@@ -491,20 +492,21 @@
       </div>
     </div>
     <!-- Fortschritt der laufenden Runde -->
-    <div class="p-balken p-balken--modus" style="background:var(--p-karte);margin-top:14px">
-      <i id="progress-fill"></i>
-    </div>
+    <div class="sp-runde"><i id="progress-fill"></i></div>
   </div>
   <div class="p-blatt">
     <div class="game-card" id="game-card"></div>
+    <!-- Warten (4.12, gestrichelt) · Treffer (4.2, mint, Weiter rechts) ·
+         Fehler (4.3, rosa, Weiter darunter über die ganze Breite). -->
     <div class="feedback" id="feedback">
-      <img class="feedback-vondu" src="vondu-logo.svg" alt="Vondu">
+      <img class="feedback-vondu" src="vondu-logo.svg" alt="Vondu" data-ui="bob" data-a="1">
+      <div class="feedback-warten"><canvas data-icon="hourglass" data-ui="turn180" data-c="16" width="14" height="14" style="width:14px;height:14px;image-rendering:pixelated;flex:none"></canvas>Warte auf deine Antwort<span class="p-dots" data-ui="dots">…</span></div>
       <div class="feedback-left">
-        <div class="feedback-text" id="fb-text">Vondu wartet auf deine Antwort…</div>
-        <div class="feedback-sub"  id="fb-sub"></div>
+        <div class="feedback-text"><span id="fb-text"></span> <span class="feedback-sub" id="fb-sub"></span></div>
       </div>
       <button class="next-btn" onclick="nextQuestion()">Weiter</button>
     </div>
+    <button class="next-btn next-btn--unten" onclick="nextQuestion()">Weiter</button>
     <!-- Modus-Gesamtfortschritt – ganz unten -->
     <div class="mode-progress" id="mode-progress">
       <div class="mode-progress-label">
@@ -521,19 +523,22 @@
 
 <!-- ═══ END SCREEN ═══ -->
 <div id="end-screen" class="p-screen p-ton-amber" style="display:none">
-  <div class="p-buehne" style="text-align:center;padding-top:18px">
-    <div class="p-pokal" id="end-emoji"><canvas data-icon="trophy" width="14" height="14" style="width:56px;height:56px;image-rendering:pixelated;flex:none"></canvas></div>
-    <div class="p-h1" style="font-size:34px;margin-top:12px" id="end-title">Super!</div>
-    <div class="stars-row" id="end-stars"></div>
-    <div id="end-hs-msg" style="font:800 12px var(--p-font);color:var(--p-ink);margin-top:8px"></div>
-    <div class="stat-grid">
-      <div class="stat-box p-ton-pfirsich"><span class="stat-num" id="stat-points">0</span><span class="stat-label">Punkte</span></div>
-      <div class="stat-box p-ton-mint"><span class="stat-num" id="stat-correct">0</span><span class="stat-label">Richtig</span></div>
-      <div class="stat-box p-ton-blau"><span class="stat-num" id="stat-streak">0</span><span class="stat-label">Streak</span></div>
-    </div>
-    <div class="p-feldgruppe">
-      <button class="p-btn p-btn--sekundaer" id="end-restart-btn" onclick="restartSame()">Nochmal</button>
-      <button class="p-btn p-btn--primaer" onclick="showMenu()">Hauptmenü</button>
+  <div class="p-buehne">
+    <!-- Hülle: beim Probetest-Ende die Notenkarte (4.14), sonst unsichtbar (4.13). -->
+    <div class="end-karte">
+      <div class="p-pokal" id="end-emoji"><canvas data-icon="trophy" width="14" height="14" style="width:56px;height:56px;image-rendering:pixelated;flex:none"></canvas></div>
+      <div class="p-h1 end-titel" id="end-title">Super!</div>
+      <div class="stars-row" id="end-stars"></div>
+      <div id="end-hs-msg"></div>
+      <div class="stat-grid">
+        <div class="stat-box p-ton-pfirsich"><span class="stat-num" id="stat-points">0</span><span class="stat-label">Punkte</span></div>
+        <div class="stat-box p-ton-mint"><span class="stat-num" id="stat-correct">0</span><span class="stat-label">Richtig</span></div>
+        <div class="stat-box p-ton-blau"><span class="stat-num" id="stat-streak">0</span><span class="stat-label">Streak</span></div>
+      </div>
+      <div class="p-feldgruppe">
+        <button class="p-btn p-btn--sekundaer" id="end-restart-btn" onclick="restartSame()">Nochmal</button>
+        <button class="p-btn p-btn--primaer" onclick="showMenu()">Hauptmenü</button>
+      </div>
     </div>
   </div>
 </div>
@@ -725,19 +730,24 @@ document.addEventListener('click',e=>{
 
 
 // ── CONFETTI ──
+// Pastell-Konfetti wie 7.16/4.14: gerahmte Plättchen, die im 8-fps-Takt fallen
+// (data-ui="confetti"), nach 3 s wieder weg.
 function spawnConfetti(){
   const wrap=document.getElementById('confetti-wrap');
-  const colors=['#FFD93D','#FF6B35','#6BCB77','#4D96FF','#C77DFF','#FF6B9D'];
-  for(let i=0;i<60;i++){
-    const p=document.createElement('div');p.className='confetti-piece';
-    p.style.left=Math.random()*100+'vw';
-    p.style.background=colors[Math.floor(Math.random()*colors.length)];
-    p.style.animationDuration=(1.5+Math.random()*2)+'s';
-    p.style.animationDelay=(Math.random()*.5)+'s';
-    p.style.borderRadius=Math.random()>.5?'50%':'2px';
-    p.style.width=(8+Math.random()*8)+'px';p.style.height=(8+Math.random()*12)+'px';
-    wrap.appendChild(p);p.addEventListener('animationend',()=>p.remove());
+  const farben=['#FFBBC1','#BCE3FF','#C9B8FF','#B7E3C2','#FFD6A5','#FFD66B'];
+  const w=window.innerWidth||402, h=window.innerHeight||874;
+  let html='';
+  for(let i=0;i<18;i++){
+    const x=Math.round(Math.random()*(w-16)), y=Math.round(Math.random()*h*0.6);
+    const dreh=Math.round(Math.random()*70-35);
+    html+='<span style="position:absolute;left:'+x+'px;top:'+y+'px;background:'+farben[i%farben.length]+';transform:rotate('+dreh+'deg)"></span>';
   }
+  const box=document.createElement('div');
+  box.className='cf-konfetti';
+  box.innerHTML=html;
+  box.dataset.ui='confetti';
+  wrap.appendChild(box);
+  setTimeout(()=>box.remove(),3000);
 }
 </script>
 </body>

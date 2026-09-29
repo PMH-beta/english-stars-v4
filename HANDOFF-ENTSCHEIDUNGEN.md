@@ -65,6 +65,9 @@ Avatare dürfen bei einer Migration verloren gehen. Kein Umbau darf `SD.decks`,
 | F-42 | 3.6 Kopfzeile „3 erkannt“ statt der Zeile „3 Wörter erkannt · 2 neu · 1 bereits vorhanden (grau)“ — Dubletten zeigt der Entwurf nicht | Phase 7, Bereich 3 |
 | F-43 | 3.1 zeigt unter „Hinzufügen“ zusätzlich die Liste („Liste · 12 Wörter“, ohne Bearbeiten/Löschen); 3.3/3.4 und der Reiter „Liste“ tun das nicht | Phase 7, Bereich 3 |
 | F-44 | 3.2 Zurück-Knopf auch in einer neuen Sammlung (Entwurf) — heute ausgeblendet, dort gibt es nur „Abbrechen“/„Bestätigen“ | Phase 7, Bereich 3 |
+| F-45 | 4.5 Spiel im Schnellmodus: Chip „Schnellmodus“ unter dem Titel, statt Warte-Kasten und Fortschrittskarte nur der Hinweis „Schnellmodus — zählt nicht in die Statistik“ (heute sieht das Spiel aus wie sonst) | Phase 7, Bereich 4 |
+| F-46 | 4.4 Zwischenkarte „Jetzt nochmal …“ mit Knopf „Los“ — heute geht es nach 2 s von selbst weiter | Phase 7, Bereich 4 |
+| F-47 | 4.12 Fortschrittskarte im Probetest: „0/20 · gemischt aus 2 Sammlungen“ statt „3/5 richtig · Note 2“ (heute mit laufender Note) | Phase 7, Bereich 4 |
 
 ## Ohne Rückfrage entschieden (Aussehen) — Phase 7
 
@@ -97,3 +100,9 @@ Avatare dürfen bei einer Migration verloren gehen. Kein Umbau darf `SD.decks`,
 | 3.7 Tabellen | „R / F“ als Zahlen „4 / 0“ statt farbiger Punkte; vorläufiger Stand (unter 3 Abfragen) bleibt als Punkte im Chip. | 29.09.2026 |
 | Statistik aus dem Menü | Kopf „Statistik“ ohne Symbol wie 5.5, der einzelne Reiter „Statistik“ fällt weg; Vorlagen-Übersicht als Karte wie 5.5 (Name, Wörter, Prozent, Balken). | 29.09.2026 |
 | Dialoge im Verwalten | „Sammlung sperren?“, „Sammlung abschließen?“ und „Name der Sammlung“ im Gerüst der übrigen Dialoge (Emblem, Vondu-Kasten, Knöpfe); Texte, Knöpfe und Ablauf unverändert. | 29.09.2026 |
+| 4.x Fragekarte | nach den Nachtrag-Fragmenten (N10, N14, N16): Antworten in der Karte, Wort 32 px, Kürzel „DE“ 14 px, Antwortkacheln 58 + Rahmen in 900 16 px. 4.1/4.2/4.6 sind der ältere Stand (Antworten unter der Karte, 34 px); 4.12 weicht um 1–2 px ab. | 29.09.2026 |
+| 4.x Rückmeldung | Treffer wie 4.2 (mint, „Weiter“ rechts in der Fläche), Fehler wie 4.3 (rosa, „Weiter“ darunter über die Breite), Warten wie 4.12 (Sanduhr, „Warte auf deine Antwort …“). Texte ohne Emoji, „Pkt“ → „Punkte“, Antwort fett. | 29.09.2026 |
+| 4.x Fortschrittskarte | immer wie 4.7/4.12: Symbol + Modus, Prozent 17 px, Balken in Tinte — auch bei Vokabeln und Rechtschreibung (4.1/4.2/4.6 zeigen noch Mint ohne Symbol). In 4.3 fehlt die Karte, sie bleibt trotzdem stehen. | 29.09.2026 |
+| 4.x Animationen | falsche Kachel/Eingabe wackelt, Haken der richtigen ploppt, Flamme flackert, Sanduhr dreht, Punkte laufen — mit den Takten aus den Fragmenten. Die alte Hüpf-Animation der Karte und das Karten-Wackeln sind weg. | 29.09.2026 |
+| 4.13/4.14 | Pokal wippt mit drei Funkeln, Sterne ploppen nacheinander; Probetest-Ende als Karte mit Notenkreis (immer mint — Farben je Note gibt der Entwurf nicht vor), „Gut!“ mit Fahne, Zahlen zählen hoch, Konfetti dahinter bei Note 1–2 (Bedingung wie bisher). Beschriftung „Serie“ beim Probetest, „Streak“ sonst (je Fragment). | 29.09.2026 |
+| Konfetti | überall als gerahmte Pastell-Plättchen im 8-fps-Takt (wie 7.16), nach 3 s weg — Anlässe wie bisher. | 29.09.2026 |
