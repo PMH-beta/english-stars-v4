@@ -44,7 +44,17 @@ im Dev-Server wie auf der veröffentlichten Seite. `vite.config.js` musste dafü
 nicht angefasst werden. `npm run build` schreibt weiterhin nur `dist/`, was für
 die Auslieferung keine Rolle spielt.
 
-## Phase 7 — als Nächstes
+## Phase 7 — läuft
+
+| Bereich | Stand |
+| --- | --- |
+| 2 · Hauptmenü | 2.1–2.9 und 2.12 fertig (`d6f12e0`, `cf916b7`). Offen: 2.5 Ausblenden beim Sortieren (F-28), 2.10/2.11 Schnellmodus (F-29–F-31), Versionsnummer (F-32). |
+| 6 · Kampagne, 7 · Kampf | fragefrei, als Nächstes |
+| 1, 3, 4, 5, 8, 9 | warten auf die Fragen je Bereich |
+
+**Abnahme je Screen:** Referenz-DOM und App-DOM werden vermessen und abgeglichen
+(headless Chrome). Die Referenz rechnet ohne `box-sizing` — im CSS stehen
+Außenmaße (Fragmentwert + Rahmen).
 
 Die Screens nach `SCREENS.md`, Bereich 1 bis 9, ein Commit je Bereich. Jeder
 Screen wie sein Fragment: Aufbau, Texte, Abstände, Farben, Icons.

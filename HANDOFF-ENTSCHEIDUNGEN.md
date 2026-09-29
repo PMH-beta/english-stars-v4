@@ -48,3 +48,19 @@ Avatare dürfen bei einer Migration verloren gehen. Kein Umbau darf `SD.decks`,
 | F-14 | App-Tour 1.11–1.15, Feld `tourSeen`, Demo-Stand | Phase 7b |
 | F-25 | Was liefert die RPC `get_friend_progress` heute? | Phase 7, Bereich 8 |
 | F-26 | Abnahme je Phase: nur `npm run build` oder zusätzlich Headless-Screenshots | nebenbei |
+| F-28 | 2.5 Sortieren: Probetest, Kopfzeile und „+ Neue Vokabelsammlung“ während des Ziehens ausblenden | Phase 7, Bereich 2 |
+| F-29 | 2.10 Schnellmodus: Rückfrage „Abbrechen / Einschalten“ vor dem Einschalten (heute: sofort an + Hinweis) | Phase 7, Bereich 2 |
+| F-30 | 2.10 Text „bringt keine Taler“ — heute schaltet eine Schnellrunde Taler frei (getestet: `d1\|mc`) | Phase 7, Bereich 2 |
+| F-31 | 2.11 Menü im Schnellmodus: Probetest und „+ Neue“ weg, Karten ohne Datum/Chips/Pfeil, Chip „Schnellmodus“ im Banner | Phase 7, Bereich 2 |
+| F-32 | Versionsnummer unten im Menü (kein Fragment zeigt sie dort; sie liegt über der letzten Karte) | Phase 7, Bereich 2 |
+
+## Ohne Rückfrage entschieden (Aussehen) — Phase 7
+
+| Punkt | Entscheidung | Datum |
+| --- | --- | --- |
+| Maße | Die Referenz rechnet ohne `box-sizing`, der Rahmen kommt außen dazu. Im CSS stehen deshalb Außenmaße (Fragmentwert + Rahmen). | 29.09.2026 |
+| 2.1 Banner beim Laden | Karte aus 2.3 statt des alten Banners aus 2.1, damit beim Fertigladen nichts springt. Inhalt wie 2.1. | 29.09.2026 |
+| 2.1 Ladekreis | steht still (keine Animation im Fragment, Übersicht 9.7: nur die Punkte bewegen sich). | 29.09.2026 |
+| 2.4 Karte „Farben“ | Im Fragment liegt ihr Balken außerhalb der Karte (Markup-Fehler). Gebaut wie 2.3. | 29.09.2026 |
+| Dialoge | senkrecht mittig. Im Entwurf je Dialog anders (2.12 rund 130 px höher, 2.7 knapp mittig). | 29.09.2026 |
+| 2.6 offen ohne Verlauf | Tintenkasten mit hellem Pfeil wie 2.6 (Zustand fehlt im Entwurf). | 29.09.2026 |
