@@ -4561,3 +4561,394 @@ body.p-app .music-vol-btn{ bottom:calc(88px + env(safe-area-inset-bottom,0px)); 
   font:800 12px var(--p-font); color:var(--p-ink);
 }
 .ptr-ic{ display:flex; }
+
+/* ══ FORTSCHRITT 8.2 · 8.3 ═════════════════════════════════════════════════
+   Kopf auf dem Grundton: Figur (mit Gefährte, 2×) unten bündig mit den zwei
+   Kennzahl-Karten. Darunter vier Abschnitte mit Symbol im Kästchen. Maße sind
+   Außenmaße (Fragmentwert + 2 × 2 Rahmen). */
+.fs-kopf{ display:flex; align-items:flex-end; gap:14px; padding-top:14px; }
+.fs-figur{ flex:none; display:flex; align-items:flex-end; }
+.fs-kopf-text{ flex:1; min-width:0; }
+.fs-name{ font:900 22px var(--p-font); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.fs-seit{
+  display:flex; align-items:center; gap:6px; margin-top:2px;
+  font:700 11px var(--p-font); color:var(--p-text-akzent);
+}
+.fs-werte{ display:grid; grid-template-columns:1fr 1fr; gap:7px; margin-top:10px; }
+.fs-wert{
+  border:var(--p-rahmen); border-radius:16px; background:var(--p-karte-hell);
+  padding:8px 10px; min-width:0;
+}
+.fs-wert-zahl{ font:900 17px/1 var(--p-font); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.fs-wert-lbl{
+  font:800 8.5px var(--p-font); text-transform:uppercase; letter-spacing:.1em;
+  color:var(--p-text-akzent); margin-top:4px;
+}
+/* Blatt 16 px unter dem Kopf; unten Platz für den schwebenden Musikknopf (wie im Menü). */
+#stats-screen .p-blatt{ margin-top:16px; padding-bottom:calc(80px + env(safe-area-inset-bottom,0px)); }
+
+.fs-abschnitt{ display:flex; align-items:center; gap:9px; margin-top:24px; }
+#profile-decks-summary > .fs-abschnitt:first-child{ margin-top:0; }
+.fs-abschnitt-ic{
+  width:38px; height:38px; flex:none;
+  border:var(--p-rahmen); border-radius:12px; background:var(--p-karte-hell);
+  display:flex; align-items:center; justify-content:center;
+}
+.fs-abschnitt-titel{ font:900 17px var(--p-font); }
+.fs-abschnitt-linie{ flex:1; height:2px; background:rgba(31,31,36,.2); }
+.fs-kicker{
+  font:900 10px var(--p-font); text-transform:uppercase; letter-spacing:.14em;
+  color:var(--p-text-2); margin:14px 0 8px;
+}
+.fs-leer{ text-align:center; padding:10px 0 2px; font:700 11px/1.4 var(--p-font); color:var(--p-text-2); }
+
+/* Kampagne: Rekord, sechs Kennzahlen, aktueller Lauf. */
+.fs-rekord{
+  margin-top:12px; border:var(--p-rahmen); border-radius:22px; background:var(--p-gold);
+  padding:12px 14px; display:flex; align-items:center; gap:12px;
+}
+.fs-rekord-ic{
+  width:60px; height:60px; flex:none;
+  border:var(--p-rahmen); border-radius:16px; background:var(--p-karte-hell);
+  display:flex; align-items:center; justify-content:center;
+}
+.fs-rekord-text{ flex:1; min-width:0; }
+.fs-rekord-kicker{
+  font:800 9px var(--p-font); letter-spacing:.12em; text-transform:uppercase;
+  color:var(--p-text-akzent);
+}
+.fs-rekord-wert{ font:900 22px var(--p-font); margin-top:2px; }
+.fs-rekord-chip{
+  display:inline-flex; align-items:center; gap:5px; flex:none; white-space:nowrap;
+  border:var(--p-rahmen); border-radius:11px; background:var(--p-karte-hell);
+  padding:5px 10px; font:800 11px var(--p-font);
+}
+.fs-kacheln{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin-top:10px; }
+.fs-kachel{
+  border:var(--p-rahmen); border-radius:18px; background:var(--p-karte);
+  padding:11px 11px 10px; min-width:0;
+}
+.fs-kachel.is-gold{ background:var(--p-gold-hell); }
+.fs-kachel-kopf{ display:flex; align-items:center; justify-content:space-between; gap:6px; }
+.fs-kachel-zahl{ font:900 22px/1 var(--p-font); white-space:nowrap; }
+.fs-kachel-lbl{
+  font:800 9px var(--p-font); text-transform:uppercase; letter-spacing:.1em;
+  color:var(--p-text-2); margin-top:8px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.fs-lauf{
+  margin-top:10px; border:var(--p-rahmen); border-radius:22px; background:var(--p-karte);
+  padding:13px 14px;
+}
+.fs-lauf-kopf{ display:flex; align-items:center; justify-content:space-between; font:900 14px var(--p-font); }
+.fs-lauf-kopf span + span{ font-size:13px; }
+.fs-lauf-leer{ margin-top:10px; font:700 11px var(--p-font); color:var(--p-text-2); }
+.fs-reihen{ display:grid; gap:3px; margin-top:10px; }
+.fs-reihen span{ height:18px; border:var(--p-rahmen); border-radius:4px; background:var(--p-karte-hell); }
+.fs-reihen .is-fertig{ background:var(--p-ink); }
+.fs-reihen .is-jetzt{ background:var(--p-gold); }
+.fs-reihen .is-boss{ background:var(--p-rosa); }
+.fs-reihen-lbl{
+  display:flex; justify-content:space-between; margin-top:5px;
+  font:800 9px var(--p-font); text-transform:uppercase; letter-spacing:.1em; color:var(--p-text-2);
+}
+.fs-hp{ display:flex; align-items:center; gap:9px; margin-top:12px; }
+.fs-hp-spur{ flex:1; height:12px; border-radius:6px; overflow:hidden; background:var(--p-spur); }
+.fs-hp-spur i{ display:block; height:100%; background:var(--p-rosa); }
+.fs-hp-wert{ font:900 12px var(--p-font); }
+.fs-gescheitert{
+  display:flex; align-items:center; gap:7px; margin-top:11px;
+  font:700 11px var(--p-font); color:var(--p-text-2);
+}
+
+/* Fortschritt-Karte (Vorlagen, eigene Wörter, Schmiede, Trainingsplatz). */
+.fs-karte{
+  display:block; margin-top:8px;
+  border:var(--p-rahmen); border-radius:20px; background:var(--p-karte); padding:12px 13px;
+}
+.fs-karte.is-fertig{ background:var(--p-ok); }
+.fs-karte > summary{ list-style:none; cursor:pointer; }
+.fs-karte > summary::-webkit-details-marker{ display:none; }
+.fs-karte-kopf{ display:flex; align-items:center; gap:10px; }
+.fs-karte-bild{
+  width:44px; height:58px; flex:none;
+  border:var(--p-rahmen); border-radius:12px; background:var(--p-inaktiv);
+  display:flex; align-items:center; justify-content:center;
+}
+.fs-karte-text{ flex:1; min-width:0; }
+.fs-karte-titel{ font:900 14px var(--p-font); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.fs-karte-sub{ font:700 10.5px var(--p-font); color:var(--p-text-2); margin-top:1px; }
+.fs-prozent{ flex:none; font:900 17px var(--p-font); }
+.fs-erledigt{
+  display:inline-flex; align-items:center; gap:5px; flex:none; white-space:nowrap;
+  border:var(--p-rahmen); border-radius:11px; background:var(--p-karte-hell);
+  padding:3px 9px; font:800 10px var(--p-font);
+}
+/* Pfeil wie 8.3: zu Pfeil auf Grau, offen heller Pfeil auf Tinte. */
+.fs-pfeil{
+  width:34px; height:34px; flex:none;
+  border:var(--p-rahmen); border-radius:10px; background:var(--p-inaktiv);
+  display:flex; align-items:center; justify-content:center;
+}
+.fs-pfeil canvas + canvas{ display:none; }
+.fs-karte[open] .fs-pfeil{ background:var(--p-ink); }
+.fs-karte[open] .fs-pfeil canvas:first-child{ display:none; }
+.fs-karte[open] .fs-pfeil canvas + canvas{ display:block; }
+.fs-balken{ margin-top:9px; height:10px; border-radius:6px; overflow:hidden; background:var(--p-spur); }
+.fs-balken i{ display:block; height:100%; }
+.fs-balken--mint{ background:var(--p-ok); }
+.fs-balken--lila{ background:var(--p-lila); }
+/* Aufgeklappt: Wörter mit einem Kästchen je Teil. */
+.fs-liste{
+  margin-top:11px; border-top:2px dotted rgba(31,31,36,.25); padding-top:9px;
+  display:flex; flex-direction:column; gap:7px;
+}
+.fs-wort{ display:grid; grid-template-columns:78px 1fr 30px; align-items:center; gap:9px; }
+.fs-wort-en{ font:800 12px var(--p-font); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.fs-segmente{ display:grid; gap:3px; }
+.fs-segmente span{ height:14px; border:var(--p-rahmen); border-radius:4px; background:var(--p-karte-hell); }
+.fs-segmente span.fs-seg--mint{ background:var(--p-ok); }
+.fs-segmente span.fs-seg--lila{ background:var(--p-lila); }
+.fs-wort-zahl{ font:900 11px var(--p-font); text-align:right; }
+.fs-spalten{
+  display:grid; grid-template-columns:repeat(3,1fr); gap:4px; margin:6px 39px 0 87px;
+  font:800 8.5px var(--p-font); text-transform:uppercase; letter-spacing:.08em;
+  color:var(--p-text-2); text-align:center;
+}
+
+/* Probetest-Verlauf. */
+.fs-test{
+  display:flex; align-items:center; gap:11px; margin-top:8px;
+  border:var(--p-rahmen); border-radius:18px; background:var(--p-karte); padding:10px 12px;
+}
+.fs-note{
+  width:46px; height:46px; flex:none;
+  border:var(--p-rahmen); border-radius:14px;
+  display:flex; align-items:center; justify-content:center; font:900 22px var(--p-font);
+}
+.fs-test-text{ flex:1; min-width:0; }
+.fs-test-name{ font:900 13px var(--p-font); overflow-wrap:anywhere; }
+.fs-test-sub{ font:700 10.5px var(--p-font); color:var(--p-text-2); }
+.fs-test-lbl{
+  flex:none; font:800 9px var(--p-font); text-transform:uppercase; letter-spacing:.1em;
+  color:var(--p-text-2);
+}
+
+/* ══ PROFIL 8.1 ════════════════════════════════════════════════════════════
+   Kopf auf Hellblau (Brustbild im Flieder-Kasten, Stift = Charakter anpassen),
+   im Blatt: Ausrüstung (Fächer, Bühne 3×, Werte, Tasche, Teil-Karte), Freunde,
+   Cloud-Konto. Außenmaße = Fragmentwert + 2 × 2 Rahmen. */
+.pf-kopf{ display:flex; align-items:center; gap:12px; margin-top:14px; }
+.pf-bild{
+  position:relative; width:72px; height:72px; flex:none; padding:0; cursor:pointer;
+  border:var(--p-rahmen); border-radius:20px; background:var(--p-lila);
+}
+.pf-bild-innen{
+  position:absolute; inset:0; border-radius:18px; overflow:hidden;
+  display:flex; align-items:flex-end; justify-content:center;
+}
+#profile-screen #prof-avatar{
+  width:64px; height:64px; border-radius:0; background:none; box-shadow:none; overflow:visible;
+}
+.pf-stift{
+  position:absolute; right:-8px; bottom:-8px; width:30px; height:30px;
+  border:var(--p-rahmen); border-radius:10px; background:var(--p-gold);
+  display:flex; align-items:center; justify-content:center;
+}
+.pf-kopf-text{ flex:1; min-width:0; }
+.pf-name{ font:900 24px var(--p-font); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.pf-seit{ font:700 11px var(--p-font); color:var(--p-text-3); }
+/* Unten Platz für den schwebenden Musikknopf (wie im Menü). */
+#profile-screen .p-blatt{ padding-bottom:calc(80px + env(safe-area-inset-bottom,0px)); }
+
+.pf-abschnitt{ display:flex; align-items:center; gap:9px; }
+.pf-abschnitt-titel{ font:900 17px var(--p-font); }
+.pf-abschnitt-linie{ flex:1; height:2px; background:rgba(31,31,36,.2); }
+
+/* Fächer links/rechts, Bühne in der Mitte. */
+.pf-puppe{ display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:8px; margin-top:12px; }
+.pf-spalte{ display:flex; flex-direction:column; gap:7px; }
+.pf-fach{
+  display:flex; flex-direction:column; align-items:center; gap:4px;
+  padding:0; border:0; background:none; cursor:pointer; font-family:inherit; color:var(--p-ink);
+}
+.pf-fach-kachel{
+  width:58px; height:58px; border:var(--p-rahmen); border-radius:18px; background:var(--p-inaktiv);
+  display:flex; align-items:center; justify-content:center;
+}
+.pf-fach.is-voll .pf-fach-kachel{ background:var(--p-karte); }
+.pf-fach.is-aktiv .pf-fach-kachel,
+.pf-fach.drop-hover .pf-fach-kachel{
+  background:var(--p-gold); box-shadow:0 0 0 3px var(--p-karte-hell), 0 0 0 5px var(--p-ink);
+}
+.pf-fach.drop-ok .pf-fach-kachel{ background:var(--p-ok); }
+.pf-fach-leer{ opacity:.35; }
+.pf-fach-lbl{
+  font:800 8.5px var(--p-font); text-transform:uppercase; letter-spacing:.08em;
+  color:var(--p-text-2); white-space:nowrap;
+}
+.pf-buehne{
+  position:relative; min-width:0; height:307px; padding-bottom:6px; overflow:hidden;
+  border:var(--p-rahmen); border-radius:24px; background:var(--p-karte);
+  display:flex; justify-content:center; align-items:flex-end;
+}
+
+/* Kampf-Werte als Kacheln; geänderte Werte Mint (besser) bzw. Rosa (schlechter). */
+.pf-werte{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:6px; margin-top:14px; }
+.pf-wert{
+  border:var(--p-rahmen); border-radius:14px; background:var(--p-karte);
+  padding:7px 7px 6px; min-width:0; text-align:center;
+}
+.pf-wert.is-plus{ background:#E4F4E8; }
+.pf-wert.is-minus{ background:#FFE5E7; }
+.pf-wert-ic{ display:flex; justify-content:center; }
+.pf-wert-zahl{ font:900 15px var(--p-font); margin-top:3px; white-space:nowrap; }
+.pf-wert-lbl{
+  font:800 7.5px var(--p-font); text-transform:uppercase; letter-spacing:.06em;
+  color:var(--p-text-2); white-space:nowrap;
+}
+.pf-wert-chipzeile{ margin-top:4px; display:flex; justify-content:center; }
+.pf-wert-chip{
+  display:inline-flex; align-items:center; white-space:nowrap;
+  border:var(--p-rahmen); border-radius:11px; background:var(--p-ok);
+  padding:1px 6px; font:800 9px var(--p-font);
+}
+.pf-wert.is-minus .pf-wert-chip{ background:var(--p-rosa); }
+
+/* Tasche: alle Teile des angewählten Fachs, 6 je Zeile. */
+.pf-tasche-kopf{ display:flex; align-items:center; gap:7px; margin-top:18px; font:900 14px var(--p-font); }
+.pf-tasche{ display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:6px; margin-top:9px; }
+.pf-teil{
+  position:relative; aspect-ratio:1; min-width:0; padding:0; cursor:pointer;
+  border:var(--p-rahmen); border-radius:14px; background:var(--p-karte);
+  display:flex; align-items:center; justify-content:center;
+  touch-action:pan-y; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none;
+}
+.pf-teil.is-gewaehlt{ background:var(--p-gold); box-shadow:0 0 0 3px var(--p-karte-hell), 0 0 0 5px var(--p-ink); }
+.pf-teil.is-leer{ border:2px dashed rgba(31,31,36,.35); background:rgba(248,246,236,.5); cursor:default; }
+.pf-teil.is-gezogen{ opacity:.35; }
+.pf-teil-haken{
+  position:absolute; right:-7px; top:-7px; width:26px; height:26px;
+  border:var(--p-rahmen); border-radius:50%; background:var(--p-ok);
+  display:flex; align-items:center; justify-content:center;
+}
+/* Gepacktes Teil am Finger: angehoben mit dem harten Schatten des Designs. */
+.pf-zieh{
+  position:fixed; z-index:10000; width:56px; height:56px; pointer-events:none;
+  border:var(--p-rahmen); border-radius:14px; background:var(--p-gold);
+  display:flex; align-items:center; justify-content:center;
+  box-shadow:var(--p-schatten-angehoben); transform:translate(-50%,-85%);
+}
+.pf-karte-teil{
+  margin-top:12px; border:var(--p-rahmen); border-radius:22px; background:var(--p-karte-hell);
+  padding:12px 13px; display:flex; align-items:center; gap:12px;
+}
+.pf-teil-bild{
+  width:68px; height:88px; flex:none;
+  border:var(--p-rahmen); border-radius:16px; background:var(--p-inaktiv);
+  display:flex; align-items:center; justify-content:center;
+}
+.pf-teil-info{ flex:1; min-width:0; }
+.pf-teil-kopf{ display:flex; align-items:center; flex-wrap:wrap; gap:6px; }
+.pf-teil-name{ font:900 16px var(--p-font); }
+.pf-angelegt{
+  display:inline-flex; align-items:center; white-space:nowrap;
+  border:var(--p-rahmen); border-radius:11px; background:var(--p-ok);
+  padding:1px 7px; font:800 9px var(--p-font);
+}
+.pf-bonus{
+  display:flex; align-items:center; gap:6px; margin-top:7px;
+  font:800 11.5px var(--p-font); color:var(--p-text-akzent);
+}
+.pf-bonus + .pf-bonus{ margin-top:4px; }
+.pf-anlegen{
+  flex:none; height:44px; padding:0 12px; cursor:pointer;
+  border:var(--p-rahmen); border-radius:14px; background:var(--p-karte);
+  display:flex; align-items:center; gap:6px; font:900 12px var(--p-font); color:var(--p-ink);
+}
+/* Leere Tasche / keine Treffer: gestrichelter Kasten (8.1 „Niemand mit …"). */
+.pf-leer, .fr-leer{
+  margin-top:10px; border:2px dashed rgba(31,31,36,.55); border-radius:18px;
+  background:var(--p-chip-leer); padding:22px; text-align:center;
+  font:800 12px var(--p-font); color:#4A4A52;
+}
+
+/* Freunde. */
+.pf-freunde{
+  margin-top:12px; border:var(--p-rahmen); border-radius:20px; background:var(--p-karte); padding:14px;
+}
+.fr-kopf{
+  display:flex; align-items:center; gap:8px;
+  font:900 10px var(--p-font); text-transform:uppercase; letter-spacing:.14em; color:var(--p-text-2);
+}
+.fr-suche{
+  margin-top:9px; height:52px; padding:0 14px; cursor:text;
+  border:var(--p-rahmen); border-radius:16px; background:var(--p-feld);
+  display:flex; align-items:center; gap:10px; font:800 13px var(--p-font); color:var(--p-ink);
+}
+.fr-suche input{
+  flex:1; min-width:0; width:auto; height:auto; margin:0; padding:0;
+  border:0; border-radius:0; box-shadow:none; background:transparent; outline:none;
+  font:inherit; color:inherit;
+}
+.fr-suche input::placeholder{ color:var(--p-text-2); opacity:.7; }
+.fr-liste{ display:flex; flex-direction:column; gap:8px; margin-top:12px; }
+.fr-liste > .fr-leer:only-child{ margin-top:-2px; }
+.fr-liste > .fr-hinweis{ margin-top:0; }
+.fr-zeile, .fr-zeile:last-child{
+  display:flex; align-items:center; gap:11px; padding:9px 11px;
+  border:var(--p-rahmen); border-radius:16px; background:var(--p-karte);
+}
+.fr-bild{
+  width:44px; height:44px; flex:none; overflow:hidden;
+  border:var(--p-rahmen); border-radius:14px; background:var(--p-inaktiv);
+  display:flex; align-items:flex-end; justify-content:center;
+}
+.fr-bild[onclick]{ cursor:pointer; }
+.fr-bust{ width:32px; height:32px; }
+.fr-text{ flex:1; min-width:0; }
+.fr-name{ font:900 13px var(--p-font); overflow-wrap:anywhere; }
+.fr-name.is-link{
+  cursor:pointer; text-decoration:underline; text-decoration-thickness:2px; text-underline-offset:3px;
+}
+.fr-sub{ font:700 10.5px var(--p-font); color:var(--p-text-2); }
+.fr-knopf{
+  flex:none; cursor:pointer; padding:6px 11px;
+  border:var(--p-rahmen); border-radius:12px; background:var(--p-karte);
+  font:900 11px var(--p-font); color:var(--p-ink);
+}
+.fr-knopf--lila{ background:var(--p-lila); }
+.fr-knopf--mint{ background:var(--p-ok); }
+.fr-knopf--symbol{
+  width:31px; height:31px; padding:0; background:var(--p-inaktiv);
+  display:flex; align-items:center; justify-content:center;
+}
+.fr-marke{
+  flex:none; display:inline-flex; align-items:center; gap:5px; white-space:nowrap;
+  border:var(--p-rahmen); border-radius:11px; background:var(--p-inaktiv);
+  padding:3px 9px 3px 7px; font:800 10px var(--p-font);
+}
+.fr-marke--mint{ background:var(--p-ok); }
+.fr-kicker{
+  margin-top:22px; font:900 10px var(--p-font); text-transform:uppercase;
+  letter-spacing:.14em; color:var(--p-text-2);
+}
+.fr-kicker + .fr-liste{ margin-top:9px; }
+.fr-hinweis{ margin-top:12px; text-align:center; font:700 11px/1.4 var(--p-font); color:var(--p-text-2); }
+
+/* Cloud-Konto: blaue Karte. */
+.pf-cloud{
+  margin-top:11px; border:var(--p-rahmen); border-radius:20px; background:var(--p-blau); padding:14px;
+}
+.pf-cloud-kicker{
+  font:900 10px var(--p-font); text-transform:uppercase; letter-spacing:.14em; color:var(--p-text-2);
+}
+.pf-cloud-zeile{ display:flex; align-items:flex-end; gap:12px; margin-top:8px; }
+.pf-cloud-text{ flex:1; min-width:0; }
+.pf-cloud-titel{ font:900 14px var(--p-font); }
+.pf-cloud-sub{ font:700 11px/1.4 var(--p-font); color:var(--p-text-3); overflow-wrap:anywhere; }
+.pf-cloud-knopf{
+  flex:none; cursor:pointer; padding:9px 14px;
+  border:var(--p-rahmen); border-radius:14px; background:var(--p-karte);
+  font:800 11px var(--p-font); color:var(--p-ink);
+}

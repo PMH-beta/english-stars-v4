@@ -13,9 +13,12 @@
 
 import { createUiAnimator } from './ui-anim.js';
 import { drawIcon } from './pixel-icons.js';
+import { stageFrames } from './hero.js';
 
 const TAKT_MS = 125;
 const icon = (ctx, name, w, h) => drawIcon(ctx, name, w, h);
+// Atem-Bilder der Menü-Bühne (data-ui="idle", Profil und Fortschritt).
+const idleFrames = (el) => stageFrames(el);
 
 let _t = 0;
 let _timer = null;
@@ -24,7 +27,7 @@ const _neu = new Map();   // Wurzel → { ui, bis }
 
 function _sofort(root) {
   if (!root) return;
-  _neu.set(root, { ui: createUiAnimator({ icon, root }), bis: _t + 17 });
+  _neu.set(root, { ui: createUiAnimator({ icon, idleFrames, root }), bis: _t + 17 });
 }
 
 function _tick() {
@@ -38,7 +41,7 @@ function _tick() {
 
 export function startUiTakt() {
   if (_timer) return;
-  _haupt = createUiAnimator({ icon });
+  _haupt = createUiAnimator({ icon, idleFrames });
   _timer = setInterval(_tick, TAKT_MS);
   new MutationObserver((muts) => {
     for (const m of muts) {

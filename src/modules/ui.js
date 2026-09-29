@@ -10,7 +10,8 @@ import { commitDirty } from './dialog.js';
 import { setGrundton, clearGrundton } from './screen-shell.js';
 import { iconHTML } from './pixel-icons.js';
 import { uvMap, uvLernstand, constellationWords, FORGE_DISC, SLOTS_PER_FORM, uvTrainProgress, uvTrainForms, uvTrainWords, uvPruneOrphanSlotStats, UV_TRAIN_SIZE, migrateUvTrainSize } from './irregular-game.js';
-import { renderAvatarInto, renderCharacter, commitAvatar, resetCharacterFeature, setCharacterCompanion, setCharacterGear } from './avatar.js';
+import { renderAvatarInto, renderCharacter, commitAvatar, resetCharacterFeature, setCharacterCompanion, setCharacterGear, stageHTMLFor } from './avatar.js';
+import { paintStages } from './hero.js';
 import { IRREGULAR_PRESET_ID, uvAvailableVerbs, CONSTELLATION_SIZE, cefrOf, forgeObject, FORGE_OBJECTS, usedForgeObjects, fillObjectType, getConstellations, allVerbsSorted, verbsByEns, UV_TRAIN_SUF } from './irregular-verbs.js';
 import { objectPerkText, renderEquipmentPanel, resetEquipmentSelection, forgedItems, equippedGearMap } from './campaign-equipment.js';
 import { renderFriendsSection, refreshFriendBadge, friendProgress, subscribeFriendRealtime, unsubscribeFriendRealtime } from './friends.js';
@@ -406,12 +407,6 @@ const UV_TRACK_STYLE = {
 };
 function _uvTrack(deck) {
   return (deck.uvForms === 'past' || deck.uvForms === 'pp' || deck.uvForms === 'open') ? deck.uvForms : 'both';
-}
-
-// Formen-Wahl eines Trainings-Decks als Kurz-Label (Fortschritt-Seite u. a.).
-function _uvFormsLabel(deck) {
-  const st = UV_TRACK_STYLE[_uvTrack(deck)];
-  return `${st.icon} ${st.label}`;
 }
 
 // Belegte Verben JE AUSWAHL-TOPF (past / pp / both) — die drei Töpfe zählen
@@ -907,11 +902,21 @@ export async function deleteProbetestEntry(idx) {
   renderProbetestSection();
 }
 
-// Probetest-Verlauf für die Fortschritt-Seite (nur Anzeige, kein Start-Button).
+// Probetest-Verlauf für die Fortschritt-Seite (nur Anzeige, kein Start-Button):
+// Karten nach 8.3 — Note im Kästchen (1–2 Mint, 3–4 Hellgold, ab 5 Rosa),
+// Sammlungen, Datum und Fragenzahl.
 function _probetestBlock() {
   const hist = Array.isArray(window.SD?.probetests) ? window.SD.probetests : [];
-  if (!hist.length) return '<div style="font-size:.82rem;color:#999;text-align:center;padding:12px;">Noch keine Probetests durchgeführt.</div>';
-  return hist.map(t => _probetestEntryHtml(t)).join('');   // ohne idx → kein 🗑️ (nur Anzeige)
+  if (!hist.length) return '<div class="fs-leer">Noch keine Probetests durchgeführt.</div>';
+  return hist.map((t) => {
+    const names = (t.decks || []).map(d => window.escHtml(d.name || '')).join(' + ') || '—';
+    const ton = t.grade <= 2 ? 'var(--p-ok)' : (t.grade <= 4 ? 'var(--p-gold-hell)' : 'var(--p-falsch)');
+    const datum = new Date(t.date || Date.now()).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    return `<div class="fs-test"><span class="fs-note" style="background:${ton}">${t.grade}</span>`
+      + `<div class="fs-test-text"><div class="fs-test-name">${names}</div>`
+      + `<div class="fs-test-sub">${datum} · ${t.questions} ${t.questions === 1 ? 'Frage' : 'Fragen'}</div></div>`
+      + `<span class="fs-test-lbl">Note</span></div>`;
+  }).join('');
 }
 
 export function renderProbetestSection() {
@@ -1901,7 +1906,8 @@ export function showProfile() {
   resetEquipmentSelection();    // Ausrüstung startet ohne angewählten Slot
   renderEquipmentPanel();       // AUSRÜSTUNG: Paperdoll + Inventar (WoW-artig)
   const SD = window.SD;
-  renderAvatarInto('prof-avatar', SD, { headOnly: true });
+  // Kopf nach 8.1: Brustbild (wie im Spielerbanner) 2×, Name, Dabei seit.
+  renderAvatarInto('prof-avatar', SD, { bust: true, scale: 2 });
   const pn = document.getElementById('prof-name');
   if (pn) pn.textContent = SD.playerName || 'Spieler';
   const ps = document.getElementById('prof-since');
@@ -1909,33 +1915,22 @@ export function showProfile() {
     const firstDeck = Object.values(SD.decks || {})[0];
     if (firstDeck && firstDeck.createdAt) {
       const d = new Date(firstDeck.createdAt);
-      ps.textContent = '📅 Dabei seit ' + d.toLocaleDateString('de-DE', {day:'2-digit',month:'2-digit',year:'numeric'});
+      ps.textContent = 'Dabei seit ' + d.toLocaleDateString('de-DE', {day:'2-digit',month:'2-digit',year:'numeric'});
     } else ps.textContent = '';
   }
+  // Cloud-Konto als blaue Karte (8.1). Nicht angemeldet: gleiche Karte mit
+  // „Anmelden" (Zustand fehlt im Entwurf).
   const cloudSection = document.getElementById('prof-cloud-section');
   if (cloudSection) {
     const user = window.currentUser;
-    if (user) {
-      cloudSection.innerHTML = `
-        <h3 style="color:var(--purple);margin-top:0">☁️ Cloud-Konto</h3>
-        <div style="display:flex;align-items:center;gap:10px;">
-          <div style="flex:1;min-width:0;">
-            <div style="font-size:.82rem;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${user.email}</div>
-            <div style="font-size:.72rem;color:#2a7a35;font-weight:700;">Fortschritt wird synchronisiert</div>
-          </div>
-          <button onclick="authLogout()" class="p-chip" style="padding:7px 12px;background:var(--p-falsch);cursor:pointer">Abmelden</button>
-        </div>`;
-    } else {
-      cloudSection.innerHTML = `
-        <h3 style="color:#888;margin-top:0">☁️ Cloud-Konto</h3>
-        <div style="display:flex;align-items:center;gap:10px;">
-          <div style="flex:1;">
-            <div style="font-size:.82rem;font-weight:700;color:#888;">Nicht eingeloggt</div>
-            <div style="font-size:.72rem;color:#aaa;font-weight:700;">Speichere deinen Fortschritt auf allen Geräten</div>
-          </div>
-          <button onclick="showAuth()" class="p-chip" style="padding:9px 14px;background:var(--p-ink);color:var(--p-gold);border-radius:var(--p-r-chip-gross);cursor:pointer">Anmelden</button>
-        </div>`;
-    }
+    const zeile = (titel, sub, knopf) => `<div class="pf-cloud-kicker">Cloud-Konto</div>
+      <div class="pf-cloud-zeile"><div class="pf-cloud-text"><div class="pf-cloud-titel">${titel}</div>
+      <div class="pf-cloud-sub">${sub}</div></div>${knopf}</div>`;
+    cloudSection.innerHTML = user
+      ? zeile('Angemeldet', `${window.escHtml(user.email || '')} · wird synchronisiert`,
+          '<button onclick="authLogout()" class="pf-cloud-knopf">Abmelden</button>')
+      : zeile('Nicht eingeloggt', 'Speichere deinen Fortschritt auf allen Geräten',
+          '<button onclick="showAuth()" class="pf-cloud-knopf">Anmelden</button>');
   }
 }
 
@@ -2090,89 +2085,97 @@ export async function showStats() {
   const heading = document.getElementById('stats-heading');
   if (backBtn) backBtn.setAttribute('onclick', _statsFriendMode ? 'closeFriendStats()' : 'showMenu()');
   if (heading) heading.textContent = _statsFriendMode ? (SD.playerName || 'Freund') : 'Fortschritt';
-  // Kopf wie auf der Profilseite: Avatar, Name, Dabei-seit, Bosse/Taler, Highscore/Punkte.
-  // In der FREUND-Ansicht steht statt des Portraits die ganze Figur mit der Ausrüstung,
-  // die der Freund gerade trägt (window.SD zeigt hier auf seinen Stand, equippedGearMap
-  // liest also seine angelegten Teile) — keine Ausrüstungs-Felder, nur die Figur.
+  // Kopf nach 8.3 (Freund 8.2): die ganze Figur mit angelegter Ausrüstung und,
+  // falls angelegt, dem Gefährten als EIN Bild (2×), daneben Name, Dabei seit
+  // und die zwei Kennzahlen. In der Freund-Ansicht zeigt window.SD auf dessen
+  // Stand — equippedGearMap liest also seine Ausrüstung.
   const avEl = document.getElementById('stats-avatar');
-  if (avEl) {
-    avEl.style.width = _statsFriendMode ? '86px' : '64px';
-    avEl.style.height = _statsFriendMode ? '129px' : '64px';
-  }
-  renderAvatarInto('stats-avatar', SD, _statsFriendMode ? { gear: equippedGearMap() } : { headOnly: true });
+  if (avEl) { avEl.innerHTML = stageHTMLFor(SD, equippedGearMap(), 2); paintStages(avEl); }
   const pn = document.getElementById('profile-name');
   const pm = document.getElementById('profile-meta');
   if (pn) pn.textContent = SD.playerName || 'Spieler';
   if (pm) {
     // Eigenes Profil: ältestes Deck (wie Profilseite); Freund: echtes Anmeldedatum aus der Cloud.
     const since = _statsFriendMode ? SD.createdAt : (Object.values(SD.decks || {})[0] || {}).createdAt;
-    const sinceTxt = since ? '📅 Dabei seit ' + new Date(since).toLocaleDateString('de-DE', {day:'2-digit',month:'2-digit',year:'numeric'}) : '';
-    if (_statsFriendMode) {
-      // Neben der Figur bleibt sonst viel Luft — ein paar Eckdaten füllen sie.
-      const c = (SD.campaign && typeof SD.campaign === 'object') ? SD.campaign : {};
-      const claimed = Array.isArray(c.claimed) ? c.claimed.length : 0;
-      const taler = Math.max(0, claimed - (typeof c.talerSpent === 'number' ? c.talerSpent : 0));
-      const best = (c.stats && c.stats.bestRun) || 0;
-      const chip = (t) => `<span style="background:#f3eefb;color:#6f5a92;border-radius:50px;padding:3px 9px;">${t}</span>`;
-      pm.innerHTML = `${sinceTxt}<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:7px;font-size:.72rem;">`
-        + chip('🐉 ' + (c.bossWins || 0) + ' Bosse') + chip('🪙 ' + taler)
-        + (best ? chip('🏔️ Längster Run ' + best) : '') + '</div>';
-    } else pm.textContent = sinceTxt;
+    pm.innerHTML = since ? iconHTML('calendar', 14) + 'Dabei seit ' + _fsDatum(since) : '';
   }
-  const sh = document.getElementById('stats-hs'); if (sh) sh.textContent = SD.highscore || 0;
-  const sp = document.getElementById('stats-pts'); if (sp) sp.textContent = SD.totalPoints || 0;
+  const sh = document.getElementById('stats-hs'); if (sh) sh.textContent = _fsZahl(SD.highscore || 0);
+  const sp = document.getElementById('stats-pts'); if (sp) sp.textContent = _fsZahl(SD.totalPoints || 0);
 
   const host = document.getElementById('profile-decks-summary');
   if (!host) return;
   const allDecks = Object.values(SD.decks || {});
   const freeDecks = allDecks.filter(d => deckMode(d) === 'free');
 
-  host.innerHTML = '<div style="font-size:.82rem;color:#999;text-align:center;padding:10px;">Lade Fortschritt…</div>';
+  host.innerHTML = '<div class="fs-leer">Lade Fortschritt…</div>';
 
-  // Vorlagen-Namen (async) — für die „Aktive Vorlagen"-Kacheln der Vokabeln.
+  // Vorlagen-Namen (async) — für die „Aktive Vorlagen"-Karten der Vokabeln.
   const categories = await getPresetCategories();
   const catById = Object.fromEntries((categories || []).map(c => [c.id, c]));
 
-  // Reihenfolge wie im Hauptmenü-Toggle: Kampagne · Vokabeln · Unregelmäßige.
-  const campSection = _statSection('🗺️ Kampagne', _campaignBlock());
-
-  const vokabelnSection = _statSection('📚 Vokabeln',
-    _activePresetsBlock(freeDecks, catById) + _customWordsBlock(freeDecks));
-
-  const probetestSection = _statSection('🎲 Probetest', _probetestBlock());
-
-  const unregelmSection = _statSection('⚒️ Unregelmäßige', _uvLernstandBlock() + _uvTrainStatsBlock());
-
-  host.innerHTML = campSection + vokabelnSection + probetestSection + unregelmSection;
+  // Reihenfolge wie im Hauptmenü-Toggle: Kampagne · Vokabeln · Probetest · Unregelmäßige.
+  host.innerHTML = _fsAbschnitt('map', 'Kampagne', _campaignBlock())
+    + _fsAbschnitt('book', 'Vokabeln', _activePresetsBlock(freeDecks, catById) + _customWordsBlock(freeDecks))
+    + _fsAbschnitt('test', 'Probetest', _probetestBlock())
+    + _fsAbschnitt('hammer', 'Unregelmäßige', _uvLernstandBlock() + _uvTrainStatsBlock());
 }
 
-// Abschnitts-Rahmen mit Überschrift (Modus-Gliederung der Fortschritt-Seite).
-function _statSection(title, inner) {
-  return `<div style="margin-bottom:22px;">
-    <div class="p-kicker" style="font-size:12px;margin:0 0 10px">${title}</div>
-    ${inner}
-  </div>`;
+// Zahlen wie im Entwurf mit Leerzeichen als Tausendertrenner („1 240").
+function _fsZahl(n) {
+  return String(Math.round(n || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+}
+function _fsDatum(ts) {
+  return new Date(ts).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
-// Eine Fortschritt-Kachel (Stil der „Aktive Vorlagen"): Titel + Unterzeile,
-// Balken-Hintergrund nach %, rechts %-Zahl bzw. ✓-erledigt-Chip.
-function _progressTile(title, sub, pct, done) {
-  const bg = done
-    ? 'background:var(--p-ok);'
-    : 'background:linear-gradient(to right,var(--p-ok) ' + pct + '%,var(--p-karte) ' + pct + '%);';
-  const right = done
-    ? '<span style="font-size:.72rem;font-weight:700;color:#2a8a4a;background:rgba(58,170,92,.15);padding:3px 9px;border-radius:20px;white-space:nowrap;">✓ erledigt</span>'
-    : '<span style="font:900 13px var(--p-font);color:var(--p-ink);">' + pct + '%</span>';
-  return `<div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:12px;margin-bottom:6px;${bg}">
-    <div style="flex:1;min-width:0;">
-      <div style="font-weight:700;color:var(--text);font-size:.86rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${title}</div>
-      <div style="font-size:.68rem;color:#888;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${sub}</div>
-    </div>
-    ${right}
-  </div>`;
+// Abschnitt nach 8.3: Symbol im Kästchen, Titel, Linie bis zum Rand.
+function _fsAbschnitt(icon, titel, inner) {
+  return `<div class="fs-abschnitt"><span class="fs-abschnitt-ic">${iconHTML(icon, 28)}</span>`
+    + `<span class="fs-abschnitt-titel">${titel}</span><span class="fs-abschnitt-linie"></span></div>${inner}`;
+}
+function _fsKicker(text) { return `<div class="fs-kicker">${text}</div>`; }
+
+// Fortschritt-Karte nach 8.3: Titel, Unterzeile, Prozent, Balken; fertig = Mint
+// mit „erledigt" und ohne Balken. Mit Liste aufklappbar (Pfeil wie 8.3, offen
+// hell auf Tinte). ton = Balkenfarbe (Vokabeln Mint, Unregelmäßige Flieder).
+function _fsKarte({ titel, sub, pct, fertig, ton = 'mint', bild = '', liste = '' }) {
+  const rechts = fertig
+    ? `<span class="fs-erledigt">${iconHTML('check', 14)}erledigt</span>`
+    : `<span class="fs-prozent">${pct}%</span>`;
+  const pfeil = liste ? `<span class="fs-pfeil">${iconHTML('chevron', 14)}${iconHTML('chevronUpLight', 14)}</span>` : '';
+  const kopf = `<div class="fs-karte-kopf">${bild ? `<span class="fs-karte-bild">${bild}</span>` : ''}`
+    + `<div class="fs-karte-text"><div class="fs-karte-titel">${titel}</div><div class="fs-karte-sub">${sub}</div></div>`
+    + `${rechts}${pfeil}</div>`;
+  const balken = fertig ? ''
+    : `<div class="fs-balken"><i class="fs-balken--${ton}" data-ui="fill" data-c="64" style="width:${pct}%"></i></div>`;
+  const cls = 'fs-karte' + (fertig ? ' is-fertig' : '');
+  if (!liste) return `<div class="${cls}">${kopf}${balken}</div>`;
+  return `<details class="${cls}"><summary>${kopf}${balken}</summary>${liste}</details>`;
 }
 
-// Kampagnen-Stand: besiegte Bosse, aktueller Taler-Stand, Stand des aktuellen Laufs.
+// Aufgeklappte Wortliste (8.3): je Wort ein Kästchen pro Teil, gefüllt =
+// gemeistert, rechts der Zähler. spalten = Beschriftung unter den Kästchen.
+function _fsWortListe(zeilen, ton, spalten) {
+  const rows = zeilen.map((z) => `<div class="fs-wort"><span class="fs-wort-en">${window.escHtml(z.en)}</span>`
+    + `<div class="fs-segmente" style="grid-template-columns:repeat(${z.an.length},1fr)">`
+    + z.an.map((an) => `<span${an ? ` class="is-an fs-seg--${ton}"` : ''}></span>`).join('')
+    + `</div><span class="fs-wort-zahl">${z.an.filter(Boolean).length}/${z.an.length}</span></div>`).join('');
+  return `<div class="fs-liste">${rows}</div>`
+    + (spalten ? `<div class="fs-spalten">${spalten.map((s) => `<span>${s}</span>`).join('')}</div>` : '');
+}
+// Zähler als Kästchen: die ersten m von n gefüllt.
+const _fsReihe = (m, n) => Array.from({ length: n }, (_, i) => i < m);
+
+// Vokabel-Wörter: drei Kästchen je Wort (Wählen / Schreiben / Sprechen).
+function _vocabWordRows(words, ws, presetId) {
+  const zeilen = words.map((v) => ({
+    en: v.en,
+    an: ['_mc', '_sp', '_pr'].map((suf) => isStatMastered(ws[statKeyFor(v.de, v.en, suf, presetId)])),
+  }));
+  return _fsWortListe(zeilen, 'mint', ['Wählen', 'Schreiben', 'Sprechen']);
+}
+
+// Kampagne nach 8.3: Rekord-Karte, sechs Kennzahlen, aktueller Lauf.
 function _campaignBlock() {
   const c = (window.SD.campaign && typeof window.SD.campaign === 'object') ? window.SD.campaign : {};
   // Gleiche Rechnung wie talerAvailable() (claimed − ausgegeben), aber über das
@@ -2182,77 +2185,50 @@ function _campaignBlock() {
   const bosses = c.bossWins || 0;
   // Zählt erst ab Einführung der Statistik — ältere Läufe sind nicht nachrechenbar.
   const st = (c.stats && typeof c.stats === 'object') ? c.stats : {};
-  const statRow = (icon, label, num) => `
-    <tr><td>${icon} ${label}</td><td style="text-align:right;font:900 13px var(--p-font);color:var(--p-ink);">${num}</td></tr>`;
-  let runHtml;
+  const rekord = st.bestRun || 0, rekordBosse = st.bestRunBosses || 0;
+  const kachel = (icon, zahl, label, gold) => `<div class="fs-kachel${gold ? ' is-gold' : ''}">`
+    + `<div class="fs-kachel-kopf">${iconHTML(icon, 28)}<span class="fs-kachel-zahl">${_fsZahl(zahl)}</span></div>`
+    + `<div class="fs-kachel-lbl">${label}</div></div>`;
+  let lauf;
   const run = c.run;
   if (run && run.map) {
     const rows = run.map.rows || 13;
     const node = run.pos != null ? run.map.nodes[run.pos] : null;
     const row = node ? node.row + 1 : 0;
-    const pct = Math.round((row / rows) * 100);
     const hpPct = run.hpMax ? Math.round((run.hp / run.hpMax) * 100) : 0;
-    runHtml = `
-      <div style="display:flex;justify-content:space-between;font-size:.82rem;font-weight:700;color:var(--text);margin-bottom:6px;">
-        <span>⚔️ Aktueller Lauf: Reihe ${row} von ${rows}</span><span style="color:var(--purple);">${pct}%</span>
-      </div>
-      <div style="height:12px;background:#eee;border-radius:10px;overflow:hidden;margin-bottom:8px;">
-        <div style="height:100%;width:${pct}%;background:var(--p-ink)"></div>
-      </div>
-      <div style="display:flex;justify-content:space-between;font-size:.82rem;font-weight:700;color:var(--text);margin-bottom:6px;">
-        <span>❤️ Leben</span><span style="color:#c0392b;">${run.hp}/${run.hpMax}</span>
-      </div>
-      <div style="height:12px;background:#eee;border-radius:10px;overflow:hidden;">
-        <div style="height:100%;width:${hpPct}%;background:var(--p-falsch);"></div>
-      </div>`;
+    // Reihen als Kästchen: geschafft Tinte, aktuelle Gold, die letzte (Boss) Rosa.
+    const segs = Array.from({ length: rows }, (_, i) => {
+      const cls = i + 1 < row ? 'is-fertig' : i + 1 === row ? 'is-jetzt' : i === rows - 1 ? 'is-boss' : '';
+      return `<span${cls ? ` class="${cls}"` : ''}></span>`;
+    }).join('');
+    lauf = `<div class="fs-lauf-kopf"><span>Aktueller Lauf</span><span>Reihe ${row} / ${rows}</span></div>`
+      + `<div class="fs-reihen" style="grid-template-columns:repeat(${rows},1fr)">${segs}</div>`
+      + `<div class="fs-reihen-lbl"><span>Start</span><span>Boss</span></div>`
+      + `<div class="fs-hp">${iconHTML('heart', 14)}<div class="fs-hp-spur"><i data-ui="fill" data-c="64" style="width:${hpPct}%"></i></div>`
+      + `<span class="fs-hp-wert">${run.hp}/${run.hpMax}</span></div>`;
   } else {
-    runHtml = '<div style="font-size:.8rem;color:#999;font-weight:700;text-align:center;padding:6px;">Kein Lauf aktiv.</div>';
+    lauf = `<div class="fs-lauf-kopf"><span>Aktueller Lauf</span></div><div class="fs-lauf-leer">Kein Lauf aktiv.</div>`;
   }
-  return `
-    <div style="margin-bottom:16px;">
-      <table class="word-table" style="margin-bottom:12px;">
-        <tbody>
-          ${statRow('👑', 'Bosse besiegt', bosses)}
-          ${statRow('🪙', 'Taler', taler)}
-          ${statRow('⚔️', 'Übungs-Gegner besiegt', st.fight || 0)}
-          ${statRow('🌀', 'Unregelmäßige besiegt', st.irregular || 0)}
-          ${statRow('💀', 'Läufe gescheitert', st.runsLost || 0)}
-          ${statRow('🧪', 'Tränke getrunken', st.potions || 0)}
-          ${statRow('💎', 'Schätze gefunden', st.treasures || 0)}
-          ${statRow('🏔️', 'Längster Run', `${st.bestRun || 0} · ${st.bestRunBosses || 0} 👑`)}
-        </tbody>
-      </table>
-      ${runHtml}
+  const lost = st.runsLost || 0;
+  return `<div class="fs-rekord">
+      <span class="fs-rekord-ic">${iconHTML('trophy', 42)}</span>
+      <div class="fs-rekord-text"><div class="fs-rekord-kicker">Rekord · längster Lauf</div>
+        <div class="fs-rekord-wert">${_fsZahl(rekord)} ${rekord === 1 ? 'Reihe' : 'Reihen'}</div></div>
+      <span class="fs-rekord-chip">${iconHTML('crown', 14)}${rekordBosse} ${rekordBosse === 1 ? 'Boss' : 'Bosse'}</span>
+    </div>
+    <div class="fs-kacheln">
+      ${kachel('crown', bosses, 'Bosse', true)}${kachel('coin', taler, 'Taler', true)}${kachel('sword', st.fight || 0, 'Gegner')}
+      ${kachel('orb', st.irregular || 0, 'Unregelm.')}${kachel('potion', st.potions || 0, 'Tränke')}${kachel('gem', st.treasures || 0, 'Schätze')}
+    </div>
+    <div class="fs-lauf">${lauf}
+      <div class="fs-gescheitert">${iconHTML('skull', 14)}${_fsZahl(lost)} ${lost === 1 ? 'Lauf' : 'Läufe'} gescheitert</div>
     </div>`;
-}
-
-// Aufklappbare Wortliste unter einer Fortschritt-Kachel — GLEICHER Stil wie die
-// Schmiede-Aufträge (details/summary + .uvw-Zeilen): je Wort ein Balken über die
-// drei Übungsarten (MC/Schreiben/Sprechen) mit x/3-Zähler.
-function _vocabWordRows(words, ws, presetId, head) {
-  const rows = words.map(v => {
-    let m = 0;
-    for (const suf of ['_mc', '_sp', '_pr']) {
-      if (isStatMastered(ws[statKeyFor(v.de, v.en, suf, presetId)])) m++;
-    }
-    const wPct = Math.round((m / 3) * 100);
-    return `<div class="uvw">
-      <span class="uvw-en">${window.escHtml(v.en)}</span>
-      <div class="uvw-half"><div class="uvw-fill" style="width:${wPct}%;background:var(--p-ink);"></div></div>
-      <span class="uvw-pct">${m}/3</span>
-    </div>`;
-  }).join('');
-  return `<div class="uv-auftrag-words">
-    <div class="uv-words-head">${head}</div>
-    ${rows}
-  </div>`;
 }
 
 // „Eigene Wörter": pro Sammlung mit selbst angelegten (nicht-Vorlage) Wörtern
-// eine aufklappbare Kachel (Stil der Schmiede-Aufträge) mit Wortliste. %-Wert mit
-// DERSELBEN Score-Formel wie presetProgressPct (Teilpunkte je Wort × 3 Übungs-
-// arten), nicht ganz-oder-gar-nicht je Wort — sonst zeigen die Blöcke
-// verschiedene Prozente.
+// eine aufklappbare Karte mit Wortliste. %-Wert mit DERSELBEN Score-Formel wie
+// presetProgressPct (Teilpunkte je Wort × 3 Übungsarten), nicht ganz-oder-gar-
+// nicht je Wort — sonst zeigen die Blöcke verschiedene Prozente.
 function _customWordsBlock(decks) {
   const tiles = [];
   for (const deck of decks) {
@@ -2273,24 +2249,19 @@ function _customWordsBlock(decks) {
       if (allDone) done++;
     }
     const pct = Math.min(100, Math.round((totalScore / 3 / words.length) * 100));
-    const tile = _progressTile(window.escHtml(deck.name),
-      `${done} von ${words.length} Wörtern gelöst`, pct, done === words.length);
-    tiles.push(`<details class="uv-auftrag">
-      <summary>${tile}</summary>
-      ${_vocabWordRows(words, ws, null, 'Angelegte Wörter')}
-    </details>`);
+    tiles.push(_fsKarte({
+      titel: window.escHtml(deck.name),
+      sub: `${words.length} ${words.length === 1 ? 'Wort' : 'Wörter'}`,
+      pct, fertig: done === words.length,
+      liste: _vocabWordRows(words, ws, null),
+    }));
   }
-  return `
-    <div style="margin-bottom:16px;">
-      <h3 class="p-kicker" style="border:0;padding:0;margin:0 0 8px">✏️ Eigene Wörter</h3>
-      ${tiles.length
-        ? tiles.join('')
-        : '<div style="font-size:.82rem;color:#999;text-align:center;padding:10px;">Keine eigenen Wörter angelegt.</div>'}
-    </div>`;
+  return _fsKicker('Eigene Wörter')
+    + (tiles.length ? tiles.join('') : '<div class="fs-leer">Keine eigenen Wörter angelegt.</div>');
 }
 
-// „Aktive Vorlagen" (Freier Modus): je aktive Vorlage eine aufklappbare Kachel
-// (Stil der Schmiede-Aufträge) mit Balken + % und der Wortliste der Vorlage.
+// „Aktive Vorlagen" (Freier Modus): je aktive Vorlage eine aufklappbare Karte
+// mit Balken + % und der Wortliste der Vorlage.
 function _activePresetsBlock(decks, catById) {
   const presetWs = window.SD?.globalPresetStats?.wordStats || {};
   const activePresets = [];
@@ -2310,30 +2281,28 @@ function _activePresetsBlock(decks, catById) {
       });
     }
   }
-  return `
-    <div style="margin-bottom:16px;">
-      <h3 class="p-kicker" style="border:0;padding:0;margin:0 0 8px">📦 Aktive Vorlagen</h3>
-      ${activePresets.length === 0
-        ? '<div style="font-size:.82rem;color:#999;text-align:center;padding:10px;">Keine aktiven Vorlagen.</div>'
-        : activePresets.map(p => {
-            const tile = _progressTile(window.escHtml(p.name), window.escHtml(p.deck), p.pct, p.done);
-            if (!p.words.length) return tile;
-            return `<details class="uv-auftrag">
-              <summary>${tile}</summary>
-              ${_vocabWordRows(p.words, presetWs, p.id, 'Wörter der Vorlage')}
-            </details>`;
-          }).join('')}
-    </div>`;
+  return _fsKicker('Aktive Vorlagen')
+    + (activePresets.length === 0
+      ? '<div class="fs-leer">Keine aktiven Vorlagen.</div>'
+      : activePresets.map(p => _fsKarte({
+          titel: window.escHtml(p.name),
+          sub: `in Sammlung „${window.escHtml(p.deck)}“`,
+          pct: p.pct, fertig: p.done,
+          liste: p.words.length ? _vocabWordRows(p.words, presetWs, p.id) : '',
+        })).join(''));
 }
 
-// Trainingsplatz auf der Fortschritt-Seite: EINE aufklappbare Kachel pro Trainings-
-// Deck (Stil der Schmiede-Aufträge/Aktiven Vorlagen) mit Wortliste dahinter. %-Wert
-// score-basiert (Teilpunkte je Verb, wie bei den Vokabel-Decks) statt nur ganz-oder-
-// gar-nicht — sonst steht die Anzeige nach ein paar Runden noch bei 0 %.
+// Formen-Wahl eines Trainings-Decks in Worten (Unterzeile 8.3).
+const _FS_FORMEN = { past: 'nur Simple Past', pp: 'nur Participle', both: 'beide Formen', open: 'Formen wählen' };
+
+// Trainingsplatz: EINE aufklappbare Karte pro Trainings-Deck mit Wortliste
+// dahinter. %-Wert score-basiert (Teilpunkte je Verb, wie bei den Vokabel-Decks)
+// statt nur ganz-oder-gar-nicht — sonst steht die Anzeige nach ein paar Runden
+// noch bei 0 %.
 function _uvTrainStatsBlock() {
   const decks = _trainingDecks();
   const body = !decks.length
-    ? '<div style="font-size:.82rem;color:#999;text-align:center;padding:10px;">Noch kein Trainingsplatz angelegt.</div>'
+    ? '<div class="fs-leer">Noch kein Trainingsplatz angelegt.</div>'
     : decks.map((deck) => {
         const per = ['erkennen', 'schmieden', 'verzaubern'].map((d) => uvTrainProgress(deck, d));
         const total = per.reduce((s, p) => s + p.total, 0);
@@ -2341,79 +2310,45 @@ function _uvTrainStatsBlock() {
         const mastered = per.reduce((s, p) => s + p.mastered, 0);
         const pct = total ? Math.round(score / total * 100) : 0;
         const done = total > 0 && mastered === total;
-        // Taler wie auf der Trainingsplatz-Karte: 1 pro Disziplin bei 100 %.
-        const talerEarned = per.filter((p) => p.total > 0 && p.mastered === p.total).length;
-        const tile = _progressTile(`🎯 ${window.escHtml(deck.name)}`,
-          `${(deck.vocab || []).length} Verben · ${_uvFormsLabel(deck)} · ⭐ ${mastered}/${total} gemeistert · 🪙 ${talerEarned}/3`, pct, done);
+        const n = (deck.vocab || []).length;
         const words = uvTrainWords(deck);
-        if (!words.length) return tile;
-        const wordRows = words.map(w => {
-          const wPct = w.total ? Math.round((w.score / w.total) * 100) : 0;
-          return `<div class="uvw">
-            <span class="uvw-en">${window.escHtml(w.en)}</span>
-            <div class="uvw-half"><div class="uvw-fill" style="width:${wPct}%;background:var(--p-ink);"></div></div>
-            <span class="uvw-pct">${w.mastered}/${w.total}</span>
-          </div>`;
-        }).join('');
-        return `<details class="uv-auftrag">
-          <summary>${tile}</summary>
-          <div class="uv-auftrag-words">
-            <div class="uv-words-head">Verben im Trainingsplatz</div>
-            ${wordRows}
-          </div>
-        </details>`;
+        return _fsKarte({
+          titel: window.escHtml(deck.name),
+          sub: `${n} ${n === 1 ? 'Verb' : 'Verben'} · ${_FS_FORMEN[_uvTrack(deck)]}`,
+          pct, fertig: done, ton: 'lila',
+          liste: words.length ? _fsWortListe(words.map((w) => ({ en: w.en, an: _fsReihe(w.mastered, w.total) })), 'lila') : '',
+        });
       }).join('');
-  return `<div style="margin-bottom:16px;">
-    <h3 class="p-kicker" style="margin:14px 0 8px">Trainingsplatz</h3>
-    ${body}
-  </div>`;
+  return _fsKicker('Trainingsplatz') + body;
 }
 
-// Schülermodus: Unregelmäßige Verben (Schmiede) — Lernstand als Auftrag-Kacheln
-// im Stil der Aktiven Vorlagen. Pro Auftrag eine Zeile mit Gesamt-% und den beiden
-// Form-Zählern (⏱ Simple Past · ✓ Past Participle); die angelegten Wörter stecken
-// vereinfacht (ein Balken je Wort) hinter einem Aufklapper. Schmiede-Details
-// (Waffen/Material) bleiben im Tab „Unregelmäßige".
+// Die Schmiede: je Auftrag eine Karte mit dem Werkstück, an dem gerade
+// geschmiedet wird — Stahl (Simple Past), bis alle 5 Teile fertig sind, danach
+// Gold (Past Participle). %-Wert score-basiert über alle 10 Teile (wie bisher).
+// Aufgeklappt: die Verben mit ihren gemeisterten Teilen (5 Stahl + 5 Gold).
 function _uvLernstandBlock() {
   const L = uvLernstand();
-  // Score-basierte % (Teilpunkte je Verb, wie Deck-%) — nicht nur fertige Schritte.
-  const pct = L.scorePct;
-
-  const rows = L.rows.map((r) => {
-    const icon = r.complete ? '🌟' : (r.unlocked ? '⚒️' : '🔒');
-    const aPct = r.scorePct;
-    const sub = `${r.count} Verben · ⏱ Simple Past ${r.pastLit}/${r.formTotal} · ✓ Past Participle ${r.ppLit}/${r.formTotal}`;
-    const tile = _progressTile(`${icon} ${_auftragName(r.idx)}`, sub, aPct, r.complete);
-    // Gesperrte oder leere Aufträge: nur die Kachel, keine Wortliste.
-    if (!r.unlocked || !(r.words || []).length) return tile;
-    const wordRows = r.words.map(w => {
-      const wPct = w.total ? Math.round((w.mastered / w.total) * 100) : 0;
-      return `<div class="uvw">
-        <span class="uvw-en">${window.escHtml(w.en)}</span>
-        <div class="uvw-half"><div class="uvw-fill" style="width:${wPct}%;background:var(--p-ink);"></div></div>
-        <span class="uvw-pct">${w.mastered}/${w.total}</span>
-      </div>`;
-    }).join('');
-    return `<details class="uv-auftrag">
-      <summary>${tile}</summary>
-      <div class="uv-auftrag-words">
-        <div class="uv-words-head">Angelegte Wörter</div>
-        ${wordRows}
-      </div>
-    </details>`;
+  const karten = L.rows.map((r) => {
+    const stahlFertig = r.pastLit >= r.formTotal;
+    const which = stahlFertig && r.ppLit > 0 ? 'pp' : 'past';
+    const ob = forgeObject(r.idx, which);
+    let sub = `Auftrag ${r.idx + 1} · `;
+    if (!stahlFertig) sub += `${r.pastLit} von ${r.formTotal} Teilen`;
+    else if (r.ppLit === 0) sub += 'Simple Past fertig';
+    else sub += `${r.ppLit} von ${r.formTotal} Teilen`;
+    const zeilen = (r.words || []).map((w) => ({
+      en: w.en, an: [..._fsReihe(w.past.mastered, w.past.total), ..._fsReihe(w.pp.mastered, w.pp.total)],
+    }));
+    return _fsKarte({
+      titel: `${which === 'past' ? 'Stahl' : 'Gold'}-${ob.name}`,
+      sub, pct: r.scorePct, fertig: r.complete, ton: 'lila',
+      bild: itemTag(ob.type, which, 1),
+      liste: r.unlocked && zeilen.length ? _fsWortListe(zeilen, 'lila') : '',
+    });
   }).join('');
-
   const played = L.totalLit > 0;
-  return `
-    <div style="margin-bottom:16px;">
-      <h3 class="p-kicker" style="margin:0 0 6px">Die Schmiede · unregelmäßige Verben</h3>
-      <div style="font-size:.74rem;color:#7a3aac;font-weight:700;margin-bottom:8px;">⚒️ ${L.complete}/${L.total} Aufträge fertig · 🔨 ${L.totalLit}/${L.maxLit} Schritte · ${pct}%</div>
-      <div style="height:12px;background:#eee;border-radius:10px;overflow:hidden;margin-bottom:10px;">
-        <div style="height:100%;width:${pct}%;background:var(--p-ink)"></div>
-      </div>
-      ${rows}
-      ${played ? '' : '<div style="font-size:.78rem;color:#999;text-align:center;padding:8px;">Noch nicht geübt — leg im Tab „Unregelmäßige" einen Schmiede-Auftrag an.</div>'}
-    </div>`;
+  return _fsKicker('Die Schmiede') + karten
+    + (played ? '' : '<div class="fs-leer">Noch nicht geübt — leg im Tab „Unregelmäßige“ einen Schmiede-Auftrag an.</div>');
 }
 
 // ────────────────────────────────────────────────

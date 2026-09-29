@@ -56,7 +56,7 @@ die Auslieferung keine Rolle spielt.
 | 4 · Üben | 4.1–4.14 fertig (`7b0e77d`, `393cd9c`). Offen: F-45 (Schnellmodus im Spiel), F-46 („Los“ statt 2 s), F-47 (Probetest-Zeile), F-48 („Nochmal versuchen“), F-49 (Mikrofon bei Selbstbewertung), Pegel F-21. |
 | 5 · Formen | Trainingsplatz 5.1/5.3–5.5, Befüllen 5.12 (`de60118`), Spiele 5.6–5.11 (`e2b4c07`), Stationskarte 5.1. Offen: F-08 („Wörter befüllen“, Raster „Noch nicht begonnen“, kein Löschen), F-09 (Info je Station, 5.2), F-50 (Einklappen), F-51 (Grundform als Vorgabe), F-52 (Durchstreichen), F-53 (Tipp-Knopf), F-54 (Info-Text 5.13); F-19 neu bewertet (beide Spielformen gibt es). |
 | 9 · Überall | 9.3–9.6 fertig. Offen: F-20 (9.2 Installieren), F-55 (Lautstärke-Leiste), F-32 (Versionsnummer). |
-| 8 | wartet (F-15, F-16, F-25) |
+| 8 · Profil & Charakter | 8.1 und 8.3 fertig, 8.2 (Freund) mit dem Aufbau von 8.3. Offen: F-25 (Freund ohne Wörter), F-56 (fertige Karten aufklappen), F-57 (Antippen = anlegen), F-58 (Kachel Gefährte), App-Tour-Karte (F-14, Phase 7b). Charakter-Editor 8.4–8.12 wartet auf F-15/F-16. |
 
 **Abnahme je Screen:** Referenz-DOM und App-DOM werden vermessen und abgeglichen
 (headless Chrome). Die Referenz rechnet ohne `box-sizing` — im CSS stehen

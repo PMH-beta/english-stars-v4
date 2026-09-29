@@ -280,30 +280,27 @@
       <div class="p-titel-text">Profil</div>
       <div class="p-back-platz"></div>
     </div>
-  </div>
-  <div class="p-blatt">
-  <div class="stats-panel">
-    <div class="p-reihe" style="gap:14px;">
-      <button onclick="showCharacter()" class="prof-avatar-btn" title="Charakter anpassen">
-        <div id="prof-avatar" style="width:64px;height:64px;"></div>
-        <span class="prof-edit-badge"><canvas data-icon="pencil" width="14" height="14" style="width:14px;height:14px;image-rendering:pixelated;flex:none"></canvas></span>
+    <!-- Kopf nach 8.1: Brustbild im Flieder-Kasten, Stift = Charakter anpassen -->
+    <div class="pf-kopf">
+      <button onclick="showCharacter()" class="pf-bild" title="Charakter anpassen">
+        <span class="pf-bild-innen"><span id="prof-avatar" class="pf-bust"></span></span>
+        <span class="pf-stift"><canvas data-icon="pencil" width="14" height="14" style="width:14px;height:14px;image-rendering:pixelated;flex:none"></canvas></span>
       </button>
-      <div class="p-wachs">
-        <div id="prof-name" style="font:900 19px var(--p-font)"></div>
-        <div id="prof-since" style="font:700 11px var(--p-font);color:var(--p-text-2)"></div>
+      <div class="pf-kopf-text">
+        <div id="prof-name" class="pf-name"></div>
+        <div id="prof-since" class="pf-seit"></div>
       </div>
     </div>
   </div>
+  <div class="p-blatt">
+  <!-- AUSRÜSTUNG: Fächer, Figur, Werte, Tasche (gefüllt durch renderEquipmentPanel()) -->
+  <div id="prof-equip-section"></div>
 
-  <!-- AUSRÜSTUNG: Paperdoll + Inventar (gefüllt durch renderEquipmentPanel()) -->
-  <div class="stats-panel" id="prof-equip-section"></div>
+  <!-- FREUNDE — gefüllt durch renderFriendsSection() -->
+  <div id="prof-friends-section" class="pf-freunde"></div>
 
-  <!-- FREUNDE (über Cloud-Konto) — gefüllt durch renderFriendsSection() -->
-  <div class="stats-panel" id="prof-friends-section"></div>
-
-  <div class="stats-panel" id="prof-cloud-section">
-    <!-- gefüllt durch showProfile() -->
-  </div>
+  <!-- CLOUD-KONTO — gefüllt durch showProfile() -->
+  <div id="prof-cloud-section" class="pf-cloud"></div>
   </div>
 </div>
 
@@ -355,32 +352,21 @@
       <div class="p-titel-text" id="stats-heading">Fortschritt</div>
       <div class="p-back-platz"></div>
     </div>
-  </div>
-  <div class="p-blatt">
-
-  <!-- Profil-Panel — Kopf wie auf der Profilseite (gilt auch für die Freund-Ansicht) -->
-  <div class="stats-panel">
-    <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;">
-      <div id="stats-avatar" style="width:64px;height:64px;flex-shrink:0;"></div>
-      <div style="flex:1;min-width:0;">
-        <div id="profile-name" style="font:900 19px var(--p-font)"></div>
-        <div id="profile-meta" style="font-size:.75rem;color:#888;font-weight:700;"></div>
+    <!-- Kopf nach 8.3 (Freund: 8.2): Figur mit Gefährte, Name, Dabei seit, zwei Kennzahlen -->
+    <div class="fs-kopf">
+      <div id="stats-avatar" class="fs-figur"></div>
+      <div class="fs-kopf-text">
+        <div id="profile-name" class="fs-name"></div>
+        <div id="profile-meta" class="fs-seit"></div>
+        <div class="fs-werte">
+          <div class="fs-wert"><div id="stats-hs" class="fs-wert-zahl">0</div><div class="fs-wert-lbl">Highscore</div></div>
+          <div class="fs-wert"><div id="stats-pts" class="fs-wert-zahl">0</div><div class="fs-wert-lbl">Punkte</div></div>
+        </div>
       </div>
     </div>
-    <div class="p-kacheln">
-      <div class="p-wertkachel p-ton-amber">
-        <canvas data-icon="trophy" width="14" height="14" style="width:28px;height:28px;image-rendering:pixelated;flex:none"></canvas>
-        <div id="stats-hs" class="p-wertkachel-zahl">0</div>
-        <div class="p-wertkachel-lbl">Highscore</div>
-      </div>
-      <div class="p-wertkachel p-ton-rosa">
-        <canvas data-icon="starInk" width="14" height="14" style="width:28px;height:28px;image-rendering:pixelated;flex:none"></canvas>
-        <div id="stats-pts" class="p-wertkachel-zahl">0</div>
-        <div class="p-wertkachel-lbl">Gesamtpunkte</div>
-      </div>
-    </div>
-    <div id="profile-decks-summary" style="display:flex;flex-direction:column;gap:6px;"></div>
   </div>
+  <div class="p-blatt fs-blatt">
+    <div id="profile-decks-summary"></div>
   </div>
 </div>
 

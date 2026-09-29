@@ -19,7 +19,7 @@ import { markDirty } from './sync.js';
 import { commitDirty } from './dialog.js';
 import { itemGroupSVG, itemIconSVG, matPalette, gemPalette } from './pixel-items.js';
 // Paletten der NEUEN Figur — nur für die Migration (nächstliegender Farbton).
-import { imgTag, petTag, gearFor, fitScale, MASSE, ausschnitt, petLabel } from './hero.js';
+import { imgTag, petTag, gearFor, fitScale, MASSE, ausschnitt, petLabel, stageHTML, petKind, petColorHex } from './hero.js';
 import { SKIN as NEU_SKIN, HAIR as NEU_HAIR, CLOTH as NEU_CLOTH, IRIS as NEU_IRIS } from './pixel-hero-fine.js';
 
 // Reihenfolge + Beschriftung der Einstell-Zeilen; anchor = vertikale Position der
@@ -1065,6 +1065,18 @@ export function renderAvatarInto(elId, sd, opts = {}) {
   el.innerHTML = imgTag(cfg, { ...opts, gear: gearFor(opts.gear), scale: s });
 }
 
+/**
+ * Menü-Bühne (Profil 8.1, Fortschritt 8.2/8.3): die ganze Figur mit der
+ * angelegten Ausrüstung; ist ein Gefährte angelegt, steht er als Teil desselben
+ * Bildes daneben. Atmet über den UI-Takt (data-ui="idle").
+ */
+export function stageHTMLFor(sd, gearMap, scale = 2) {
+  const cfg = ensureAvatar(sd);
+  const gefaehrte = gearMap && gearMap.companion
+    ? { kind: petKind(cfg.pet), color: petColorHex(cfg.pet, cfg.petColor) } : null;
+  return stageHTML(cfg, { gear: gearFor(gearMap), gefaehrte, scale });
+}
+
 // ────────────────────────────────────────────────
 //  CHARAKTER-SCREEN (Anpassung)
 //  UX: Merkmal-Slider oben, darunter ein KACHEL-GRID mit Live-Vorschau
@@ -1232,7 +1244,7 @@ export function avatarSet(key, v) {
   if (window.currentUser) markDirty('profile');   // Pending-Flag überlebt auch Hardware-Zurück
   renderCharacter();
   renderAvatarInto('menu-avatar', sd, { bust: true, scale: 2 });
-  renderAvatarInto('prof-avatar', sd, { headOnly: true });
+  renderAvatarInto('prof-avatar', sd, { bust: true, scale: 2 });
 }
 
 // Alt-API (Pfeile ‹/›) — bleibt für Kompatibilität, nutzt jetzt avatarSet.

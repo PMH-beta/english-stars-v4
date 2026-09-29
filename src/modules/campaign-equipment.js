@@ -13,7 +13,8 @@
 import { HP_MAX, FIST_DMG, WEAPON_BASE_DMG, WEAPON_GOLD_BONUS, EQUIP_EFFECT, TALISMAN_MULT, RING_POTION_BONUS, COMPANION_GUARDS, WEAPON_PERK, PERK_SCHWERT_DMG, PERK_DOLCH_DODGE, PERK_SPEER_BOSS, PERK_AXT_ELITE, PERK_HAMMER_MULT, PERK_STAB_MS, PERK_BOGEN_FIGHT, PERK_KOLBEN_GUARD, POTION_CHOICES, POTION_HEAL, POTION_POWER, POTION_TIME_MS, POTION_TIME_WAVES } from './campaign-balance.js';
 import { getConstellations, forgeObject } from './irregular-verbs.js';
 import { starLit, SLOTS_PER_FORM } from './irregular-game.js';
-import { renderAvatarInto } from './avatar.js';
+import { stageHTMLFor, petSVG, ensureAvatar } from './avatar.js';
+import { paintStages } from './hero.js';
 import { itemTag } from './world.js';
 import { persist } from './storage.js';
 import { markDirty } from './sync.js';
@@ -22,15 +23,16 @@ import { iconHTML } from './pixel-icons.js';
 
 // px = Pixelsymbol des leeren Fachs (Pastell-Design); icon bleibt als Notnagel
 // fuer Stellen, die noch Text erwarten.
+// kurz = Beschriftung unter dem Fach (8.1), mehrzahl = Kopf der Tasche („Waffen · 4“).
 export const SLOTS = {
-  weapon:    { icon: '⚔️', px: 'sword',  name: 'Waffe',       desc: 'Schaden pro gewonnener Welle' },
-  head:      { icon: '🪖', px: 'helm',   name: 'Helm',        desc: 'wehrt verlorene Wellen ab (pro Kampf)' },
-  body:      { icon: '🛡️', px: 'shield', name: 'Rüstung',     desc: 'mehr HP' },
-  arms:      { icon: '🧤', px: 'glove',  name: 'Handschuhe',  desc: 'mehr Zeit pro Minispiel' },
-  legs:      { icon: '🥾', px: 'boots',  name: 'Stiefel',     desc: 'Chance auszuweichen' },
-  talisman:  { icon: '🧿', px: 'orb',    name: 'Talisman',    desc: '+50 % Schaden an Formen-Knoten' },
-  ring1:     { icon: '💍', px: 'ring',   name: 'Ring',        desc: 'mehr Trank-Auswahl am Schatz' },
-  companion: { icon: '🐾', px: 'paw',    name: 'Gefährte',    desc: 'fängt Fehlgriffe pro Kampf ab' },
+  weapon:    { icon: '⚔️', px: 'sword',  name: 'Waffe',       kurz: 'Waffe',    mehrzahl: 'Waffen',     desc: 'Schaden pro gewonnener Welle' },
+  head:      { icon: '🪖', px: 'helm',   name: 'Helm',        kurz: 'Helm',     mehrzahl: 'Helme',      desc: 'wehrt verlorene Wellen ab (pro Kampf)' },
+  body:      { icon: '🛡️', px: 'shield', name: 'Rüstung',     kurz: 'Rüstung',  mehrzahl: 'Rüstungen',  desc: 'mehr HP' },
+  arms:      { icon: '🧤', px: 'glove',  name: 'Handschuhe',  kurz: 'Handsch.', mehrzahl: 'Handschuhe', desc: 'mehr Zeit pro Minispiel' },
+  legs:      { icon: '🥾', px: 'boots',  name: 'Stiefel',     kurz: 'Stiefel',  mehrzahl: 'Stiefel',    desc: 'Chance auszuweichen' },
+  talisman:  { icon: '🧿', px: 'orb',    name: 'Talisman',    kurz: 'Talisman', mehrzahl: 'Talismane',  desc: '+50 % Schaden an Formen-Knoten' },
+  ring1:     { icon: '💍', px: 'ring',   name: 'Ring',        kurz: 'Ring',     mehrzahl: 'Ringe',      desc: 'mehr Trank-Auswahl am Schatz' },
+  companion: { icon: '🐾', px: 'paw',    name: 'Gefährte',    kurz: 'Gefährte', mehrzahl: 'Gefährten',  desc: 'fängt Fehlgriffe pro Kampf ab' },
 };
 const SLOT_TYPE = { ring1: 'ring' };   // sonst = Slot-Key selbst
 export const TIER = {
@@ -211,10 +213,11 @@ export function openPotionChoice({ onPick }) {
   document.body.appendChild(ov);
 }
 
-// ── Ausrüstungs-Panel im Profil (WoW-artiges Paperdoll + Inventar) ───────────
-// Links/rechts Slot-Kacheln, in der Mitte der Charakter MIT angelegter
-// Ausrüstung (Pixel-Gear-Layer aus avatar.js), Waffe darunter. Darunter das
-// Inventar aller geschmiedeten Items — antippen legt an / ab.
+// ── Ausrüstung im Profil (8.1) ───────────────────────────────────────────────
+// Links/rechts die Fächer, in der Mitte die Bühne: Figur MIT angelegter
+// Ausrüstung und (falls angelegt) dem Gefährten, 3×. Darunter die Kampf-Werte
+// als Kacheln und — sobald ein Fach angewählt ist — die Tasche mit allen Teilen
+// dieses Fachs und der Karte des angewählten Teils.
 
 const PD_LEFT = ['head', 'body', 'arms', 'legs'];
 const PD_RIGHT = ['weapon', 'talisman', 'ring1', 'companion'];   // Waffe oben, Gefährte unten
@@ -251,28 +254,38 @@ function _wornItem(c, key) {
   return (it && it.slot === (SLOT_TYPE[key] || key)) ? it : null;
 }
 
+// Anzeigename ohne das ✨ — jedes fertige Teil ist verzaubert, das Zeichen
+// unterscheidet nichts mehr (und Emojis weichen den Pixel-Icons).
+const _anzeigeName = (it) => it.name.replace(/\s*✨$/, '');
+
+// Bild eines Teils (Gegenstand aus pixel-world-fine.js, Stahl bzw. Gold).
+const _teilBild = (it, scale) => itemTag(it.type, it.which, scale);
+
 function _slotTile(c, key) {
   const meta = SLOTS[key];
   const it = _wornItem(c, key);
-  const inner = it ? itemTag(it.type, it.which, 1)
-    : `<span class="pd-ghost">${meta.px ? iconHTML(meta.px, 28) : meta.icon}</span>`;
-  const title = it ? `${it.name} (${it.parts}/${SLOTS_PER_FORM} Teile)` : `${meta.name} — ${meta.desc}`;
-  return `<button class="pd-slot${it ? ' filled' : ''}${key === _selSlot ? ' active' : ''}" data-slot="${key}" title="${title}">${inner}
-    <span class="pd-slot-nm">${meta.name}</span></button>`;
+  // Im Fach „Gefährte“ steht das eigene Tier des Kindes (8.1), sonst das Teil.
+  const inner = !it ? iconHTML(meta.px, 28, { cls: 'pf-fach-leer' })
+    : key === 'companion' ? petSVG(ensureAvatar(window.SD), { scale: 1 }) : _teilBild(it, 1);
+  const title = it ? `${_anzeigeName(it)} (${it.parts}/${SLOTS_PER_FORM} Teile)` : `${meta.name} — ${meta.desc}`;
+  return `<button class="pf-fach${it ? ' is-voll' : ''}${key === _selSlot ? ' is-aktiv' : ''}" data-slot="${key}" title="${title}">`
+    + `<span class="pf-fach-kachel">${inner}</span><span class="pf-fach-lbl">${meta.kurz}</span></button>`;
 }
 
 // ── Kampf-Werte (echte Spielwerte, nicht nur Boni) ───────────────────────────
-// Angezeigt als Kachel-Raster; bei angewähltem Item rechnet _statVals mit der
-// Vorschau-equipment-Map und die geänderten Kacheln leuchten grün (bzw. rot).
+// Kacheln nach 8.1. Bei angewähltem Teil rechnet _statVals mit der Vorschau-
+// equipment-Map; geänderte Kacheln werden grün (besser) bzw. rosa (schlechter)
+// und tragen die Änderung als Chip.
 const STAT_DEFS = [
-  { key: 'dmg',      icon: '⚔️', label: 'Schaden',    fmt: v => String(v) },
-  { key: 'hp',       icon: '❤️', label: 'Leben',      fmt: v => String(v) },
-  { key: 'guards',   icon: '🪖', label: 'Abwehr',     fmt: v => v + '×' },
-  { key: 'time',     icon: '⏱️', label: 'Extra-Zeit', fmt: v => '+' + v + 's' },
-  { key: 'dodge',    icon: '🍃', label: 'Ausweichen', fmt: v => v + '%' },
-  { key: 'potion',   icon: '🧪', label: 'Tränke',     fmt: v => String(v) },
-  { key: 'talisman', icon: '🧿', label: '🌀-Bonus',   fmt: v => v ? '+50%' : '—' },
-  { key: 'comp',     icon: '🐾', label: 'Gefährte',   fmt: v => v ? v + '×' : '—' },
+  { key: 'dmg',      px: 'sword',  label: 'Schaden',    fmt: v => String(v) },
+  { key: 'hp',       px: 'heart',  label: 'Leben',      fmt: v => String(v) },
+  { key: 'guards',   px: 'helm',   label: 'Abwehr',     fmt: v => v + '×' },
+  { key: 'time',     px: 'glove',  label: 'Extra-Zeit', fmt: v => '+' + v + ' s' },
+  { key: 'dodge',    px: 'boots',  label: 'Ausweichen', fmt: v => v + ' %' },
+  { key: 'potion',   px: 'potion', label: 'Tränke',     fmt: v => String(v) },
+  { key: 'talisman', px: 'orb',    label: 'Formen',     fmt: v => v ? '+' + Math.round((TALISMAN_MULT - 1) * 100) + ' %' : '—',
+    delta: d => d * Math.round((TALISMAN_MULT - 1) * 100) },
+  { key: 'comp',     px: 'paw',    label: 'Gefährte',   fmt: v => v ? v + '×' : '—' },
 ];
 function _statVals(equipment) {
   const eff = _effectsOf(equipment);
@@ -310,62 +323,61 @@ function _statsHtml(c) {
   // _previewEquipment liefert den Stand MIT dem Teil (noch nicht angelegt) bzw.
   // OHNE es (schon angelegt) — beides ist der Vergleichswert.
   const other = sel ? _statVals(_previewEquipment(c, sel)) : null;
-  const rows = STAT_DEFS.map(d => {
+  const tiles = STAT_DEFS.map(d => {
     const a = cur[d.key];
     const o = other ? other[d.key] : a;
-    let cls = '', val = d.fmt(a);
+    let cls = '', chip = '';
     if (other && o !== a) {
-      if (wornKey) {
-        // Schon angelegt: die Zahl ändert sich nicht (sie steckt ja drin), aber
-        // sie wird eingefärbt — grün, wo DIESES Teil den Wert hebt, rot, wo es
-        // ihn senkt. Vorher zeigte ein getragenes Teil gar keine Wirkung an.
-        cls = a > o ? ' chg up' : ' chg down';
-      } else {
-        cls = o > a ? ' chg up' : ' chg down';
-        val = `${d.fmt(a)} → ${d.fmt(o)}`;
-      }
+      // Schon angelegt: der Wert steckt schon drin — der Chip zeigt, was DIESES
+      // Teil beiträgt. Noch nicht angelegt: was sich beim Anlegen ändert.
+      const diff = wornKey ? a - o : o - a;
+      const shown = d.delta ? d.delta(diff) : Math.round(diff * 100) / 100;
+      cls = diff > 0 ? ' is-plus' : ' is-minus';
+      chip = `<div class="pf-wert-chipzeile"><span class="pf-wert-chip">${shown > 0 ? '+' : '−'}${Math.abs(shown)}</span></div>`;
     }
-    return `<div class="pd-stat${cls}"><span class="lbl">${d.icon} ${d.label}</span><span class="dots"></span><b>${val}</b></div>`;
+    return `<div class="pf-wert${cls}"><div class="pf-wert-ic">${iconHTML(d.px, 14)}</div>`
+      + `<div class="pf-wert-zahl">${d.fmt(a)}</div><div class="pf-wert-lbl">${d.label}</div>${chip}</div>`;
   }).join('');
-  return `<div class="pd-stats">${rows}</div>`;
+  return `<div class="pf-werte">${tiles}</div>`;
 }
 
-// ALLE Verbesserungen eines Items als kurze Zahlen-Zeilen (keine Beschreibungen).
+// ALLE Verbesserungen eines Items als kurze Zahlen-Zeilen, je mit dem
+// Pixel-Icon des passenden Werts (Krone = Bosse wie im Entwurf).
 function _itemBonuses(it) {
   if (it.slot === 'weapon') {
-    const out = [`⚔️ ${it.dmg} Schaden`];
-    if (it.type === 'dolch') out.push(`🍃 +${Math.round(PERK_DOLCH_DODGE * 100)} % Ausweichen`);
-    if (it.type === 'stab') out.push(`⏱️ +${PERK_STAB_MS / 1000} s Zeit`);
-    if (it.type === 'streitkolben') out.push(`🪖 +${PERK_KOLBEN_GUARD}× Abwehr`);
-    if (it.type === 'speer') out.push(`🐉 +${PERK_SPEER_BOSS} Schaden an Bossen`);
-    if (it.type === 'axt') out.push(`🌀 +${PERK_AXT_ELITE} Schaden an Elite`);
-    if (it.type === 'bogen') out.push(`👾 +${PERK_BOGEN_FIGHT} Schaden an Wortgeistern`);
-    if (it.type === 'hammer') out.push(`💥 1. Welle ×${PERK_HAMMER_MULT} Schaden`);
+    const out = [{ px: 'sword', text: `${it.dmg} Schaden` }];
+    if (it.type === 'dolch') out.push({ px: 'boots', text: `+${Math.round(PERK_DOLCH_DODGE * 100)} % Ausweichen` });
+    if (it.type === 'stab') out.push({ px: 'glove', text: `+${PERK_STAB_MS / 1000} s Zeit` });
+    if (it.type === 'streitkolben') out.push({ px: 'helm', text: `+${PERK_KOLBEN_GUARD}× Abwehr` });
+    if (it.type === 'speer') out.push({ px: 'crown', text: `+${PERK_SPEER_BOSS} Schaden gegen Bosse` });
+    if (it.type === 'axt') out.push({ px: 'orb', text: `+${PERK_AXT_ELITE} Schaden an Elite` });
+    if (it.type === 'bogen') out.push({ px: 'sword', text: `+${PERK_BOGEN_FIGHT} Schaden an Wortgeistern` });
+    if (it.type === 'hammer') out.push({ px: 'sword', text: `1. Welle ×${PERK_HAMMER_MULT} Schaden` });
     return out;
   }
-  if (it.slot === 'head') return [`🪖 ${_equipVal('head', it)}× Abwehr`];
-  if (it.slot === 'body') return [`❤️ +${_equipVal('body', it)} Leben`];
-  if (it.slot === 'arms') return [`⏱️ +${_equipVal('arms', it) / 1000} s Zeit`];
-  if (it.slot === 'legs') return [`🍃 +${Math.round(_equipVal('legs', it) * 100)} % Ausweichen`];
-  if (it.slot === 'talisman') return [`🌀 +${Math.round((TALISMAN_MULT - 1) * 100)} % Schaden an 🌀`];
-  if (it.slot === 'ring') return [`🧪 +${RING_POTION_BONUS} Trank zur Wahl`];
-  if (it.slot === 'companion') return [`🐾 fängt ${COMPANION_GUARDS[it.which === 'past' ? 'stahl' : 'gold']} Fehler pro Kampf`];
+  if (it.slot === 'head') return [{ px: 'helm', text: `${_equipVal('head', it)}× Abwehr` }];
+  if (it.slot === 'body') return [{ px: 'heart', text: `+${_equipVal('body', it)} Leben` }];
+  if (it.slot === 'arms') return [{ px: 'glove', text: `+${_equipVal('arms', it) / 1000} s Zeit` }];
+  if (it.slot === 'legs') return [{ px: 'boots', text: `+${Math.round(_equipVal('legs', it) * 100)} % Ausweichen` }];
+  if (it.slot === 'talisman') return [{ px: 'orb', text: `+${Math.round((TALISMAN_MULT - 1) * 100)} % Schaden an Formen-Knoten` }];
+  if (it.slot === 'ring') return [{ px: 'potion', text: `+${RING_POTION_BONUS} Trank zur Wahl` }];
+  if (it.slot === 'companion') return [{ px: 'paw', text: `fängt ${COMPANION_GUARDS[it.which === 'past' ? 'stahl' : 'gold']} Fehler pro Kampf` }];
   return [];
 }
 
-// Karte unter der Tasche fürs angewählte Item: Bild, Name, Verbesserungen,
+// Karte des angewählten Teils (8.1): Bild 2×, Name, „angelegt", Verbesserungen,
 // „Anlegen"/„Ablegen"-Knopf (einfacher Weg neben dem Ziehen).
 function _previewHtml(c) {
   const it = _selectedItem();
   if (!it) return '';
   const wornKey = _wornKeyOf(c, it);
-  return `<div class="pd-preview">
-    <div class="pd-preview-sprite">${itemTag(it.type, it.which, 1)}</div>
-    <div class="pd-preview-info">
-      <b>${it.name}</b>
-      ${_itemBonuses(it).map(b => `<span>${b}</span>`).join('')}
+  return `<div class="pf-karte-teil">
+    <span class="pf-teil-bild">${_teilBild(it, 2)}</span>
+    <div class="pf-teil-info">
+      <div class="pf-teil-kopf"><span class="pf-teil-name">${_anzeigeName(it)}</span>${wornKey ? '<span class="pf-angelegt">angelegt</span>' : ''}</div>
+      ${_itemBonuses(it).map(b => `<div class="pf-bonus">${iconHTML(b.px, 14)}${b.text}</div>`).join('')}
     </div>
-    <button class="pd-equip-btn${wornKey ? ' off' : ''}" data-equip="${it.id}">${wornKey ? 'Ablegen' : 'Anlegen'}</button>
+    <button class="pf-anlegen" data-equip="${it.id}">${wornKey ? iconHTML('close', 14) + 'Ablegen' : 'Anlegen'}</button>
   </div>`;
 }
 
@@ -377,45 +389,48 @@ export function renderEquipmentPanel() {
   const host = document.getElementById('prof-equip-section');
   if (!host) return;
   const c = _eq();
-  const equippedIds = new Set(Object.values(c.equipment).filter(Boolean));
-  const autoWeaponId = !c.equipment.weapon ? equippedWeapon().id : null;
 
-  // Tasche unten: nur UNANGELEGTE Teile für den angewählten Slot (getragene
-  // stecken in den Feldern am Charakter). Immer volle Zeilen à BAG_COLS Plätze
-  // (muss zu .pd-inv im CSS passen) — überschreitet ein Teil die Zeile, kommt
-  // die nächste angefangene Zeile dazu. Ohne angewählten Slot bleibt der ganze
-  // Teil unter dem Charakter weg (die Kampf-Werte stehen weiter darüber).
+  // Tasche: alle Teile des angewählten Fachs in vollen Zeilen à BAG_COLS
+  // Plätzen (muss zu .pf-tasche im CSS passen); das getragene trägt einen Haken.
+  // Ohne angewähltes Fach bleibt der ganze Teil unter den Werten weg.
   let bagHtml = '';
   if (_selSlot) {
     const BAG_COLS = 6;
+    const meta = SLOTS[_selSlot];
     const slotType = SLOT_TYPE[_selSlot] || _selSlot;
     const allOfSlot = forgedItems().filter(i => i.slot === slotType);
-    const bagItems = allOfSlot.filter(i => !equippedIds.has(i.id) && i.id !== autoWeaponId);
-    const capacity = Math.max(BAG_COLS, Math.ceil(bagItems.length / BAG_COLS) * BAG_COLS);
-    let inv = bagItems.map(it => `<button class="pd-item${it.id === _selId ? ' sel' : ''}" data-item="${it.id}"
-        title="${it.name} (${it.parts}/${SLOTS_PER_FORM} Teile, ${it.station})">
-        ${itemTag(it.type, it.which, 1)}
+    const worn = _wornItem(c, _selSlot);
+    const capacity = Math.max(BAG_COLS, Math.ceil(allOfSlot.length / BAG_COLS) * BAG_COLS);
+    let inv = allOfSlot.map(it => `<button class="pf-teil${it.id === _selId ? ' is-gewaehlt' : ''}" data-item="${it.id}"
+        title="${_anzeigeName(it)} (${it.parts}/${SLOTS_PER_FORM} Teile, ${it.station})">
+        ${_teilBild(it, 1)}${worn && worn.id === it.id ? `<span class="pf-teil-haken">${iconHTML('check', 14)}</span>` : ''}
       </button>`).join('');
-    for (let i = bagItems.length; i < capacity; i++) inv += `<div class="pd-item empty" title="Leerer Platz — schmiede etwas in der ⚒️ Schmiede"></div>`;
-    const emptyHint = allOfSlot.length ? '' : `<div class="pd-empty">Noch kein ${SLOTS[_selSlot].name}-Teil geschmiedet — wähle in der ⚒️ Schmiede beim Befüllen ein passendes Objekt und übe seine Verben, dann taucht es hier auf.</div>`;
+    for (let i = allOfSlot.length; i < capacity; i++) inv += `<div class="pf-teil is-leer" title="Leerer Platz — schmiede etwas in der Schmiede"></div>`;
+    const emptyHint = allOfSlot.length ? '' : `<div class="pf-leer">Noch kein ${meta.name}-Teil geschmiedet — wähle in der Schmiede beim Befüllen ein passendes Objekt und übe seine Verben, dann taucht es hier auf.</div>`;
     bagHtml = `
-      <div class="pd-inv-title">${SLOTS[_selSlot].icon} ${SLOTS[_selSlot].name}</div>
-      <div class="pd-inv">${inv}</div>
+      <div class="pf-tasche-kopf">${iconHTML(meta.px, 14)}${meta.mehrzahl} · ${allOfSlot.length}</div>
+      <div class="pf-tasche">${inv}</div>
       ${_previewHtml(c)}
       ${emptyHint}`;
   }
 
+  const gear = _gearMap(c);
   host.innerHTML = `
-    <h3 style="color:var(--purple);margin-top:0">🧰 Ausrüstung</h3>
-    <div class="pd-wrap">
-      <div class="pd-col">${PD_LEFT.map(k => _slotTile(c, k)).join('')}</div>
-      <div class="pd-center">
-        <div class="pd-avatar" id="pd-avatar"></div>
-      </div>
-      <div class="pd-col">${PD_RIGHT.map(k => _slotTile(c, k)).join('')}</div>
+    <div class="pf-abschnitt">${iconHTML('shield', 28)}<span class="pf-abschnitt-titel">Ausrüstung</span><span class="pf-abschnitt-linie"></span></div>
+    <div class="pf-puppe">
+      <div class="pf-spalte">${PD_LEFT.map(k => _slotTile(c, k)).join('')}</div>
+      <div class="pf-buehne">${stageHTMLFor(window.SD, gear, 3)}</div>
+      <div class="pf-spalte">${PD_RIGHT.map(k => _slotTile(c, k)).join('')}</div>
     </div>
     ${_statsHtml(c)}
     ${bagHtml}`;
+
+  // Bühne 3× wie im Entwurf; passt sie auf einem schmalen Handy nicht, 2×
+  // (nur ganzzahlig, Regel 6).
+  const buehne = host.querySelector('.pf-buehne');
+  const cv = buehne && buehne.querySelector('canvas');
+  if (cv && buehne.clientWidth && cv.offsetWidth > buehne.clientWidth) buehne.innerHTML = stageHTMLFor(window.SD, gear, 2);
+  paintStages(buehne);
 
   if (!host._pdWired) {
     host._pdWired = true;
@@ -473,7 +488,7 @@ function _onPanelClick(e) {
     return;
   }
   // Klick ins Leere (kein Item, kein Slot, keine Karte) = Auswahl aufheben.
-  if ((_selId || _selSlot) && !e.target.closest('.pd-preview')) {
+  if ((_selId || _selSlot) && !e.target.closest('.pf-karte-teil')) {
     _selId = null;
     _selSlot = null;
     renderEquipmentPanel();
@@ -490,12 +505,12 @@ const HOLD_MS = 220;
 function _slotMatches(key, it) { return (SLOT_TYPE[key] || key) === it.slot; }
 function _slotUnder(e, it) {
   const el = document.elementFromPoint(e.clientX, e.clientY);
-  const s = el && el.closest ? el.closest('.pd-slot') : null;
+  const s = el && el.closest ? el.closest('.pf-fach') : null;
   return (s && _slotMatches(s.dataset.slot, it)) ? s : null;
 }
 
 function _onPointerDown(e) {
-  const btn = e.target.closest('.pd-item[data-item]');
+  const btn = e.target.closest('.pf-teil[data-item]');
   if (!btn) return;
   const it = _itemById(btn.dataset.item);
   if (!it) return;
@@ -512,14 +527,14 @@ function _onPointerDown(e) {
 function _startCarry() {
   const d = _drag;
   const g = document.createElement('div');
-  g.className = 'pd-drag-ghost';
-  g.innerHTML = itemTag(d.it.type, d.it.which, 1);
+  g.className = 'pf-zieh';
+  g.innerHTML = _teilBild(d.it, 1);
   g.style.left = d.x + 'px';
   g.style.top = d.y + 'px';
   document.body.appendChild(g);
   d.ghost = g;
-  d.btn.classList.add('dragging');
-  document.querySelectorAll('.pd-slot').forEach(el => {
+  d.btn.classList.add('is-gezogen');
+  document.querySelectorAll('.pf-fach').forEach(el => {
     if (_slotMatches(el.dataset.slot, d.it)) el.classList.add('drop-ok');
   });
 }
@@ -543,7 +558,7 @@ function _onPointerMove(e) {
   }
   d.ghost.style.left = e.clientX + 'px';
   d.ghost.style.top = e.clientY + 'px';
-  document.querySelectorAll('.pd-slot.drop-hover').forEach(el => el.classList.remove('drop-hover'));
+  document.querySelectorAll('.pf-fach.drop-hover').forEach(el => el.classList.remove('drop-hover'));
   const s = _slotUnder(e, d.it);
   if (s) s.classList.add('drop-hover');
 }
@@ -571,8 +586,8 @@ function _onPointerCancel() { _cleanupDrag(); }
 function _cleanupDrag() {
   if (_drag && _drag.holdTimer) clearTimeout(_drag.holdTimer);
   if (_drag && _drag.ghost) _drag.ghost.remove();
-  if (_drag && _drag.btn) _drag.btn.classList.remove('dragging');
-  document.querySelectorAll('.pd-slot.drop-ok, .pd-slot.drop-hover')
+  if (_drag && _drag.btn) _drag.btn.classList.remove('is-gezogen');
+  document.querySelectorAll('.pf-fach.drop-ok, .pf-fach.drop-hover')
     .forEach(el => el.classList.remove('drop-ok', 'drop-hover'));
   _drag = null;
   window.removeEventListener('pointermove', _onPointerMove);

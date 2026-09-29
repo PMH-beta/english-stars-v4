@@ -7,6 +7,7 @@
 
 import { supabase } from './supabase.js';
 import { renderAvatarInto } from './avatar.js';
+import { iconHTML } from './pixel-icons.js';
 
 const esc = (s) => (window.escHtml ? window.escHtml(s) : (s || ''));
 let _searchTimer = null;
@@ -44,29 +45,29 @@ export async function friendProgress(friendId) {
   return data || null;
 }
 
-// ── Style-Helfer ──
-// Kleine Knoepfe und Marken in der Freundesliste. bg kommt vom Aufrufer und
-// wird zur Chipflaeche; die Kontur ist immer Tinte, der Text immer Tinte.
-function _btn(bg, color = 'var(--p-ink)') {
-  return `font:900 10px var(--p-font);padding:6px 10px;border:2px solid var(--p-ink);`
-    + `border-radius:var(--p-r-chip-gross);cursor:pointer;background:${bg};color:${color};`
-    + `white-space:nowrap;flex:none;box-shadow:none;`;
-}
-function _tag(color) {
-  return `font:800 10px var(--p-font);color:var(--p-ink);background:var(--p-inaktiv);`
-    + `border:2px solid var(--p-ink);padding:4px 9px;border-radius:var(--p-r-chip);`
-    + `white-space:nowrap;flex:none;`;
-}
-function _person(prefix, id, name, rightHtml, clickable) {
-  const nameClick = clickable ? ` onclick="openFriendStats('${id}')" style="cursor:pointer;` : ' style="';
+// ── Bausteine nach 8.1 ──
+// Knoepfe (Anfrage Flieder, Annehmen Mint) und Marken (Angefragt mit Sanduhr,
+// Freunde mit Haken). Entfernen / Ablehnen / Zurueckziehen zeigt der Entwurf
+// nicht — sie bleiben als kleine Symbol-Knoepfe in derselben Bauweise.
+const _knopf = (ton, text, onclick) =>
+  `<button class="fr-knopf fr-knopf--${ton}" onclick="${onclick}">${text}</button>`;
+const _symbolKnopf = (icon, onclick, title) =>
+  `<button class="fr-knopf fr-knopf--symbol" onclick="${onclick}" title="${title}">${iconHTML(icon, 14)}</button>`;
+const _MARKE_ANGEFRAGT = `<span class="fr-marke">${iconHTML('hourglass', 14).replace('<canvas ', '<canvas data-ui="turn180" data-c="16" ')}Angefragt</span>`;
+const _MARKE_FREUNDE = `<span class="fr-marke fr-marke--mint">${iconHTML('check', 14)}Freunde</span>`;
+
+// Zeile: Brustbild, Name (unterstrichen, wo er den Fortschritt oeffnet),
+// darunter optional der Stand („hat dich angefragt“), rechts Knopf oder Marke.
+function _person(prefix, id, name, rightHtml, clickable, sub = '') {
+  const klick = clickable ? ` onclick="openFriendStats('${id}')"` : '';
   return `<div class="fr-zeile">
-    <div id="${prefix}-av-${id}" ${clickable ? `onclick="openFriendStats('${id}')" style="cursor:pointer;` : 'style="'}width:40px;height:40px;flex:none;border:2px solid var(--p-ink);border-radius:var(--p-r-slot);background:var(--p-karte);overflow:hidden;"></div>
-    <div${nameClick}flex:1;min-width:0;font:900 13px var(--p-font);color:var(--p-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(name)}</div>
+    <div class="fr-bild"${klick}><div id="${prefix}-av-${id}" class="fr-bust"></div></div>
+    <div class="fr-text"><div class="fr-name${clickable ? ' is-link' : ''}"${klick}>${esc(name)}</div>${sub ? `<div class="fr-sub">${sub}</div>` : ''}</div>
     ${rightHtml}
   </div>`;
 }
 function _drawAvatar(prefix, id, avatar) {
-  renderAvatarInto(`${prefix}-av-${id}`, { avatar }, { headOnly: true });
+  renderAvatarInto(`${prefix}-av-${id}`, { avatar }, { bust: true, scale: 1 });
 }
 
 // ── Badge über dem Profilkopf (Startseite) ──
@@ -137,21 +138,19 @@ export function unsubscribeFriendRealtime() {
 export async function renderFriendsSection() {
   const host = document.getElementById('prof-friends-section');
   if (!host) return;
+  const kopf = `<div class="fr-kopf">${iconHTML('friends', 14)}<span>Freunde</span></div>`;
   if (!window.currentUser) {
-    host.innerHTML = `<h3 style="color:var(--purple);margin-top:0">👥 Freunde</h3>
-      <div style="font-size:.8rem;color:#999;font-weight:700;">Melde dich an, um Freunde hinzuzufügen.</div>`;
+    host.innerHTML = kopf + '<div class="fr-hinweis">Melde dich an, um Freunde hinzuzufügen.</div>';
     return;
   }
-  host.innerHTML = `
-    <h3 style="color:var(--purple);margin-top:0">👥 Freunde</h3>
-    <input id="friend-search" type="text" placeholder="🔍 Nach Namen suchen…" maxlength="20"
+  host.innerHTML = kopf + `
+    <label class="fr-suche">${iconHTML('lupe', 14)}<input id="friend-search" type="text" placeholder="Nach Namen suchen…" maxlength="20"
       oninput="onFriendSearchInput(this.value)" autocomplete="off"
-      onkeydown="if(event.key==='Enter'){event.preventDefault();onFriendSearchEnter();}"
-      style="width:100%;padding:10px 14px;border:2px solid #eee;border-radius:11px;font-size:.9rem;font-family:'Nunito',sans-serif;margin-bottom:10px;">
-    <div id="friend-search-results" style="display:none;"></div>
-    <div id="friend-list"><div style="font-size:.8rem;color:#bbb;font-weight:700;text-align:center;padding:14px;">Freunde werden geladen…</div></div>
-    <div id="friend-requests" style="margin-top:14px;display:none;"></div>
-    <div id="friend-outgoing" style="margin-top:14px;display:none;"></div>`;
+      onkeydown="if(event.key==='Enter'){event.preventDefault();onFriendSearchEnter();}"></label>
+    <div id="friend-search-results" class="fr-liste" style="display:none;"></div>
+    <div id="friend-list" class="fr-liste"><div class="fr-hinweis">Freunde werden geladen…</div></div>
+    <div id="friend-requests" style="display:none;"></div>
+    <div id="friend-outgoing" style="display:none;"></div>`;
   // Drei Listen, drei parallele Abfragen — das Badge kommt aus dem Ergebnis der
   // Anfragen-Liste statt aus einer vierten Abfrage.
   const [nReq] = await Promise.all([_loadRequests(), _loadFriends(), _loadOutgoing()]);
@@ -166,11 +165,11 @@ async function _loadRequests() {
   const reqs = await listRequests();
   if (!reqs.length) { box.innerHTML = ''; box.style.display = 'none'; return 0; }
   box.style.display = '';
-  box.innerHTML = `<div class="p-zeilentitel" style="margin-bottom:6px">Anfragen (${reqs.length})</div>`
+  box.innerHTML = `<div class="fr-kicker">Anfragen (${reqs.length})</div><div class="fr-liste">`
     + reqs.map(r => _person('req', r.requester_id, r.player_name,
-        `<button onclick="respondFriendRequest('${r.friendship_id}',true)" style="${_btn('#2a8a4a')}">✓ Annehmen</button>
-         <button onclick="respondFriendRequest('${r.friendship_id}',false)" style="${_btn('#f0f0f0','#c0392b')}">✕</button>`,
-        false)).join('');
+        _knopf('mint', 'Annehmen', `respondFriendRequest('${r.friendship_id}',true)`)
+        + _symbolKnopf('close', `respondFriendRequest('${r.friendship_id}',false)`, 'Anfrage ablehnen'),
+        false, 'hat dich angefragt')).join('') + '</div>';
   reqs.forEach(r => _drawAvatar('req', r.requester_id, r.avatar));
   return reqs.length;
 }
@@ -181,11 +180,11 @@ async function _loadFriends() {
   const friends = await listFriends();
   _friendsCache = friends;
   if (!friends.length) {
-    box.innerHTML = `<div style="font-size:.82rem;color:#999;font-weight:700;text-align:center;padding:14px;">Noch keine Freunde — such oben jemanden und schick eine Anfrage!</div>`;
+    box.innerHTML = `<div class="fr-leer">Noch keine Freunde — such oben jemanden und schick eine Anfrage!</div>`;
     return;
   }
   box.innerHTML = friends.map(f => _person('fl', f.id, f.player_name,
-    `<button onclick="confirmRemoveFriend('${f.id}')" title="Freund entfernen" style="${_btn('#f0f0f0', '#c0392b')}">🗑️</button>`,
+    _symbolKnopf('trash', `confirmRemoveFriend('${f.id}')`, 'Freund entfernen'),
     true)).join('');
   friends.forEach(f => _drawAvatar('fl', f.id, f.avatar));
 }
@@ -198,11 +197,10 @@ async function _loadOutgoing() {
   const reqs = await listOutgoing();
   if (!reqs.length) { box.innerHTML = ''; box.style.display = 'none'; return; }
   box.style.display = '';
-  box.innerHTML = `<div class="p-zeilentitel" style="margin-bottom:6px">Gesendet (${reqs.length})</div>`
+  box.innerHTML = `<div class="fr-kicker">Gesendet (${reqs.length})</div><div class="fr-liste">`
     + reqs.map(r => _person('out', r.addressee_id, r.player_name,
-        `<span style="${_tag('#999')}">⏳ Angefragt</span>
-         <button onclick="cancelFriendRequest('${r.addressee_id}')" title="Anfrage zurückziehen" style="${_btn('#f0f0f0','#c0392b')}">✕</button>`,
-        false)).join('');
+        _MARKE_ANGEFRAGT + _symbolKnopf('close', `cancelFriendRequest('${r.addressee_id}')`, 'Anfrage zurückziehen'),
+        false)).join('') + '</div>';
   reqs.forEach(r => _drawAvatar('out', r.addressee_id, r.avatar));
 }
 
@@ -226,7 +224,7 @@ export function onFriendSearchInput(val) {
   if (requests) requests.style.display = 'none';
   if (outgoing) outgoing.style.display = 'none';
   results.style.display = '';
-  results.innerHTML = '<div style="font-size:.8rem;color:#999;text-align:center;padding:10px;">Suche…</div>';
+  results.innerHTML = '<div class="fr-hinweis">Suche…</div>';
   clearTimeout(_searchTimer);
   _searchTimer = setTimeout(async () => {
     const rows = await searchUsers(q);
@@ -250,16 +248,16 @@ function _renderSearchResults(rows, q) {
   const results = document.getElementById('friend-search-results');
   if (!results) return;
   if (!rows.length) {
-    results.innerHTML = `<div style="font-size:.82rem;color:#999;text-align:center;padding:12px;">Niemand mit „${esc(q)}" gefunden.</div>`;
+    results.innerHTML = `<div class="fr-leer">Niemand mit „${esc(q)}“ gefunden</div>`;
     return;
   }
   results.innerHTML = rows.map(r => {
-    let right;
-    if (r.status === 'friends')       right = `<span style="${_tag('#2a8a4a')}">✓ Freunde</span>`;
-    else if (r.status === 'outgoing') right = `<span style="${_tag('#999')}">⏳ Angefragt</span>`;
-    else if (r.status === 'incoming') right = `<button onclick="sendFriendRequest('${r.id}')" style="${_btn('#2a8a4a')}">✓ Annehmen</button>`;
-    else                              right = `<button onclick="sendFriendRequest('${r.id}')" style="${_btn('var(--purple)')}">➕ Anfrage</button>`;
-    return _person('res', r.id, r.player_name, right, false);
+    let right, sub = '';
+    if (r.status === 'friends')       { right = _MARKE_FREUNDE; sub = 'schon befreundet'; }
+    else if (r.status === 'outgoing') right = _MARKE_ANGEFRAGT;
+    else if (r.status === 'incoming') { right = _knopf('mint', 'Annehmen', `sendFriendRequest('${r.id}')`); sub = 'hat dich angefragt'; }
+    else                              right = _knopf('lila', 'Anfrage', `sendFriendRequest('${r.id}')`);
+    return _person('res', r.id, r.player_name, right, false, sub);
   }).join('');
   rows.forEach(r => _drawAvatar('res', r.id, r.avatar));
 }

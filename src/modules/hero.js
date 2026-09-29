@@ -15,7 +15,7 @@
 // Menü zeichnet sie bei jedem Render neu. Der Zwischenspeicher hat als Schlüssel
 // Avatar + Ausrüstung + Maßstab, genau wie im Handoff verlangt.
 
-import { hero, crop, shadowed, toCanvas, renderHeroWithPet, renderPet, renderPetSilhouette, petBattleFrames, petBattleSequence, PET_BATTLE, PETS } from './pixel-hero-fine.js';
+import { hero, pet, crop, shadowed, toCanvas, renderHeroWithPet, renderPet, renderPetSilhouette, petBattleFrames, petBattleSequence, PET_BATTLE, PETS } from './pixel-hero-fine.js';
 
 // Maße der Rohgrafik: ganze Figur und Kopf-Ausschnitt (34 × 34 ab (10, 0)).
 // hero().render() ist immer 54 × 81 — mit jeder Statur und Ausrüstung. Mit
@@ -101,6 +101,127 @@ export function heroWithPetTag(cfg, kind, color, scale = 2) {
   const cv = renderHeroWithPet(cfg, kind, color, s);
   return `<img src="${cv.toDataURL('image/png')}" width="${cv.width}" height="${cv.height}"`
     + ` alt="" style="image-rendering:pixelated;display:block;flex:none">`;
+}
+
+// ── Menü-Bühne (8.1–8.3) ────────────────────────────────────────────────────
+// Figur und Gefährte als EIN Bild (START-HERE „Menü-Bühne“: dx 26, dy 3, ein
+// gemeinsamer Schatten), ohne Gefährten shadowed(hero). Die Figur atmet
+// (data-ui="idle", 4 Bilder, 4 fps): Zeilen oberhalb der Taille (Figur Zeile 50,
+// Gefährte Fußzeile − 6) rutschen 1 px nach unten, Schatten und Beine bleiben
+// stehen, der Gefährte atmet einen Takt versetzt. Nachgebaut nach der Methode
+// uiIdle der Referenzdatei — alle vier Bilder mit dem Zuschnitt von Bild 0,
+// damit nichts springt.
+const _ATEM = [0, 1, 1, 0];
+const _buehnen = new Map();
+
+function _unterkante(img) {
+  for (let y = img.h - 1; y >= 0; y--) for (let x = 0; x < img.w; x++) {
+    const c = img.col[y * img.w + x];
+    if (c && c.length < 9) return y;   // Schattenton (#RRGGBBAA) zählt nicht
+  }
+  return img.h - 1;
+}
+function _senken(img, s, f) {
+  if (!f) return img;
+  const col = new Array(img.w * img.h).fill(null);
+  for (let y = 0; y < img.h; y++) {
+    const sy = y < s + f ? y - f : y;
+    if (sy < 0) continue;
+    for (let x = 0; x < img.w; x++) col[y * img.w + x] = img.col[sy * img.w + x];
+  }
+  return { w: img.w, h: img.h, col };
+}
+function _fuss({ w, h, col }) {
+  let b = -1;
+  for (let y = h - 1; y >= 0 && b < 0; y--) for (let x = 0; x < w; x++) if (col[y * w + x]) { b = y; break; }
+  let mn = w, mx = 0;
+  for (let y = Math.max(0, b - 3); y <= b; y++) for (let x = 0; x < w; x++) if (col[y * w + x]) { mn = Math.min(mn, x); mx = Math.max(mx, x); }
+  return { yb: b, mn, mx, fl: b < h - 8 };
+}
+
+function _atemBilder(cfg, gear, gefaehrte) {
+  const H = hero(gear ? { ...cfg, gear } : cfg).render();
+  if (!gefaehrte) {
+    const img = shadowed(H);
+    return _ATEM.map((f) => _senken(img, 50, f));
+  }
+  const Pt = pet(gefaehrte.kind, gefaehrte.color).render();
+  const dx = 26, dy = 3, ps = _unterkante(Pt) - 6;
+  const fh = _fuss(H), fp = _fuss(Pt), gH = fh.yb + 1, gP = gH + dy, oy = fp.fl ? gP - Pt.h : gP - (fp.yb + 1);
+  const E = [
+    { cx: (fh.mn + fh.mx + 1) / 2, cy: gH + 0.5, rx: Math.max(4, (fh.mx - fh.mn + 1) * 0.58), ry: 2.6 },
+    { cx: dx + (fp.mn + fp.mx + 1) / 2, cy: gP + 0.5, rx: Math.max(4, (fp.mx - fp.mn + 1) * (fp.fl ? 0.36 : 0.58)), ry: fp.fl ? 1.8 : 2.6 },
+  ];
+  const X0 = Math.floor(Math.min(0, dx, ...E.map((e) => e.cx - e.rx)));
+  const X1 = Math.ceil(Math.max(H.w, dx + Pt.w, ...E.map((e) => e.cx + e.rx)));
+  const Y0 = Math.min(0, oy);
+  const Y1 = Math.ceil(Math.max(H.h, oy + Pt.h, ...E.map((e) => e.cy + e.ry)));
+  const W = X1 - X0, HH = Y1 - Y0;
+  const baue = (hf, pf) => {
+    const col = new Array(W * HH).fill(null);
+    for (let y = 0; y < HH; y++) for (let x = 0; x < W; x++) {
+      const px = x + X0 + 0.5, py = y + Y0 + 0.5;
+      if (E.some((e) => ((px - e.cx) / e.rx) ** 2 + ((py - e.cy) / e.ry) ** 2 <= 1)) col[y * W + x] = '#1F1F2461';
+    }
+    const setze = (img, ox, o2) => {
+      for (let y = 0; y < img.h; y++) for (let x = 0; x < img.w; x++) {
+        const v = img.col[y * img.w + x];
+        if (v) col[(y + o2 - Y0) * W + x + ox - X0] = v;
+      }
+    };
+    setze(_senken(H, 50, hf), 0, 0);
+    setze(_senken(Pt, ps, pf), dx, oy);
+    return col;
+  };
+  const c0 = baue(0, 0);
+  let x0 = W, x1 = -1, y0 = HH, y1 = -1;
+  for (let y = 0; y < HH; y++) for (let x = 0; x < W; x++) if (c0[y * W + x]) {
+    x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
+  }
+  const w2 = x1 - x0 + 1, h2 = y1 - y0 + 1;
+  const schneide = (col) => {
+    const o = new Array(w2 * h2);
+    for (let y = 0; y < h2; y++) for (let x = 0; x < w2; x++) o[y * w2 + x] = col[(y + y0) * W + x + x0];
+    return { w: w2, h: h2, col: o };
+  };
+  return [0, 1, 2, 3].map((f) => schneide(f ? baue(_ATEM[f], _ATEM[(f + 1) % 4]) : c0));
+}
+
+/**
+ * Bühnen-Figur als <canvas data-ui="idle">. `gefaehrte` = { kind, color } oder
+ * null. Das Canvas trägt die Rohgröße, gezeigt wird es ganzzahlig vergrößert.
+ * Nach dem Einsetzen paintStages() aufrufen, damit Bild 0 auch ohne Bewegung
+ * (prefers-reduced-motion) steht.
+ */
+export function stageHTML(cfg, { gear, gefaehrte = null, scale = 2 } = {}) {
+  const s = Math.max(1, Math.round(scale));
+  const k = JSON.stringify([cfg, gear || 0, gefaehrte || 0]);
+  let bilder = _buehnen.get(k);
+  if (!bilder) {
+    if (_buehnen.size >= 24) _buehnen.delete(_buehnen.keys().next().value);
+    bilder = _atemBilder(cfg, gear, gefaehrte).map((img) => toCanvas(img, 1));
+    _buehnen.set(k, bilder);
+  }
+  const { width: w, height: h } = bilder[0];
+  return `<canvas data-ui="idle" data-idle="${encodeURIComponent(k)}" width="${w}" height="${h}"`
+    + ` style="width:${w * s}px;height:${h * s}px;image-rendering:pixelated;display:block;flex:none"></canvas>`;
+}
+
+/** Atem-Bilder zu einem Bühnen-Canvas (für den UI-Takt, ui-anim „idle“). */
+export function stageFrames(el) {
+  const k = el && el.dataset && el.dataset.idle;
+  return k ? (_buehnen.get(decodeURIComponent(k)) || null) : null;
+}
+
+/** Bild 0 in alle Bühnen-Canvases unter root malen. */
+export function paintStages(root) {
+  (root || document).querySelectorAll('canvas[data-idle]').forEach((el) => {
+    const b = stageFrames(el);
+    if (!b) return;
+    const x = el.getContext('2d');
+    x.clearRect(0, 0, el.width, el.height);
+    x.drawImage(b[0], 0, 0);
+  });
 }
 
 /** Farbwert eines Gefährten aus PETS (kind-Index, Farb-Index). */
