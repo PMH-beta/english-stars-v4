@@ -1,6 +1,6 @@
 // src/modules/vocab.js
 import { switchDeck, activeDeck, syncMirrorFromActiveDeck, createDeck, presetProgressPct } from './decks.js';
-import { showScreen, wordStatus, wrongDots } from './ui.js';
+import { showScreen, wordStatus } from './ui.js';
 import { persist } from './storage.js';
 import { markDirty } from './sync.js';
 import { commitDirty } from './dialog.js';
@@ -12,10 +12,18 @@ import { ensureTesseract } from './lazyload.js';
 
 function _vmDeck() { return window._draftDeck || activeDeck(); }
 
-// Sammlungsname + kompakter „Umbenennen"-Button direkt darunter (Custom-Decks)
+// Sammlungsname + kompakter „Umbenennen"-Button direkt darunter (Custom-Decks, 3.3)
 function _deckNameWithRename(name) {
-  return 'Sammlung: ' + window.escHtml(name) +
-    '<br><button class="vm-rename-btn" onclick="vmRenameActiveDeck()">✏️ Umbenennen</button>';
+  return '<div>Sammlung: ' + window.escHtml(name) + '</div>' +
+    '<button class="vm-rename-btn" onclick="vmRenameActiveDeck()">' + iconHTML('pencil', 14) + 'Umbenennen</button>';
+}
+
+// Titel im Kopf: „Vokabeln verwalten" mit Buch, die Statistik-Seiten ohne Symbol.
+function _vmTitel(text, mitSymbol) {
+  const title = document.getElementById('vm-title');
+  if (title) title.textContent = text;
+  const ic = document.getElementById('vm-title-icon');
+  if (ic) ic.style.display = mitSymbol ? '' : 'none';
 }
 
 export function vmRenameActiveDeck() {
@@ -39,11 +47,10 @@ export function openVocabManager(deckId) {
   showScreen('scan-screen');
   const deck = _vmDeck();
   if (!deck) return;
-  const title = document.getElementById('vm-title');
-  if (title) title.textContent = '📚 Vokabeln verwalten';
+  _vmTitel('Vokabeln verwalten', true);
   const dn = document.getElementById('vm-deck-name');
   if (dn) {
-    if (window._draftDeck) dn.textContent = 'Neue Sammlung';
+    if (window._draftDeck) dn.textContent = 'Sammlung: Neue Sammlung';
     else if (deck.deckPath === 'custom') dn.innerHTML = _deckNameWithRename(deck.name);
     else dn.textContent = 'Sammlung: ' + deck.name;
   }
@@ -68,17 +75,17 @@ function _renderVmTabsForMode() {
     const dp = _vmDeck()?.deckPath || 'none';
     if (dp === 'preset') {
       tabsEl.innerHTML = `
-        <button class="vm-tab" data-tab="presets" onclick="vmTab('presets')">📦 Vorlagen</button>
-        <button class="vm-tab" data-tab="list" onclick="vmTab('list')">📋 Liste <span id="vm-count" class="vm-count">0</span></button>
-        <button class="vm-tab" data-tab="deck-stats" onclick="vmTab('deck-stats')">📊 Statistik</button>
+        <button class="vm-tab" data-tab="presets" onclick="vmTab('presets')">Vorlagen</button>
+        <button class="vm-tab" data-tab="list" onclick="vmTab('list')">Liste<span id="vm-count" class="vm-count">0</span></button>
+        <button class="vm-tab" data-tab="deck-stats" onclick="vmTab('deck-stats')">Statistik</button>
       `;
       vmTab('presets');
     } else if (dp === 'custom') {
       tabsEl.innerHTML = `
-        <button class="vm-tab" data-tab="add" onclick="vmTab('add')">➕ Hinzufügen</button>
-        <button class="vm-tab" data-tab="paste" onclick="vmTab('paste')">📝 Text</button>
-        <button class="vm-tab" data-tab="scan" onclick="vmTab('scan')">📷 Scan</button>
-        <button class="vm-tab" data-tab="list" onclick="vmTab('list')">📋 Liste <span id="vm-count" class="vm-count">0</span></button>
+        <button class="vm-tab" data-tab="add" onclick="vmTab('add')">Hinzufügen</button>
+        <button class="vm-tab" data-tab="paste" onclick="vmTab('paste')">Text</button>
+        <button class="vm-tab" data-tab="scan" onclick="vmTab('scan')">Scan</button>
+        <button class="vm-tab" data-tab="list" onclick="vmTab('list')">Liste<span id="vm-count" class="vm-count">0</span></button>
       `;
       vmTab('add');
     } else {
@@ -87,10 +94,10 @@ function _renderVmTabsForMode() {
   } else {
     // Schülermodus: nur Custom-Decks. Scan-Tab zwischen „Text" und „Liste".
     tabsEl.innerHTML = `
-      <button class="vm-tab" data-tab="add" onclick="vmTab('add')">➕ Hinzufügen</button>
-      <button class="vm-tab" data-tab="paste" onclick="vmTab('paste')">📝 Text</button>
-      <button class="vm-tab" data-tab="scan" onclick="vmTab('scan')">📷 Scan</button>
-      <button class="vm-tab" data-tab="list" onclick="vmTab('list')">📋 Liste <span id="vm-count" class="vm-count">0</span></button>
+      <button class="vm-tab" data-tab="add" onclick="vmTab('add')">Hinzufügen</button>
+      <button class="vm-tab" data-tab="paste" onclick="vmTab('paste')">Text</button>
+      <button class="vm-tab" data-tab="scan" onclick="vmTab('scan')">Scan</button>
+      <button class="vm-tab" data-tab="list" onclick="vmTab('list')">Liste<span id="vm-count" class="vm-count">0</span></button>
     `;
     vmTab('add');
   }
@@ -106,14 +113,15 @@ function _renderVmTabsForMode() {
   bottomArea.innerHTML = '';
   const row = document.createElement('div');
   row.className = 'vm-bottom-bar';
+  // Knöpfe nach 3.2: „Abbrechen" hell mit Kreuz, „Bestätigen" in Tinte.
   const abortBtn = document.createElement('button');
-  abortBtn.className = 'p-dlg-btn p-dlg-btn--ab';
-  abortBtn.textContent = '✕ Abbrechen';
+  abortBtn.className = 'vm-abbrechen';
+  abortBtn.innerHTML = iconHTML('close', 14) + 'Abbrechen';
   abortBtn.addEventListener('click', () => confirmAbortDraft());
   const confirmBtn = document.createElement('button');
-  confirmBtn.className = 'p-dlg-btn vm-confirm';
+  confirmBtn.className = 'vm-confirm';
   confirmBtn.id = 'vm-draft-confirm';
-  confirmBtn.textContent = '✓ Bestätigen';
+  confirmBtn.textContent = 'Bestätigen';
   confirmBtn.addEventListener('click', () => {
     const d = _vmDeck();
     if (!d || (d.vocab?.length || 0) < 1) {
@@ -216,28 +224,39 @@ export function vmTab(tabName) {
 // Die drei Wort-Tabellen (Vokabeln/Rechtschreibung/Aussprache) als HTML.
 // Geteilt von Custom-Deck-Statistik (_renderDeckStatsPane) und Vorlagen-Deck-
 // Statistik (openPresetDeckStats).
+// Aussehen nach 3.7: Kicker mit Symbol, darunter eine Karte mit Kopfzeile und
+// einer Zeile je Wort; „Stand" als farbiger Chip, „R / F" = richtig / falsch.
+const _STAND_TON = { 'ws-green': 'var(--p-ok)', 'ws-yellow': 'var(--p-gold)', 'ws-red': 'var(--p-falsch)', 'ws-gray': 'var(--p-inaktiv)' };
 function _wordTablesHtml(deck) {
   const vocab = deck.vocab || [];
   const presetWs = window.SD?.globalPresetStats?.wordStats || {};
-  function makeTable(suf, title) {
+  function makeTable(suf, icon, title) {
     const rows = vocab.map(v => {
       const ws = v._presetId ? presetWs : deck.wordStats;
       const s = ws[statKeyFor(v.de, v.en, suf, v._presetId || null)];
       const st = wordStatus(s, 3);
-      return `<tr><td>${window.escHtml(v.de)}</td><td>${window.escHtml(v.en)}</td><td><span class="ws-badge ${st.cls}">${st.label}</span></td><td>${wrongDots(s)}</td></tr>`;
+      const gefragt = !!(s && s.asked);
+      // Im Entwurf ist nur der grüne Chip ein inline-flex (Zeile 3 px höher).
+      const stand = !gefragt
+        ? '<span class="vm-st-leer">–</span>'
+        : `<span class="vm-st-chip${st.cls === 'ws-green' ? ' vm-st-chip--ok' : ''}" style="background:${_STAND_TON[st.cls]}">${st.label}</span>`;
+      const rf = gefragt
+        ? `<span class="vm-st-rf">${Math.floor(s.correct || 0)} / ${Math.floor(s.wrong || 0)}</span>`
+        : '<span class="vm-st-rf is-leer">– / –</span>';
+      return `<div class="vm-st-zeile"><span class="vm-st-de">${window.escHtml(v.de)}</span><span class="vm-st-en">${window.escHtml(v.en)}</span><span>${stand}</span>${rf}</div>`;
     }).join('');
-    return `<h3 class="p-kicker" style="border:0;padding:0;margin:16px 0 8px">${title}</h3>
-<table class="word-table"><thead><tr><th>Deutsch</th><th>Englisch</th><th>Stand</th><th>Richtig/Falsch</th></tr></thead><tbody>${rows}</tbody></table>`;
+    return `<div class="vm-st-kicker">${iconHTML(icon, 14)}<div>${title}</div></div>
+<div class="vm-st-karte"><div class="vm-st-kopf"><span>Deutsch</span><span>Englisch</span><span>Stand</span><span>R / F</span></div>${rows}</div>`;
   }
-  return makeTable('_mc','🔤 Vokabeln') + makeTable('_sp','✏️ Rechtschreibung') + makeTable('_pr','🎙️ Aussprache');
+  return makeTable('_mc', 'book', 'Vokabeln') + makeTable('_sp', 'pencil', 'Rechtschreibung') + makeTable('_pr', 'mic', 'Aussprache');
 }
 
 function _renderDeckStatsPane() {
   const pane = document.getElementById('vm-pane-deck-stats');
   if (!pane) return;
   const deck = _vmDeck();
-  if (!deck) { pane.innerHTML = '<p style="text-align:center;color:#999;padding:20px;">Keine Sammlung ausgewählt.</p>'; return; }
-  if (!(deck.vocab || []).length) { pane.innerHTML = '<p style="text-align:center;color:#999;padding:20px;">Noch keine Wörter.</p>'; return; }
+  if (!deck) { pane.innerHTML = '<div class="vm-empty">Keine Sammlung ausgewählt.</div>'; return; }
+  if (!(deck.vocab || []).length) { pane.innerHTML = '<div class="vm-empty">Noch keine Wörter.</div>'; return; }
   pane.innerHTML = _wordTablesHtml(deck);
 }
 
@@ -248,8 +267,7 @@ export async function openPresetDeckStats(deckId) {
   showScreen('scan-screen');
   const deck = activeDeck();
   if (!deck) return;
-  const title = document.getElementById('vm-title');
-  if (title) title.textContent = '📊 Statistik';
+  _vmTitel('Statistik', false);
   const dn = document.getElementById('vm-deck-name');
   if (dn) dn.textContent = 'Statistik: ' + deck.name;
   const ba = document.getElementById('vm-back-area');
@@ -267,32 +285,33 @@ export async function openPresetDeckStats(deckId) {
   const pane = document.getElementById('vm-pane-deck-stats');
   if (!pane) return;
   pane.style.display = 'block';
-  pane.innerHTML = '<div style="text-align:center;padding:24px;color:#aaa;font-weight:700;">Lade Statistik…</div>';
+  pane.innerHTML = '<div class="vm-empty">Lade Statistik…</div>';
 
   const categories = await _loadPresetCategories();
   const catById = Object.fromEntries(categories.map(c => [c.id, c]));
   const activeIds = deck.presetCategories || [];
 
+  // Je aktive Vorlage eine Übersichtskarte wie in 5.5: Name, Wörter, Prozent, Balken.
   let tilesHtml = '';
   if (activeIds.length) {
-    tilesHtml = '<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:6px;">' + activeIds.map(pid => {
+    tilesHtml = '<div class="vm-gesamt-liste">' + activeIds.map(pid => {
       const cat = catById[pid];
       const name = cat ? cat.name : 'Vorlage';
       const wordCount = deck.vocab.filter(v => v._presetId === pid).length;
       const pct = presetProgressPct(deck, pid);
-      return `<div class="preset-row" style="background:linear-gradient(to right,var(--p-ok) ${pct}%,var(--p-karte) ${pct}%);">
-        <div class="preset-info">
-          <span class="preset-name">${window.escHtml(name)}</span>
-          <span class="preset-count">${wordCount} Wörter</span>
+      return `<div class="vm-gesamt">
+        <div class="vm-gesamt-kopf">
+          <div class="p-wachs"><div class="vm-gesamt-name">${window.escHtml(name)}</div><div class="vm-gesamt-sub">${wordCount} Wörter</div></div>
+          <div class="vm-gesamt-pct">${pct}%</div>
         </div>
-        <span style="font:900 14px var(--p-font);color:var(--p-ink);flex:none">${pct}%</span>
+        <div class="p-balken vm-gesamt-balken"><i style="width:${pct}%"></i></div>
       </div>`;
     }).join('') + '</div>';
   }
 
   const tablesHtml = (deck.vocab || []).length
     ? _wordTablesHtml(deck)
-    : '<p style="text-align:center;color:#999;padding:20px;">Noch keine Wörter.</p>';
+    : '<div class="vm-empty">Noch keine Wörter.</div>';
 
   pane.innerHTML = tilesHtml + tablesHtml;
 }
@@ -343,8 +362,8 @@ export function renderVocabList() {
   }
   listEl.innerHTML = items.map(v => {
     const pct = _wortStand(deck, v);
-    // Balkenfarbe nach Lernstand: sicher mint, auf dem Weg gold, noch nichts sand.
-    const farbe = pct >= 80 ? 'var(--p-ok)' : pct > 0 ? 'var(--p-gold)' : 'var(--p-spur)';
+    // Balkenfarbe nach Lernstand wie in 3.1: sicher mint, auf dem Weg gold, wenig rosa.
+    const farbe = pct >= 80 ? 'var(--p-ok)' : pct >= 30 ? 'var(--p-gold)' : 'var(--p-falsch)';
     const stand = `<div class="vm-row-stand">
         <div class="p-balken" style="width:60px"><i style="width:${pct}%;background:${farbe}"></i></div>
         <span class="vm-row-pct">${pct}%</span>
@@ -394,14 +413,24 @@ export function onScanFile(event) {
   event.target.value = '';
 }
 
+// Zustandszeile unter der Scan-Fläche (3.4): gelbe Pille mit drei Punkten,
+// solange es läuft; rosa Pille mit Kreuz bei einem Fehler.
+const _SCAN_PUNKTE = { a: [1, .55, .25], b: [.25, 1, .55] };
+function _scanLaeuft(text, muster, wartet) {
+  const punkte = _SCAN_PUNKTE[muster].map(o => `<span style="opacity:${o}"></span>`).join('');
+  const dots = wartet ? '<span class="scan-dots" data-ui="dots">…</span>' : '';
+  return `<div class="scan-zustand"><span class="scan-punkte">${punkte}</span><span>${text}${dots}</span></div>`;
+}
+function _scanFehler(text) {
+  return `<div class="scan-zustand scan-zustand--fehler"><span class="scan-kreuz">${iconHTML('close', 14)}</span><span>${text}</span></div>`;
+}
+
 async function startScan(dataUrl, file) {
   const status = document.getElementById('scan-status');
   window._reviewItems = [];
   _lastOCRText = '';
 
-  status.innerHTML = `<div class="scanning-overlay">
-    <span class="analyzing-pill"><span class="dot-loader"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span> Bild wird vorbereitet...</span>
-  </div>`;
+  status.innerHTML = _scanLaeuft('Bild wird vorbereitet', 'a', true);
 
   let imgInput = file;
   try {
@@ -409,8 +438,7 @@ async function startScan(dataUrl, file) {
     if (blob) imgInput = blob;
   } catch(e) {}
 
-  const pill = document.querySelector('.analyzing-pill');
-  if (pill) pill.innerHTML = `<span class="dot-loader"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span> Text wird erkannt...`;
+  status.innerHTML = _scanLaeuft('Text wird erkannt', 'b', true);
 
   let rawText = '';
   try {
@@ -420,19 +448,19 @@ async function startScan(dataUrl, file) {
       logger: m => {
         if (m.status === 'recognizing text') {
           const pct = Math.round((m.progress || 0) * 100);
-          const el = document.querySelector('.analyzing-pill');
-          if (el) el.innerHTML = `<span class="dot-loader"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span> Texterkennung: ${pct}%`;
+          status.innerHTML = _scanLaeuft(`Texterkennung: ${pct} %`, 'b', false);
         }
       }
     });
     rawText = result.data.text;
   } catch(e) {
-    status.innerHTML = `<div style="text-align:center;padding:16px;color:var(--red);font-weight:700;">❌ Texterkennung fehlgeschlagen: ${e.message}</div>`;
+    console.warn('[scan] Texterkennung fehlgeschlagen:', e?.message);
+    status.innerHTML = _scanFehler('Texterkennung fehlgeschlagen');
     return;
   }
 
   if (!rawText || rawText.trim().length < 5) {
-    status.innerHTML = `<div style="text-align:center;padding:16px;color:var(--red);font-weight:700;">❌ Kein Text erkannt. Bitte ein klareres Foto versuchen.</div>`;
+    status.innerHTML = _scanFehler('Kein Text erkannt. Bitte ein klareres Foto versuchen.');
     return;
   }
 
@@ -444,17 +472,13 @@ async function startScan(dataUrl, file) {
   }));
   _lastOCRText = rawText;
   if (items.length === 0) {
-    status.innerHTML = `<div style="padding:12px">
-      <div style="color:var(--red);font-weight:700;margin-bottom:8px;">❌ Keine Vokabeln automatisch erkannt.</div>
-      <div style="color:#666;font-size:.85rem;margin-bottom:8px;">Tipps: Foto gerade halten, gute Beleuchtung, klare Schrift.</div>
-      <details style="font-size:.78rem;color:#666;">
-        <summary style="cursor:pointer;font-weight:700;color:var(--purple)">🔍 Erkannter Rohtext anzeigen</summary>
-        <pre style="margin-top:6px;background:#f5f5f5;padding:8px;border-radius:8px;white-space:pre-wrap;font-size:.7rem;max-height:200px;overflow-y:auto">${(rawText || '').slice(0, 1500).replace(/&/g, '&amp;').replace(/</g, '&lt;')}</pre>
+    status.innerHTML = _scanFehler('Keine Vokabeln automatisch erkannt.') + `
+      <div class="scan-tipp">Tipps: Foto gerade halten, gute Beleuchtung, klare Schrift.</div>
+      <details class="scan-roh">
+        <summary>${iconHTML('lupe', 14)}Erkannter Rohtext anzeigen</summary>
+        <pre>${(rawText || '').slice(0, 1500).replace(/&/g, '&amp;').replace(/</g, '&lt;')}</pre>
       </details>
-      <button onclick="_reviewItems=[];showReview()" class="p-chip" style="margin-top:10px;padding:9px 16px;background:var(--p-ink);color:var(--p-gold);border-radius:var(--p-r-chip);cursor:pointer;">
-        ✏️ Wörter manuell eingeben
-      </button>
-    </div>`;
+      <button onclick="_reviewItems=[];showReview()" class="scan-manuell">${iconHTML('pencil', 14)}Wörter manuell eingeben</button>`;
     return;
   }
   status.innerHTML = '';
@@ -573,17 +597,18 @@ export function renderReviewList() {
   const list = document.getElementById('review-list');
   const count = document.getElementById('review-count');
   if (window._reviewItems.length === 0) {
-    list.innerHTML = '<p style="text-align:center;color:#aaa;font-weight:700;">Keine Wörter – füge welche manuell hinzu!</p>';
+    list.innerHTML = '<div class="vm-empty">Keine Wörter – füge welche manuell hinzu!</div>';
     count.textContent = '';
     return;
   }
+  // Zeilen als Karten wie in 3.6; die Felder bleiben direkt bearbeitbar (F-39).
   list.innerHTML = window._reviewItems.map((item, i) => `
-    <div class="review-item" id="ritem-${i}">
-      <input value="${window.escHtml(item.de)}" placeholder="Deutsch" onchange="_reviewItems[${i}].de=this.value" ${item.isDuplicate ? 'style="color:#aaa"' : ''}>
+    <div class="review-item${item.isDuplicate ? ' is-doppelt' : ''}" id="ritem-${i}">
+      <input value="${window.escHtml(item.de)}" placeholder="Deutsch" onchange="_reviewItems[${i}].de=this.value">
       <span class="sep">→</span>
-      <input value="${window.escHtml(item.en)}" placeholder="Englisch" onchange="_reviewItems[${i}].en=this.value" ${item.isDuplicate ? 'style="color:#aaa"' : ''}>
-      ${item.isDuplicate ? '<span title="Bereits vorhanden" style="font-size:.75rem;color:#aaa;flex-shrink:0;">✓</span>' : ''}
-      <button class="review-del" onclick="removeReviewItem(${i})" title="Entfernen">🗑️</button>
+      <input value="${window.escHtml(item.en)}" placeholder="Englisch" onchange="_reviewItems[${i}].en=this.value">
+      ${item.isDuplicate ? `<span class="review-doppelt" title="Bereits vorhanden">${iconHTML('check', 14)}</span>` : ''}
+      <button class="review-del" onclick="removeReviewItem(${i})" title="Entfernen">${iconHTML('trash', 14)}</button>
     </div>
   `).join('');
   const newCount = window._reviewItems.filter(i => !i.isDuplicate).length;
@@ -747,7 +772,7 @@ function _showPresetIntroModal(onDone) {
 export async function renderPresetsTab() {
   const pane = document.getElementById('vm-pane-presets');
   if (!pane) return;
-  pane.innerHTML = '<div style="text-align:center;padding:24px;color:#aaa;font-weight:700;">Lade Vorlagen…</div>';
+  pane.innerHTML = '<div class="vm-empty">Lade Vorlagen…</div>';
   const categories = await _loadPresetCategories();
   const deck = _vmDeck();
   if (!deck) return;
@@ -757,32 +782,33 @@ export async function renderPresetsTab() {
   const claimed = _getClaimedPresets();
 
   if (categories.length === 0) {
-    pane.innerHTML = '<div style="text-align:center;padding:24px;color:#aaa;font-weight:700;">Noch keine Vorlagen verfügbar.</div>';
+    pane.innerHTML = '<div class="vm-empty">Noch keine Vorlagen verfügbar.</div>';
     return;
   }
 
-  const _diffBadge = d => {
-    const cfg = { leicht: ['#3aaa5c','leicht'], mittel: ['#e8920a','mittel'], schwer: ['#e03030','schwer'] };
-    const [col, lbl] = cfg[d] || [];
-    if (!col) return '';
-    return `<span style="display:inline-flex;align-items:center;gap:3px;font-size:.70rem;font-weight:700;color:${col};white-space:nowrap"><span style="width:7px;height:7px;border-radius:50%;background:${col};flex-shrink:0"></span>${lbl}</span>`;
-  };
+  // Aussehen nach 3.2: Stufe als farbiger Chip, rechts AN/AUS, aktive Vorlage
+  // hell mit Balken darunter.
+  const _DIFF_TON = { leicht: 'var(--p-ok)', mittel: 'var(--p-pfirsich)', schwer: 'var(--p-falsch)' };
+  const _diffBadge = d => _DIFF_TON[d]
+    ? `<span class="vm-vl-stufe" style="background:${_DIFF_TON[d]}">${d}</span>` : '';
 
   let headerNote;
   if (locked) {
-    headerNote = `<p style="font-size:.82rem;font-weight:700;color:#888;background:rgba(0,0,0,.04);padding:8px 12px;border-radius:10px;margin:0 0 14px;text-align:center;">🔒 Vorlagen-Auswahl gesperrt — fest verbunden mit dieser Sammlung</p>`;
+    headerNote = `<div class="vm-vl-text vm-vl-text--hinweis">${iconHTML('lock', 14)}Vorlagen-Auswahl gesperrt — fest verbunden mit dieser Sammlung</div>`;
   } else if (atLimit) {
-    headerNote = `<p style="font-size:.82rem;font-weight:700;color:var(--purple);background:rgba(168,108,219,.08);padding:8px 12px;border-radius:10px;margin:0 0 14px;text-align:center;">✓ ${MAX_PRESET_CATEGORIES} Vorlagen aktiv — Limit erreicht</p>`;
+    headerNote = `<div class="vm-vl-text vm-vl-text--hinweis">${iconHTML('check', 14)}${MAX_PRESET_CATEGORIES} Vorlagen aktiv — Limit erreicht</div>`;
   } else {
-    headerNote = `<p style="font-size:.82rem;color:#888;margin:0 0 14px;line-height:1.5;">Vorgefertigte Wortgruppen ein- oder ausschalten.<br>Lernfortschritt bleibt beim Ausschalten erhalten.</p>`;
+    headerNote = `<div class="vm-vl-text">Vorgefertigte Wortgruppen ein- oder ausschalten. Lernfortschritt bleibt beim Ausschalten erhalten.</div>`;
   }
+  headerNote += `<div class="vm-vl-kopf"><div class="vm-vl-kicker">${categories.length} Wortgruppen</div>
+    <span class="vm-vl-zahl">${activeSet.size} von ${MAX_PRESET_CATEGORIES} an</span></div>`;
 
   // Gesperrte Sammlung: aktive Vorlagen zuerst, inaktive dahinter
   const sortedCategories = locked
     ? [...categories.filter(c => activeSet.has(c.id)), ...categories.filter(c => !activeSet.has(c.id))]
     : categories;
 
-  pane.innerHTML = headerNote + sortedCategories.map(cat => {
+  pane.innerHTML = headerNote + '<div class="vm-vl-liste">' + sortedCategories.map(cat => {
     const isOn = activeSet.has(cat.id);
     const isClaimed = !isOn && claimed.has(cat.id);
     const wordCount = Array.isArray(cat.words) ? cat.words.length : 0;
@@ -798,32 +824,27 @@ export async function renderPresetsTab() {
     const ownPct = ownProg?.pct ?? 0;
     const barPct = isOn ? ownPct : (isClaimed ? _claimedBarPct(cat) : 0);
 
-    let rowStyle = '';
-    if (barPct > 0) rowStyle = 'background:linear-gradient(to right,var(--p-ok) ' + barPct + '%,var(--p-karte) ' + barPct + '%);';
-    if (greyOut) rowStyle += 'opacity:.38;';
-    else if (isOn) rowStyle += 'box-shadow:inset 0 0 0 2.5px #a86cdb;';
-    if (isClickableCard) rowStyle += 'cursor:pointer;';
-
+    const kls = 'vm-vl-zeile' + (isOn ? ' is-an' : '') + (greyOut ? ' is-grau' : '') + (isClickableCard ? ' is-klickbar' : '');
     const rowClick = isClickableCard ? `onclick="togglePresetCategory('${cat.id}')"` : '';
-    const progressLine = (isOn && ownPct > 0)
-      ? `<span style="font-size:.72rem;font-weight:700;color:#7a3aac;">${ownPct}%</span>`
-      : '';
+    // AUS ist nur Anzeige — getippt wird die ganze Karte (wie bisher).
     const btnHtml = isOn
-      ? `<button class="preset-toggle on" ${locked ? 'disabled' : `onclick="event.stopPropagation();togglePresetCategory('${cat.id}')"`}>AN ✓</button>`
-      : '';
+      ? `<button class="vm-vl-schalter is-an" ${locked ? 'disabled' : `onclick="event.stopPropagation();togglePresetCategory('${cat.id}')"`}>${iconHTML('check', 14)}AN</button>`
+      : '<span class="vm-vl-schalter">AUS</span>';
+    const balken = (isOn || barPct > 0)
+      ? `<div class="p-balken p-balken--mittel vm-vl-balken"><i style="width:${barPct}%"></i></div>` : '';
 
-    return `<div class="preset-row" style="${rowStyle}" ${rowClick}>
-      <div class="preset-info">
-        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-          <span class="preset-name">${window.escHtml(cat.name)}</span>
-          ${_diffBadge(cat.difficulty)}
+    return `<div class="${kls}" ${rowClick}>
+      <div class="vm-vl-reihe">
+        <div class="vm-vl-wort">
+          <div class="vm-vl-name">${window.escHtml(cat.name)}</div>
+          <div class="vm-vl-anzahl">${wordCount} Wörter</div>
         </div>
-        <span class="preset-count">${wordCount} Wörter</span>
-        ${progressLine}
+        ${_diffBadge(cat.difficulty)}
+        ${btnHtml}
       </div>
-      ${btnHtml}
+      ${balken}
     </div>`;
-  }).join('');
+  }).join('') + '</div>';
 }
 
 export function togglePresetCategory(categoryId) {
@@ -844,20 +865,12 @@ export function vmBack() {
   if (!hasActivePresets || deck.presetsLocked) { showMenu(); return; }
   // Erste Bestätigung: erklärt den dauerhaften Lock
   const overlay = document.createElement('div');
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
-  overlay.innerHTML = `
-    <div style="background:#fff;border-radius:20px;padding:28px 22px;max-width:340px;width:100%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.2);">
-      <div style="font-size:2.5rem;margin-bottom:10px;">🔒</div>
-      <div class="p-dlg-titel" style="margin-bottom:12px">Sammlung sperren?</div>
-      <p style="font-size:.88rem;color:#555;line-height:1.6;margin:0 0 20px;">
-        Mit „Bestätigen" werden die aktiven Vorlagen fest mit dieser Sammlung verbunden. Danach können keine Vorlagen mehr gewechselt werden.
-      </p>
-      <div style="display:flex;gap:10px;justify-content:center;">
-        <button id="_vmback-cancel" class="p-dlg-btn p-dlg-btn--ab">Abbrechen</button>
-        <button id="_vmback-ok" class="p-dlg-btn p-dlg-btn--ok">Bestätigen</button>
-      </div>
-    </div>
-  `;
+  overlay.className = 'p-dlg-grund';
+  overlay.innerHTML = _dlgHtml({
+    icon: 'lock', titel: 'Sammlung sperren?',
+    text: 'Mit „Bestätigen" werden die aktiven Vorlagen fest mit dieser Sammlung verbunden. Danach können keine Vorlagen mehr gewechselt werden.',
+    abId: '_vmback-cancel', ab: 'Abbrechen', okId: '_vmback-ok', ok: 'Bestätigen',
+  });
   document.body.appendChild(overlay);
   overlay.querySelector('#_vmback-cancel').addEventListener('click', () => overlay.remove());
   overlay.querySelector('#_vmback-ok').addEventListener('click', () => {
@@ -952,22 +965,26 @@ function _confirmDraftDeck(draft, name) {
   showMenu();
 }
 
+// Dialog-Gerüst wie esConfirm in dialog.js (Emblem, Titel, Vondu-Kasten,
+// Knöpfe) für die drei Dialoge dieses Moduls mit eigenen Knopf-IDs.
+function _dlgHtml({ icon, titel, text, feld = '', abId, ab, okId, ok }) {
+  const vondu = text ? `<div class="p-dlg-vondu"><img src="vondu-logo.svg" alt="Vondu" width="48" height="46" data-ui="bob" data-a="1"><div class="p-dlg-text">${text}</div></div>` : '';
+  return `<div class="p-dlg-karte">
+    <div class="p-dlg-emblem p-ton-lila">${iconHTML(icon, 28)}</div>
+    <div class="p-dlg-titel">${titel}</div>
+    ${vondu}${feld}
+    <div class="p-dlg-knoepfe"><button id="${abId}" class="p-dlg-btn p-dlg-btn--ab">${ab}</button><button id="${okId}" class="p-dlg-btn p-dlg-btn--ok">${ok}</button></div>
+  </div>`;
+}
+
 function _showDraftLockDialog(draft) {
   const overlay = document.createElement('div');
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
-  overlay.innerHTML = `
-    <div style="background:#fff;border-radius:20px;padding:28px 22px;max-width:340px;width:100%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.2);">
-      <div style="font-size:2.5rem;margin-bottom:10px;">🔒</div>
-      <div class="p-dlg-titel" style="margin-bottom:12px">Sammlung abschließen?</div>
-      <p style="font-size:.88rem;color:#555;line-height:1.6;margin:0 0 20px;">
-        Die gewählten Vorlagen werden fest mit dieser neuen Sammlung verbunden. Danach können keine Vorlagen mehr gewechselt werden.
-      </p>
-      <div style="display:flex;gap:10px;justify-content:center;">
-        <button id="_dld-cancel" class="p-dlg-btn p-dlg-btn--ab">Weiter wählen</button>
-        <button id="_dld-ok" class="p-dlg-btn p-dlg-btn--ok">Bestätigen</button>
-      </div>
-    </div>
-  `;
+  overlay.className = 'p-dlg-grund';
+  overlay.innerHTML = _dlgHtml({
+    icon: 'lock', titel: 'Sammlung abschließen?',
+    text: 'Die gewählten Vorlagen werden fest mit dieser neuen Sammlung verbunden. Danach können keine Vorlagen mehr gewechselt werden.',
+    abId: '_dld-cancel', ab: 'Weiter wählen', okId: '_dld-ok', ok: 'Bestätigen',
+  });
   document.body.appendChild(overlay);
   overlay.querySelector('#_dld-cancel').addEventListener('click', () => overlay.remove());
   overlay.querySelector('#_dld-ok').addEventListener('click', () => {
@@ -981,18 +998,12 @@ function _showDraftLockDialog(draft) {
 
 function _showCustomNameDialog(draft) {
   const overlay = document.createElement('div');
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
-  overlay.innerHTML = `
-    <div style="background:#fff;border-radius:20px;padding:28px 22px;max-width:340px;width:100%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.2);">
-      <div style="font-size:2.5rem;margin-bottom:10px;">📝</div>
-      <div class="p-dlg-titel" style="margin-bottom:12px">Name der Sammlung</div>
-      <input id="_cnd-name" type="text" placeholder="z.B. Schule Klasse 3" style="width:100%;padding:12px 16px;border:2px solid #e0e0e0;border-radius:12px;font-family:'Nunito',sans-serif;font-size:1rem;box-sizing:border-box;margin-bottom:18px;" maxlength="50">
-      <div style="display:flex;gap:10px;justify-content:center;">
-        <button id="_cnd-cancel" class="p-dlg-btn p-dlg-btn--ab">Weiter bearbeiten</button>
-        <button id="_cnd-ok" class="p-dlg-btn p-dlg-btn--ok">Fertig</button>
-      </div>
-    </div>
-  `;
+  overlay.className = 'p-dlg-grund';
+  overlay.innerHTML = _dlgHtml({
+    icon: 'pencil', titel: 'Name der Sammlung',
+    feld: '<input id="_cnd-name" type="text" class="p-dlg-feld" placeholder="z.B. Schule Klasse 3" maxlength="50">',
+    abId: '_cnd-cancel', ab: 'Weiter bearbeiten', okId: '_cnd-ok', ok: 'Fertig',
+  });
   document.body.appendChild(overlay);
   const input = overlay.querySelector('#_cnd-name');
   input.focus();

@@ -70,7 +70,7 @@
     <div class="p-dialogkarte">
       <div class="p-emblem"><canvas data-icon="check" width="14" height="14" style="width:42px;height:42px;image-rendering:pixelated;flex:none"></canvas></div>
       <div class="p-h1">Kein Key nötig!</div>
-      <div class="p-lead p-lead--eng">Vokabeln scannen funktioniert komplett kostenlos und ohne Internetzugang — direkt im Browser.</div>
+      <div class="p-lead p-lead--eng" style="margin-top:8px">Vokabeln scannen funktioniert komplett kostenlos und ohne Internetzugang — direkt im Browser.</div>
       <div class="p-feldgruppe">
         <button class="p-btn p-btn--akzent" onclick="skipApiKey()">Los geht's!</button>
       </div>
@@ -387,21 +387,23 @@
 <!-- ═══ SCAN SCREEN ═══ -->
 <div id="scan-screen" class="p-screen p-ton-mint" style="display:none">
   <div class="p-kopf">
-    <div class="p-titel">
-      <div id="vm-back-area"><button class="p-back" onclick="vmBack()"><canvas data-icon="back" width="14" height="14" style="width:28px;height:28px;image-rendering:pixelated;flex:none"></canvas></button></div>
-      <div class="p-titel-text" id="vm-title">Vokabeln verwalten</div>
-      <div class="p-back-platz"></div>
+    <!-- Kopf nach 3.3: Zurück, Mitte mit Symbol + Titel, Sammlung und Umbenennen. -->
+    <div class="vm-kopf">
+      <div id="vm-back-area" class="vm-kopf-links"><button class="p-back" onclick="vmBack()"><canvas data-icon="back" width="14" height="14" style="width:28px;height:28px;image-rendering:pixelated;flex:none"></canvas></button></div>
+      <div class="vm-kopf-mitte">
+        <div class="vm-titel"><canvas id="vm-title-icon" data-icon="book" width="14" height="14" style="width:14px;height:14px;image-rendering:pixelated;flex:none"></canvas><span id="vm-title">Vokabeln verwalten</span></div>
+        <div id="vm-deck-name" class="vm-sammlung"></div>
+      </div>
+      <div class="vm-kopf-rechts"></div>
     </div>
-    <div id="vm-deck-name" style="text-align:center;font:700 11px var(--p-font);color:var(--p-text-akzent);margin-top:6px"></div>
   </div>
   <div class="p-blatt">
   <!-- Tabs -->
   <div class="vm-tabs">
-    <button class="vm-tab active" data-tab="list" onclick="vmTab('list')">Liste <span id="vm-count" class="vm-count">0</span></button>
-    <button class="vm-tab" data-tab="add" onclick="vmTab('add')">+ Neu</button>
-    <button class="vm-tab" data-tab="scan" onclick="vmTab('scan')">Scan</button>
+    <button class="vm-tab" data-tab="add" onclick="vmTab('add')">Hinzufügen</button>
     <button class="vm-tab" data-tab="paste" onclick="vmTab('paste')">Text</button>
-    <button class="vm-tab" data-tab="presets" onclick="vmTab('presets')">Vorlagen</button>
+    <button class="vm-tab" data-tab="scan" onclick="vmTab('scan')">Scan</button>
+    <button class="vm-tab active" data-tab="list" onclick="vmTab('list')">Liste<span id="vm-count" class="vm-count">0</span></button>
   </div>
 
   <div id="vm-action-area"></div>
@@ -412,40 +414,40 @@
     <div id="vm-list" class="vm-list"></div>
   </div>
 
-  <!-- Tab: Manuell hinzufügen -->
+  <!-- Tab: Manuell hinzufügen (3.1) -->
   <div class="vm-pane" id="vm-pane-add" style="display:none;">
-    <div class="p-karte p-karte--block">
-      <div class="p-lead" style="text-align:left;margin:0">Neue Vokabel direkt zur Sammlung hinzufügen:</div>
-      <div class="p-feldgruppe" style="margin-top:11px;gap:9px">
-        <input type="text" id="vm-add-de" class="p-feld" style="height:52px;background:var(--p-inaktiv)" placeholder="Deutsch (z.B. Apfel)">
-        <input type="text" id="vm-add-en" class="p-feld" style="height:52px;background:var(--p-inaktiv)" placeholder="Englisch (z.B. apple)">
-        <button onclick="vmAddManual()" class="p-btn p-btn--akzent" style="height:54px;font-size:13px">+ Vokabel hinzufügen</button>
-      </div>
+    <div class="vm-karte vm-karte--neu">
+      <div class="vm-neu-text">Neue Vokabel direkt zur Sammlung hinzufügen:</div>
+      <input type="text" id="vm-add-de" class="p-feld vm-neu-feld" placeholder="Deutsch (z.B. Apfel)">
+      <input type="text" id="vm-add-en" class="p-feld vm-neu-feld" placeholder="Englisch (z.B. apple)">
+      <button onclick="vmAddManual()" class="p-btn p-btn--akzent vm-neu-knopf">+ Vokabel hinzufügen</button>
     </div>
   </div>
 
-  <!-- Tab: Scannen -->
+  <!-- Tab: Scannen (3.4) -->
   <div class="vm-pane" id="vm-pane-scan" style="display:none;">
     <div class="scan-zone" id="scan-zone" onclick="document.getElementById('scan-file').click()">
+      <div class="scan-linie" data-ui="scan" data-a="276" data-c="24"></div>
       <img id="scan-preview" class="scan-preview" alt="Vorschau">
       <canvas data-icon="scan" width="14" height="14" style="width:56px;height:56px;image-rendering:pixelated;flex:none"></canvas>
-      <p>Bild auswählen oder Kamera öffnen</p>
-      <p style="font-size:.78rem">JPG, PNG — Tesseract-OCR (offline)</p>
+      <div class="scan-zone-titel">Bild auswählen oder Kamera öffnen</div>
+      <div class="scan-zone-sub">JPG, PNG — Tesseract-OCR (offline)</div>
     </div>
     <input type="file" id="scan-file" accept="image/*" capture="environment" style="display:none" onchange="onScanFile(event)">
     <div id="scan-status" style="width:100%;"></div>
+    <div class="scan-hinweis">Nach dem Erkennen geht es weiter zu „Vokabeln prüfen".</div>
   </div>
 
-  <!-- Tab: Text einfügen -->
+  <!-- Tab: Text einfügen (3.3) -->
   <div class="vm-pane" id="vm-pane-paste" style="display:none;">
-    <div class="p-karte p-karte--block">
-      <div class="p-lead" style="text-align:left;margin:0">
-        <strong>Beste Erkennung mit dem Handy:</strong><br>
-        <b>iPhone:</b> Foto → lang auf Text drücken → „Text auswählen" → kopieren<br>
-        <b>Android:</b> Google Lens → Text antippen → kopieren
+    <div class="vm-karte">
+      <div class="vm-handy-titel">Beste Erkennung mit dem Handy</div>
+      <div class="vm-handy">
+        <div class="vm-handy-zeile"><span class="vm-handy-chip p-ton-blau">iPhone</span><span class="vm-handy-text">Foto → lang auf Text drücken → „Text auswählen" → kopieren</span></div>
+        <div class="vm-handy-zeile"><span class="vm-handy-chip p-ton-mint">Android</span><span class="vm-handy-text">Google Lens → Text antippen → kopieren</span></div>
       </div>
-      <textarea id="paste-text" class="p-textfeld" placeholder="Text hier einfügen, z.B.:&#10;cafeteria   Cafeteria&#10;place   Platz&#10;to talk   sprechen"></textarea>
-      <button onclick="parsePastedText()" class="p-btn p-btn--akzent" style="height:52px;font-size:13px;margin-top:10px">Text auswerten</button>
+      <textarea id="paste-text" class="p-textfeld" placeholder="Text hier einfügen, z.&nbsp;B.:&#10;cafeteria   Cafeteria&#10;place   Platz&#10;to talk   sprechen"></textarea>
+      <button onclick="parsePastedText()" class="p-btn p-btn--akzent vm-auswerten"><canvas data-icon="scan" width="14" height="14" style="width:14px;height:14px;image-rendering:pixelated;flex:none"></canvas>Text auswerten</button>
     </div>
   </div>
 
@@ -461,17 +463,17 @@
 
 <!-- ═══ REVIEW SCREEN ═══ -->
 <div id="review-screen" class="p-screen p-ton-pfirsich" style="display:none">
+  <!-- Kopf nach 3.6: Zurück und Titel links, darunter der Hinweis. -->
   <div class="p-kopf">
-    <div class="p-titel">
+    <div class="rv-kopf">
       <button class="p-back" onclick="showScreen('scan-screen')"><canvas data-icon="back" width="14" height="14" style="width:28px;height:28px;image-rendering:pixelated;flex:none"></canvas></button>
-      <div class="p-titel-text">Vokabeln prüfen</div>
-      <div class="p-back-platz"></div>
+      <div class="rv-titel">Vokabeln prüfen</div>
     </div>
-    <div style="text-align:center;font:700 11px var(--p-font);color:var(--p-text-akzent);margin-top:6px">Erkannte Wörter prüfen, ergänzen oder löschen</div>
+    <div class="rv-sub">Erkannte Wörter prüfen, ergänzen oder löschen</div>
   </div>
   <div class="p-blatt">
     <div id="review-list" class="review-list"></div>
-    <button class="p-btn p-btn--akzent" onclick="confirmAddVocab()" style="margin-top:12px">Zur Vokabelliste hinzufügen</button>
+    <button class="p-btn rv-ok" onclick="confirmAddVocab()"><canvas data-icon="check" width="14" height="14" style="width:14px;height:14px;image-rendering:pixelated;flex:none"></canvas>Zur Vokabelliste hinzufügen</button>
     <div id="review-count" style="text-align:center;font:700 10px var(--p-font);color:var(--p-text-2);margin-top:8px"></div>
   </div>
 </div>

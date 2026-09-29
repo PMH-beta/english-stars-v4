@@ -3807,3 +3807,200 @@ button.p-chip{ cursor:pointer; }
   position:absolute; width:14px; height:17px;
   border:var(--p-rahmen); border-radius:3px;
 }
+
+/* ══ VERWALTEN nach Fragment 3.1–3.7 (Phase 7, Bereich 3) ═══════════════════
+   Kopf mit Titel-Symbol, Sammlung und „Umbenennen“, Reiter, Hinzufügen-,
+   Text- und Scan-Karte, Vorlagen, Statistik-Tabellen, Prüfliste. Außenmaße wie
+   überall: Fragmentwert + Rahmen. Diese Regeln stehen nach den älteren. */
+/* Zurück-Knopf: in allen Fragmenten 34 + Rahmen. */
+.p-back{ width:38px; height:38px; }
+
+/* Kopf (3.3): Zurück links, Mitte zentriert, rechts 34 px frei. */
+.vm-kopf{ display:flex; align-items:flex-start; gap:10px; }
+#vm-back-area.vm-kopf-links{ width:38px; flex:none; align-self:auto; }
+.vm-kopf-rechts{ width:34px; flex:none; }
+.vm-kopf-mitte{ flex:1; min-width:0; text-align:center; }
+.vm-titel{
+  display:inline-flex; align-items:center; gap:8px;
+  font:900 13px var(--p-font); letter-spacing:.16em; text-transform:uppercase; color:var(--p-ink);
+}
+.vm-sammlung{ font:700 12px var(--p-font); color:var(--p-text-akzent); margin-top:5px; }
+.vm-rename-btn{
+  display:inline-flex; align-items:center; gap:7px; margin-top:9px;
+  border:var(--p-rahmen); border-radius:14px; background:var(--p-karte);
+  padding:6px 12px; font:800 11px var(--p-font); color:var(--p-ink); cursor:pointer;
+}
+.vm-rename-btn:hover{ background:var(--p-karte); }
+
+/* Reiter (3.3): 42 + Rahmen, Zähler als lila Chip. */
+.vm-tabs{ box-shadow:none; }
+.vm-tab{ height:46px; padding:0 4px; border-radius:15px; font:800 11px var(--p-font); gap:5px; transition:none; }
+.vm-tab.active{ font-weight:900; }
+.vm-count{ border:var(--p-rahmen); border-radius:9px; padding:1px 6px; font:800 9px var(--p-font); margin-left:0; }
+
+/* Karten der Reiter. */
+.vm-karte{ border:var(--p-rahmen); border-radius:22px; background:var(--p-karte); padding:14px; }
+/* Hinzufügen (3.1): Felder 52 + Rahmen, Knopf 54 + Rahmen. */
+.vm-karte--neu{ border-radius:24px; padding:15px 14px 16px; }
+.vm-neu-text{ font:700 12px var(--p-font); color:var(--p-text-3); }
+.vm-neu-feld{ display:block; height:56px; margin-top:9px; padding:0 15px; border-radius:18px; font:700 13px var(--p-font); }
+.vm-neu-feld, .vm-neu-feld:not(:placeholder-shown), .vm-neu-feld:focus{ background:var(--p-inaktiv); }
+.vm-neu-text + .vm-neu-feld{ margin-top:11px; }
+.vm-neu-knopf{ height:58px; margin-top:12px; font:900 13px var(--p-font); }
+
+/* Text einfügen (3.3): Handy-Tipps mit Chips, Feld in Monospace. */
+.vm-handy-titel{ font:900 12.5px var(--p-font); color:var(--p-ink); }
+.vm-handy{ display:flex; flex-direction:column; gap:7px; margin-top:9px; }
+.vm-handy-zeile{ display:flex; gap:9px; align-items:flex-start; }
+.vm-handy-chip{
+  flex:none; border:var(--p-rahmen); border-radius:9px; background:var(--p-ton);
+  padding:2px 8px; font:800 9px var(--p-font); color:var(--p-ink);
+}
+/* Pfeile stehen nicht in Nunito: Ersatzschrift wie im Entwurf (sans-serif). */
+.vm-handy-text{ font:700 11px/1.45 'Nunito',sans-serif; color:var(--p-text-akzent); }
+/* Mindesthöhe 150 + Polster + Rahmen. */
+.p-textfeld{
+  display:block; min-height:180px; margin-top:13px; padding:13px 14px;
+  border-radius:18px; background:var(--p-feld); color:var(--p-text-2);
+  font:700 12px/1.8 ui-monospace,monospace;
+}
+.p-textfeld::placeholder{ color:var(--p-text-2); opacity:1; }
+.vm-auswerten{ height:58px; margin-top:12px; font:900 14px var(--p-font); }
+
+/* Scan (3.4): gestrichelter Kamerarahmen, Mindesthöhe 300 + Polster + Rahmen,
+   darüber läuft die Scan-Linie (data-ui="scan"). */
+.scan-zone{
+  position:relative; overflow:hidden; min-height:352px; gap:0; justify-content:center;
+  border:var(--p-rahmen-leer); border-radius:22px; background:var(--p-karte); padding:24px 18px;
+}
+.scan-zone:hover{ background:var(--p-karte); }
+.scan-linie{
+  position:absolute; left:10px; right:10px; top:8px; height:8px; z-index:3;
+  border:var(--p-rahmen); border-radius:3px; background:var(--p-violett);
+}
+.scan-zone-titel{ font:800 14px var(--p-font); color:var(--p-ink); margin-top:22px; }
+.scan-zone-sub{ font:800 13px var(--p-font); color:var(--p-text-akzent); margin-top:14px; }
+/* Zustand: gelbe Pille mit drei Punkten, rosa Pille mit Kreuz bei Fehler. */
+#scan-status:not(:empty){ margin-top:16px; }
+.scan-zustand{
+  display:flex; align-items:center; gap:11px;
+  border:var(--p-rahmen); border-radius:999px; background:var(--p-gold);
+  padding:12px 18px; font:800 12px var(--p-font); color:var(--p-ink);
+}
+.scan-zustand--fehler{ background:var(--p-falsch); }
+.scan-punkte{ display:flex; gap:4px; flex:none; }
+.scan-punkte > span{ width:7px; height:7px; border-radius:50%; background:var(--p-ink); }
+.scan-kreuz{ flex:none; display:flex; }
+.scan-dots{ display:inline-block; width:1.2em; text-align:left; }
+.scan-tipp{ font:700 11px/1.5 var(--p-font); color:var(--p-text-2); margin-top:9px; }
+.scan-roh{ margin-top:9px; font:700 11px var(--p-font); color:var(--p-text-2); }
+.scan-roh summary{ display:flex; align-items:center; gap:7px; cursor:pointer; font-weight:800; color:var(--p-ink); }
+.scan-roh pre{
+  margin-top:7px; max-height:200px; overflow-y:auto; white-space:pre-wrap;
+  border:var(--p-rahmen); border-radius:12px; background:var(--p-feld); padding:10px 12px;
+  font:700 11px/1.5 ui-monospace,monospace; color:var(--p-text-2);
+}
+/* Knopf wie „Neu scannen“ in 3.6. */
+.scan-manuell{
+  display:inline-flex; align-items:center; gap:6px; margin-top:12px; cursor:pointer;
+  border:var(--p-rahmen); border-radius:12px; background:var(--p-karte-hell);
+  padding:5px 10px; font:800 10px var(--p-font); color:var(--p-ink); white-space:nowrap;
+}
+.scan-hinweis{ font:700 11px/1.5 var(--p-font); color:var(--p-text-2); margin-top:12px; }
+
+/* Wortliste: Zeile wie 3.1, jede Zeile mit vollem Rahmen. */
+.vm-row{ gap:12px; border-radius:18px; }
+.vm-row:last-child{ border-bottom:var(--p-rahmen); }
+
+/* Vorlagen (3.2). */
+.vm-vl-text{ font:700 11.5px/1.55 var(--p-font); color:var(--p-text-2); }
+.vm-vl-text--hinweis{ display:flex; align-items:center; gap:7px; }
+.vm-vl-kopf{ display:flex; align-items:center; justify-content:space-between; margin-top:14px; }
+.vm-vl-kicker{ font:900 10px var(--p-font); text-transform:uppercase; letter-spacing:.14em; color:var(--p-text-2); }
+.vm-vl-zahl{
+  border:var(--p-rahmen); border-radius:11px; background:var(--p-gold);
+  padding:3px 9px; font:800 10px var(--p-font); color:var(--p-ink); white-space:nowrap;
+}
+.vm-vl-liste{ display:flex; flex-direction:column; gap:9px; margin-top:10px; }
+.vm-vl-zeile{ border:var(--p-rahmen); border-radius:18px; background:var(--p-karte); padding:12px 13px; }
+.vm-vl-zeile.is-an{ background:var(--p-karte-hell); }
+.vm-vl-zeile.is-grau{ opacity:.38; }
+.vm-vl-zeile.is-klickbar{ cursor:pointer; }
+.vm-vl-reihe{ display:flex; align-items:center; gap:8px; }
+.vm-vl-wort{ flex:1; min-width:0; }
+.vm-vl-name{ font:900 13px var(--p-font); color:var(--p-ink); }
+.vm-vl-anzahl{ font:700 10px var(--p-font); color:var(--p-text-2); margin-top:2px; }
+.vm-vl-stufe{
+  flex:none; border:var(--p-rahmen); border-radius:9px; padding:2px 8px; white-space:nowrap;
+  font:800 9px var(--p-font); text-transform:uppercase; letter-spacing:.06em; color:var(--p-ink);
+}
+.vm-vl-schalter{
+  flex:none; display:flex; align-items:center; gap:5px;
+  border:var(--p-rahmen); border-radius:12px; background:var(--p-inaktiv);
+  padding:5px 10px; font:800 10px var(--p-font); color:var(--p-ink);
+}
+.vm-vl-schalter.is-an{ background:var(--p-ok); cursor:pointer; }
+.vm-vl-schalter:disabled{ color:var(--p-ink); cursor:default; }
+.vm-vl-balken{ margin-top:9px; }
+
+/* Entwurf: Abbrechen / Bestätigen unter der Liste (3.2), 52 + Rahmen. */
+.vm-bottom-bar{ margin:14px 0 0; }
+.vm-abbrechen, .vm-confirm{
+  flex:1; height:56px; border:var(--p-rahmen); border-radius:18px; box-shadow:none; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; gap:8px;
+}
+.vm-abbrechen{ background:var(--p-inaktiv); color:var(--p-ink); font:800 13px var(--p-font); }
+.vm-confirm{ background:var(--p-ink); color:var(--p-gold); font:900 13px var(--p-font); }
+.vm-confirm.is-disabled{ background:var(--p-inaktiv); color:var(--p-text-2); }
+
+/* Statistik der Sammlung (3.7): Kicker mit Symbol, Tabelle als Karte. */
+.vm-st-kicker{
+  display:flex; align-items:center; gap:8px; margin-top:16px;
+  font:900 10px var(--p-font); text-transform:uppercase; letter-spacing:.14em; color:var(--p-text-2);
+}
+.vm-st-karte{ margin-top:9px; border:var(--p-rahmen); border-radius:20px; background:var(--p-karte); overflow:hidden; }
+.vm-st-kopf, .vm-st-zeile{ display:grid; grid-template-columns:1.1fr 1fr .8fr .8fr; gap:6px; }
+.vm-st-kopf{
+  padding:10px 13px; background:var(--p-inaktiv); border-bottom:var(--p-rahmen);
+  font:900 9px var(--p-font); letter-spacing:.09em; text-transform:uppercase; color:var(--p-text-akzent);
+}
+.vm-st-kopf > :last-child{ text-align:right; }
+.vm-st-zeile{ align-items:center; padding:9px 13px; font:700 11px var(--p-font); color:var(--p-ink); }
+.vm-st-zeile + .vm-st-zeile{ border-top:var(--p-zeilentrenner); }
+.vm-st-de{ font-weight:800; }
+.vm-st-en{ color:var(--p-text-2); }
+.vm-st-chip{ border:var(--p-rahmen); border-radius:9px; padding:1px 7px; font:800 9px var(--p-font); color:var(--p-ink); }
+.vm-st-chip--ok{ display:inline-flex; align-items:center; gap:4px; }
+.vm-st-leer{ color:var(--p-text-2); opacity:.5; }
+.vm-st-rf{ text-align:right; font:800 10px var(--p-font); color:var(--p-text-akzent); }
+.vm-st-rf.is-leer{ color:rgba(46,46,54,.45); }
+/* Übersicht je Vorlage auf der Statistik-Seite (Karte wie 5.5). */
+.vm-gesamt-liste{ display:flex; flex-direction:column; gap:9px; }
+.vm-gesamt{ border:var(--p-rahmen); border-radius:22px; background:var(--p-karte); padding:14px; }
+.vm-gesamt-kopf{ display:flex; justify-content:space-between; align-items:center; gap:10px; }
+.vm-gesamt-name{ font:900 18px var(--p-font); color:var(--p-ink); }
+.vm-gesamt-sub{ font:700 11px var(--p-font); color:var(--p-text-2); }
+.vm-gesamt-pct{ font:900 28px var(--p-font); color:var(--p-ink); flex:none; }
+.vm-gesamt-balken{ margin-top:9px; }
+
+/* Vokabeln prüfen (3.6): Kopf links, Zeilen als Karten, Löschen als Kachel. */
+.rv-kopf{ display:flex; align-items:center; gap:11px; }
+.rv-titel{
+  font:900 13px var(--p-font); letter-spacing:.18em; text-transform:uppercase;
+  white-space:nowrap; color:var(--p-ink);
+}
+.rv-sub{ font:700 12px var(--p-font); color:var(--p-text-3); margin-top:10px; }
+.review-item{ border-radius:20px; background:var(--p-karte-hell); padding:12px 13px; gap:10px; }
+/* Felder so hoch wie die Knopf-Kacheln, damit die Zeile 66 hoch bleibt. */
+.review-item input{ height:38px; }
+.review-item.is-doppelt input{ color:rgba(46,46,54,.45); }
+.review-item .sep{ color:var(--p-text-2); }
+.review-doppelt{ flex:none; display:flex; opacity:.5; }
+.review-del{
+  width:38px; height:38px; flex:none; padding:0; opacity:1; cursor:pointer;
+  border:var(--p-rahmen); border-radius:12px; background:var(--p-falsch);
+  display:flex; align-items:center; justify-content:center;
+}
+.review-del:hover{ opacity:1; }
+/* 56 + Rahmen. */
+.rv-ok{ height:60px; margin-top:12px; background:var(--p-ok); font:900 14px var(--p-font); }

@@ -749,7 +749,9 @@ export function uvTrainOpenStats(id) {
   if (!deck) return;
   showScreen('scan-screen');
   const title = document.getElementById('vm-title');
-  if (title) title.textContent = '📊 Statistik';
+  if (title) title.textContent = 'Statistik';
+  const ic = document.getElementById('vm-title-icon');
+  if (ic) ic.style.display = 'none';
   const dn = document.getElementById('vm-deck-name');
   if (dn) dn.textContent = 'Statistik: ' + deck.name;
   const ba = document.getElementById('vm-back-area');

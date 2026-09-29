@@ -51,7 +51,9 @@ die Auslieferung keine Rolle spielt.
 | 2 · Hauptmenü | 2.1–2.9 und 2.12 fertig (`d6f12e0`, `cf916b7`). Offen: 2.5 Ausblenden beim Sortieren (F-28), 2.10/2.11 Schnellmodus (F-29–F-31), Versionsnummer (F-32). |
 | 6 · Kampagne | 6.1–6.7 fertig (`358143b`). Offen: 6.6 „Nehmen“ (F-33), Zeittrank-Text (F-34); 6.8 Schutz-Meldungen kommen mit Bereich 7. |
 | 7 · Kampf | 7.4–7.17 fertig (`473fe97`), dazu 6.8 Schutz-Meldungen. Offen: F-35, F-36. |
-| 1, 3, 4, 5, 8, 9 | warten auf die Fragen je Bereich |
+| 1 · Start & Anmeldung | 1.1–1.8 fertig (`0adb484`, `0d76958`). Offen: 1.5 „Erneut senden“ (F-37), 1.1 Reihenfolge (F-38); 1.9/1.10 hängen an F-15. |
+| 3 · Verwalten | 3.1–3.5 und 3.7 fertig, dazu die Statistik-Seiten aus dem Menü und die drei Dialoge des Ablaufs. 3.6 nur Kopf, Karten und Knöpfe — Zeilen, „Neu scannen“, „+ Wort manuell ergänzen“ und die Kopfzeile hängen an F-39–F-42. Offen außerdem F-17 (3.5 nie gezeigt), F-43 (Liste unter „Hinzufügen“), F-44 (Zurück im Entwurf). |
+| 4, 5, 8, 9 | warten auf die Fragen je Bereich |
 
 **Abnahme je Screen:** Referenz-DOM und App-DOM werden vermessen und abgeglichen
 (headless Chrome). Die Referenz rechnet ohne `box-sizing` — im CSS stehen

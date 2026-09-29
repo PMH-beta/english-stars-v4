@@ -39,7 +39,7 @@ Avatare dürfen bei einer Migration verloren gehen. Kein Umbau darf `SD.decks`,
 | F-09 | Info-Knopf je Station mit den Werten der Waffe | Phase 7 |
 | F-15 | Erster Start: 7 Reiter statt 10 Merkmale | Phase 7 |
 | F-16 | Charakter-Editor: Zurück verwirft + Rückfrage 8.12 (heute speichert Zurück) | Phase 7 |
-| F-17 | 3.5 „kein Key nötig" — heute hängt der Scan am API-Key | Phase 7 |
+| F-17 | 3.5 „Kein Key nötig!“: den Screen gibt es (`apikey-screen`, jetzt wie 3.5), er wird aber nie gezeigt — der Scan braucht keinen Key. Irgendwo zeigen oder stillgelegt lassen? | Phase 7, Bereich 3 |
 | F-18 | 4.11 Selbstbewertung nach dem Sprechen | Phase 7 |
 | F-19 | 5.7 und 5.10 — heute 5 Modi, Design zeigt 6 | Phase 7 |
 | F-20 | 9.2 „App installieren" beim 3. Start | Phase 7 |
@@ -59,6 +59,12 @@ Avatare dürfen bei einer Migration verloren gehen. Kein Umbau darf `SD.decks`,
 | F-36 | 7.15 zeigt keine Wellen mehr — F-13 („N Wellen gewonnen“) aufheben? | Phase 7, Bereich 7 |
 | F-37 | 1.5 „Mail ist raus!“: Knopf „Erneut senden“ für den Reset-Link (gibt es heute nicht) | Phase 7, Bereich 1 |
 | F-38 | 1.1 Reihenfolge: Entwurf erst Ladebalken, dann „Los geht's“ — heute erst der Knopf (iOS gibt Ton nur nach dem Tippen frei), dann der Balken | Phase 7, Bereich 1 |
+| F-39 | 3.6 Zeilen: Wort + Übersetzung als Text mit Knopf ✓ bzw. Stift (fehlende Übersetzung) — heute zwei Eingabefelder, direkt bearbeitbar | Phase 7, Bereich 3 |
+| F-40 | 3.6 Knopf „Neu scannen“ oben rechts (heute nur der Zurück-Knopf) | Phase 7, Bereich 3 |
+| F-41 | 3.6 „+ Wort manuell ergänzen“ — heute kann man auf „Vokabeln prüfen“ kein Wort hinzufügen (`addReviewItem` hat keine Felder; „Wörter manuell eingeben“ nach einem Fehlscan führt auf eine leere Liste) | Phase 7, Bereich 3 |
+| F-42 | 3.6 Kopfzeile „3 erkannt“ statt der Zeile „3 Wörter erkannt · 2 neu · 1 bereits vorhanden (grau)“ — Dubletten zeigt der Entwurf nicht | Phase 7, Bereich 3 |
+| F-43 | 3.1 zeigt unter „Hinzufügen“ zusätzlich die Liste („Liste · 12 Wörter“, ohne Bearbeiten/Löschen); 3.3/3.4 und der Reiter „Liste“ tun das nicht | Phase 7, Bereich 3 |
+| F-44 | 3.2 Zurück-Knopf auch in einer neuen Sammlung (Entwurf) — heute ausgeblendet, dort gibt es nur „Abbrechen“/„Bestätigen“ | Phase 7, Bereich 3 |
 
 ## Ohne Rückfrage entschieden (Aussehen) — Phase 7
 
@@ -81,3 +87,13 @@ Avatare dürfen bei einer Migration verloren gehen. Kein Umbau darf `SD.decks`,
 | 7.6 „Richtig · Wort“ | nach jeder gelösten Welle mit einem Wort (Sturm, Meteoriten, Echo), nicht bei Richtig/Falsch. | 29.09.2026 |
 | 7.16 Text | „{Bossname} ist gefallen — Lauf geschafft.“ ohne Artikel (Namen haben verschiedene Geschlechter). | 29.09.2026 |
 | N41 Lage | Schutz-Meldung links über dem Helden, 1,6 s; der Entwurf zeigt nur die Karte, nicht die Lage. | 29.09.2026 |
+| Zurück-Knopf | überall 34 + Rahmen = 38 px wie in allen Fragmenten (vorher 34). Pfeil 28 px — 3.6, 4.2 und 4.6 zeigen 14 px, alle anderen 28 px. | 29.09.2026 |
+| 3.x Kopf/Reiter | nach 3.3/3.4 (Nachtrag): Buch + „Vokabeln verwalten“, „Hinzufügen“ statt „+ Neu“. 3.1 ist der ältere Stand. | 29.09.2026 |
+| 3.4 „Zustand · Scan läuft“ | als Beschriftung des Entwurfs gelesen und weggelassen; es steht immer nur eine Zustandspille da (vorbereiten / erkennen / Prozent / Fehler). Der Hinweis „Nach dem Erkennen …“ steht fest unter der Fläche. | 29.09.2026 |
+| 3.4 Scan-Linie | läuft immer über den Kamerarahmen (Übersicht 9.7: „läuft in 24 Takten … über den Kamerarahmen“). | 29.09.2026 |
+| 3.4 Fehlertexte | „Texterkennung fehlgeschlagen“ ohne technische Meldung (die steht in der Konsole). „Kein Text erkannt“ und „Keine Vokabeln erkannt“ als rosa Pille; Rohtext und „Wörter manuell eingeben“ wie der Chip „Neu scannen“ (3.6). | 29.09.2026 |
+| 3.1 Balkenfarbe | Liste: ab 80 % mint, ab 30 % gold, darunter rosa (Entwurf: 92 / 58 / 24 %). | 29.09.2026 |
+| 3.2 Vorlagen | Kopfzeile „30 Wortgruppen · 1 von 2 an“ aus echten Zahlen. „AUS“ ist nur Anzeige, getippt wird wie bisher die ganze Karte. Aktive Vorlage mit Balken statt Prozentzahl. Gesperrt/Limit: Hinweis in der Textzeile mit Schloss bzw. Haken; ausgegraute Karten wie bisher (Deckkraft .38). | 29.09.2026 |
+| 3.7 Tabellen | „R / F“ als Zahlen „4 / 0“ statt farbiger Punkte; vorläufiger Stand (unter 3 Abfragen) bleibt als Punkte im Chip. | 29.09.2026 |
+| Statistik aus dem Menü | Kopf „Statistik“ ohne Symbol wie 5.5, der einzelne Reiter „Statistik“ fällt weg; Vorlagen-Übersicht als Karte wie 5.5 (Name, Wörter, Prozent, Balken). | 29.09.2026 |
+| Dialoge im Verwalten | „Sammlung sperren?“, „Sammlung abschließen?“ und „Name der Sammlung“ im Gerüst der übrigen Dialoge (Emblem, Vondu-Kasten, Knöpfe); Texte, Knöpfe und Ablauf unverändert. | 29.09.2026 |

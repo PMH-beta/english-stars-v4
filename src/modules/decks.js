@@ -494,14 +494,17 @@ export function openDeckStats(id) {
   window.showScreen('scan-screen');
   const deck = activeDeck();
   if (!deck) return;
+  // Kopf wie die übrigen Statistik-Seiten: Titel ohne Symbol, kein einzelner Reiter.
   const title = document.getElementById('vm-title');
-  if (title) title.textContent = '📊 Statistik';
+  if (title) title.textContent = 'Statistik';
+  const ic = document.getElementById('vm-title-icon');
+  if (ic) ic.style.display = 'none';
   const dn = document.getElementById('vm-deck-name');
   if (dn) dn.textContent = 'Statistik: ' + deck.name;
   const ba = document.getElementById('vm-back-area');
   if (ba) ba.innerHTML = '<button class="p-back" onclick="vmBack()"><canvas data-icon="back" width="14" height="14" style="width:28px;height:28px;image-rendering:pixelated;flex:none"></canvas></button>';
   const tabsEl = document.querySelector('.vm-tabs');
-  if (tabsEl) tabsEl.innerHTML = '<button class="vm-tab active" data-tab="deck-stats" onclick="vmTab(\'deck-stats\')">📊 Statistik</button>';
+  if (tabsEl) tabsEl.innerHTML = '';
   const aa = document.getElementById('vm-action-area');
   if (aa) aa.innerHTML = '';
   window.vmTab('deck-stats');
