@@ -547,10 +547,10 @@
 
 <div class="confetti-wrap" id="confetti-wrap"></div>
 <!-- Globaler Musik-Button (sichtbar im Menü/Stats, im Spiel ist eigener Button in der Score-Bar) -->
-<button class="music-btn-global" id="music-btn-global" onclick="toggleMusic()" title="Musik an/aus">🎵</button>
+<button class="music-btn-global" id="music-btn-global" onclick="toggleMusic()" title="Musik an/aus"><canvas data-icon="music" width="14" height="14" style="width:28px;height:28px;image-rendering:pixelated;flex:none"></canvas></button>
 <!-- PWA Install-Button (nur sichtbar wenn Browser PWA-Install anbietet) -->
 <button id="pwa-install-btn" onclick="pwaInstall()" title="Als App installieren">📲 App installieren</button>
-<button class="music-vol-btn" id="music-vol-btn" onclick="toggleVolPopup()" title="Lautstärke">🔊</button>
+<button class="music-vol-btn" id="music-vol-btn" onclick="toggleVolPopup()" title="Lautstärke"><canvas data-icon="speaker" width="14" height="14" style="width:14px;height:14px;image-rendering:pixelated;flex:none"></canvas></button>
 <div class="music-vol-wrap" id="music-vol-wrap">
   <span id="music-vol-lbl">50%</span>
   <input type="range" min="0" max="100" value="50" id="music-vol-slider" oninput="setMusicVolume(this.value/100)" />

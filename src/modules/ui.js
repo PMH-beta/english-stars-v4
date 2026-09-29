@@ -271,10 +271,7 @@ function _showExitToast() {
   if (!t) {
     t = document.createElement('div');
     t.id = '_es-exit-toast';
-    t.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:10000;'
-      + 'border:2px solid var(--p-ink);border-radius:var(--p-r-dialog);background:var(--p-ink);'
-      + 'color:var(--p-gold);font:900 15px var(--p-font);text-align:center;padding:16px 26px;'
-      + 'pointer-events:none;opacity:0;transition:opacity .2s;';
+    t.className = 'p-toast';   // Aussehen wie der Toast 9.3 (oben, mint)
     t.textContent = 'Zum Schließen erneut zurück';
     (document.body || document.documentElement).appendChild(t);
   }

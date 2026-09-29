@@ -18,7 +18,7 @@ import './modules/dialog.js'; // registriert window.esAlert/esConfirm/esPrompt (
 import { startupSequence, finishStartup, showStartGate } from './modules/startup.js';
 import { supabase, testConnection } from './modules/supabase.js';
 import { flushPendingSync } from './modules/sync.js';
-import { startIconAutoPaint } from './modules/pixel-icons.js';
+import { startIconAutoPaint, iconHTML } from './modules/pixel-icons.js';
 import { startUiTakt } from './modules/ui-takt.js';
 
 console.log('[main] English Stars', APP_VERSION, 'startet…');
@@ -292,7 +292,26 @@ try { screen.orientation?.lock?.('portrait').catch(() => {}); } catch (e) {}
   const THRESHOLD = 90;   // px Zugweg bis zum Auslösen
   const bar = document.createElement('div');
   bar.id = 'ptr-bar';
+  // Aussehen wie 9.6: Balken oben (füllt sich mit dem Zugweg), darunter Symbol
+  // + Text; der sichtbare Screen rutscht dabei bis zu 64 px nach unten.
+  bar.innerHTML = '<div class="ptr-spur"><i></i></div><div class="ptr-zeile"><span class="ptr-ic"></span><span class="ptr-text"></span></div>';
   document.body.appendChild(bar);
+  const fill = bar.querySelector('.ptr-spur > i');
+  const icEl = bar.querySelector('.ptr-ic'), txtEl = bar.querySelector('.ptr-text');
+  let zustand = '';
+  const zeige = (icon, text, dreht) => {
+    if (zustand === icon + text) return;   // nur bei Wechsel neu zeichnen
+    zustand = icon + text;
+    icEl.innerHTML = iconHTML(icon, 28).replace('<canvas ', dreht ? '<canvas data-ui="rot90" data-a="2" ' : '<canvas ');
+    txtEl.textContent = text;
+  };
+  let geschoben = null;
+  const schiebe = (px) => {
+    if (!geschoben) geschoben = [...document.querySelectorAll('.p-screen')].find((s) => s.style.display !== 'none' && getComputedStyle(s).display !== 'none') || null;
+    if (!geschoben) return;
+    geschoben.style.transform = px ? `translateY(${px}px)` : '';
+    if (!px) geschoben = null;
+  };
   let startY = 0, dist = 0, active = false;
   const innerScrolled = (t) => {
     for (let n = t; n && n !== document.body; n = n.parentElement) if (n.scrollTop > 0) return true;
@@ -306,11 +325,14 @@ try { screen.orientation?.lock?.('portrait').catch(() => {}); } catch (e) {}
   }, { passive: true });
   document.addEventListener('touchmove', (e) => {
     if (!active) return;
-    if (window.scrollY > 0) { active = false; bar.classList.remove('show'); return; }
+    if (window.scrollY > 0) { active = false; bar.classList.remove('show'); schiebe(0); return; }
     dist = e.touches[0].clientY - startY;
-    if (dist <= 10) { bar.classList.remove('show'); return; }
+    if (dist <= 10) { bar.classList.remove('show'); schiebe(0); return; }
     bar.classList.add('show');
-    bar.textContent = dist > THRESHOLD ? '🔄 Loslassen zum Neuladen' : '⬇️ Ziehen zum Aktualisieren';
+    fill.style.width = Math.min(100, Math.round(dist / THRESHOLD * 100)) + '%';
+    schiebe(Math.min(64, Math.round(dist * 0.6)));
+    if (dist > THRESHOLD) zeige('refresh', 'Loslassen zum Neuladen', true);
+    else zeige('refresh', 'Ziehen zum Aktualisieren', false);
   }, { passive: true });
   document.addEventListener('touchend', () => {
     if (active && dist > THRESHOLD) {
@@ -318,15 +340,17 @@ try { screen.orientation?.lock?.('portrait').catch(() => {}); } catch (e) {}
       // dadurch auf dem Ladescreen mit „Los geht's" (bzw. im Anmeldescreen, wenn
       // die Sitzung abgelaufen war). softRefresh holt nur die Daten neu und baut
       // den sichtbaren Screen wieder auf — man bleibt, wo man war.
-      bar.textContent = '🔄 Lädt neu …';
+      zeige('refresh', 'Lädt neu …', true);
       softRefresh().then((r) => {
-        if (r === 'ok') bar.textContent = '✅ Aktueller Stand';
-        else if (r === 'failed') bar.textContent = '📡 Keine Verbindung';
+        schiebe(0);
+        if (r === 'ok') zeige('check', 'Aktueller Stand', false);
+        else if (r === 'failed') zeige('cloud', 'Keine Verbindung', false);
         else { bar.classList.remove('show'); return; }   // 'new'/'skipped': stumm
         setTimeout(() => bar.classList.remove('show'), 1000);
       });
     } else {
       bar.classList.remove('show');
+      schiebe(0);
     }
     active = false; dist = 0;
   }, { passive: true });

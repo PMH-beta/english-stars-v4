@@ -224,9 +224,13 @@ function esSavingShow(label) {
     _savingEl.className = 'p-band';
     (document.body || document.documentElement).appendChild(_savingEl);
   }
-  _savingEl.innerHTML = '<span style="width:13px;height:13px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;display:inline-block;animation:es-spin .7s linear infinite;"></span>'
-    + '<span></span>';
-  _savingEl.lastChild.textContent = label || 'Speichern…';
+  // Pille wie 9.4: drei wippende Punkte, „Speichern" und laufende Pünktchen.
+  _savingEl.innerHTML = '<span class="p-band-punkte">'
+    + '<span data-ui="bob" data-a="2" data-d="0"></span>'
+    + '<span data-ui="bob" data-a="2" data-d="2" style="opacity:.5"></span>'
+    + '<span data-ui="bob" data-a="2" data-d="4" style="opacity:.25"></span></span>'
+    + '<span></span><span class="p-dots" data-ui="dots">…</span>';
+  _savingEl.children[1].textContent = (label || 'Speichern…').replace(/[.…]+$/, '');
   void _savingEl.offsetWidth;
   _savingEl.style.opacity = '1';
 }
@@ -244,10 +248,12 @@ export function esToast(msg, ms = 2200) {
   if (!t) {
     t = document.createElement('div');
     t.id = 'es-toast';
-    t.className = 'p-band p-band--mitte';
+    t.className = 'p-band p-band--unten';
     (document.body || document.documentElement).appendChild(t);
   }
-  t.textContent = msg;
+  // Hinweis unten wie 9.4: Wolke + Text.
+  t.innerHTML = iconHTML('cloud', 28) + '<span></span>';
+  t.lastChild.textContent = msg;
   void t.offsetWidth;
   t.style.opacity = '1';
   if (_toastTimer) clearTimeout(_toastTimer);
@@ -272,7 +278,8 @@ export function withSaving(saveFn, { label = 'Speichern…', timeoutMs = 5000 } 
     const finish = (mode) => {
       if (done) return; done = true;
       esSavingHide();
-      if (mode !== 'ok') esToast('Im Hintergrund gespeichert');
+      if (mode === 'timeout') esToast('Zeitüberschreitung — im Hintergrund gespeichert');
+      else if (mode !== 'ok') esToast('Im Hintergrund gespeichert');
       resolve();
     };
     const timer = setTimeout(() => finish('timeout'), timeoutMs);

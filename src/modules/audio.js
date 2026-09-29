@@ -198,8 +198,8 @@ export function setMusicVolume(v) {
 export function _setMusicBtns(on) {
   [document.getElementById('music-btn'), document.getElementById('music-btn-global')].forEach(btn => {
     if (!btn) return;
-    // Pixel-Symbol statt Emoji: an = Lautsprecher, aus = Note.
-    btn.innerHTML = iconHTML(on ? 'speaker' : 'music', 28);
+    // Wie 9.5: immer die Note; an = Flieder-Fläche (Klasse on), aus = Papier.
+    btn.innerHTML = iconHTML('music', 28);
     btn.classList.toggle('on', !!on);
     btn.title = on ? 'Musik ausschalten' : 'Musik einschalten';
   });

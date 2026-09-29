@@ -4512,3 +4512,52 @@ button.p-chip{ cursor:pointer; }
 .forge-words summary::-webkit-details-marker{ display:none; }
 /* Der Pfeil „▾“ (9 px) kommt aus ::after und dreht sich beim Öffnen ohne Übergang. */
 .forge-words summary::after{ font-size:9px; transition:none; }
+
+/* ══ ÜBERALL nach Fragment 9.3–9.6 (Phase 7, Bereich 9) ═════════════════════ */
+/* Musik (9.5): Kreis 52 + Rahmen, aus Papier, an Flieder, immer die Note. */
+body.p-app .music-btn-global{
+  width:56px; height:56px; right:16px; bottom:calc(24px + env(safe-area-inset-bottom,0px));
+  border:var(--p-rahmen); background:var(--p-karte); box-shadow:none; animation:none; transition:none;
+}
+body.p-app .music-btn-global.on{ background:var(--p-lila); box-shadow:none; animation:none; }
+body.p-app .music-btn-global:hover, body.p-app .music-btn-global:active{ transform:none; }
+body.p-app .music-vol-btn{ bottom:calc(88px + env(safe-area-inset-bottom,0px)); }
+/* Speichern (9.4): Papier-Pille mit drei wippenden Punkten. */
+#es-saving-bar.p-band{
+  top:calc(52px + env(safe-area-inset-top,0px)); gap:9px; padding:7px 16px;
+  border-radius:999px; background:var(--p-karte); color:var(--p-ink); font:800 12px var(--p-font);
+}
+.p-band-punkte{ display:flex; gap:4px; }
+.p-band-punkte > span{ width:6px; height:6px; border-radius:50%; background:var(--p-ink); }
+/* Hinweis unten (9.4): Wolke + Text auf hellem Papier. */
+.p-band.p-band--unten{
+  top:auto; bottom:calc(30px + env(safe-area-inset-bottom,0px));
+  left:50%; width:calc(100% - 36px); max-width:440px; transform:translateX(-50%);
+  display:flex; align-items:center; gap:10px; text-align:left;
+  border-radius:18px; background:var(--p-karte-hell); color:var(--p-ink);
+  padding:11px 14px; font:800 12px var(--p-font);
+}
+/* Toast oben (9.3): mint mit Schatten. */
+.p-toast{
+  position:fixed; top:calc(52px + env(safe-area-inset-top,0px)); left:50%; transform:translateX(-50%);
+  width:calc(100% - 36px); max-width:440px; z-index:10000;
+  display:flex; align-items:center; gap:10px;
+  border:var(--p-rahmen); border-radius:18px; background:var(--p-ok);
+  box-shadow:0 4px 0 rgba(31,31,36,.22); padding:11px 14px;
+  font:900 13px var(--p-font); color:var(--p-ink);
+  pointer-events:none; opacity:0; transition:opacity .2s;
+}
+/* Ziehen zum Neuladen (9.6): Balken oben, darunter Symbol + Text. */
+#ptr-bar{
+  position:fixed; top:env(safe-area-inset-top,0px); left:0; right:0; transform:none;
+  z-index:9999; display:none; padding:0; border-radius:0; background:none; box-shadow:none;
+  transition:none; pointer-events:none; white-space:nowrap;
+}
+#ptr-bar.show{ display:block; top:env(safe-area-inset-top,0px); }
+.ptr-spur{ position:absolute; left:24px; right:24px; top:6px; height:8px; border-radius:5px; overflow:hidden; background:var(--p-karte); }
+.ptr-spur > i{ display:block; height:100%; width:0; background:var(--p-ink); }
+.ptr-zeile{
+  height:64px; display:flex; align-items:center; justify-content:center; gap:9px;
+  font:800 12px var(--p-font); color:var(--p-ink);
+}
+.ptr-ic{ display:flex; }
