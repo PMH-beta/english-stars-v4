@@ -57,7 +57,7 @@ Alle Screens ohne offene Frage sind gebaut (Commits je Bereich, zuletzt
 | 4 · Üben | F-45 Schnellmodus im Spiel (Chip + Hinweis) · F-46 Knopf „Los“ · F-47 Probetest ohne laufende Note · F-48 „Nochmal versuchen“ nach falscher Aussprache · F-21 Mikrofon-Ringe am echten Pegel |
 | 3 · Verwalten | F-40 „Neu scannen“ · F-41 „+ Wort manuell ergänzen“ · F-42 Kopfzeile „N erkannt“ (Dubletten grau) · F-44 Zurück = Abbrechen im Entwurf |
 | 5 · Formen | F-08 Raster „Noch nicht begonnen“ mit „Wörter befüllen“, ohne Löschen · F-09 „i“ je Objekt (5.2) · F-54 Info 5.13 mit Punkt 4 „Verzaubern ist eines der 5 Teile und kommt nie vor dem dritten.“ |
-| 6/7 · Kampagne | F-33 Schatz: auswählen + „Nehmen“ · F-34 Zeittrank-Text = Regel · F-35 Boss: „Zur Kampagne“ + Taler-Chip · F-36 Wellen-Chip weg |
+| 6/7 · Kampagne | **fertig:** F-33 Schatz: auswählen + „Nehmen“ · F-34 Zeittrank-Text = Regel · F-35 Boss: „Zur Kampagne“ + Taler-Chip · F-36 Wellen-Chip weg |
 | 9 · Überall | F-20 Installier-Popup beim 3. Start (Zähler lokal) |
 | 1/8 · Charakter-Editor | F-15 7 Reiter (Profil 8) · F-16 „Speichern“, Zurück verwirft, Rückfrage 8.12 — Screens 1.9/1.10, 8.4–8.12 |
 

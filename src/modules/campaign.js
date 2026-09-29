@@ -478,9 +478,9 @@ function _startFight(node) {
         c.run = null;
       }
       _saveCampaign();
-      // „🔄 Neue Runde starten" ist der cf-endbtn im Sieges-Popup selbst (campaign-fight.js
-      // _endScreen) — der Klick darauf landet hier UND startet direkt den neuen Lauf.
-      if (bossWin) startCampaignRun(); else renderCampaign();
+      // Nach dem Boss führt „Zur Kampagne“ zurück zur Übersicht (F-35) — dort
+      // startet das Kind den nächsten Lauf selbst („Nächster Lauf gratis“).
+      renderCampaign();
     },
   });
 }

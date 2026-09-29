@@ -157,7 +157,7 @@ export const POTIONS = {
   heal:   { icon: '❤️', name: 'Heiltrank',   desc: `+${POTION_HEAL} Leben sofort` },
   shield: { icon: '🛡️', name: 'Schildtrank', desc: 'Wehrt eine verlorene Welle ab' },
   power:  { icon: '💪', name: 'Krafttrank',  desc: `+${POTION_POWER} Schaden bis Kampfende` },
-  time:   { icon: '⏳', name: 'Zeittrank',   desc: `+${POTION_TIME_MS / 1000} s Zeit für ${POTION_TIME_WAVES} Wellen` },
+  time:   { icon: '⏳', name: 'Zeittrank',   desc: `+${POTION_TIME_MS / 1000} Sekunden in den nächsten ${POTION_TIME_WAVES} Wellen` },
 };
 
 // Kachelfarbe je Trank; gezeichnet wird überall dasselbe Pixel-Icon „potion"
@@ -188,9 +188,9 @@ export function openPotionChoice({ onPick }) {
   for (let i = keys.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [keys[i], keys[j]] = [keys[j], keys[i]]; }
   const n = Math.min(keys.length, POTION_CHOICES + equipEffects().potionBonus);
   const choices = keys.slice(0, n);
-  // Aussehen nach Fragment 6.6: Truhe auf Gold, Tränke als Zeilen mit Farbkachel.
-  // Antippen nimmt den Trank sofort (wie bisher) — ob es wie im Entwurf erst eine
-  // Auswahl mit Haken und dann „Nehmen" gibt, ist offen (Frage F-33).
+  // Fragment 6.6 (F-33): Antippen wählt aus (Gold + Haken, der erste ist
+  // vorgewählt), erst „Nehmen“ nimmt den Trank — ein versehentlicher Tipp nimmt
+  // so nicht gleich den falschen.
   const ov = document.createElement('div');
   ov.className = 'p-dlg-grund p-schatz-grund';
   ov.innerHTML = `<div class="p-dlg-karte p-schatz-karte">
@@ -198,17 +198,25 @@ export function openPotionChoice({ onPick }) {
     <div class="p-schatz-titel">Schatz gefunden!</div>
     <div class="p-schatz-sub">Wähle einen Trank für diesen Lauf</div>
     <div class="p-schatz-liste">
-    ${choices.map(k => `<button class="p-schatz-zeile" data-potion="${k}">
+    ${choices.map((k, i) => `<button class="p-schatz-zeile${i === 0 ? ' is-gewaehlt' : ''}" data-potion="${k}">
       <span class="p-schatz-kachel" style="background:${POTION_TON[k]}">${iconHTML('potion', 28)}</span>
       <span class="p-wachs"><span class="p-schatz-name">${POTIONS[k].name}</span><span class="p-schatz-text">${POTIONS[k].desc}</span></span>
+      <span class="p-schatz-haken">${iconHTML('check', 14)}</span>
     </button>`).join('')}
     </div>
+    <button class="p-schatz-nehmen">Nehmen</button>
   </div>`;
   ov.addEventListener('click', (e) => {
     const b = e.target.closest('[data-potion]');
-    if (!b) return;
+    if (b) {
+      ov.querySelectorAll('.p-schatz-zeile').forEach((z) => z.classList.toggle('is-gewaehlt', z === b));
+      return;
+    }
+    if (!e.target.closest('.p-schatz-nehmen')) return;
+    const sel = ov.querySelector('.p-schatz-zeile.is-gewaehlt');
+    if (!sel) return;
     ov.remove();
-    onPick(b.dataset.potion);
+    onPick(sel.dataset.potion);
   });
   document.body.appendChild(ov);
 }

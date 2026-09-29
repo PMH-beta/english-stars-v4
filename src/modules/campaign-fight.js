@@ -901,7 +901,7 @@ function _onWave(success) {
       },
       () => {
         if (!_ctx) return;
-        if (f.enemyHp <= 0) { const wellen = f.wave; run.fight = null; save(); _endScreen(true, wellen); return; }
+        if (f.enemyHp <= 0) { run.fight = null; save(); _endScreen(true); return; }
         f.wave++; save();
         setTimeout(() => { if (_ctx) _startWave(); }, 300);
       });
@@ -965,7 +965,7 @@ function _confettiBurst() {
   (_el('cf-overlay') || document.body).appendChild(wrap);
 }
 
-function _endScreen(victory, wellen = 0) {
+function _endScreen(victory) {
   const { node, players } = _ctx;
   const boss = node.type === 'boss';
   const bossWin = victory && boss;
@@ -989,9 +989,7 @@ function _endScreen(victory, wellen = 0) {
   const esc = (s) => (window.escHtml ? window.escHtml(String(s)) : String(s));
   const hebt = (html) => html.replace('<canvas ', '<canvas data-ui="bob" data-a="2" ');
   const chip = (ton, icon, text) => `<span class="cf-ende-chip" style="background:${ton}">${iconHTML(icon, 14)}${text}</span>`;
-  // „N Wellen gewonnen" bleibt nach Entscheidung F-13, auch wenn die neuen
-  // Fragmente keine Wellen mehr zeigen (Frage F-36).
-  const wellenChip = victory && wellen > 0 ? chip('var(--p-gold)', 'star', `${wellen} ${wellen === 1 ? 'Welle' : 'Wellen'} gewonnen`) : '';
+  // Kein Wellen-Chip mehr (F-36 hebt F-13 auf, wie die neuen Fragmente).
   let inhalt;
   if (bossWin) {
     inhalt = `<div class="cf-ende-emblem cf-ende-emblem--boss">${hebt(iconHTML('crownBig', 56))}</div>
@@ -999,14 +997,13 @@ function _endScreen(victory, wellen = 0) {
       <div class="cf-ende-text">${esc(enemyName(_ctx.enemyKey) || 'Der Boss')} ist gefallen — Lauf geschafft.</div>
       <div class="cf-ende-chips">
         ${chip('var(--p-gold)', 'crown', '+1 Boss')}${chip('var(--p-ok)', 'flag', 'Nächster Lauf gratis')}
-        ${chip('var(--p-gold)', 'coin', `+${BOSS_WIN_TALER} Taler`)}${wellenChip}
+        ${chip('var(--p-gold)', 'coin', `+${BOSS_WIN_TALER} Taler`)}
       </div>
-      <button id="cf-endbtn" class="cf-ende-btn">Neue Runde starten</button>`;
+      <button id="cf-endbtn" class="cf-ende-btn">Zur Kampagne</button>`;
   } else if (victory) {
     inhalt = `<div class="cf-ende-emblem" style="background:var(--p-ok)">${hebt(iconHTML('sword', 42))}</div>
       <div class="cf-ende-titel">Gegner besiegt!</div>
       <div class="cf-ende-text">Der Weg ist frei — wähle den nächsten Knoten auf der Karte.</div>
-      ${wellenChip ? `<div class="cf-ende-chips">${wellenChip}</div>` : ''}
       <button id="cf-endbtn" class="cf-ende-btn" style="margin-top:18px">Weiter</button>`;
   } else {
     inhalt = `<div class="cf-ende-emblem" style="background:var(--p-inaktiv)">${iconHTML('skull', 42)}</div>

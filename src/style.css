@@ -2501,6 +2501,15 @@ button.p-chip{ cursor:pointer; }
 }
 .p-schatz-name{ display:block; font:900 14px var(--p-font); }
 .p-schatz-text{ display:block; font:700 11px var(--p-font); color:var(--p-text-akzent); }
+/* Gewählter Trank: Gold mit Haken; „Nehmen“ darunter in Tinte/Gold (58 = 54 + Rahmen). */
+.p-schatz-zeile.is-gewaehlt{ background:var(--p-gold); }
+.p-schatz-haken{ display:none; flex:none; }
+.p-schatz-zeile.is-gewaehlt .p-schatz-haken{ display:flex; }
+.p-schatz-nehmen{
+  width:100%; height:58px; margin-top:14px; cursor:pointer;
+  border:var(--p-rahmen); border-radius:18px; background:var(--p-ink); color:var(--p-gold);
+  display:flex; align-items:center; justify-content:center; gap:8px; font:900 14px var(--p-font);
+}
 
 /* Trank-Info auf der Karte (Fragment 6.8, N33): helle Sprechblase. */
 .p-trank-blase{
