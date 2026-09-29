@@ -68,6 +68,8 @@ Avatare dürfen bei einer Migration verloren gehen. Kein Umbau darf `SD.decks`,
 | F-45 | 4.5 Spiel im Schnellmodus: Chip „Schnellmodus“ unter dem Titel, statt Warte-Kasten und Fortschrittskarte nur der Hinweis „Schnellmodus — zählt nicht in die Statistik“ (heute sieht das Spiel aus wie sonst) | Phase 7, Bereich 4 |
 | F-46 | 4.4 Zwischenkarte „Jetzt nochmal …“ mit Knopf „Los“ — heute geht es nach 2 s von selbst weiter | Phase 7, Bereich 4 |
 | F-47 | 4.12 Fortschrittskarte im Probetest: „0/20 · gemischt aus 2 Sammlungen“ statt „3/5 richtig · Note 2“ (heute mit laufender Note) | Phase 7, Bereich 4 |
+| F-48 | 4.10 Knopf „Nochmal versuchen“ nach falscher Aussprache — heute ist eine falsch erkannte Aussprache endgültig (Rückmeldung + „Weiter“) | Phase 7, Bereich 4 |
+| F-49 | 4.11 beim Selbstbewerten kein Mikrofon mehr — heute kann man dort mit „Nochmal“ noch einmal sprechen | Phase 7, Bereich 4 |
 
 ## Ohne Rückfrage entschieden (Aussehen) — Phase 7
 
@@ -106,3 +108,6 @@ Avatare dürfen bei einer Migration verloren gehen. Kein Umbau darf `SD.decks`,
 | 4.x Animationen | falsche Kachel/Eingabe wackelt, Haken der richtigen ploppt, Flamme flackert, Sanduhr dreht, Punkte laufen — mit den Takten aus den Fragmenten. Die alte Hüpf-Animation der Karte und das Karten-Wackeln sind weg. | 29.09.2026 |
 | 4.13/4.14 | Pokal wippt mit drei Funkeln, Sterne ploppen nacheinander; Probetest-Ende als Karte mit Notenkreis (immer mint — Farben je Note gibt der Entwurf nicht vor), „Gut!“ mit Fahne, Zahlen zählen hoch, Konfetti dahinter bei Note 1–2 (Bedingung wie bisher). Beschriftung „Serie“ beim Probetest, „Streak“ sonst (je Fragment). | 29.09.2026 |
 | Konfetti | überall als gerahmte Pastell-Plättchen im 8-fps-Takt (wie 7.16), nach 3 s weg — Anlässe wie bisher. | 29.09.2026 |
+| 4.7–4.10 Aussprache | runder Knopf mit Mikrofon, Zustand als Text darunter („Tippen und sprechen“, „Ich höre zu…“, „Richtig!“, „Das klang anders“, dazu „Nochmal“/„Bereite vor…“ ohne Emoji), Kasten „Gehört“ mit dem erkannten Wort; Meldungen (Mikrofon verweigert, lädt …) stehen im selben Kasten ohne „Gehört“. Kein Warte-Kasten bei Aussprache. Nach der Antwort bleibt die Rückmeldung mit „Weiter“ (4.9/4.10 zeigen keine). | 29.09.2026 |
+| 4.8 Pegel | bis F-21 entschieden ist, der heutige Visualizer (nur beim Zuhören sichtbar) statt der 9 Balken — daher ist die Karte 37 px höher als 4.8. | 29.09.2026 |
+| 4.11 / F-18 | Die Selbstbewertung erscheint wie heute nur, wenn die Erkennung nichts verstanden hat (= Option B aus F-18); gebaut ist das Aussehen aus 4.11 samt Vondu-Hinweis. Abstand Karte–Hinweis 12 px (im Fragment 0). | 29.09.2026 |

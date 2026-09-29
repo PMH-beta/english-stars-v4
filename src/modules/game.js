@@ -3,7 +3,7 @@ import { QPERROUND, EXAM_QUESTIONS, calcGrade, gradeText, UV_LVL } from './confi
 import { effectivePct, isMastered, statKeyFor, getVocabStat } from './stats.js';
 import { activeDeck, syncMirrorFromActiveDeck } from './decks.js';
 import { showScreen, showMenu, hideFeedback, showFeedback } from './ui.js';
-import { ensureMicStream, releaseMicStream, voskStop, stopVisualizer, speakWord, speakWordOnce, startVoskRecognition, startRecording, _shouldUseVosk, warmAudio, warmIosMic } from './speech.js';
+import { ensureMicStream, releaseMicStream, voskStop, stopVisualizer, speakWord, speakWordOnce, startVoskRecognition, startRecording, _shouldUseVosk, warmAudio, warmIosMic, micZustand, gehoert } from './speech.js';
 import { persist } from './storage.js';
 import { markDirty, saveExam, saveProbetest } from './sync.js';
 import { commitDirty } from './dialog.js';
@@ -685,11 +685,16 @@ function renderQuestion(q) {
     }
     html+=`<button class="submit-btn" onclick="submitType()">Prüfen${iconHTML('check',14)}</button></div>`;
   } else if(q.type==='pronounce'){
-    html+=`<div class="p-fragekarte">${head}${frage}</div>`;
-    html+=`<div class="pronounce-tip" id="pronounce-tip">Drücke den Mikrofon-Button und sprich das Wort auf Englisch!</div>`;
-    html+=`<canvas id="viz-canvas" width="300" height="60" style="display:block;margin:12px auto 0"></canvas>`;
-    html+=`<button class="mic-btn" id="mic-btn" onclick="startRecording()">${iconHTML('speaker',28)}Sprechen</button>`;
-    html+=`<div class="pronounce-result" id="pronounce-result" style="display:none"></div>`;
+    // Aussprache nach 4.7–4.10: runder Mikrofon-Knopf (Ringe beim Zuhören),
+    // Zustand darunter, Pegel (heutiger Visualizer, Frage F-21), Kasten „Gehört".
+    html+=`<div class="p-fragekarte">${head}${frage}
+      <div class="mic-rund-platz"><button class="mic-btn" id="mic-btn" onclick="startRecording()" data-ui="pulse" data-a="4">`
+      +`<span class="mic-ring mic-ring--1" data-ui="ring" data-a="9" data-d="0"></span>`
+      +`<span class="mic-ring mic-ring--2" data-ui="ring" data-a="7" data-d="6"></span>${iconHTML('mic',56)}</button></div>
+      <div class="mic-label" id="pronounce-tip">Tippen und sprechen</div>
+      <canvas id="viz-canvas" width="300" height="60"></canvas>
+      <div class="pronounce-result" id="pronounce-result"></div>
+    </div>`;
   } else if(q.type==='order'){
     html+=`<div class="p-fragekarte">${head}${frage}</div>`;
     const isL=q.orderKind==='letters';
@@ -702,6 +707,10 @@ function renderQuestion(q) {
     html+=`<button class="submit-btn" id="order-check" onclick="checkOrder()" disabled>Prüfen${iconHTML('check',14)}</button>`;
   }
   card.innerHTML=html;
+  card.classList.remove('mic-hoert','mic-pegel');
+  // Aussprache zeigt keinen Warte-Kasten (4.7–4.10), nur Vondus Hinweis bei 4.11.
+  document.getElementById('game-screen')?.classList.toggle('ist-aussprache', q.type==='pronounce');
+  if(q.type==='pronounce') gehoert(document.getElementById('pronounce-result'), '—', 'wort');
   if(q.type==='type') setTimeout(()=>document.getElementById('type-input')?.focus(),120);
   if(q.type==='order') initOrderDnD();
 }
@@ -871,13 +880,14 @@ export function showSelfRateButtons() {
   const old=document.getElementById('self-rate-wrap');
   if(old) old.remove();
   const ans=window.currentQ.answer;
+  // Aussehen nach 4.11: „Lösung anhören" hellblau, Hinweis, zwei große Knöpfe —
+  // in der Fragekarte; darunter erklärt Vondu, warum das Kind selbst entscheidet.
   const wrap=document.createElement('div');
   wrap.id='self-rate-wrap';
-  wrap.style.cssText='margin-top:14px;display:flex;flex-direction:column;gap:10px;align-items:center;';
-  const listenBtn=document.createElement('button');
-  listenBtn.textContent='🔊 Lösung anhören';
-  listenBtn.className='p-dlg-btn p-dlg-btn--ab';
-  listenBtn.style.cssText='flex:none;padding:0 18px;height:44px;';
+  wrap.innerHTML=`<div class="sr-hoeren-platz"><button class="sr-hoeren">${iconHTML('speaker',28)}Lösung anhören</button></div>
+    <div class="sr-hinweis">Hör dir die Aussprache an und entscheide:</div>
+    <div class="sr-knoepfe"><button class="sr-knopf sr-knopf--ja">${iconHTML('check',28)}Hatte ich richtig</button><button class="sr-knopf sr-knopf--nein">${iconHTML('close',28)}Daneben</button></div>`;
+  const listenBtn=wrap.querySelector('.sr-hoeren');
   listenBtn.onclick=()=>{
     try{ voskStop(); }catch(e){}
     if(window._activeVoskTimeout){ clearTimeout(window._activeVoskTimeout); window._activeVoskTimeout=null; }
@@ -886,29 +896,14 @@ export function showSelfRateButtons() {
     window._spokenForQuestion=true;
     const micBtn=document.getElementById('mic-btn');
     if(micBtn){
-      micBtn.disabled=true;micBtn.onclick=null;micBtn.style.opacity='0.5';
-      micBtn.style.cursor='not-allowed';micBtn.className='mic-btn';micBtn.textContent='🔇 Lösung gehört';
+      micBtn.disabled=true;micBtn.onclick=null;
+      micZustand(micBtn,'gehoert');
     }
   };
-  const hint=document.createElement('div');
-  hint.style.cssText='font:700 11px var(--p-font);color:var(--p-text-2);text-align:center;';
-  hint.textContent='Hör dir die Aussprache an und entscheide:';
-  const btnRow=document.createElement('div');
-  btnRow.style.cssText='display:flex;gap:8px;flex-wrap:wrap;justify-content:center;';
-  const okBtn=document.createElement('button');
-  okBtn.textContent='✓ Hatte ich richtig';
-  okBtn.className='p-dlg-btn';
-  okBtn.style.cssText='flex:none;padding:0 16px;height:44px;background:var(--p-ok);color:var(--p-ink);';
-  okBtn.onclick=()=>selfRate(true);
-  btnRow.appendChild(okBtn);
-  const noBtn=document.createElement('button');
-  noBtn.textContent='✗ Daneben';
-  noBtn.className='p-dlg-btn';
-  noBtn.style.cssText='flex:none;padding:0 16px;height:44px;background:var(--p-falsch);color:var(--p-ink);';
-  noBtn.onclick=()=>selfRate(false);
-  btnRow.appendChild(noBtn);
-  wrap.appendChild(listenBtn);wrap.appendChild(hint);wrap.appendChild(btnRow);
-  card.appendChild(wrap);
+  wrap.querySelector('.sr-knopf--ja').onclick=()=>selfRate(true);
+  wrap.querySelector('.sr-knopf--nein').onclick=()=>selfRate(false);
+  (card.querySelector('.p-fragekarte')||card).appendChild(wrap);
+  document.getElementById('feedback')?.classList.add('is-selbst');
 }
 
 export function retryPronounce() {
@@ -1014,8 +1009,17 @@ export function setMicFinalStatus(ok) {
   const btn=document.getElementById('mic-btn');
   if(!btn) return;
   btn.disabled=true;btn.onclick=null;
-  if(ok){ btn.className='mic-btn done-correct'; btn.textContent='✨ Klasse!'; }
-  else  { btn.className='mic-btn done-wrong';   btn.textContent='💭 Knapp daneben!'; }
+  micZustand(btn, ok?'richtig':'falsch');
+  // Kasten „Gehört" wie 4.9 (mint, Haken ploppt) bzw. 4.10 (rosa, Kreuz, wackelt).
+  const res=document.getElementById('pronounce-result');
+  if(res && res.classList.contains('heard')){
+    res.classList.add(ok?'is-richtig':'is-falsch');
+    const ic=res.querySelector('canvas');
+    if(ic) ic.outerHTML = ok
+      ? iconHTML('check',14).replace('<canvas ','<canvas data-ui="pop" data-c="32" data-d="3" ')
+      : iconHTML('close',14);
+    if(!ok){ res.dataset.c='24'; res.dataset.d='20'; res.dataset.ui='shake'; }
+  }
 }
 
 function handlePronounceCorrect() { handleCorrect(); }

@@ -4157,3 +4157,60 @@ button.p-chip{ cursor:pointer; }
 #end-screen.is-note .stat-label{ font-size:9px; letter-spacing:.11em; color:var(--p-text-akzent); display:block; margin-top:3px; }
 .sp-konfetti{ position:absolute; inset:0; z-index:1; pointer-events:none; overflow:hidden; }
 .sp-konfetti > span{ width:14px; height:17px; border:var(--p-rahmen); border-radius:3px; }
+
+/* Aussprache (4.7–4.10): runder Knopf 104 + Rahmen, lila bereit, rosa beim
+   Zuhören (zwei Ringe), mint bei richtig, wieder lila bei falsch. */
+.mic-rund-platz{ display:flex; justify-content:center; margin-top:26px; }
+.mic-btn, .mic-btn:hover{
+  position:relative; width:108px; height:108px; margin:0; padding:0; flex:none;
+  border:var(--p-rahmen); border-radius:50%; background:var(--p-lila); color:var(--p-ink);
+  display:flex; align-items:center; justify-content:center;
+  box-shadow:none; animation:none; transition:none;
+}
+.mic-btn.recording{ background:var(--p-rosa); box-shadow:none; animation:none; }
+.mic-btn.done-correct{ background:var(--p-ok); box-shadow:none; animation:none; }
+.mic-btn.done-wrong{ background:var(--p-lila); box-shadow:none; animation:none; }
+.mic-btn:disabled{ opacity:1; cursor:default; }
+.mic-btn.is-aus{ opacity:.5; cursor:not-allowed; }
+.mic-ring{ position:absolute; display:none; border:2px solid var(--p-ink); border-radius:50%; pointer-events:none; }
+.mic-ring--1{ inset:-12px; border-style:dashed; }
+.mic-ring--2{ inset:-24px; }
+.mic-btn.recording .mic-ring{ display:block; }
+.mic-label{ font:900 13px var(--p-font); color:var(--p-ink); margin-top:16px; }
+#game-card.mic-hoert .mic-label{ margin-top:30px; }
+/* Pegel: bis zur Antwort auf F-21 der heutige Visualizer, nur beim Zuhören. */
+#viz-canvas{ display:none; margin:10px auto 0; }
+#game-card.mic-pegel #viz-canvas{ display:block; }
+/* Kasten „Gehört": gestrichelt, bei richtig mint, bei falsch rosa. */
+.pronounce-result, .pronounce-result.heard{
+  display:flex; align-items:center; gap:10px; text-align:left;
+  margin:22px 0 0; padding:12px 14px;
+  border:2px dashed var(--p-ink); border-radius:18px; background:var(--p-feld);
+  font:800 12px/1.45 var(--p-font); color:var(--p-ink);
+}
+.pronounce-result.heard.is-richtig{ border-style:solid; background:var(--p-ok); }
+.pronounce-result.heard.is-falsch{ border-style:solid; background:var(--p-falsch); }
+.gehoert-inhalt{ flex:1; min-width:0; }
+.gehoert-lbl{ font:900 9px var(--p-font); letter-spacing:.14em; text-transform:uppercase; color:var(--p-text-akzent); }
+.gehoert-wert{ font:900 16px var(--p-font); margin-top:2px; overflow-wrap:anywhere; }
+.pronounce-result.is-status .gehoert-wert{ font:800 12px/1.45 var(--p-font); margin-top:0; }
+/* Selbstbewertung (4.11). */
+.sr-hoeren-platz{ display:flex; justify-content:center; margin-top:22px; }
+.sr-hoeren{
+  display:inline-flex; align-items:center; gap:9px; height:56px; padding:0 22px;
+  border:var(--p-rahmen); border-radius:18px; background:var(--p-blau);
+  font:900 14px var(--p-font); color:var(--p-ink); cursor:pointer;
+}
+.sr-hinweis{ font:800 12.5px/1.5 var(--p-font); color:var(--p-text-akzent); margin-top:16px; }
+.sr-knoepfe{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:14px; }
+.sr-knopf{
+  height:96px; border:var(--p-rahmen); border-radius:20px;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:9px;
+  font:900 14px var(--p-font); color:var(--p-ink); cursor:pointer;
+}
+.sr-knopf--ja{ background:var(--p-ok); }
+.sr-knopf--nein{ background:var(--p-falsch); }
+.feedback-selbst{ display:none; font:800 12px/1.45 var(--p-font); color:var(--p-ink); }
+#game-screen.ist-aussprache .feedback:not(.show):not(.is-selbst){ display:none; }
+.feedback.is-selbst:not(.show) .feedback-warten{ display:none; }
+.feedback.is-selbst:not(.show) .feedback-selbst{ display:block; }

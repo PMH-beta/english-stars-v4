@@ -3,6 +3,50 @@
 // Shared state (_ttsVoices, _spokenForQuestion, _voskStatus, _voskModel, …)
 // liegt auf window damit Legacy-Code in index.html direkt darauf zugreifen kann.
 import { ensureVosk } from './lazyload.js';
+import { iconHTML } from './pixel-icons.js';
+
+// ── Anzeige der Aussprache (Fragmente 4.7–4.10) ──
+// Der runde Knopf zeigt nur das Mikrofon; sein Zustand steht als Text darunter
+// (#pronounce-tip), die Farbe kommt über die Klasse. Der Kasten „Gehört" zeigt
+// das erkannte Wort (art 'wort') oder eine Meldung (art 'status').
+const _MIC_TEXT = {
+  bereit:  'Tippen und sprechen',
+  hoert:   'Ich höre zu<span class="p-dots" data-ui="dots">…</span>',
+  laedt:   'Bereite vor<span class="p-dots" data-ui="dots">…</span>',
+  nochmal: 'Nochmal',
+  richtig: 'Richtig!',
+  falsch:  'Das klang anders',
+  gehoert: 'Lösung gehört',
+};
+const _MIC_KLASSE = { hoert: 'recording', richtig: 'done-correct', falsch: 'done-wrong', gehoert: 'is-aus' };
+export function micZustand(btn, zustand) {
+  if (btn) {
+    btn.className = 'mic-btn' + (_MIC_KLASSE[zustand] ? ' ' + _MIC_KLASSE[zustand] : '');
+    // Nur wenn der Knopf dran ist, pulsiert er (Aufforderung, 4.7).
+    if (zustand === 'bereit' || zustand === 'nochmal') { btn.dataset.a = '4'; btn.dataset.ui = 'pulse'; }
+    else if (btn.dataset.ui) { delete btn.dataset.ui; btn.style.transform = ''; }
+  }
+  const tip = document.getElementById('pronounce-tip');
+  if (tip) {
+    tip.innerHTML = _MIC_TEXT[zustand] || '';
+    if (zustand === 'richtig') { tip.dataset.c = '32'; tip.dataset.d = '1'; tip.dataset.ui = 'pop'; }
+    else if (tip.dataset.ui) { delete tip.dataset.ui; tip.style.transform = ''; tip.style.opacity = ''; }
+  }
+  const karte = document.getElementById('game-card');
+  if (karte) {
+    karte.classList.toggle('mic-hoert', zustand === 'hoert');
+    karte.classList.toggle('mic-pegel', zustand === 'hoert' || zustand === 'laedt');
+  }
+}
+export function gehoert(el, text, art = 'wort') {
+  if (!el) return;
+  const esc = window.escHtml || ((s) => String(s));
+  el.style.display = '';
+  el.className = 'pronounce-result' + (art === 'wort' ? ' heard' : ' is-status');
+  el.innerHTML = iconHTML('speaker', 14) + '<div class="gehoert-inhalt">'
+    + (art === 'wort' ? '<div class="gehoert-lbl">Gehört</div>' : '')
+    + '<div class="gehoert-wert">' + esc(text) + '</div></div>';
+}
 
 let _ttsReady = false;
 let _ttsWarmupDone = false;
@@ -585,18 +629,16 @@ export function startRecording() {
   _ensureAudioCtx();
 
   function resetBtn() {
-    if (btn) { btn.className = 'mic-btn'; btn.disabled = false; btn.textContent = '🎙️ Nochmal'; btn.onclick = window.startRecording; }
+    if (btn) { micZustand(btn, 'nochmal'); btn.disabled = false; btn.onclick = window.startRecording; }
   }
   function showFinalBtn(ok) {
     if (!btn) return;
     btn.disabled = true;
     btn.onclick = null;
     if (ok) {
-      btn.className = 'mic-btn done-correct';
-      btn.textContent = '✨ Klasse!';
+      micZustand(btn, 'richtig');
     } else {
-      btn.className = 'mic-btn done-wrong';
-      btn.textContent = '💭 Knapp daneben!';
+      micZustand(btn, 'falsch');
     }
   }
   function clearTG() {
@@ -610,14 +652,12 @@ export function startRecording() {
       if (!window.answered) {
         clearTG(); stopVisualizer();
         if (typeof _bestAlts !== 'undefined' && _bestAlts.length > 0) {
-          result.style.display = 'block'; result.className = 'pronounce-result heard';
-          result.textContent = '🗣️ Erkannt: "' + _bestAlts[0] + '"';
+          gehoert(result, _bestAlts[0], 'wort');
           resetBtn();
           window.evaluateWithClaude(_bestAlts.join('|'), window.currentQ.answer);
         } else {
           try { releaseMicStream(); } catch(e) {}
-          result.style.display = 'block'; result.className = 'pronounce-result heard';
-          result.textContent = '⏱️ Nichts erkannt';
+          gehoert(result, 'Nichts erkannt', 'status');
           resetBtn();
           window._webSpeechFailed = true;
           console.log('[Recording] Web Speech: kein Resultat → bei nächstem Versuch Vosk');
@@ -628,15 +668,13 @@ export function startRecording() {
   }
 
   if (!navigator.mediaDevices) {
-    result.style.display = 'block'; result.className = 'pronounce-result';
-    result.textContent = '❌ Mikrofon nicht verfügbar. Bitte Chrome verwenden.';
+    gehoert(result, 'Mikrofon nicht verfügbar. Bitte Chrome verwenden.', 'status');
     return;
   }
 
   ensureMicStream().then(async stream => {
     if (!stream && !_isIOS()) {
-      result.style.display = 'block'; result.className = 'pronounce-result';
-      result.textContent = '❌ Mikrofon-Zugriff verweigert. Bitte in den Browser-Einstellungen erlauben.';
+      gehoert(result, 'Mikrofon-Zugriff verweigert. Bitte in den Browser-Einstellungen erlauben.', 'status');
       return;
     }
 
@@ -654,7 +692,8 @@ export function startRecording() {
     }
 
     startVisualizer(stream);
-    btn.className = 'mic-btn recording'; btn.textContent = '⏹️ Stopp';
+    micZustand(btn, 'hoert');
+    gehoert(result, '…', 'wort');
 
     if (SpeechRec) {
       const targetWord = window.currentQ.answer;
@@ -680,8 +719,7 @@ export function startRecording() {
         }
         _lastAlts = alts;
         if (alts.length > 0) {
-          result.style.display = 'block'; result.className = 'pronounce-result heard';
-          result.textContent = '🗣️ Erkannt: "' + alts[0] + '"';
+          gehoert(result, alts[0], 'wort');
         }
         const tLow = targetWord.toLowerCase().replace(/^to /, '').trim();
         const match = alts.some(a => a === tLow || a.split(' ').includes(tLow));
@@ -703,24 +741,20 @@ export function startRecording() {
         _activeSR = null; // zuerst nullen, damit releaseMicStream kein abort() mehr macht
         clearTG(); stopVisualizer(); resetBtn();
         if (e.error === 'not-allowed') {
-          result.style.display = 'block'; result.className = 'pronounce-result';
-          result.textContent = '❌ Mikrofon-Zugriff verweigert. Bitte in den Browser-Einstellungen erlauben.';
+          gehoert(result, 'Mikrofon-Zugriff verweigert. Bitte in den Browser-Einstellungen erlauben.', 'status');
         } else if (e.error === 'network' || e.error === 'service-not-allowed') {
           window._webSpeechFailed = true;
-          result.style.display = 'block'; result.className = 'pronounce-result';
-          result.innerHTML = '⏳ Lade Offline-Spracherkennung…<br><small style="opacity:.8">(beim ersten Mal ~40 MB Download, danach offline)</small>';
+          gehoert(result, 'Lade Offline-Spracherkennung … (beim ersten Mal ~40 MB Download, danach offline)', 'status');
           startVoskRecognition(targetWord, result, btn);
         } else if (e.error === 'no-speech') {
           window._webSpeechFailed = true;
           clearTG(); stopVisualizer(); resetBtn();
-          result.style.display = 'block'; result.className = 'pronounce-result heard';
-          result.textContent = '🤷 Nichts gehört';
+          gehoert(result, 'Nichts gehört', 'status');
           window.showSelfRateButtons();
         } else {
           window._webSpeechFailed = true;
           clearTG(); stopVisualizer(); resetBtn();
-          result.style.display = 'block'; result.className = 'pronounce-result heard';
-          result.textContent = '🤷 Nichts erkannt (' + e.error + ')';
+          gehoert(result, 'Nichts erkannt (' + e.error + ')', 'status');
           window.showSelfRateButtons();
         }
       };
@@ -735,8 +769,7 @@ export function startRecording() {
             window.evaluateWithClaude(_lastAlts.join('|'), targetWord);
           } else {
             resetBtn();
-            result.style.display = 'block'; result.className = 'pronounce-result heard';
-            result.textContent = '🤷 Nichts erkannt';
+            gehoert(result, 'Nichts erkannt', 'status');
             window._webSpeechFailed = true;
             console.log('[Recording] Web Speech onend: kein Resultat → bei nächstem Versuch Vosk');
             window.showSelfRateButtons();
@@ -747,8 +780,7 @@ export function startRecording() {
       setTG();
       try { sr.start(); } catch(e) { console.error('[startRecording] sr.start error:', e); resetBtn(); stopVisualizer(); }
     } else {
-      result.style.display = 'block'; result.className = 'pronounce-result';
-      result.innerHTML = '⏳ Lade Offline-Spracherkennung…<br><small style="opacity:.8">(beim ersten Mal ~40 MB Download, danach offline)</small>';
+      gehoert(result, 'Lade Offline-Spracherkennung … (beim ersten Mal ~40 MB Download, danach offline)', 'status');
       startVoskRecognition(window.currentQ.answer, result, btn);
     }
   });
@@ -763,10 +795,9 @@ export function startVoskRecognition(targetWord, resultEl, btn) {
       try { window._voskLoad && window._voskLoad(); } catch(e) {}
     }
     if (resultEl) {
-      resultEl.style.display = 'block'; resultEl.className = 'pronounce-result';
-      resultEl.textContent = '⏳ Spracherkennung lädt – einen Moment, dann sprechen…';
+      gehoert(resultEl, 'Spracherkennung lädt – einen Moment, dann sprechen …', 'status');
     }
-    if (btn) { btn.disabled = true; btn.className = 'mic-btn'; btn.textContent = '⏳ Bereite vor…'; }
+    if (btn) { btn.disabled = true; micZustand(btn, 'laedt'); }
     // Generischer Mic-Visualizer SOFORT (modell-unabhängig) → es fühlt sich flüssig an
     // wie früher, statt dass bis zum Vollladen nichts passiert. AudioContext synchron
     // in der User-Geste anlegen; Übergabe an die echte Vosk-Erkennung sobald bereit.
@@ -794,8 +825,8 @@ export function startVoskRecognition(targetWord, resultEl, btn) {
         _beginVosk(targetWord, resultEl, btn);
       } else if (window._voskStatus === 'failed' || Date.now() - _waitStart > 90000) {
         _stopPreview();
-        if (btn) { btn.disabled = false; btn.className = 'mic-btn'; btn.textContent = '🎙️ Nochmal'; btn.onclick = window.startRecording; }
-        if (resultEl) { resultEl.style.display = 'block'; resultEl.className = 'pronounce-result'; resultEl.textContent = '⚠️ Spracherkennung nicht verfügbar'; }
+        if (btn) { btn.disabled = false; micZustand(btn, 'nochmal'); btn.onclick = window.startRecording; }
+        if (resultEl) gehoert(resultEl, 'Spracherkennung nicht verfügbar', 'status');
         try { window.showSelfRateButtons && window.showSelfRateButtons(); } catch(e) {}
       }
     }, 300);
@@ -814,23 +845,21 @@ function _beginVosk(targetWord, resultEl, btn) {
     window._activeVoskTimeout = null;
     voskStop();
     if (btn && !btn.disabled) {
-      btn.className = 'mic-btn'; btn.textContent = '🎙️ Nochmal'; btn.onclick = window.startRecording;
+      micZustand(btn, 'nochmal'); btn.onclick = window.startRecording;
     }
     if (_voskAlts.length > 0) {
       document.getElementById('self-rate-wrap')?.remove();
       window.evaluateWithClaude(_voskAlts.join('|'), targetWord);
     } else {
-      resultEl.style.display = 'block'; resultEl.className = 'pronounce-result heard';
-      resultEl.textContent = '🤷 Nichts erkannt';
+      gehoert(resultEl, 'Nichts erkannt', 'status');
       window.showSelfRateButtons();
     }
   }
   try { releaseMicStream(); } catch(e) {}
   try { stopVisualizer(); } catch(e) {}
-  resultEl.style.display = 'block'; resultEl.className = 'pronounce-result';
-  resultEl.textContent = '🎤 Sprich jetzt…';
+  gehoert(resultEl, '…', 'wort');
   if (btn) {
-    btn.className = 'mic-btn recording'; btn.textContent = '⏹️ Stopp';
+    micZustand(btn, 'hoert');
     btn.disabled = false;
     btn.style.opacity = '';
     btn.style.cursor = '';
@@ -841,8 +870,7 @@ function _beginVosk(targetWord, resultEl, btn) {
     const clean = text.toLowerCase().trim().replace(/[.,!?;:"]/g, '');
     if (!clean) return;
     if (_voskAlts.indexOf(clean) < 0) _voskAlts.push(clean);
-    resultEl.style.display = 'block'; resultEl.className = 'pronounce-result heard';
-    resultEl.textContent = '🗣️ Erkannt: "' + clean + '"';
+    gehoert(resultEl, clean, 'wort');
     const tLow = targetWord.toLowerCase().replace(/^to /, '').trim();
     if (clean === tLow || clean.split(' ').includes(tLow)) {
       finishVosk();
@@ -851,9 +879,8 @@ function _beginVosk(targetWord, resultEl, btn) {
     }
   }, (err) => {
     voskStop();
-    if (btn && !btn.disabled) { btn.className = 'mic-btn'; btn.textContent = '🎙️ Nochmal'; btn.onclick = window.startRecording; }
-    resultEl.style.display = 'block'; resultEl.className = 'pronounce-result';
-    resultEl.textContent = '⚠️ Offline-Erkennung fehlgeschlagen';
+    if (btn && !btn.disabled) { micZustand(btn, 'nochmal'); btn.onclick = window.startRecording; }
+    gehoert(resultEl, 'Offline-Erkennung fehlgeschlagen', 'status');
     window.showSelfRateButtons();
   });
   _voskTimeout = setTimeout(() => finishVosk(), 6000);
