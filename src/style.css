@@ -2077,10 +2077,14 @@ body.p-app{
 }
 
 /* ── Startbildschirm ─────────────────────────────────────────────────────── */
+/* Außenmaß: 18 + Rahmen (Fragment 1.1). */
 .p-ladebalken{
-  height:18px; border:var(--p-rahmen); border-radius:10px; background:var(--p-karte); overflow:hidden;
+  height:22px; border:var(--p-rahmen); border-radius:10px; background:var(--p-karte); overflow:hidden;
 }
-.p-ladebalken > i{ display:block; height:100%; width:0; background:var(--p-ink); transition:width .4s ease; }
+/* Ladend zeigt 1.1 nur Logo, Wortmarke, Balken mit Prozent und Version — die
+   Schritt-Texte aus startup.js (setProgress) bleiben unsichtbar. */
+#loading-status, #loading-hint{ display:none; }
+.p-ladebalken > i{ display:block; height:100%; width:0; background:var(--p-ink); }   /* springt in harten Stufen (9.7) */
 .p-ladepct{ font:900 20px var(--p-font); color:var(--p-ink); margin-top:10px; }
 .p-ladetext{ font:700 11px var(--p-font); color:var(--p-text-akzent); min-height:16px; }
 /* Version am unteren Rand — im Entwurf auf jedem Auth-Screen. */
