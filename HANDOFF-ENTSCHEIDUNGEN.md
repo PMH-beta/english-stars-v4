@@ -55,6 +55,8 @@ Avatare dürfen bei einer Migration verloren gehen. Kein Umbau darf `SD.decks`,
 | F-32 | Versionsnummer unten im Menü (kein Fragment zeigt sie dort; sie liegt über der letzten Karte) | Phase 7, Bereich 2 |
 | F-33 | 6.6 Schatz: erst auswählen (Haken), dann „Nehmen“ — heute nimmt ein Tipp den Trank sofort | Phase 7, Bereich 6 |
 | F-34 | 6.6 Zeittrank „+5 Sekunden in jedem Minispiel“ — heute „+5 s für 3 Wellen“ | Phase 7, Bereich 6 |
+| F-35 | 7.16 Boss besiegt: Knopf „Zur Kampagne“ (heute startet „Neue Runde starten“ sofort den nächsten Lauf); Chip „+1 Taler“ fehlt im Entwurf | Phase 7, Bereich 7 |
+| F-36 | 7.15 zeigt keine Wellen mehr — F-13 („N Wellen gewonnen“) aufheben? | Phase 7, Bereich 7 |
 
 ## Ohne Rückfrage entschieden (Aussehen) — Phase 7
 
@@ -72,3 +74,8 @@ Avatare dürfen bei einer Migration verloren gehen. Kein Umbau darf `SD.decks`,
 | Krafttrank | Farbe fehlt im Entwurf: Pfirsich (Vorschlag). | 29.09.2026 |
 | 6.8 Trank-Info | Blase hängt unter dem Trank (rechts neben der Kopfkarte ist kein Platz), Zipfel nach oben. | 29.09.2026 |
 | 6.4 zu wenig Taler | bei 2 fehlenden Talern Mehrzahl: „Dir fehlen 2 Taler — schließ 2 Übungsarten auf 100 % ab.“ | 29.09.2026 |
+| 7.x Meteoriten | fallen in harten 8-fps-Stufen statt per CSS-Übergang (Regel 6: keine Übergänge auf Sprites); Fallzeit gleich. | 29.09.2026 |
+| 7.x Treiben | Buchstaben und Echo-Wörter treiben weiter wie bisher (Spielmechanik); das Fragment zeigt sie still. | 29.09.2026 |
+| 7.6 „Richtig · Wort“ | nach jeder gelösten Welle mit einem Wort (Sturm, Meteoriten, Echo), nicht bei Richtig/Falsch. | 29.09.2026 |
+| 7.16 Text | „{Bossname} ist gefallen — Lauf geschafft.“ ohne Artikel (Namen haben verschiedene Geschlechter). | 29.09.2026 |
+| N41 Lage | Schutz-Meldung links über dem Helden, 1,6 s; der Entwurf zeigt nur die Karte, nicht die Lage. | 29.09.2026 |
