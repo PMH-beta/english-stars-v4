@@ -1558,13 +1558,15 @@ function _forgeItem(m, which) {
   const state = done ? 'done' : (open ? 'active' : 'locked');
   const tap = open ? ` data-forge="${m.c.idx}:${which}"` : '';
   // Balken bezieht sich auf das aktuelle Teil: Disziplin-Name + % gemeisterter Verben.
+  // Beschriftung wie 5.1: Pixel-Symbol + Name in Versalien (CSS).
+  const DISZ_ICON = { erkennen: 'target', schmieden: 'hammer', verzaubern: 'wand' };
   let label, pct, showPct = true;
-  if (done) { label = `✓ ${ob.name} fertig`; pct = 100; showPct = false; }
+  if (done) { label = `${ob.name} fertig`; pct = 100; showPct = false; }
   else if (nextI >= 0) {
-    const s = steps[nextI], fs = FORGE_DISC[s.discipline] || { icon: '•', name: s.discipline };
+    const s = steps[nextI], fs = FORGE_DISC[s.discipline] || { name: s.discipline };
     pct = s.prog && s.prog.total ? Math.min(100, Math.round((s.prog.score / s.prog.total) * 100)) : 0;
-    label = `${fs.icon} ${fs.name}`;
-  } else { label = '🔒 erst die Station davor'; pct = 0; showPct = false; }
+    label = (DISZ_ICON[s.discipline] ? iconHTML(DISZ_ICON[s.discipline], 14) : '') + fs.name;
+  } else { label = iconHTML('lock', 14) + 'erst die Station davor'; pct = 0; showPct = false; }
   return `<div class="forge-weapon-wrap">
     <div class="fw-name">${mt.mat}-${ob.name}</div>
     <div class="forge-weapon ${which} ${state}"${tap} data-stage="${litN}" data-steps="${steps.length}">
@@ -1588,7 +1590,7 @@ function _forgeWords(m) {
       + `<span class="fw-p${pd ? ' done' : ''}">⏱ ${w.past.mastered}/${w.past.total}</span>`
       + `<span class="fw-g${ppd ? ' done' : ''}">✓ ${w.pp.mastered}/${w.pp.total}</span></span>`;
   }).join('');
-  return `<details class="forge-words"><summary>📖 Wörter anzeigen</summary><div class="fw-grid">${chips}</div></details>`;
+  return `<details class="forge-words"><summary>${iconHTML('book', 14)}Wörter anzeigen</summary><div class="fw-grid">${chips}</div></details>`;
 }
 
 // Slider: eine Zeitform pro Ansicht (Stahl-Past ↔ Gold-PP), wischen/Punkte/Pfeile.
@@ -1617,11 +1619,15 @@ function _forgeSlider(m) {
 // und Gold-PP; gesperrt → eine statische Vorschau. Plus Aktiv-Steuerung + Wörter.
 function _forgeStation(m) {
   const body = m.unlocked ? _forgeSlider(m) : _forgeItem(m, 'past');
+  // Kopf wie 5.1: „Stahl-Dolch", darunter die Form; der Slider schaltet beides
+  // auf „Gold-… · Past Participle" um (_showChrome). Rechts bleibt Löschen (F-08).
+  const ob = forgeObject(m.c.idx, 'past');
   return `<div class="forge-station${m.unlocked ? '' : ' locked'}${m.complete ? ' complete' : ''}">
     <div class="forge-head">
-      ${iconHTML('hammer', 28)}
-      <span class="forge-title">${_auftragName(m.c.idx)}</span>
-      ${m.complete ? iconHTML('star', 14) : ''}
+      <div class="p-wachs">
+        <div class="forge-title" data-obj="${window.escHtml(ob.name)}">${FORGE_MAT.past.mat}-${window.escHtml(ob.name)}</div>
+        <div class="forge-form">${iconHTML('hourglass', 14)}<span>Simple Past</span></div>
+      </div>
       <button class="forge-del" onclick="uvDeleteStation(${m.c.idx})" title="Auftrag löschen" aria-label="Auftrag löschen">${iconHTML('trash', 14)}</button>
     </div>
     ${body}
@@ -1724,6 +1730,12 @@ function _showChrome(track, form) {
     now.textContent = (isPast ? FORM_THEME.past : FORM_THEME.pp).label;
     now.classList.toggle('past', isPast); now.classList.toggle('pp', !isPast);
   }
+  // Kopf der Station (5.1) folgt der gezeigten Form.
+  const st = wrap.closest('.forge-station');
+  const titel = st && st.querySelector('.forge-title');
+  if (titel) titel.textContent = (isPast ? FORGE_MAT.past.mat : FORGE_MAT.pp.mat) + '-' + (titel.dataset.obj || '');
+  const formEl = st && st.querySelector('.forge-form span');
+  if (formEl) formEl.textContent = isPast ? 'Simple Past' : 'Past Participle';
   wrap.querySelectorAll('.uv-dot').forEach((d, i) => d.classList.toggle('active', i === form));
 }
 function _updateSliderChrome(track) { _showChrome(track, _curForm(track)); }

@@ -4458,3 +4458,57 @@ button.p-chip{ cursor:pointer; }
 .order-tile.wrong{ background:var(--p-falsch); }
 .p-fragekarte #order-check{ margin-top:18px; }
 .p-fragekarte .order-tray.letters + #order-check{ margin-top:20px; }
+
+/* ══ SCHMIEDE nach Fragment 5.1 (Phase 7, Bereich 5) ════════════════════════
+   Kopf, Werte-Kacheln, Stationskarten. „Werkstoff wählen“ und das Löschen
+   bleiben bis F-08, der Info-Knopf je Station kommt mit F-09. */
+.forge-kopfzeile{ gap:10px; }
+.forge-h1{ flex:1; font:900 21px var(--p-font); }
+/* Info-Kreis 30 + Rahmen. */
+.forge-info{ width:34px; height:34px; font:900 14px var(--p-font); }
+/* Werte-Kacheln: flieder, „Noch frei“ gold. */
+.forge .p-kacheln{ display:flex; gap:9px; margin:12px 0 0; }
+.forge .p-wertkachel{
+  flex:1; border:var(--p-rahmen); border-radius:18px; background:var(--p-lila);
+  padding:12px 8px; text-align:center;
+}
+.forge .p-wertkachel.p-ton-amber{ background:var(--p-gold); }
+.forge .p-wertkachel-zahl{ font:900 22px var(--p-font); }
+.forge .p-wertkachel-lbl{ font:800 9px var(--p-font); letter-spacing:.1em; text-transform:uppercase; color:var(--p-text-akzent); margin-top:2px; }
+/* Stationskarte. */
+.forge-station{ margin:12px 0 0; padding:14px; border-radius:24px; background:var(--p-karte); }
+.forge-station.complete{ background:var(--p-karte); }
+.forge-head{ align-items:center; gap:10px; margin:0; }
+.forge-title{ font:900 16px/1.2 var(--p-font); }
+.forge-form{ display:flex; align-items:center; gap:6px; margin-top:3px; font:700 11px var(--p-font); color:var(--p-text-2); }
+.forge .fw-name, .forge .cst-form-now{ display:none; }
+.forge .cst-slider-wrap{ margin-top:10px; }
+.forge .cst-slider{ gap:10px; }
+.forge .cst-slider-view{ max-width:none; }
+/* Pfeile mittig zum Werkstück-Rahmen (180 hoch), nicht zur ganzen Seite. */
+.forge .cst-slider{ align-items:flex-start; }
+.forge .cst-arrow{ padding:0; margin-top:78.5px; font:900 17px var(--p-font); color:var(--p-text-2); }
+.forge-weapon-wrap{ gap:0; padding:0; align-items:stretch; }
+/* Werkstück-Rahmen 176 + Rahmen. */
+.forge-weapon{ width:100%; max-width:none; height:180px; border-radius:20px; }
+.fw-step{ max-width:none; margin:12px 0 0; }
+.fw-step-top{ margin:0; }
+.fw-step-name{
+  display:inline-flex; align-items:center; gap:7px;
+  font:900 9px var(--p-font); letter-spacing:.14em; text-transform:uppercase; color:var(--p-text-akzent);
+}
+.fw-step-pct{ font:900 13px var(--p-font); }
+/* Balken 12 + Rahmen, Stahl in Stahlgrau. */
+.fw-bar{ height:16px; border-radius:7px; margin-top:7px; }
+.fw-bar-fill{ transition:none; }
+.forge .cst-dots{ gap:8px; margin-top:11px; align-items:flex-start; }
+.forge .uv-dot{ width:13px; height:13px; border:2px solid var(--p-ink); background:none; transform:none; }
+.forge .uv-dot.active{ width:9px; height:9px; border:0; background:var(--p-ink); transform:none; }
+/* Wörter anzeigen: Chip mit Buch und Pfeil. */
+.forge-words{ margin-top:12px; text-align:center; }
+.forge-words summary{
+  gap:8px; padding:10px 16px; border-radius:15px; background:var(--p-karte-hell); font:800 12px var(--p-font);
+}
+.forge-words summary::-webkit-details-marker{ display:none; }
+/* Der Pfeil „▾“ (9 px) kommt aus ::after und dreht sich beim Öffnen ohne Übergang. */
+.forge-words summary::after{ font-size:9px; transition:none; }

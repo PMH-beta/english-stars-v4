@@ -53,7 +53,9 @@ die Auslieferung keine Rolle spielt.
 | 7 · Kampf | 7.4–7.17 fertig (`473fe97`), dazu 6.8 Schutz-Meldungen. Offen: F-35, F-36. |
 | 1 · Start & Anmeldung | 1.1–1.8 fertig (`0adb484`, `0d76958`). Offen: 1.5 „Erneut senden“ (F-37), 1.1 Reihenfolge (F-38); 1.9/1.10 hängen an F-15. |
 | 3 · Verwalten | 3.1–3.5 und 3.7 fertig, dazu die Statistik-Seiten aus dem Menü und die drei Dialoge des Ablaufs. 3.6 nur Kopf, Karten und Knöpfe — Zeilen, „Neu scannen“, „+ Wort manuell ergänzen“ und die Kopfzeile hängen an F-39–F-42. Offen außerdem F-17 (3.5 nie gezeigt), F-43 (Liste unter „Hinzufügen“), F-44 (Zurück im Entwurf). |
-| 4, 5, 8, 9 | warten auf die Fragen je Bereich |
+| 4 · Üben | 4.1–4.14 fertig (`7b0e77d`, `393cd9c`). Offen: F-45 (Schnellmodus im Spiel), F-46 („Los“ statt 2 s), F-47 (Probetest-Zeile), F-48 („Nochmal versuchen“), F-49 (Mikrofon bei Selbstbewertung), Pegel F-21. |
+| 5 · Formen | Trainingsplatz 5.1/5.3–5.5, Befüllen 5.12 (`de60118`), Spiele 5.6–5.11 (`e2b4c07`), Stationskarte 5.1. Offen: F-08 („Wörter befüllen“, Raster „Noch nicht begonnen“, kein Löschen), F-09 (Info je Station, 5.2), F-50 (Einklappen), F-51 (Grundform als Vorgabe), F-52 (Durchstreichen), F-53 (Tipp-Knopf), F-54 (Info-Text 5.13); F-19 neu bewertet (beide Spielformen gibt es). |
+| 8, 9 | warten auf die Fragen je Bereich |
 
 **Abnahme je Screen:** Referenz-DOM und App-DOM werden vermessen und abgeglichen
 (headless Chrome). Die Referenz rechnet ohne `box-sizing` — im CSS stehen
