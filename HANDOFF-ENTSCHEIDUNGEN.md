@@ -53,6 +53,8 @@ Avatare dürfen bei einer Migration verloren gehen. Kein Umbau darf `SD.decks`,
 | F-30 | 2.10 Text „bringt keine Taler“ — heute schaltet eine Schnellrunde Taler frei (getestet: `d1\|mc`) | Phase 7, Bereich 2 |
 | F-31 | 2.11 Menü im Schnellmodus: Probetest und „+ Neue“ weg, Karten ohne Datum/Chips/Pfeil, Chip „Schnellmodus“ im Banner | Phase 7, Bereich 2 |
 | F-32 | Versionsnummer unten im Menü (kein Fragment zeigt sie dort; sie liegt über der letzten Karte) | Phase 7, Bereich 2 |
+| F-33 | 6.6 Schatz: erst auswählen (Haken), dann „Nehmen“ — heute nimmt ein Tipp den Trank sofort | Phase 7, Bereich 6 |
+| F-34 | 6.6 Zeittrank „+5 Sekunden in jedem Minispiel“ — heute „+5 s für 3 Wellen“ | Phase 7, Bereich 6 |
 
 ## Ohne Rückfrage entschieden (Aussehen) — Phase 7
 
@@ -64,3 +66,9 @@ Avatare dürfen bei einer Migration verloren gehen. Kein Umbau darf `SD.decks`,
 | 2.4 Karte „Farben“ | Im Fragment liegt ihr Balken außerhalb der Karte (Markup-Fehler). Gebaut wie 2.3. | 29.09.2026 |
 | Dialoge | senkrecht mittig. Im Entwurf je Dialog anders (2.12 rund 130 px höher, 2.7 knapp mittig). | 29.09.2026 |
 | 2.6 offen ohne Verlauf | Tintenkasten mit hellem Pfeil wie 2.6 (Zustand fehlt im Entwurf). | 29.09.2026 |
+| 6.2–6.5 Vorschau | feste kleine Beispielkarte wie im Fragment statt der vollen Zufallskarte; sie ist nicht spielbar. | 29.09.2026 |
+| 6.1 Portal-Knoten | flieder (einzige Angabe: Vorschau 6.2). | 29.09.2026 |
+| 6.1 Boss | immer in Farbe mit Goldring und schwebender Krone, wie im Fragment — auch wenn er noch nicht erreichbar ist. | 29.09.2026 |
+| Krafttrank | Farbe fehlt im Entwurf: Pfirsich (Vorschlag). | 29.09.2026 |
+| 6.8 Trank-Info | Blase hängt unter dem Trank (rechts neben der Kopfkarte ist kein Platz), Zipfel nach oben. | 29.09.2026 |
+| 6.4 zu wenig Taler | bei 2 fehlenden Talern Mehrzahl: „Dir fehlen 2 Taler — schließ 2 Übungsarten auf 100 % ab.“ | 29.09.2026 |

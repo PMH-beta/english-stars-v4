@@ -49,7 +49,8 @@ die Auslieferung keine Rolle spielt.
 | Bereich | Stand |
 | --- | --- |
 | 2 · Hauptmenü | 2.1–2.9 und 2.12 fertig (`d6f12e0`, `cf916b7`). Offen: 2.5 Ausblenden beim Sortieren (F-28), 2.10/2.11 Schnellmodus (F-29–F-31), Versionsnummer (F-32). |
-| 6 · Kampagne, 7 · Kampf | fragefrei, als Nächstes |
+| 6 · Kampagne | 6.1–6.7 fertig (`358143b`). Offen: 6.6 „Nehmen“ (F-33), Zeittrank-Text (F-34); 6.8 Schutz-Meldungen kommen mit Bereich 7. |
+| 7 · Kampf | als Nächstes |
 | 1, 3, 4, 5, 8, 9 | warten auf die Fragen je Bereich |
 
 **Abnahme je Screen:** Referenz-DOM und App-DOM werden vermessen und abgeglichen
