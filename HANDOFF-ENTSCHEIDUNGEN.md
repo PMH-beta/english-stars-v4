@@ -31,54 +31,55 @@ Avatare dürfen bei einer Migration verloren gehen. Kein Umbau darf `SD.decks`,
 | F-13 | 7.15/7.16 zeigen Punkte je Welle | **C — Wellen zählen statt Punkte.** Der Sieg-Screen zeigt „N Wellen gewonnen" aus `run.fight.wave`. Keine neue Spielregel, kein neues Feld. | 6 | 29.09.2026 |
 | F-27 | Rastplatz-Screen 6.7 gibt es heute nicht | **A — Screen bauen.** Kampfplatz „abend", Lagerfeuer in 8 fps, Lebensleiste mit dem Zugewinn, Knopf „Weiter". Die Heilung bleibt exakt REST_HEAL und gedeckelt. | 5 | 29.09.2026 |
 | — | Neuen Handoff-Stand committen | **Ja**, eigener Commit `12f94b6` (Unterlagen + `CLAUDE.md`, kein App-Code). | — | 28.09.2026 |
+| F-25 | 8.2 Freund-Fortschritt ohne Wörter | **Keine Wörter, kein Hinweis.** In der Freund-Ansicht lassen sich die Karten nicht aufklappen; der Privat-Hinweis aus 8.2 entfällt. Die RPC liefert die Wörter weiter und der Code für die Wortlisten bleibt erhalten — der Nutzer plant evtl. eine Eltern-Funktion, die ihn braucht. | 7 | 29.09.2026 |
+| F-56 | 8.3 fertige Karten aufklappbar? | **B — aufklappbar wie heute** (Pfeil neben „erledigt“). | 7 | 29.09.2026 |
+| F-57 | 8.1 Antippen = anlegen | **A — ein Tipp legt an**, Hinweis „Antippen = anlegen“ kommt dazu. Zusätzlich: die Kachel zeigt danach den NEUEN Wert, der Chip die Änderung gegenüber vorher (bisher stand nur der Chip, z. B. „+3“, am alten Wert). | 7 | 29.09.2026 |
+| F-58 | 8.1 Kachel „Gefährte“ | **B — Zahl wie heute** („1×“ / „—“). | 7 | 29.09.2026 |
+| F-14 | App-Tour 1.11–1.15 | **A — automatisch + Profil-Knopf.** Genau einmal nach der Charakter-Erstellung; neues Feld `tourSeen` (Bestandskonten bekommen true, muss in die sync-Whitelist); „App-Tour ansehen“ im Profil; Demo-Stand ohne echte Daten. Phase 7b. | 7b | 29.09.2026 |
+| F-15 | Erster Start: 7 Reiter | **A — 7 Reiter** (Frisur, Haut, Augen, Mund, Oberteil, Hose, Statur; Farben im jeweiligen Reiter), im Profil 8 (+ Gefährte). | 7 | 29.09.2026 |
+| F-16 | Charakter-Editor: Zurück / Speichern | **A — wie im Entwurf.** „Speichern“ übernimmt; Zurück verwirft, bei ungespeicherten Änderungen Rückfrage 8.12. commitAvatar darf beim Verwerfen nicht laufen. | 7 | 29.09.2026 |
+| F-20 | 9.2 „App installieren“ | **B — Popup beim 3. Start, Zähler nur lokal** (localStorage, nicht in der Cloud). | 7 | 29.09.2026 |
+| F-28 | 2.5 Ausblenden beim Sortieren | **B — stehen lassen** (wie heute), sonst springt die Liste unter dem Finger. | 7 | 29.09.2026 |
+| F-29 | 2.10 Rückfrage vor dem Schnellmodus | **A — erst fragen** („Abbrechen“ / „Einschalten“), danach kein zusätzlicher OK-Hinweis. | 7 | 29.09.2026 |
+| F-30 | 2.10 „bringt keine Taler“ | **A — im Schnellmodus keine Taler.** Schon eingelöste Taler bleiben. | 7 | 29.09.2026 |
+| F-31 | 2.11 Menü im Schnellmodus | **B — nur Aussehen:** Chip „Schnellmodus“ im Banner, schlanke Karten; Probetest und „+ Neue“ bleiben erreichbar. | 7 | 29.09.2026 |
+| F-32 | Versionsnummer im Menü | **C — wie heute** (fest unten mittig). | 7 | 29.09.2026 |
+| F-45 | 4.5 Spiel im Schnellmodus | **A — wie im Entwurf:** Chip „Schnellmodus“ unter dem Titel, statt Warte-Kasten und Fortschrittskarte der Hinweis „Schnellmodus — zählt nicht in die Statistik“. | 7 | 29.09.2026 |
+| F-37 | 1.5 „Erneut senden“ | **B — weglassen** (wie heute). | 7 | 29.09.2026 |
+| F-38 | 1.1 Reihenfolge Start | **B — wie heute:** erst „Los geht's“, dann der Ladebalken (iOS-Freigabe von Ton/Mikrofon im Tipp). | 7 | 29.09.2026 |
+| F-17 | 3.5 „Kein Key nötig“ | **Stillgelegt lassen.** Der Scan läuft mit Tesseract im Browser ohne Schlüssel; Screen und Key-Code kommen in Phase 8 weg. | 7 / 8 | 29.09.2026 |
+| F-39 | 3.6 Zeilen | **B — wie heute:** zwei Eingabefelder je Zeile, direkt änderbar (im neuen Aussehen). | 7 | 29.09.2026 |
+| F-40 | 3.6 „Neu scannen“ | **A — Knopf oben rechts:** verwirft die noch nicht gespeicherte Liste und öffnet sofort wieder die Kamera. | 7 | 29.09.2026 |
+| F-41 | 3.6 „+ Wort manuell ergänzen“ | **A — einbauen:** neue leere Zeile unter der Liste (behebt die Sackgasse nach einem Fehlscan). | 7 | 29.09.2026 |
+| F-42 | 3.6 Kopfzeile | **C — kurz + Dubletten grau:** Kopfzeile „3 erkannt“ wie im Entwurf, bereits vorhandene Wörter bleiben grau markiert. | 7 | 29.09.2026 |
+| F-43 | 3.1 Liste unter „Hinzufügen“ | **B — wie heute:** die Wörter stehen im Reiter „Liste“. | 7 | 29.09.2026 |
+| F-44 | 3.2 Zurück in neuer Sammlung | **A — Zurück-Knopf oben links, wirkt wie „Abbrechen“.** | 7 | 29.09.2026 |
+| F-18 | 4.11 Selbstbewertung | **B — nur als Rettung** (wie heute): automatische Wertung, Selbstbewertung nur, wenn die Erkennung versagt. | 7 | 29.09.2026 |
+| F-49 | 4.11 Mikrofon beim Selbstbewerten | **B — „Nochmal“ behalten** (wie heute). | 7 | 29.09.2026 |
+| F-48 | 4.10 „Nochmal versuchen“ | **A — ein zweiter Versuch**, gewertet wird der letzte. Ein Fehlversuch zählt damit nicht mehr in die Wortstatistik. | 7 | 29.09.2026 |
+| F-47 | 4.12 Fortschrittskarte im Probetest | **A — ohne laufende Note:** „0/20 · gemischt aus 2 Sammlungen“ wie im Entwurf; die Note kommt am Ende (4.14). | 7 | 29.09.2026 |
+| F-46 | 4.4 Zwischenkarte „Jetzt nochmal …“ | **A — Knopf „Los“** statt automatisch nach 2 s. | 7 | 29.09.2026 |
+| F-21 | 4.8/9.7 Mikrofon-Pegel | **A — echter Pegel:** die Ringe um den Mikrofon-Knopf folgen der gemessenen Lautstärke. | 7 | 29.09.2026 |
+| F-55 | 9.5 Lautstärke | **B — wie heute:** eigener Knopf mit senkrechtem Regler (4 s). | 7 | 29.09.2026 |
+| F-26 | Abnahme je Phase | **B — Build + Vermessen:** jeder Screen headless gegen das Referenz-Markup (wie seit Phase 3). | alle | 29.09.2026 |
+| F-08 | 5.1/5.12 „Wörter befüllen“, Löschen | **A — ganz wie im Entwurf:** Raster „Noch nicht begonnen · N“ mit allen offenen Objekten (Bild, Vorteil, „i“, „Wörter befüllen“) statt „Werkstoff wählen“; der Löschen-Knopf der Station entfällt (die Wahl ist damit endgültig). `uvDeleteStation` bleibt bis Phase 8 im Code und kommt dort auf die Liste. | 7 | 29.09.2026 |
+| F-09 | 5.2 Info je Objekt | **A — „i“ je Station/Objekt** mit den Werten genau dieser Waffe (Vorteil, Schaden, Material). | 7 | 29.09.2026 |
+| F-19 | 5.7 und 5.10 | **Erledigt** — beide Spielformen gibt es (`bErkennenFix`, `bSchmiedenGap`), keine Änderung. | 7 | 29.09.2026 |
+| F-50 | 5.3 Trainingsplatz einklappbar? | **B — einklappbar wie heute.** | 7 | 29.09.2026 |
+| F-51 | 5.7/5.8/5.11 englische Grundform | **B — wie heute:** keine englische Grundform als Vorgabe. | 7 | 29.09.2026 |
+| F-52 | 5.7 falsche Form durchstreichen | **B — nicht durchstreichen** (wie heute, im Juni bewusst entfernt). | 7 | 29.09.2026 |
+| F-53 | 5.8 Tipp-Knopf | **B — weglassen.** | 7 | 29.09.2026 |
+| F-54 | 5.13 Info-Text Punkt 4 | **B — Text an die heutige Regel anpassen** (Verzaubern ist eines der 5 Teile). Wortlaut vom Nutzer gewählt: Punkt 4 = „Verzaubern ist eines der 5 Teile und kommt nie vor dem dritten.“ | 7 | 29.09.2026 |
+| F-33 | 6.6 Schatz: auswählen + „Nehmen“ | **A — wie im Entwurf:** erst auswählen (Haken), dann „Nehmen“. | 7 | 29.09.2026 |
+| F-34 | 6.6 Zeittrank-Text | **B — Text an die Regel:** der Bonus bleibt +5 s für 3 Wellen, der Text sagt genau das. | 7 | 29.09.2026 |
+| F-35 | 7.16 Boss besiegt | **C — „Zur Kampagne“ + Taler-Chip:** zurück zur Übersicht (dort startet das Kind den nächsten Lauf selbst), der Chip „+N Taler“ bleibt. | 7 | 29.09.2026 |
+| F-36 | 7.15/7.16 Wellen-Chip | **A — weglassen** wie im neuen Entwurf. Hebt F-13 („N Wellen gewonnen“) auf. | 7 | 29.09.2026 |
 
 ## Offen — je Phase zu beantworten
 
 | Nr. | Frage (kurz) | Gebraucht vor |
 | --- | --- | --- |
-| F-09 | Info-Knopf je Station mit den Werten der Waffe | Phase 7 |
-| F-15 | Erster Start: 7 Reiter statt 10 Merkmale | Phase 7 |
-| F-16 | Charakter-Editor: Zurück verwirft + Rückfrage 8.12 (heute speichert Zurück) | Phase 7 |
-| F-17 | 3.5 „Kein Key nötig!“: den Screen gibt es (`apikey-screen`, jetzt wie 3.5), er wird aber nie gezeigt — der Scan braucht keinen Key. Irgendwo zeigen oder stillgelegt lassen? | Phase 7, Bereich 3 |
-| F-18 | 4.11 Selbstbewertung nach dem Sprechen | Phase 7 |
-| F-19 | 5.7 und 5.10 — heute 5 Modi, Design zeigt 6. **Neuer Befund (29.09.):** beide Spielformen gibt es schon (`bErkennenFix` = falsche Form korrigieren, `bSchmiedenGap` = fehlender Buchstabe, beide über `bDisc`); die Frage ist damit wohl gegenstandslos — bitte bestätigen | Phase 7 |
-| F-20 | 9.2 „App installieren" beim 3. Start | Phase 7 |
-| F-21 | 9.7 Mikrofon-Pegel an die echte Lautstärke koppeln? | Phase 7 |
-| F-08 | „Werkstoff wählen" → „Wörter befüllen", Station löschen entfällt | Phase 7 |
-| F-14 | App-Tour 1.11–1.15, Feld `tourSeen`, Demo-Stand | Phase 7b |
-| F-25 | 8.2 Freund-Fortschritt „ohne Wörter“: Hinweis „… bleibt privat. Du siehst nur, wie weit sie ist.“, keine aufklappbaren Wortlisten, „Vorlage · 11 Wörter“, „Eigene Sammlungen“. **Neu geklärt (29.09.):** laut `backend/schema.sql` liefert `get_friend_progress` die Sammlungen MIT allen Wörtern und Wortständen — heute sieht man sie beim Aufklappen. Nur Anzeige ändern (A), wie heute (B) oder zusätzlich die RPC auf Zählwerte umbauen (C)? | Phase 7, Bereich 8 |
-| F-26 | Abnahme je Phase: nur `npm run build` oder zusätzlich Headless-Screenshots | nebenbei |
-| F-28 | 2.5 Sortieren: Probetest, Kopfzeile und „+ Neue Vokabelsammlung“ während des Ziehens ausblenden | Phase 7, Bereich 2 |
-| F-29 | 2.10 Schnellmodus: Rückfrage „Abbrechen / Einschalten“ vor dem Einschalten (heute: sofort an + Hinweis) | Phase 7, Bereich 2 |
-| F-30 | 2.10 Text „bringt keine Taler“ — heute schaltet eine Schnellrunde Taler frei (getestet: `d1\|mc`) | Phase 7, Bereich 2 |
-| F-31 | 2.11 Menü im Schnellmodus: Probetest und „+ Neue“ weg, Karten ohne Datum/Chips/Pfeil, Chip „Schnellmodus“ im Banner | Phase 7, Bereich 2 |
-| F-32 | Versionsnummer unten im Menü (kein Fragment zeigt sie dort; sie liegt über der letzten Karte) | Phase 7, Bereich 2 |
-| F-33 | 6.6 Schatz: erst auswählen (Haken), dann „Nehmen“ — heute nimmt ein Tipp den Trank sofort | Phase 7, Bereich 6 |
-| F-34 | 6.6 Zeittrank „+5 Sekunden in jedem Minispiel“ — heute „+5 s für 3 Wellen“ | Phase 7, Bereich 6 |
-| F-35 | 7.16 Boss besiegt: Knopf „Zur Kampagne“ (heute startet „Neue Runde starten“ sofort den nächsten Lauf); Chip „+1 Taler“ fehlt im Entwurf | Phase 7, Bereich 7 |
-| F-36 | 7.15 zeigt keine Wellen mehr — F-13 („N Wellen gewonnen“) aufheben? | Phase 7, Bereich 7 |
-| F-37 | 1.5 „Mail ist raus!“: Knopf „Erneut senden“ für den Reset-Link (gibt es heute nicht) | Phase 7, Bereich 1 |
-| F-38 | 1.1 Reihenfolge: Entwurf erst Ladebalken, dann „Los geht's“ — heute erst der Knopf (iOS gibt Ton nur nach dem Tippen frei), dann der Balken | Phase 7, Bereich 1 |
-| F-39 | 3.6 Zeilen: Wort + Übersetzung als Text mit Knopf ✓ bzw. Stift (fehlende Übersetzung) — heute zwei Eingabefelder, direkt bearbeitbar | Phase 7, Bereich 3 |
-| F-40 | 3.6 Knopf „Neu scannen“ oben rechts (heute nur der Zurück-Knopf) | Phase 7, Bereich 3 |
-| F-41 | 3.6 „+ Wort manuell ergänzen“ — heute kann man auf „Vokabeln prüfen“ kein Wort hinzufügen (`addReviewItem` hat keine Felder; „Wörter manuell eingeben“ nach einem Fehlscan führt auf eine leere Liste) | Phase 7, Bereich 3 |
-| F-42 | 3.6 Kopfzeile „3 erkannt“ statt der Zeile „3 Wörter erkannt · 2 neu · 1 bereits vorhanden (grau)“ — Dubletten zeigt der Entwurf nicht | Phase 7, Bereich 3 |
-| F-43 | 3.1 zeigt unter „Hinzufügen“ zusätzlich die Liste („Liste · 12 Wörter“, ohne Bearbeiten/Löschen); 3.3/3.4 und der Reiter „Liste“ tun das nicht | Phase 7, Bereich 3 |
-| F-44 | 3.2 Zurück-Knopf auch in einer neuen Sammlung (Entwurf) — heute ausgeblendet, dort gibt es nur „Abbrechen“/„Bestätigen“ | Phase 7, Bereich 3 |
-| F-45 | 4.5 Spiel im Schnellmodus: Chip „Schnellmodus“ unter dem Titel, statt Warte-Kasten und Fortschrittskarte nur der Hinweis „Schnellmodus — zählt nicht in die Statistik“ (heute sieht das Spiel aus wie sonst) | Phase 7, Bereich 4 |
-| F-46 | 4.4 Zwischenkarte „Jetzt nochmal …“ mit Knopf „Los“ — heute geht es nach 2 s von selbst weiter | Phase 7, Bereich 4 |
-| F-47 | 4.12 Fortschrittskarte im Probetest: „0/20 · gemischt aus 2 Sammlungen“ statt „3/5 richtig · Note 2“ (heute mit laufender Note) | Phase 7, Bereich 4 |
-| F-48 | 4.10 Knopf „Nochmal versuchen“ nach falscher Aussprache — heute ist eine falsch erkannte Aussprache endgültig (Rückmeldung + „Weiter“) | Phase 7, Bereich 4 |
-| F-49 | 4.11 beim Selbstbewerten kein Mikrofon mehr — heute kann man dort mit „Nochmal“ noch einmal sprechen | Phase 7, Bereich 4 |
-| F-50 | 5.3 zeigt den Trainingsplatz ohne Einklapp-Karte (Überschrift, Knopf und Decks immer offen); 5.1 (älter) und heute: einklappbar | Phase 7, Bereich 5 |
-| F-51 | 5.7/5.8/5.11 geben zusätzlich die englische Grundform vor („write“ groß, „schreiben · Infinitiv“; 5.7 „get · bekommen“) — heute nur das deutsche Wort bzw. nur die falsche Form. Macht die Aufgaben leichter. | Phase 7, Bereich 5 |
-| F-52 | 5.7 streicht die falsche Form durch — im Juni bewusst entfernt (Commit `9396dfe`) | Phase 7, Bereich 5 |
-| F-53 | 5.8 Tipp-Knopf (Glühbirne) neben „Prüfen“ — gibt es heute nicht | Phase 7, Bereich 5 |
-| F-55 | 9.5 Lautstärke als feste Leiste neben dem Musik-Knopf (nur am Computer) — heute eigener Knopf, der einen senkrechten Regler aufklappt (4 s) | Phase 7, Bereich 9 |
-| F-56 | 8.3 fertige Vorlage/Sammlung (Mint, „erledigt“) ohne Aufklapp-Pfeil — heute lassen sich auch fertige Karten aufklappen (so gebaut, Pfeil neben „erledigt“) | Phase 7, Bereich 8 |
-| F-57 | 8.1 „Antippen = anlegen“: ein Tipp in der Tasche legt das Teil sofort an — heute wählt ein Tipp nur aus (Werte-Vorschau + Karte mit „Anlegen“/„Ablegen“), angelegt wird per Knopf oder Ziehen. Gebaut wie heute, Hinweis weggelassen | Phase 7, Bereich 8 |
-| F-58 | 8.1 Kachel „Gefährte“ zeigt den Namen des Tiers („Wolf“) — heute die Zahl der abgefangenen Fehler pro Kampf („1×“, so gebaut) | Phase 7, Bereich 8 |
-| F-54 | 5.13 Info „Die Schmiede“: Punkt 4 „Verzaubern öffnet sich erst, wenn die Waffe fertig ist“ — heute ist Verzaubern eines der 5 Teile (Teil 3–5, `weaponSlots`); außerdem fehlen „Tippe die Waffe …“ und „nächste Station geht auf“ | Phase 7, Bereich 5 |
+| — | keine offenen Fragen (alle am 29.09.2026 beantwortet) | — |
 
 ## Ohne Rückfrage entschieden (Aussehen) — Phase 7
 
