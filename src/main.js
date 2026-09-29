@@ -19,6 +19,7 @@ import { startupSequence, finishStartup, showStartGate } from './modules/startup
 import { supabase, testConnection } from './modules/supabase.js';
 import { flushPendingSync } from './modules/sync.js';
 import { startIconAutoPaint } from './modules/pixel-icons.js';
+import { startUiTakt } from './modules/ui-takt.js';
 
 console.log('[main] English Stars', APP_VERSION, 'startet…');
 
@@ -269,6 +270,10 @@ setInterval(() => { checkForRemoteChange().catch(() => {}); }, 60 * 1000);
 // Die App rendert überall per innerHTML — ein MutationObserver füllt jedes neu
 // aufgetauchte Icon-Canvas, damit kein Aufrufer ans Nachmalen denken muss.
 startIconAutoPaint();
+
+// ── UI-Animationen ──────────────────────────────────────────────────
+// Ein gemeinsamer 8-fps-Takt für alles mit data-ui="…" (Handoff-Regel 6).
+startUiTakt();
 
 // ── Hochformat-Sperre ────────────────────────────────────────────────────────
 // Das Manifest (orientation: portrait) sperrt die installierte PWA; hier

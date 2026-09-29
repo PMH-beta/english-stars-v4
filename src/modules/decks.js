@@ -208,19 +208,19 @@ function _renderEmptyChooser(c) {
   const wrap = document.createElement('div');
   wrap.className = 'p-leerwahl';
   wrap.innerHTML = `
-    <div style="text-align:center;font:900 19px var(--p-font);margin-top:6px;">Womit möchtest du starten?</div>
+    <div class="p-leerwahl-titel">Womit möchtest du starten?</div>
     <button id="empty-preset" class="p-leerwahl-karte">
-      <span class="p-symbolkachel p-ton-pfirsich">${iconHTML('book', 28)}</span>
+      <span class="p-leerwahl-kachel p-ton-pfirsich">${iconHTML('box', 28)}</span>
       <span class="p-wachs">
-        <span class="p-zeilentitel" style="display:block">Vorlage auswählen</span>
-        <span class="p-zeilensub" style="display:block;margin-top:2px">Fertige Wortgruppen nehmen und sofort starten</span>
+        <span class="p-leerwahl-name">Vorlage auswählen</span>
+        <span class="p-leerwahl-sub">Fertige Wortgruppen nehmen und sofort starten</span>
       </span>
     </button>
     <button id="empty-custom" class="p-leerwahl-karte">
-      <span class="p-symbolkachel p-ton-blau">${iconHTML('pencil', 28)}</span>
+      <span class="p-leerwahl-kachel p-ton-blau">${iconHTML('pencil', 28)}</span>
       <span class="p-wachs">
-        <span class="p-zeilentitel" style="display:block">Eigene Sammlung anlegen</span>
-        <span class="p-zeilensub" style="display:block;margin-top:2px">Wörter selbst eingeben, einfügen oder scannen</span>
+        <span class="p-leerwahl-name">Eigene Sammlung anlegen</span>
+        <span class="p-leerwahl-sub">Wörter selbst eingeben, einfügen oder scannen</span>
       </span>
     </button>
   `;
@@ -284,7 +284,7 @@ export function renderDecks(mode) {
           <div class="p-chevron">${iconHTML('chevron', 14)}${iconHTML('chevronUpLight', 14)}</div>
         </div>
       </div>
-      <div class="p-balken" style="margin-top:11px"><i style="width:${p.overallPct}%"></i></div>
+      <div class="p-balken"><i style="width:${p.overallPct}%"></i></div>
       ${isExpanded ? `
       <div class="p-modi">
         ${_modusZeile('Vokabeln', p.perMode.vocab, 'vokabeln', `startGameWithDeck('${id}','vocab')`)}
@@ -292,7 +292,7 @@ export function renderDecks(mode) {
         ${_modusZeile('Aussprache', p.perMode.pronounce, 'aussprache', `startGameWithDeck('${id}','pronounce')`)}
         ${deck.deckPath !== 'preset' ? `<button class="p-moduszeile p-moduszeile--verwalten" onclick="openVocabManager('${id}')">
           <span class="p-moduszeile-name" style="display:block">Vokabeln verwalten</span>
-          <span class="p-zeilensub" style="display:block;font-size:10px;margin-top:1px">Hinzufügen, scannen, löschen</span>
+          <span class="p-zeilensub" style="display:block;font-size:10px;margin-top:1px;color:var(--p-text-3)">Hinzufügen, scannen, löschen</span>
         </button>` : ''}
       </div>
       <div class="p-aktionen">
@@ -404,16 +404,21 @@ function _initDrag(cardEl, deckId, clientY) {
   }
   // Post-Collapse-Rect für Breite/Links (Höhe kann sich geändert haben)
   const rect = cardEl.getBoundingClientRect();
+  // Aussehen nach Fragment 2.5: Ablage „Hier ablegen", die gehaltene Karte leicht
+  // versetzt und gedreht, mit hartem Schatten, und sie wackelt (data-ui="wiggle").
   const ph = document.createElement('div');
-  ph.style.cssText = `height:${rect.height}px;margin-top:11px;box-sizing:border-box;`;
   ph.className = 'p-ablage';
+  ph.textContent = 'Hier ablegen';
   cardEl.after(ph);
+  cardEl.parentElement.classList.add('is-sortieren');
   Object.assign(cardEl.style, {
     position: 'fixed', top: preTop + 'px', left: rect.left + 'px',
     width: rect.width + 'px', zIndex: '1000', margin: '0',
-    boxShadow: '6px 8px 0 rgba(31,31,36,.28)',
-    transform: 'rotate(-1.4deg)', transition: 'none', pointerEvents: 'none',
+    boxShadow: '8px 12px 0 rgba(31,31,36,.28)',
+    transform: 'translateX(8px) rotate(-1.5deg)', transition: 'none', pointerEvents: 'none',
   });
+  cardEl.dataset.a = '1';
+  cardEl.dataset.ui = 'wiggle';
   _dragState = { deckId, el: cardEl, ph, offsetY };
   document.body.style.userSelect = 'none';
   document.body.style.webkitUserSelect = 'none';
@@ -440,8 +445,11 @@ function _endDrag() {
   const { el, ph } = _dragState;
   ph.before(el);
   ph.remove();
+  delete el.dataset.ui;
+  delete el.dataset.a;
   el.removeAttribute('style');
   const container = document.getElementById(_activeDecksContainerId());
+  container.classList.remove('is-sortieren');
   const newOrder = [...container.querySelectorAll('.p-sammlung')].map(c => c.dataset.deckId).filter(Boolean);
   newOrder.forEach((id, i) => { if (window.SD.decks[id]) window.SD.decks[id].sortOrder = (i + 1) * 10; });
   document.body.style.userSelect = '';
@@ -581,25 +589,11 @@ export function confirmDeleteDeck(id) {
   if (!cur) return;
   const isPreset = cur.deckPath === 'preset' && (cur.presetCategories?.length > 0);
   const bodyText = isPreset
-    ? `»${window.escHtml(cur.name)}« wird gelöscht und der Fortschritt entfernt. Die Vorlagen werden wieder frei und können in einer neuen Sammlung verwendet werden.`
-    : `»${window.escHtml(cur.name)}« wird gelöscht. Alle ${cur.vocab.length} Wörter und der Fortschritt gehen verloren.`;
-  const overlay = document.createElement('div');
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
-  overlay.innerHTML = `
-    <div style="background:#fff;border-radius:20px;padding:28px 22px;max-width:340px;width:100%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.2);">
-      <div style="font-size:2.5rem;margin-bottom:10px;">🗑️</div>
-      <div class="p-dlg-titel" style="margin-bottom:12px">Sammlung löschen?</div>
-      <p style="font-size:.88rem;color:#555;line-height:1.6;margin:0 0 20px;">${bodyText}</p>
-      <div style="display:flex;gap:10px;justify-content:center;">
-        <button id="_cd-cancel" class="p-dlg-btn p-dlg-btn--ab">Abbrechen</button>
-        <button id="_cd-ok" class="p-dlg-btn p-dlg-btn--gefahr">Löschen</button>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(overlay);
-  overlay.querySelector('#_cd-cancel').addEventListener('click', () => overlay.remove());
-  overlay.querySelector('#_cd-ok').addEventListener('click', async () => {
-    overlay.remove();
+    ? `»${cur.name}« wird gelöscht und der Fortschritt entfernt. Die Vorlagen werden wieder frei und können in einer neuen Sammlung verwendet werden.`
+    : `Vondu sagt: alle ${cur.vocab.length} Wörter und der Fortschritt sind danach weg. Zurückholen kann ich sie nicht.`;
+  // Dialog wie Fragment 2.12: Papierkorb auf Rosa, Vondu trägt den Text.
+  window.esConfirm({ icon: '🗑️', danger: true, title: 'Sammlung löschen?', body: bodyText, ok: 'Löschen', cancel: 'Abbrechen' }).then(async (ok) => {
+    if (!ok) return;
     if (isPreset) {
       const SUFFIXES = ['_mc', '_sp', '_pr'];
       const statKeys = [];

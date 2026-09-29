@@ -875,19 +875,19 @@ function _probetestEntryHtml(t, idx) {
   const names = (t.decks || []).map(d => window.escHtml(d.name || '')).join(' + ') || '—';
   const dateStr = new Date(t.date || Date.now()).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
   // Note faerbt den Chip: 1-2 mint, 3-4 amber, ab 5 rosa.
-  const notenChip = t.grade <= 2 ? 'p-chip--aktiv' : (t.grade <= 4 ? 'p-chip--gold' : '');
-  const notenStil = t.grade > 4 ? ' style="background:var(--p-falsch)"' : '';
+  const notenTon = t.grade <= 2 ? 'var(--p-ok)' : (t.grade <= 4 ? 'var(--p-gold)' : 'var(--p-falsch)');
   const delBtn = idx == null ? '' :
-    '<button onclick="deleteProbetestEntry(' + idx + ')" title="Diesen Test löschen" '
-    + 'class="p-slot" style="background:var(--p-falsch);cursor:pointer;width:30px;height:30px;">'
+    '<button onclick="deleteProbetestEntry(' + idx + ')" title="Diesen Test löschen" class="p-pt-loeschen">'
     + iconHTML('trash', 14) + '</button>';
-  return '<div class="p-karte" style="margin-top:9px;padding:11px 13px">'
-    + '<div class="p-reihe" style="gap:9px">'
-    + '<span class="p-wachs" style="font:900 13px var(--p-font)">' + names + '</span>'
-    + '<span class="p-chip ' + notenChip + '"' + notenStil + '>Note ' + t.grade + '</span>'
+  // Eintrag wie Fragment 2.6: helle Karte, Name, Noten-Chip, Löschen; darunter
+  // Prozent (fett, Tinte), richtig/gesamt und Datum.
+  return '<div class="p-pt-eintrag">'
+    + '<div class="p-pt-kopf">'
+    + '<div class="p-pt-name">' + names + '</div>'
+    + '<span class="p-pt-note" style="background:' + notenTon + '">Note ' + t.grade + '</span>'
     + delBtn + '</div>'
-    + '<div style="display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:6px;font:700 10px var(--p-font);color:var(--p-text-2)">'
-    + '<span>' + t.percent + '%</span>'
+    + '<div class="p-pt-werte">'
+    + '<b>' + t.percent + '%</b>'
     + '<span>' + t.correct + '/' + t.questions + ' richtig</span>'
     + '<span>' + dateStr + '</span></div></div>';
 }
@@ -947,7 +947,7 @@ export function renderProbetestSection() {
     + '</div>';
   if (open) {
     html += '<div class="p-karte-trenner">'
-      + '<button onclick="openProbetestPicker()" class="p-btn p-btn--akzent" style="height:46px;font-size:13px">Neuen Probetest starten</button>';
+      + '<button onclick="openProbetestPicker()" class="p-pt-start">Neuen Probetest starten</button>';
     if (!hist.length) {
       html += '<div class="p-zeilensub" style="text-align:center;padding:10px 0 2px;">Noch keine Tests durchgeführt.</div>';
     } else {
@@ -970,50 +970,44 @@ export function openProbetestPicker() {
       body: 'Für einen Probetest brauchst du mindestens eine Vokabelsammlung mit Wörtern.\n\nLeg unten unter „Vokabelsammlungen" eine Sammlung an und füge Wörter hinzu — dann kannst du sie hier für einen Test auswählen.' });
     return;
   }
+  // Aussehen nach Fragment 2.7: helle Karte, Emblem 64 + Rahmen, Zeilen mit
+  // Kästchen (gewählt: Mint + heller Haken auf Tinte, gesperrt: blass).
   const overlay = document.createElement('div');
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
+  overlay.className = 'p-dlg-grund p-ptw-grund';
   const card = document.createElement('div');
-  card.style.cssText = "background:#fff;border-radius:20px;padding:24px 20px;max-width:360px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,.2);max-height:85vh;display:flex;flex-direction:column;";
+  card.className = 'p-dlg-karte p-ptw-karte';
   card.innerHTML =
-    '<div class="p-dlg-emblem p-ton-lila">' + iconHTML('test', 28) + '</div>'
-    + '<div class="p-dlg-titel">Probetest</div>'
-    + '<p class="p-lead">Bis zu 2 Sammlungen wählen — gemischte Prüfung, ohne Speichern.</p>';
+    '<div class="p-ptw-emblem">' + iconHTML('test', 42) + '</div>'
+    + '<div class="p-ptw-titel">Probetest</div>'
+    + '<div class="p-ptw-lead">Bis zu 2 Sammlungen wählen — gemischte Prüfung, ohne Speichern.</div>';
   const list = document.createElement('div');
-  list.style.cssText = 'overflow-y:auto;display:flex;flex-direction:column;gap:8px;margin-bottom:16px;';
+  list.className = 'p-ptw-liste';
   const selected = new Set();
 
   const startBtn = document.createElement('button');
-  startBtn.className = 'p-dlg-btn';
-  startBtn.style.cssText = 'background:var(--p-ok);color:var(--p-ink);';
+  startBtn.className = 'p-ptw-knopf p-ptw-knopf--start';
   startBtn.textContent = 'Start';
 
   function refresh() {
     list.querySelectorAll('button').forEach(r => {
       const on = selected.has(r._deckId);
-      const dim = !on && selected.size >= 2;
-      r.style.borderColor = on ? 'var(--purple)' : '#eee';
-      r.style.background  = on ? '#f6efff' : '#fafafa';
-      r.style.opacity     = dim ? '.45' : '1';
-      const ck = r.querySelector('.pt-check');
-      ck.style.background  = on ? 'var(--purple)' : '#fff';
-      ck.style.borderColor = on ? 'var(--purple)' : '#ccc';
-      ck.textContent = on ? '✓' : '';
+      r.classList.toggle('is-an', on);
+      r.classList.toggle('is-gesperrt', !on && selected.size >= 2);
     });
     const none = selected.size === 0;
     startBtn.disabled = none;
-    startBtn.style.opacity = none ? '.5' : '1';
-    startBtn.style.cursor  = none ? 'default' : 'pointer';
+    startBtn.classList.toggle('is-aus', none);
   }
 
   decks.forEach(d => {
     const row = document.createElement('button');
     row.type = 'button';
     row._deckId = d.id;
-    row.style.cssText = "display:flex;align-items:center;gap:11px;padding:12px 14px;border:2px solid #eee;border-radius:12px;background:#fafafa;cursor:pointer;font-family:'Nunito',sans-serif;text-align:left;transition:all .12s;";
+    row.className = 'p-ptw-zeile';
     row.innerHTML =
-      '<span class="pt-check" style="width:22px;height:22px;border-radius:6px;border:2px solid #ccc;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.85rem;color:#fff;"></span>'
-      + '<span style="flex:1;min-width:0;"><span style="font-weight:700;color:#444;">' + window.escHtml(d.name) + '</span><br>'
-      + '<span style="font-size:.75rem;color:#999;">📝 ' + d.n + ' Wörter</span></span>';
+      '<span class="p-ptw-haken">' + iconHTML('checkLight', 14) + '</span>'
+      + '<span class="p-wachs"><span class="p-ptw-name">' + window.escHtml(d.name) + '</span>'
+      + '<span class="p-ptw-sub">' + iconHTML('pencil', 14) + d.n + ' Wörter</span></span>';
     row.addEventListener('click', () => {
       if (selected.has(d.id)) selected.delete(d.id);
       else { if (selected.size >= 2) return; selected.add(d.id); }
@@ -1024,9 +1018,9 @@ export function openProbetestPicker() {
   card.appendChild(list);
 
   const btnRow = document.createElement('div');
-  btnRow.style.cssText = 'display:flex;gap:10px;justify-content:center;';
+  btnRow.className = 'p-ptw-knoepfe';
   const cancel = document.createElement('button');
-  cancel.className = 'p-dlg-btn p-dlg-btn--ab';
+  cancel.className = 'p-ptw-knopf';
   cancel.textContent = 'Abbrechen';
   cancel.addEventListener('click', () => overlay.remove());
   startBtn.addEventListener('click', () => {
@@ -1869,6 +1863,7 @@ export function showMenu() {
   hideFeedback();
   showScreen('menu-screen');
   document.getElementById('menu-player-name').textContent = window.SD.playerName;
+  document.getElementById('menu-avatar')?.classList.remove('is-leer');   // Ladezustand 2.1 vorbei
   renderAvatarInto('menu-avatar', window.SD, { bust: true, scale: 2 });
   updateTalerBadge();                          // Taler sofort aus lokalem Stand
   refreshClaimedTaler().catch(() => {});       // 100%-Teilabschnitte nachzählen (retroaktiv)
@@ -2972,33 +2967,27 @@ export async function softRefresh() {
   }
 }
 
-// Skeleton-Menü (Instagram-Stil): Menü-Shell mit grauen Platzhalter-Kacheln während
-// des harten Loads. Nach dem Load ersetzt showMenu() das durch echte Daten.
-function _ensureSkeletonStyle() {
-  if (document.getElementById('es-skel-style')) return;
-  const st = document.createElement('style');
-  st.id = 'es-skel-style';
-  st.textContent = '@keyframes es-pulse{0%,100%{opacity:.5}50%{opacity:.9}}'
-    + '@keyframes es-spin{to{transform:rotate(360deg)}}'
-    + '.es-skel{background:#e6ddf2;border-radius:16px;animation:es-pulse 1.1s ease-in-out infinite;}';
-  (document.head || document.documentElement).appendChild(st);
-}
+// Menü lädt (Fragment 2.1): Menü-Shell mit gestrichelten Platzhaltern während des
+// harten Loads. Nach dem Load ersetzt showMenu() das durch echte Daten.
+// Bewegung nur bei den Punkten hinter „Lädt" (data-ui="dots", Übersicht 9.7) —
+// der Ladekreis steht, wie im Entwurf. Das Banner bleibt die Karte aus 2.3.
 function showMenuSkeleton() {
-  _ensureSkeletonStyle();
   showScreen('menu-screen');
-  const nm = document.getElementById('menu-player-name'); if (nm) nm.textContent = 'Lädt…';
-  const tl = document.getElementById('menu-taler');       if (tl) tl.textContent = '·';
-  const bs = document.getElementById('menu-bosses');      if (bs) bs.textContent = '·';
+  const nm = document.getElementById('menu-player-name');
+  if (nm) nm.innerHTML = 'Lädt<span data-ui="dots" style="display:inline-block;width:1.2em;text-align:left">…</span>';
+  const tl = document.getElementById('menu-taler');       if (tl) tl.textContent = '–';
+  const bs = document.getElementById('menu-bosses');      if (bs) bs.textContent = '–';
+  const av = document.getElementById('menu-avatar');      if (av) { av.innerHTML = ''; av.classList.add('is-leer'); }
   const ft = document.getElementById('menu-footer');      if (ft) ft.style.display = 'flex';
+  // Im Laden steht nur der Platzhalter im Blatt; Probetest und Kopfzeile kommen
+  // mit showMenu() zurück.
+  const pt = document.getElementById('probetest-section'); if (pt) pt.innerHTML = '';
+  const hd = document.getElementById('free-decks-header'); if (hd) hd.style.display = 'none';
   const c = document.getElementById('decks-container');
   if (c) c.innerHTML =
-    // kleiner, halbtransparenter Ladekreis über den Kacheln → „es passiert was".
     // Liegt IM decks-container → verschwindet automatisch, sobald renderDecks rendert.
-    '<div style="display:flex;justify-content:center;padding:6px 0 14px;">'
-    + '<span style="width:26px;height:26px;border:3px solid rgba(168,108,219,.25);'
-    + 'border-top-color:var(--purple,#a86cdb);border-radius:50%;display:inline-block;'
-    + 'animation:es-spin .7s linear infinite;"></span></div>'
-    + '<div class="es-skel" style="height:54px;margin-bottom:12px;"></div>'.repeat(4);
+    '<div class="p-lade-kreis"><div></div></div>'
+    + [68, 54, 100, 100].map(h => '<div class="p-lade-platz" style="height:' + h + 'px"></div>').join('');
 }
 
 // Minuten-Check: hat ein ANDERES Gerät die Cloud geändert? Wenn ja → deutlicher

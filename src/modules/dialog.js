@@ -49,10 +49,12 @@ function _scaffold(opts) {
   if (opts.body) {
     // Vondu traegt den Text — so zeigt es der Entwurf: Maskottchen links,
     // Erklaerung rechts, das Ganze auf einer Flaeche im Grundton.
+    // Der Kasten ist immer lila, auch bei Gefahr (Fragment 2.12); Vondu wippt.
     const box = document.createElement('div');
-    box.className = 'p-dlg-vondu' + (opts.danger ? ' p-ton-rosa' : ' p-ton-lila');
+    box.className = 'p-dlg-vondu';
     const img = document.createElement('img');
     img.src = 'vondu-logo.svg'; img.alt = 'Vondu'; img.width = 48; img.height = 46;
+    img.dataset.ui = 'bob'; img.dataset.a = '1';
     const p = document.createElement('div');
     p.className = 'p-dlg-text';
     p.textContent = opts.body;

@@ -1817,8 +1817,8 @@ body.p-app{
 /* Angehobene Sammlung im Sortiermodus — der einzige Schatten im ganzen Design,
    und bewusst hart. Sonst kommt Tiefe allein aus der Kontur. */
 .p-karte--angehoben{ box-shadow:var(--p-schatten-angehoben); transform:rotate(-1.4deg); }
-/* Trennlinie innerhalb einer Karte. */
-.p-karte-trenner{ border-top:var(--p-trenner); margin:10px 0 0; padding-top:10px; }
+/* Trennlinie innerhalb einer Karte (Fragment 2.6: je 12 px darüber und darunter). */
+.p-karte-trenner{ border-top:var(--p-trenner); margin:12px 0 0; padding-top:12px; }
 
 /* ── Chips ───────────────────────────────────────────────────────────────── */
 .p-chip{
@@ -1931,6 +1931,20 @@ body.p-app{
    .p-avatar und gewann bisher. Sie fällt mit dem alten CSS-Block weg (Phase 8);
    bis dahin hebt diese Regel sie auf. */
 #menu-avatar.p-avatar{ border-radius:var(--p-r-btn); background:var(--p-lila); box-shadow:none; }
+/* Menü lädt (2.1): leerer Rahmen in der Einsatzfarbe. */
+#menu-avatar.p-avatar.is-leer{ background:var(--p-inaktiv); }
+
+/* ── Menü lädt (Fragment 2.1) ────────────────────────────────────────────── */
+/* Ladekreis 44 + 2 × 4 Rahmen, steht still; darunter vier gestrichelte Platzhalter. */
+.p-lade-kreis{ display:flex; justify-content:center; padding:18px 0; }
+.p-lade-kreis > div{
+  width:52px; height:52px; border-radius:50%;
+  border:4px solid var(--p-spur); border-top-color:var(--p-ink);
+}
+.p-lade-platz{
+  margin-top:11px;
+  border:2px dashed rgba(31,31,36,.3); border-radius:22px; background:var(--p-inaktiv);
+}
 /* „Fortschritt": 44 px hoch, Trophäe davor (Fragment 2.3). */
 .p-fortschritt{
   display:inline-flex; align-items:center; gap:6px; flex:none;
@@ -2147,6 +2161,98 @@ body.p-app .music-vol-btn{
 .p-zeilentitel{ font:900 14px var(--p-font); }
 .p-zeilensub{ font:700 11px var(--p-font); color:var(--p-text-2); }
 
+/* ── Probetest aufgeklappt (Fragment 2.6) ─────────────────────────────────── */
+/* Außenmaße wie überall: Fragmentwert + 2 × 2 Rahmen (Start 50 → 54, Löschen 32 → 36). */
+.p-pt-start{
+  width:100%; height:54px;
+  border:var(--p-rahmen); border-radius:var(--p-r-kachel); background:var(--p-ok);
+  display:flex; align-items:center; justify-content:center;
+  font:900 13px var(--p-font); color:var(--p-ink); cursor:pointer;
+}
+.p-pt-eintrag{
+  margin-top:10px;
+  border:var(--p-rahmen); border-radius:18px; background:var(--p-karte-hell);
+  padding:12px 13px;
+}
+.p-pt-kopf{ display:flex; align-items:center; gap:9px; }
+.p-pt-name{ flex:1; min-width:0; font:900 14px var(--p-font); }
+.p-pt-note{
+  flex:none; border:var(--p-rahmen); border-radius:11px; padding:3px 9px;
+  font:800 10px var(--p-font); white-space:nowrap;
+}
+.p-pt-loeschen{
+  width:36px; height:36px; flex:none; padding:0;
+  border:var(--p-rahmen); border-radius:11px; background:var(--p-falsch);
+  display:flex; align-items:center; justify-content:center; cursor:pointer;
+}
+.p-pt-werte{ display:flex; gap:12px; margin-top:7px; font:700 11px var(--p-font); color:var(--p-text-2); }
+.p-pt-werte > b{ font-weight:900; color:var(--p-ink); }
+
+/* ── Dialog „Probetest wählen" (Fragment 2.7) ──────────────────────────────── */
+.p-dlg-grund.p-ptw-grund{ padding:18px; background:rgba(31,31,36,.45); }
+.p-dlg-karte.p-ptw-karte{
+  max-width:366px; background:var(--p-karte-hell); padding:22px 18px 18px; text-align:left;
+  display:flex; flex-direction:column; overflow:hidden;
+}
+.p-ptw-emblem{
+  width:68px; height:68px; margin:0 auto; flex:none;
+  border:var(--p-rahmen); border-radius:var(--p-r-karte); background:var(--p-lila);
+  display:flex; align-items:center; justify-content:center;
+}
+.p-ptw-titel{ font:900 24px var(--p-font); margin-top:14px; }
+.p-ptw-lead{ font:700 12px/1.5 var(--p-font); color:var(--p-text-akzent); margin-top:6px; }
+.p-ptw-liste{ display:flex; flex-direction:column; gap:9px; margin-top:14px; overflow-y:auto; min-height:0; }
+.p-ptw-zeile{
+  flex:none; width:100%; display:flex; align-items:center; gap:12px;
+  border:var(--p-rahmen); border-radius:18px; background:var(--p-karte); padding:12px 13px;
+  text-align:left; font-family:var(--p-font); color:var(--p-ink); cursor:pointer;
+}
+.p-ptw-zeile.is-an{ background:var(--p-ok); }
+.p-ptw-zeile.is-gesperrt{ opacity:.42; }
+.p-ptw-haken{
+  width:32px; height:32px; flex:none;
+  border:var(--p-rahmen); border-radius:9px; background:var(--p-karte-hell);
+  display:flex; align-items:center; justify-content:center;
+}
+.p-ptw-haken > canvas{ visibility:hidden; }
+.p-ptw-zeile.is-an .p-ptw-haken{ background:var(--p-ink); }
+.p-ptw-zeile.is-an .p-ptw-haken > canvas{ visibility:visible; }
+.p-ptw-name{ display:block; font:900 14px var(--p-font); }
+.p-ptw-sub{ display:flex; align-items:center; gap:6px; margin-top:2px; font:700 11px var(--p-font); color:var(--p-text-2); }
+.p-ptw-knoepfe{ display:flex; gap:10px; margin-top:16px; flex:none; }
+.p-ptw-knopf{
+  flex:1; height:56px;
+  border:var(--p-rahmen); border-radius:18px; background:var(--p-inaktiv);
+  display:flex; align-items:center; justify-content:center;
+  font:800 13px var(--p-font); color:var(--p-ink); cursor:pointer;
+}
+.p-ptw-knopf--start{ background:var(--p-ink); color:var(--p-gold); font-weight:900; }
+.p-ptw-knopf.is-aus{ opacity:.5; cursor:default; }
+
+/* ── Dialog „Wie soll diese Sammlung aufgebaut werden?" (Fragment 2.8) ────── */
+.p-dlg-grund.p-pfad-grund{ padding:18px; background:rgba(31,31,36,.45); }
+.p-dlg-karte.p-pfad-karte{ max-width:366px; background:var(--p-karte-hell); padding:22px 18px 18px; }
+.p-pfad-symbol{ display:flex; justify-content:center; }
+.p-pfad-titel{ font:900 20px/1.25 var(--p-font); text-align:center; margin-top:12px; }
+.p-pfad-sub{ font:700 11.5px/1.5 var(--p-font); color:var(--p-text-2); text-align:center; margin-top:7px; }
+.p-pfad-abbrechen{
+  display:block; width:100%; margin-top:16px; padding:0; border:0; background:none;
+  font:800 12px var(--p-font); color:var(--p-text-2); text-decoration:underline;
+  text-align:center; cursor:pointer;
+}
+
+/* ── Dialog „Lernvorlagen" (Fragment 2.9) ───────────────────────────────── */
+.p-dlg-grund.p-lv-grund{ padding:24px; background:rgba(31,31,36,.45); }
+.p-dlg-karte.p-lv-karte{ max-width:354px; background:var(--p-karte-hell); padding:26px 20px 22px; }
+.p-lv-titel{ font:900 25px var(--p-font); text-align:center; margin-top:16px; }
+.p-lv-text{ font:700 13px/1.6 var(--p-font); color:var(--p-text-akzent); text-align:center; margin-top:12px; }
+.p-lv-ok{
+  width:100%; height:54px; margin-top:20px; padding:0 24px;
+  border:var(--p-rahmen); border-radius:18px; background:var(--p-ink); color:var(--p-gold);
+  display:flex; align-items:center; justify-content:center;
+  font:900 14px var(--p-font); cursor:pointer;
+}
+
 /* Sektionskopf: Kicker links, Chip rechts. */
 .p-sektionkopf{
   display:flex; align-items:center; justify-content:space-between; gap:9px; margin-top:16px;
@@ -2167,6 +2273,11 @@ body.p-app .music-vol-btn{
   padding:14px 14px 15px; cursor:pointer;
 }
 .p-sammlung + .p-sammlung, .p-neu + .p-sammlung{ margin-top:11px; }
+.p-sammlung > .p-balken{ margin-top:11px; }
+/* Aufgeklappt (Fragment 2.4): etwas mehr Luft ringsum, Balken 1 px näher. */
+.p-sammlung.is-offen{ padding:15px 14px 16px; }
+.p-sammlung + .p-sammlung.is-offen, .p-neu + .p-sammlung.is-offen{ margin-top:12px; }
+.p-sammlung.is-offen > .p-balken{ margin-top:10px; }
 .p-sammlung-kopf{ display:flex; align-items:flex-start; gap:10px; }
 .p-sammlung-name{ font:900 17px var(--p-font); }
 .p-sammlung-meta{ font:700 11px var(--p-font); color:var(--p-text-2); margin-top:2px; }
@@ -2207,11 +2318,12 @@ body.p-app .music-vol-btn{
 /* Auf der farbigen Fläche ist die Balkenspur hell, nicht sandfarben. */
 .p-moduszeile .p-balken{ height:11px; background:var(--p-karte); margin-top:9px; }
 .p-moduszeile .p-taler-zeile{ font-size:10px; color:var(--p-text-3); margin-top:8px; }
+.p-moduszeile .p-chip{ border-radius:11px; }
 
-/* Drei Aktionen am Fuß der offenen Karte. */
+/* Drei Aktionen am Fuß der offenen Karte (Fragment 40 + Rahmen). */
 .p-aktionen{ display:flex; gap:7px; margin-top:12px; }
 .p-aktion{
-  flex:1; height:40px;
+  flex:1; height:44px;
   border:var(--p-rahmen); border-radius:var(--p-r-chip-gross); background:var(--p-blatt);
   display:flex; align-items:center; justify-content:center;
   font:800 10px var(--p-font); color:var(--p-ink); cursor:pointer;
@@ -2227,19 +2339,36 @@ body.p-app .music-vol-btn{
 .p-sammlung.is-gehalten{
   box-shadow:var(--p-schatten-angehoben); transform:rotate(-1.4deg);
 }
-/* Ablagefläche, auf der die gehaltene Karte landet. */
+/* Ablagefläche, auf der die gehaltene Karte landet (Fragment 2.5: 50 + Rahmen). */
 .p-ablage{
-  border:var(--p-rahmen-leer); border-radius:var(--p-r-dialog); background:none;
-  min-height:76px; margin-top:11px;
+  height:54px; margin-top:10px;
+  border:var(--p-rahmen-leer); border-radius:22px; background:var(--p-inaktiv);
+  display:flex; align-items:center; justify-content:center;
+  font:800 11px var(--p-font); letter-spacing:.1em; text-transform:uppercase; color:var(--p-text-2);
 }
+/* Während des Sortierens (2.5): Karten mit etwas mehr Luft, 10 px Abstand. */
+.is-sortieren .p-sammlung{ padding:15px 14px 16px; }
+.is-sortieren .p-sammlung > .p-balken{ margin-top:10px; }
+.is-sortieren .p-sammlung + .p-sammlung,
+.is-sortieren .p-ablage + .p-sammlung,
+.is-sortieren .p-sammlung + .p-ablage{ margin-top:10px; }
 
-/* ── Leerzustand ─────────────────────────────────────────────────────────── */
-.p-leerwahl{ display:flex; flex-direction:column; gap:12px; margin-top:14px; }
+/* ── Leerzustand (Fragment 2.2) ──────────────────────────────────────────── */
+.p-leerwahl-titel{ font:900 20px var(--p-font); text-align:center; margin-top:22px; }
 .p-leerwahl-karte{
-  border:var(--p-rahmen); border-radius:var(--p-r-dialog); background:var(--p-karte);
-  padding:18px 16px; display:flex; align-items:center; gap:13px;
-  text-align:left; cursor:pointer; width:100%; font-family:var(--p-font); color:var(--p-ink);
+  margin-top:11px; width:100%;
+  border:var(--p-rahmen); border-radius:22px; background:var(--p-karte);
+  padding:14px; display:flex; align-items:center; gap:12px;
+  text-align:left; cursor:pointer; font-family:var(--p-font); color:var(--p-ink);
 }
+/* Außenmaß: Fragment 46 + 2 × 2 Rahmen. */
+.p-leerwahl-kachel{
+  width:50px; height:50px; flex:none;
+  border:var(--p-rahmen); border-radius:var(--p-r-kachel); background:var(--p-ton,var(--p-lila));
+  display:flex; align-items:center; justify-content:center;
+}
+.p-leerwahl-name{ display:block; font:900 15px var(--p-font); }
+.p-leerwahl-sub{ display:block; font:700 11px/1.45 var(--p-font); color:var(--p-text-2); margin-top:2px; }
 
 /* Karte direkt nach der Ablageflaeche behaelt ihren Abstand (beim Sortieren). */
 .p-ablage + .p-sammlung{ margin-top:11px; }
@@ -2705,32 +2834,34 @@ button.p-chip{ cursor:pointer; }
   position:fixed; inset:0; z-index:9999;
   background:rgba(31,31,36,.42);
   display:flex; align-items:center; justify-content:center;
-  padding:20px; box-sizing:border-box;
+  padding:22px; box-sizing:border-box;
 }
+/* Maße nach Fragment 2.12: Karte 358 breit (22 px Rand bei 402), Emblem 58 + Rahmen,
+   Knöpfe 50 + Rahmen — die Referenz rechnet den Rahmen außen dazu. */
 .p-dlg-karte{
   border:var(--p-rahmen); border-radius:28px; background:var(--p-karte);
-  padding:22px 18px; width:100%; max-width:360px; text-align:center;
+  padding:22px 18px; width:100%; max-width:358px; text-align:center;
   max-height:86vh; overflow-y:auto; font-family:var(--p-font); color:var(--p-ink);
   scrollbar-width:none;
 }
 .p-dlg-karte::-webkit-scrollbar{ display:none; }
 .p-dlg-emblem{
-  width:58px; height:58px; margin:0 auto 12px;
+  width:62px; height:62px; margin:0 auto 12px;
   border:var(--p-rahmen); border-radius:var(--p-r-karte); background:var(--p-ton,var(--p-lila));
   display:flex; align-items:center; justify-content:center;
 }
-.p-dlg-titel{ font:900 21px/1.2 var(--p-font); color:var(--p-ink); }
+.p-dlg-titel{ font:900 21px var(--p-font); color:var(--p-ink); }
 /* Vondu traegt den Erklaertext. */
 .p-dlg-vondu{
   display:flex; align-items:center; gap:11px; text-align:left; margin-top:12px;
-  border:var(--p-rahmen); border-radius:var(--p-r-btn); background:var(--p-ton,var(--p-lila));
+  border:var(--p-rahmen); border-radius:var(--p-r-btn); background:var(--p-lila);
   padding:11px 13px;
 }
 .p-dlg-vondu > img{ display:block; flex:none; }
 .p-dlg-text{ font:800 11.5px/1.45 var(--p-font); color:var(--p-ink); white-space:pre-line; }
 .p-dlg-knoepfe{ display:flex; gap:10px; margin-top:16px; }
 .p-dlg-btn{
-  flex:1; height:50px; padding:0 12px;
+  flex:1; height:54px; padding:0 12px;
   border:var(--p-rahmen); border-radius:var(--p-r-kachel);
   font:900 12px var(--p-font); cursor:pointer; box-shadow:none;
   display:flex; align-items:center; justify-content:center;

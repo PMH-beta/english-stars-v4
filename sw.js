@@ -48,6 +48,11 @@ const PRECACHE = [
   // Neue Figur + ihre Anbindung (Phase 4). avatar.js laedt sie statisch, also
   // gehoeren sie in den Precache. avatar.js selbst bleibt bis Phase 8 stehen.
   './src/modules/pixel-hero-fine.js', './src/modules/hero.js',
+  // Gegenstände, Kampfplätze, Lagerfeuer (Phase 5) und Kampf-Animationen
+  // (Phase 6) — alle statisch importiert, fehlten bisher hier.
+  './src/modules/pixel-world-fine.js', './src/modules/world.js', './src/modules/pixel-anim.js',
+  // UI-Animationen (Phase 7): Modul aus dem Handoff + gemeinsamer Takt.
+  './src/modules/ui-anim.js', './src/modules/ui-takt.js',
   './src/modules/pwa.js', './src/modules/screen-shell.js',
   './src/modules/speech.js', './src/modules/startup.js', './src/modules/stats.js',
   './src/modules/storage.js', './src/modules/supabase.js', './src/modules/sync.js',

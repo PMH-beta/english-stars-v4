@@ -151,35 +151,38 @@ export function confirmAbortDraft() {
   }).then(ok => { if (ok) _abortDraft(); });
 }
 
-function _showPathChoiceDialog() {
+// Dialog „Wie soll diese Sammlung aufgebaut werden?" (Fragment 2.8). Zwei Aufrufer
+// mit eigenen Knopf-IDs: der Pfad-Dialog im Verwalten und der beim Neuanlegen.
+function _pfadDialog(praefix) {
   const overlay = document.createElement('div');
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
+  overlay.className = 'p-dlg-grund p-pfad-grund';
   overlay.innerHTML = `
-    <div style="background:#fff;border-radius:20px;padding:26px 20px;max-width:360px;width:100%;box-shadow:0 8px 36px rgba(0,0,0,.2);">
-      <div style="text-align:center;margin-bottom:18px;">
-        <div style="font-size:2rem;margin-bottom:8px;">📚</div>
-        <div class="p-dlg-titel" style="font-size:17px;margin-bottom:5px">Wie soll diese Sammlung aufgebaut werden?</div>
-        <p style="font-size:.78rem;color:#bbb;margin:0;line-height:1.5;">Einmalige Wahl — kann später nicht mehr geändert werden</p>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px;">
-        <button id="_path-preset" class="p-leerwahl-karte p-ton-pfirsich" style="align-items:flex-start">
-          <span style="font-size:1.5rem;flex-shrink:0;margin-top:1px;">📦</span>
-          <div>
-            <div class="p-zeilentitel">Vorlage nutzen</div>
-            <div style="font-size:.75rem;opacity:.88;margin-top:2px;line-height:1.4;">Fertige Wortgruppen auswählen und sofort starten</div>
-          </div>
-        </button>
-        <button id="_path-custom" class="p-leerwahl-karte p-ton-blau" style="align-items:flex-start">
-          <span style="font-size:1.5rem;flex-shrink:0;margin-top:1px;">✏️</span>
-          <div>
-            <div class="p-zeilentitel">Selbst zusammenstellen</div>
-            <div style="font-size:.75rem;opacity:.88;margin-top:2px;line-height:1.4;">Wörter manuell eingeben oder per Text einfügen</div>
-          </div>
-        </button>
-      </div>
-      <button id="_path-cancel" style="display:block;width:100%;padding:10px;background:none;border:none;cursor:pointer;font-family:'Nunito',sans-serif;font-size:.85rem;color:#bbb;">Abbrechen</button>
+    <div class="p-dlg-karte p-pfad-karte">
+      <div class="p-pfad-symbol">${iconHTML('book', 42)}</div>
+      <div class="p-pfad-titel">Wie soll diese Sammlung aufgebaut werden?</div>
+      <div class="p-pfad-sub">Einmalige Wahl — kann später nicht mehr geändert werden</div>
+      <button id="${praefix}-preset" class="p-leerwahl-karte">
+        <span class="p-leerwahl-kachel p-ton-pfirsich">${iconHTML('box', 28)}</span>
+        <span class="p-wachs">
+          <span class="p-leerwahl-name">Vorlage nutzen</span>
+          <span class="p-leerwahl-sub">Fertige Wortgruppen auswählen und sofort starten</span>
+        </span>
+      </button>
+      <button id="${praefix}-custom" class="p-leerwahl-karte">
+        <span class="p-leerwahl-kachel p-ton-blau">${iconHTML('pencil', 28)}</span>
+        <span class="p-wachs">
+          <span class="p-leerwahl-name">Selbst zusammenstellen</span>
+          <span class="p-leerwahl-sub">Wörter manuell eingeben oder per Text einfügen</span>
+        </span>
+      </button>
+      <button id="${praefix}-cancel" class="p-pfad-abbrechen">Abbrechen</button>
     </div>
   `;
+  return overlay;
+}
+
+function _showPathChoiceDialog() {
+  const overlay = _pfadDialog('_path');
   document.body.appendChild(overlay);
 
   function _setPath(path) {
@@ -721,16 +724,15 @@ function _claimedBarPct(cat) {
 }
 
 function _showPresetIntroModal(onDone) {
+  // Aussehen nach Fragment 2.9: Truhe 4×, große Überschrift, Knopf über die Breite.
   const overlay = document.createElement('div');
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
+  overlay.className = 'p-dlg-grund p-lv-grund';
   overlay.innerHTML = `
-    <div style="background:#fff;border-radius:20px;padding:28px 22px;max-width:340px;width:100%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.2);">
-      <div style="font-size:2.5rem;margin-bottom:10px;">📦</div>
-      <div class="p-dlg-titel" style="margin-bottom:12px">Lernvorlagen</div>
-      <p style="font-size:.88rem;color:#555;line-height:1.6;margin:0 0 20px;">
-        Für den Anfang empfehlen wir 1 Vorlage. Wer auffrischen will, kann 2 nehmen. Mehr als 2 gleichzeitig sind nicht möglich.
-      </p>
-      <button id="_preset-intro-ok" class="p-dlg-btn p-dlg-btn--ok">Verstanden</button>
+    <div class="p-dlg-karte p-lv-karte">
+      <div class="p-pfad-symbol">${iconHTML('box', 56)}</div>
+      <div class="p-lv-titel">Lernvorlagen</div>
+      <div class="p-lv-text">Für den Anfang empfehlen wir 1 Vorlage. Wer auffrischen will, kann ${MAX_PRESET_CATEGORIES} nehmen. Mehr als ${MAX_PRESET_CATEGORIES} gleichzeitig sind nicht möglich.</div>
+      <button id="_preset-intro-ok" class="p-lv-ok">Verstanden</button>
     </div>
   `;
   document.body.appendChild(overlay);
@@ -897,34 +899,7 @@ export function newDeckCustom() {
 }
 
 function _showNewDeckPathDialog() {
-  const overlay = document.createElement('div');
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
-  overlay.innerHTML = `
-    <div style="background:#fff;border-radius:20px;padding:26px 20px;max-width:360px;width:100%;box-shadow:0 8px 36px rgba(0,0,0,.2);">
-      <div style="text-align:center;margin-bottom:18px;">
-        <div style="font-size:2rem;margin-bottom:8px;">📚</div>
-        <div class="p-dlg-titel" style="font-size:17px;margin-bottom:5px">Wie soll diese Sammlung aufgebaut werden?</div>
-        <p style="font-size:.78rem;color:#bbb;margin:0;line-height:1.5;">Einmalige Wahl — kann später nicht mehr geändert werden</p>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px;">
-        <button id="_ndp-preset" class="p-leerwahl-karte p-ton-pfirsich" style="align-items:flex-start">
-          <span style="font-size:1.5rem;flex-shrink:0;margin-top:1px;">📦</span>
-          <div>
-            <div class="p-zeilentitel">Vorlage nutzen</div>
-            <div style="font-size:.75rem;opacity:.88;margin-top:2px;line-height:1.4;">Fertige Wortgruppen auswählen und sofort starten</div>
-          </div>
-        </button>
-        <button id="_ndp-custom" class="p-leerwahl-karte p-ton-blau" style="align-items:flex-start">
-          <span style="font-size:1.5rem;flex-shrink:0;margin-top:1px;">✏️</span>
-          <div>
-            <div class="p-zeilentitel">Selbst zusammenstellen</div>
-            <div style="font-size:.75rem;opacity:.88;margin-top:2px;line-height:1.4;">Wörter manuell eingeben oder per Text einfügen</div>
-          </div>
-        </button>
-      </div>
-      <button id="_ndp-cancel" style="display:block;width:100%;padding:10px;background:none;border:none;cursor:pointer;font-family:'Nunito',sans-serif;font-size:.85rem;color:#bbb;">Abbrechen</button>
-    </div>
-  `;
+  const overlay = _pfadDialog('_ndp');
   document.body.appendChild(overlay);
   overlay.querySelector('#_ndp-preset').addEventListener('click', () => { overlay.remove(); newDeckPreset(); });
   overlay.querySelector('#_ndp-custom').addEventListener('click', () => { overlay.remove(); newDeckCustom(); });
