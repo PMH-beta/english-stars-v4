@@ -52,7 +52,7 @@ Alle Screens ohne offene Frage sind gebaut (Commits je Bereich, zuletzt
 
 | Bereich | Umsetzung der Antworten |
 | --- | --- |
-| 8 · Profil | F-25 Freund-Ansicht ohne Wortlisten und ohne Hinweis (Code bleibt) · F-57 Antippen = anlegen, Kachel zeigt neuen Wert + Chip mit der Änderung |
+| 8 · Profil | **fertig:** F-25 Freund-Ansicht ohne Wortlisten und ohne Hinweis (Code bleibt) · F-57 Antippen = anlegen, Kachel zeigt neuen Wert + Chip mit der Änderung |
 | 2 · Menü | F-29 Rückfrage vor dem Schnellmodus (2.10) · F-30 keine Taler im Schnellmodus · F-31 Menü im Schnellmodus nur Aussehen (Chip im Banner, schlanke Karten) |
 | 4 · Üben | F-45 Schnellmodus im Spiel (Chip + Hinweis) · F-46 Knopf „Los“ · F-47 Probetest ohne laufende Note · F-48 „Nochmal versuchen“ nach falscher Aussprache · F-21 Mikrofon-Ringe am echten Pegel |
 | 3 · Verwalten | F-40 „Neu scannen“ · F-41 „+ Wort manuell ergänzen“ · F-42 Kopfzeile „N erkannt“ (Dubletten grau) · F-44 Zurück = Abbrechen im Entwurf |

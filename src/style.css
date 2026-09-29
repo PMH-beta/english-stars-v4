@@ -4816,7 +4816,9 @@ body.p-app .music-vol-btn{ bottom:calc(88px + env(safe-area-inset-bottom,0px)); 
 .pf-wert.is-minus .pf-wert-chip{ background:var(--p-rosa); }
 
 /* Tasche: alle Teile des angewählten Fachs, 6 je Zeile. */
-.pf-tasche-kopf{ display:flex; align-items:center; gap:7px; margin-top:18px; font:900 14px var(--p-font); }
+.pf-tasche-kopf{ display:flex; align-items:center; justify-content:space-between; gap:7px; margin-top:18px; }
+.pf-tasche-titel{ display:inline-flex; align-items:center; gap:7px; font:900 14px var(--p-font); }
+.pf-tasche-hinweis{ font:700 10.5px var(--p-font); color:var(--p-text-2); }
 .pf-tasche{ display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:6px; margin-top:9px; }
 .pf-teil{
   position:relative; aspect-ratio:1; min-width:0; padding:0; cursor:pointer;

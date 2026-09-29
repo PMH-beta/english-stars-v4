@@ -302,35 +302,23 @@ function _statVals(equipment) {
   };
 }
 
-// Angewähltes Taschen-Item (Klick) — Vorschau in Werten + „Anlegen"-Karte.
+// Angewähltes Teil — seine Karte steht unter der Tasche.
 let _selId = null;
 function _selectedItem() { return _itemById(_selId) || null; }
 
-// equipment-Map, WENN das Item angelegt (bzw. ein getragenes abgelegt) würde.
-// Abgelegte Waffe → 'none' (leerer Slot, Faust) statt Rückfall auf die Auto-Beste.
-function _previewEquipment(c, it) {
-  const eq = { ...c.equipment };
-  const wornKey = _wornKeyOf(c, it);
-  if (wornKey) { eq[wornKey] = wornKey === 'weapon' ? 'none' : null; return eq; }
-  eq[it.slot === 'ring' ? 'ring1' : it.slot] = it.id;
-  return eq;
-}
+// Werte VOR dem letzten Anlegen/Ablegen (F-57): die Kacheln zeigen danach den
+// neuen Wert, der Chip die Änderung gegenüber vorher. Ohne Änderung keine Chips;
+// ein Fachwechsel oder ein Tipp ins Leere vergisst den alten Stand.
+let _vorherWerte = null;
 
 function _statsHtml(c) {
   const cur = _statVals(c.equipment);
-  const sel = _selectedItem();
-  const wornKey = sel ? _wornKeyOf(c, sel) : null;
-  // _previewEquipment liefert den Stand MIT dem Teil (noch nicht angelegt) bzw.
-  // OHNE es (schon angelegt) — beides ist der Vergleichswert.
-  const other = sel ? _statVals(_previewEquipment(c, sel)) : null;
   const tiles = STAT_DEFS.map(d => {
     const a = cur[d.key];
-    const o = other ? other[d.key] : a;
+    const o = _vorherWerte ? _vorherWerte[d.key] : a;
     let cls = '', chip = '';
-    if (other && o !== a) {
-      // Schon angelegt: der Wert steckt schon drin — der Chip zeigt, was DIESES
-      // Teil beiträgt. Noch nicht angelegt: was sich beim Anlegen ändert.
-      const diff = wornKey ? a - o : o - a;
+    if (o !== a) {
+      const diff = a - o;
       const shown = d.delta ? d.delta(diff) : Math.round(diff * 100) / 100;
       cls = diff > 0 ? ' is-plus' : ' is-minus';
       chip = `<div class="pf-wert-chipzeile"><span class="pf-wert-chip">${shown > 0 ? '+' : '−'}${Math.abs(shown)}</span></div>`;
@@ -383,7 +371,7 @@ function _previewHtml(c) {
 
 // Auswahl verwerfen — beim Öffnen der Profilseite, damit dort IMMER die leere
 // Startansicht steht (Modul-Zustand überlebt sonst den Seitenwechsel).
-export function resetEquipmentSelection() { _selSlot = null; _selId = null; }
+export function resetEquipmentSelection() { _selSlot = null; _selId = null; _vorherWerte = null; }
 
 export function renderEquipmentPanel() {
   const host = document.getElementById('prof-equip-section');
@@ -408,7 +396,8 @@ export function renderEquipmentPanel() {
     for (let i = allOfSlot.length; i < capacity; i++) inv += `<div class="pf-teil is-leer" title="Leerer Platz — schmiede etwas in der Schmiede"></div>`;
     const emptyHint = allOfSlot.length ? '' : `<div class="pf-leer">Noch kein ${meta.name}-Teil geschmiedet — wähle in der Schmiede beim Befüllen ein passendes Objekt und übe seine Verben, dann taucht es hier auf.</div>`;
     bagHtml = `
-      <div class="pf-tasche-kopf">${iconHTML(meta.px, 14)}${meta.mehrzahl} · ${allOfSlot.length}</div>
+      <div class="pf-tasche-kopf"><span class="pf-tasche-titel">${iconHTML(meta.px, 14)}${meta.mehrzahl} · ${allOfSlot.length}</span>
+        ${allOfSlot.length ? '<span class="pf-tasche-hinweis">Antippen = anlegen</span>' : ''}</div>
       <div class="pf-tasche">${inv}</div>
       ${_previewHtml(c)}
       ${emptyHint}`;
@@ -454,6 +443,7 @@ function _onPanelClick(e) {
     const it = _itemById(eqBtn.dataset.equip);
     if (!it) return;
     const wornKey = _wornKeyOf(c, it);
+    _vorherWerte = _statVals(c.equipment);
     if (wornKey) c.equipment[wornKey] = wornKey === 'weapon' ? 'none' : null;
     else _equipInto(c, it);
     _save();
@@ -462,9 +452,16 @@ function _onPanelClick(e) {
   }
   const itemBtn = e.target.closest('[data-item]');
   if (itemBtn) {
-    // Antippen = anwählen (Werte-Vorschau), nochmal antippen = abwählen.
-    const id = itemBtn.dataset.item;
-    _selId = _selId === id ? null : id;
+    // Antippen = anlegen (F-57); die Karte zeigt danach „Ablegen“. Ein schon
+    // getragenes Teil wird nur angewählt.
+    const it = _itemById(itemBtn.dataset.item);
+    if (!it) return;
+    _selId = it.id;
+    if (!_wornKeyOf(c, it)) {
+      _vorherWerte = _statVals(c.equipment);
+      _equipInto(c, it);
+      _save();
+    }
     renderEquipmentPanel();
     return;
   }
@@ -474,6 +471,7 @@ function _onPanelClick(e) {
     // Slot ein Item, wird DAS angewählt (Karte unter der Tasche, „Ablegen").
     // Denselben Slot nochmal antippen = abwählen → Tasche verschwindet wieder.
     const key = slotBtn.dataset.slot;
+    _vorherWerte = null;
     if (_selSlot === key) { _selSlot = null; _selId = null; }
     else {
       _selSlot = key;
@@ -491,6 +489,7 @@ function _onPanelClick(e) {
   if ((_selId || _selSlot) && !e.target.closest('.pf-karte-teil')) {
     _selId = null;
     _selSlot = null;
+    _vorherWerte = null;
     renderEquipmentPanel();
   }
 }
@@ -572,6 +571,7 @@ function _onPointerUp(e) {
   const s = _slotUnder(e, d.it);
   if (!s) return;
   const c = _eq();
+  _vorherWerte = _statVals(c.equipment);
   const wornKey = Object.keys(SLOTS).find(k => c.equipment[k] === d.it.id);
   if (wornKey) c.equipment[wornKey] = null;
   _equipInto(c, d.it);

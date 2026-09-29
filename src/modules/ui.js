@@ -2138,7 +2138,11 @@ function _fsKicker(text) { return `<div class="fs-kicker">${text}</div>`; }
 // Fortschritt-Karte nach 8.3: Titel, Unterzeile, Prozent, Balken; fertig = Mint
 // mit „erledigt" und ohne Balken. Mit Liste aufklappbar (Pfeil wie 8.3, offen
 // hell auf Tinte). ton = Balkenfarbe (Vokabeln Mint, Unregelmäßige Flieder).
+// Freund-Ansicht (8.2, F-25): nie aufklappbar — die Wörter eines Freundes
+// bleiben verborgen. Die Listen werden trotzdem weiter gebaut (geplante
+// Eltern-Funktion), nur nicht gezeigt.
 function _fsKarte({ titel, sub, pct, fertig, ton = 'mint', bild = '', liste = '' }) {
+  if (_statsFriendMode) liste = '';
   const rechts = fertig
     ? `<span class="fs-erledigt">${iconHTML('check', 14)}erledigt</span>`
     : `<span class="fs-prozent">${pct}%</span>`;
@@ -2256,7 +2260,7 @@ function _customWordsBlock(decks) {
       liste: _vocabWordRows(words, ws, null),
     }));
   }
-  return _fsKicker('Eigene Wörter')
+  return _fsKicker(_statsFriendMode ? 'Eigene Sammlungen' : 'Eigene Wörter')
     + (tiles.length ? tiles.join('') : '<div class="fs-leer">Keine eigenen Wörter angelegt.</div>');
 }
 
@@ -2286,7 +2290,10 @@ function _activePresetsBlock(decks, catById) {
       ? '<div class="fs-leer">Keine aktiven Vorlagen.</div>'
       : activePresets.map(p => _fsKarte({
           titel: window.escHtml(p.name),
-          sub: `in Sammlung „${window.escHtml(p.deck)}“`,
+          // Freund (8.2): ohne den Namen seiner Sammlung, nur die Wortzahl.
+          sub: _statsFriendMode
+            ? `Vorlage · ${p.words.length} ${p.words.length === 1 ? 'Wort' : 'Wörter'}`
+            : `in Sammlung „${window.escHtml(p.deck)}“`,
           pct: p.pct, fertig: p.done,
           liste: p.words.length ? _vocabWordRows(p.words, presetWs, p.id) : '',
         })).join(''));
