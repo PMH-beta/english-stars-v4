@@ -932,13 +932,18 @@ export function renderProbetestSection() {
   // Zeilenkarte mit Symbolkachel links, wie im Entwurf. Das Auf- und Zuklappen
   // haengt NUR am Kopf — Klicks im offenen Bereich (Start, Verlauf) duerfen die
   // Karte nicht wieder schliessen.
+  // Pfeil: ohne Verlauf nur das Icon (Fragment 2.3), mit Verlauf im Kasten (2.2),
+  // offen heller Pfeil auf Tinte (2.6) — das CSS tauscht die beiden Icons.
+  const pfeil = (!hist.length && !open)
+    ? iconHTML('chevron', 14)
+    : '<div class="p-chevron">' + iconHTML('chevron', 14) + iconHTML('chevronUpLight', 14) + '</div>';
   let html =
     '<div class="p-zeilenkarte' + (open ? ' is-offen' : '') + '">'
     + '<div class="p-zeilenkarte-kopf" onclick="toggleProbetestHistory()" style="cursor:pointer;">'
     + '<div class="p-symbolkachel p-ton-lila">' + iconHTML('test', 28) + '</div>'
     + '<div class="p-wachs"><div class="p-zeilentitel">Probetest</div>'
     + '<div class="p-zeilensub">' + sub + '</div></div>'
-    + '<div class="p-chevron">' + iconHTML(open ? 'chevronUp' : 'chevron', 14) + '</div>'
+    + pfeil
     + '</div>';
   if (open) {
     html += '<div class="p-karte-trenner">'

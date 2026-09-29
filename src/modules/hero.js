@@ -15,15 +15,18 @@
 // Menü zeichnet sie bei jedem Render neu. Der Zwischenspeicher hat als Schlüssel
 // Avatar + Ausrüstung + Maßstab, genau wie im Handoff verlangt.
 
-import { hero, crop, toCanvas, renderHeroWithPet, renderPet, renderPetSilhouette, petBattleFrames, petBattleSequence, PET_BATTLE, PETS } from './pixel-hero-fine.js';
+import { hero, crop, shadowed, toCanvas, renderHeroWithPet, renderPet, renderPetSilhouette, petBattleFrames, petBattleSequence, PET_BATTLE, PETS } from './pixel-hero-fine.js';
 
 // Maße der Rohgrafik: ganze Figur und Kopf-Ausschnitt (34 × 34 ab (10, 0)).
-export const HERO_W = 54, HERO_H = 87;
+// hero().render() ist immer 54 × 81 — mit jeder Statur und Ausrüstung. Mit
+// Pixel-Schatten darunter (shadowed, Sprite „H…_s" der Referenz) 54 × 87.
+export const HERO_W = 54, HERO_H = 81, HERO_SCHATTEN_H = 87;
 export const HEAD_W = 34, HEAD_H = 34;
-// Brustbild (Kopf + Schultern), wie es das Spielerbanner zeigt: 32 x 32 ab x = 11,
-// in 2x also 64 x 64 in einem 60er-Rahmen mit overflow:hidden — genau die Maße
-// aus Fragment 2.3.
+// Brustbild (Kopf + Schultern) für Spielerbanner und Freundesliste: 32 × 32 ab
+// (11, 6). Pixelgleich mit den Büsten-Sprites Hb0–Hb9 der Referenz; ab y = 6,
+// weil die Figur ohne Helm erst in Zeile 6 beginnt.
 export const BUST_W = 32, BUST_H = 32;
+const BUST_X = 11, BUST_Y = 6;
 
 // ── Ausrüstung: Item-Objekte der App → Form, die hero() versteht ─────────────
 // campaign-equipment.equippedGearMap() liefert ganze Items mit { slot, which,
@@ -61,20 +64,26 @@ export function clearHeroCache() { _cache.clear(); }
 
 // ── Zeichnen ────────────────────────────────────────────────────────────────
 
-/** Ausschnitt einer Figur: ganze Figur, Brustbild oder nur der Kopf. */
-export function ausschnitt(opts) { return opts.bust ? 'bust' : opts.headOnly ? 'head' : 'voll'; }
-export const MASSE = { voll: [HERO_W, HERO_H], bust: [BUST_W, BUST_H], head: [HEAD_W, HEAD_H] };
+/** Ausschnitt einer Figur: ganze Figur (mit oder ohne Schatten), Brustbild oder nur der Kopf. */
+export function ausschnitt(opts) {
+  return opts.bust ? 'bust' : opts.headOnly ? 'head' : opts.shadow ? 'schatten' : 'voll';
+}
+export const MASSE = {
+  voll: [HERO_W, HERO_H], schatten: [HERO_W, HERO_SCHATTEN_H],
+  bust: [BUST_W, BUST_H], head: [HEAD_W, HEAD_H],
+};
 
-/** Figur (ganz, Brustbild oder Kopf) als Data-URL, ganzzahlig skaliert. */
-export function heroURL(cfg, { gear, headOnly = false, bust = false, scale = 2 } = {}) {
+/** Figur (ganz, mit Schatten, Brustbild oder Kopf) als Data-URL, ganzzahlig skaliert. */
+export function heroURL(cfg, { gear, headOnly = false, bust = false, shadow = false, scale = 2 } = {}) {
   const s = Math.max(1, Math.round(scale));
-  const art = bust ? 'bust' : headOnly ? 'head' : 'voll';
+  const art = ausschnitt({ bust, headOnly, shadow });
   const k = _key(cfg, gear, art, s);
   const da = _cache.get(k);
   if (da) return da;
   const voll = hero(gear ? { ...cfg, gear } : cfg).render();
-  const img = bust ? crop(voll, 11, 0, BUST_W, BUST_H)
-    : headOnly ? crop(voll, 10, 0, HEAD_W, HEAD_H) : voll;
+  const img = art === 'bust' ? crop(voll, BUST_X, BUST_Y, BUST_W, BUST_H)
+    : art === 'head' ? crop(voll, 10, 0, HEAD_W, HEAD_H)
+    : art === 'schatten' ? shadowed(voll) : voll;
   return _merken(k, toCanvas(img, s).toDataURL('image/png'));
 }
 

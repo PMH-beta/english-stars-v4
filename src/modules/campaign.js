@@ -284,7 +284,8 @@ function _renderRest(run, before) {
       <div class="rest-feuer" id="rest-feuer">${campfireTag(0, 2)}</div>
     </div>`;
   document.body.appendChild(ov);
-  renderAvatarInto('rest-held', window.SD, {});
+  // Wie Fragment 6.7 („hero:…:s"): Figur mit Pixel-Schatten, 2× = 108 × 174.
+  renderAvatarInto('rest-held', window.SD, { shadow: true, scale: 2 });
   let bild = 0;
   _restTimer = setInterval(() => {
     bild = (bild + 1) % CAMPFIRE_FRAMES.length;

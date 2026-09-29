@@ -56,15 +56,14 @@ export const ICONS = {
     '....K......','...KK......','..KKK......','.KKKKKKKKKK','KKKKKKKKKKK',
     'KKKKKKKKKKK','.KKKKKKKKKK','..KKK......','...KK......','....K......'] },
   starInk:{ noOutline:true, rows:[
-    '.....KKK.....','.....KKK.....','....KKKKK....','....KKKKK....','KKKKKKKKKKKKK',
-    '.KKKKKKKKKKK.','.KKKKKKKKKKK.','..KKKKKKKKK..','..KKKKKKKKK..',
-    '.KKKK...KKKK.','KKKK.....KKKK','KKK.......KKK'] },
+    '......K......','.....KKK.....','.....KKK.....','....KKKKK....','KKKKKKKKKKKKK','.KKKKKKKKKKK.','..KKKKKKKKK..',
+    '...KKKKKKK...','...KKKKKKK...','..KKKKKKKKK..','..KKKK.KKKK..','.KKKK...KKKK.','.KKK.....KKK.'] },
   star:{ noOutline:true, rows:[
-    '.....KKK.....','.....KAK.....','....KKAKK....','....KAAAK....','KKKKKAAAKKKKK',
-    '.KAYYAAAAAAK.','.KKAAAAAOOKK.','..KAAAAAOOK..','..KKKKKKKKK..',
-    '.KKKK...KKKK.','KKKK.....KKKK','KKK.......KKK'] },
-  crown:{ rows:[
-    'A...A...A','AA.AAA.AA','AAAAAAAAA','AAAAAAAAA'] },
+    '......K......','.....KAK.....','.....KYK.....','....KYAAK....','KKKKYYAAAKKKK','.KYYAAAAAAOK.','..KAAAAAAOK..',
+    '...KAAAAOK...','...KAAAAOK...','..KAAAKAOOK..','..KAAK.KAOK..','.KAAK...KOOK.','.KKK.....KKK.'] },
+  crown:{ noOutline:true, rows:[
+    '.K....K....K.','KYK..KYK..KYK','KAK..KAK..KAK','KAAK.KAK.KAAK','KAAAKAAAKAAAK','KAAAAAAAAAAAK','KARAAALAAARAK',
+    'KAAAAAAAAAAAK','KOOOOOOOOOOOK','KKKKKKKKKKKKK'] },
   lock:{ rows:[
     '..GGGG..','.GG..GG.','GG....GG','AAAAAAAA','AAAKKAAA','AAAKKAAA','AAAAAAAA','AAAAAAAA'] },
   mail:{ rows:[
@@ -89,8 +88,9 @@ export const ICONS = {
     '..AAAAA.AAAAA..','..AAAAAAAAAAA..','..AAAAAAAAAAA..','..AKAAAKAAAKA..',
     '..AAAAAAAAAAA..','...AAAAAAAAA...','....AAAAAAA....','...RRRRRRRRR...',
     '..RRRRRRRRRRR..','..RRKRRKRRKRR..','..RRRRRRRRRRR..','...RRRRRRRRR...'] },
-  crownBig:{ rows:[
-    'A....A....A','AA..AAA..AA','AAA.AAA.AAA','AAAAAAAAAAA','AKAAAKAAAKA','.AAAAAAAAA.'] },
+  crownBig:{ noOutline:true, rows:[
+    '.K....K....K.','KYK..KYK..KYK','KAK..KAK..KAK','KAAK.KAK.KAAK','KAAAKAAAKAAAK','KAAAAAAAAAAAK','KARAAALAAARAK',
+    'KAAAAAAAAAAAK','KOOOOOOOOOOOK','KKKKKKKKKKKKK'] },
   key:{ rows:[
     '.GGGG.......','GG..GG......','GG..GGGGGGGG','GG..GG.G...G','.GGGG..G...G'] },
   coin:{ rows:[
@@ -134,13 +134,15 @@ export const ICONS = {
   boots:{ rows:[
     'NNNN....','NNNN....','NNNN....','NNNN....','NNNNNNN.','NNNNNNNN','KKKKKKKK'] },
   sword:{ rows:[
-    '...G...','..GGD..','..GGD..','..GGD..','..GGD..','..GGD..','..GGD..','NNNNNNN','...N...','..NNN..'] },
+    '....GG....','...GGGD...','...GGGD...','...GGGD...','...GGGD...','...GGGD...','.AAAAAAAA.','.AOOOOOOA.',
+    '....NN....','....BB....','...OOOO...','....OO....'] },
   orb:{ rows:[
     '..LLLL..','.LWLLLL.','LWLLLLLL','LLLLLLLL','LLLLLLLL','.LLLLLL.','..LLLL..'] },
   ring:{ rows:[
     '...SS....','..SSSS...','...SS....','.AAAAAAA.','AAWWWWWAA','AAWWWWWAA','.AAAAAAA.'] },
-  paw:{ rows:[
-    'PP..PP..PP','PP..PP..PP','..........','..........','..PPPPPP..','.PPPPPPPP.','.PPPPPPPP.','..PPPPPP..'] },
+  paw:{ noOutline:true, rows:[
+    '..KK....KK..','.KKKK..KKKK.','.KKKK..KKKK.','..KK....KK..','KK........KK','KKK.KKKK.KKK','KK.KKKKKK.KK',
+    '...KKKKKK...','..KKKKKKKK..','..KKKKKKKK..','...KKKKKK...'] },
   trash:{ rows:[
     '...KKKKKK...','...KKKKKK...','KKKKKKKKKKKK','KKKKKKKKKKKK','.RRRRRRRRRR.',
     '.RKRRKRRKRR.','.RKRRKRRKRR.','.RKRRKRRKRR.','.RKRRKRRKRR.','.RKRRKRRKRR.',

@@ -1901,17 +1901,21 @@ body.p-app{
   font:800 12px var(--p-font); color:var(--p-text-2); cursor:pointer;
 }
 /* Aktiv: Grundton des Tabs plus Kontur. Ohne eigenes .p-ton-* erbt er den
-   Screen-Grundton. */
+   Screen-Grundton. In der Referenz kommt die Kontur außen dazu: der aktive Tab
+   ist 42 hoch, die übrigen 38, alle oben bündig (Fragment 2.3). */
 .p-tab.is-aktiv{
+  height:42px;
   background:var(--p-ton,var(--p-mint)); border:var(--p-rahmen);
   font-weight:900; color:var(--p-ink);
 }
 
 /* ── Spielerbanner ───────────────────────────────────────────────────────── */
 /* Spielerbanner nach Fragment 2.3: eine Karte mit Kontur, darin links das
-   Brustbild im 60er-Rahmen, rechts der Weg zum Fortschritt. Die Figur ist 64 px
+   Brustbild im Rahmen, rechts der Weg zum Fortschritt. Die Figur ist 64 px
    breit und wird vom Rahmen leicht beschnitten — so will es der Entwurf, statt
-   sie krumm herunterzuskalieren. */
+   sie krumm herunterzuskalieren.
+   Maße: Die Referenz rechnet ohne box-sizing, der Rahmen kommt dort AUSSEN dazu
+   (60 + 2 × 2 = 64). Hier gilt border-box, also stehen die Außenmaße im CSS. */
 .p-banner{
   display:flex; align-items:center; justify-content:space-between; gap:10px;
   border:var(--p-rahmen); border-radius:var(--p-r-dialog); background:var(--p-karte);
@@ -1919,10 +1923,14 @@ body.p-app{
 }
 .p-banner-links{ display:flex; align-items:center; gap:10px; min-width:0; }
 .p-avatar{
-  width:60px; height:60px; flex:none;
+  width:64px; height:64px; flex:none;
   border:var(--p-rahmen); border-radius:var(--p-r-btn); background:var(--p-lila);
   display:flex; align-items:center; justify-content:center; overflow:hidden; font-size:22px;
 }
+/* Die alte Regel #menu-avatar (Kreis, Verlauf, Ring) ist spezifischer als
+   .p-avatar und gewann bisher. Sie fällt mit dem alten CSS-Block weg (Phase 8);
+   bis dahin hebt diese Regel sie auf. */
+#menu-avatar.p-avatar{ border-radius:var(--p-r-btn); background:var(--p-lila); box-shadow:none; }
 /* „Fortschritt": 44 px hoch, Trophäe davor (Fragment 2.3). */
 .p-fortschritt{
   display:inline-flex; align-items:center; gap:6px; flex:none;
@@ -2130,8 +2138,9 @@ body.p-app .music-vol-btn{
   border:var(--p-rahmen); border-radius:var(--p-r-karte); background:var(--p-karte); padding:13px;
 }
 .p-zeilenkarte-kopf{ display:flex; align-items:center; gap:11px; }
+/* Außenmaße: Fragment 40 + 2 × 2 Rahmen (die Referenz rechnet ohne box-sizing). */
 .p-symbolkachel{
-  width:40px; height:40px; flex:none;
+  width:44px; height:44px; flex:none;
   border:var(--p-rahmen); border-radius:var(--p-r-chip-gross); background:var(--p-ton,var(--p-lila));
   display:flex; align-items:center; justify-content:center;
 }
@@ -2144,9 +2153,9 @@ body.p-app .music-vol-btn{
 }
 .p-sektionkopf .p-kicker{ border:0; padding:0; }
 
-/* „+ Neue Vokabelsammlung" — Akzentknopf über der Liste. */
+/* „+ Neue Vokabelsammlung" — Akzentknopf über der Liste (Fragment 50 + Rahmen). */
 .p-neu{
-  margin-top:10px; height:50px;
+  margin-top:10px; height:54px;
   border:var(--p-rahmen); border-radius:var(--p-r-btn); background:var(--p-violett);
   display:flex; align-items:center; justify-content:center; gap:8px;
   font:900 13px var(--p-font); color:var(--p-ink); width:100%; cursor:pointer;
@@ -2164,17 +2173,21 @@ body.p-app .music-vol-btn{
 .p-sammlung-chips{ display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }
 .p-sammlung-rechts{ flex:none; display:flex; align-items:center; gap:10px; }
 .p-sammlung-pct{ font:900 24px var(--p-font); }
-/* Der Chevron-Slot dreht sich beim Aufklappen um und wird zur Tintenfläche. */
+/* Der Chevron-Slot dreht sich beim Aufklappen um und wird zur Tintenfläche.
+   Außenmaße: Fragment 34 + 2 × 2 Rahmen. */
 .p-chevron{
-  width:34px; height:34px; flex:none;
+  width:38px; height:38px; flex:none;
   border:var(--p-rahmen); border-radius:var(--p-r-slot); background:var(--p-inaktiv);
   display:flex; align-items:center; justify-content:center;
 }
-.p-sammlung.is-offen .p-chevron{ background:var(--p-ink); }
+.p-sammlung.is-offen .p-chevron,
+.p-zeilenkarte.is-offen > .p-zeilenkarte-kopf > .p-chevron{ background:var(--p-ink); }
 /* Zu: Chevron nach unten. Offen: heller Chevron nach oben auf Tinte. */
 .p-chevron [data-icon="chevronUpLight"]{ display:none; }
-.p-sammlung.is-offen .p-chevron [data-icon="chevron"]{ display:none; }
-.p-sammlung.is-offen .p-chevron [data-icon="chevronUpLight"]{ display:block; }
+.p-sammlung.is-offen .p-chevron [data-icon="chevron"],
+.p-zeilenkarte.is-offen > .p-zeilenkarte-kopf > .p-chevron [data-icon="chevron"]{ display:none; }
+.p-sammlung.is-offen .p-chevron [data-icon="chevronUpLight"],
+.p-zeilenkarte.is-offen > .p-zeilenkarte-kopf > .p-chevron [data-icon="chevronUpLight"]{ display:block; }
 
 /* ── Modus-Zeilen im aufgeklappten Zustand ───────────────────────────────── */
 .p-modi{ display:flex; flex-direction:column; gap:9px; margin-top:12px; }

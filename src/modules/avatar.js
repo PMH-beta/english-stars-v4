@@ -1060,7 +1060,7 @@ export function renderAvatarInto(elId, sd, opts = {}) {
   const [bw, bh] = MASSE[ausschnitt(opts)];
   // Ein ausdruecklich gesetzter Massstab gilt, auch wenn die Grafik dann ueber den
   // Rahmen hinausragt: das Brustbild im Spielerbanner ist 64 px breit und wird vom
-  // 60er-Rahmen bewusst beschnitten (Fragment 2.3). Ohne Angabe wird gemessen.
+  // Rahmen (innen 60 px) bewusst beschnitten (Fragment 2.3). Ohne Angabe wird gemessen.
   const s = opts.scale ? Math.max(1, Math.round(opts.scale)) : fitScale(el, bw, bh, 2);
   el.innerHTML = imgTag(cfg, { ...opts, gear: gearFor(opts.gear), scale: s });
 }
