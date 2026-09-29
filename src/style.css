@@ -3556,3 +3556,235 @@ button.p-chip{ cursor:pointer; }
 .cf-pet{position:absolute;left:38px;bottom:-4px;z-index:3;}
 .cf-hero{z-index:2;}
 .cf-hero.vorn{z-index:6;}
+
+/* ══ KAMPF nach Fragment 7.4 (Phase 7, Bereich 7) ═══════════════════════════
+   Aufbau wie im Entwurf: Kopfleiste, darunter die Aufgabenkarte mit der
+   Spielfläche, unten die Bühne mit Held und Gegner und je einer Statuskarte.
+   Außenmaße wie überall: Fragmentwert + Rahmen (die Referenz rechnet ohne
+   box-sizing). Diese Regeln stehen zuletzt und gelten vor den älteren. */
+.cf-kopf{ z-index:6; padding:calc(10px + env(safe-area-inset-top,0px)) 14px 0; }
+.cf-rund{ width:42px; height:42px; }
+.cf-kopfleiste{
+  flex:1; display:flex; align-items:center; justify-content:space-between; gap:10px;
+  border:var(--p-rahmen); border-radius:22px; background:var(--p-karte); padding:8px 8px 8px 12px;
+}
+.cf-titel{
+  display:inline-flex; align-items:center; gap:8px;
+  font:900 13px var(--p-font); letter-spacing:.18em; text-transform:uppercase; color:var(--p-ink);
+}
+.cf-welle{
+  display:inline-flex; align-items:center; gap:5px; white-space:nowrap;
+  border:var(--p-rahmen); border-radius:11px; background:var(--p-gold);
+  padding:3px 10px; font:900 11px var(--p-font); color:var(--p-ink);
+}
+/* Mitte: Aufgabenkarte oben, darunter die Spielfläche bis zur Bühne. */
+.cf-mitte{
+  position:relative; z-index:5; flex:1; min-height:0;
+  width:100%; max-width:440px; margin:0 auto; padding:14px 14px 6px;
+  display:flex; flex-direction:column;
+}
+/* Unten: Bühne mit Held und Gegner. */
+.cf-buehne{ position:relative; z-index:2; flex:none; height:314px; width:100%; max-width:440px; margin:0 auto; }
+.cf-reihe{
+  position:absolute; left:14px; right:14px; top:18px; z-index:3;
+  display:flex; justify-content:space-between; align-items:flex-end;
+}
+.cf-spalte{ display:flex; flex-direction:column; align-items:center; gap:12px; }
+.cf-feind-platz{ position:relative; width:142px; height:154px; }
+.cf-feind-platz.boss{ width:172px; height:184px; }
+/* Statuskarte: 160 + Polster + Rahmen = 184 breit. */
+.cf-status{
+  width:184px; border:var(--p-rahmen); border-radius:var(--p-r-kachel); background:var(--p-karte);
+  padding:7px 10px 8px; box-shadow:0 3px 0 rgba(31,31,36,.2);
+}
+.cf-status-kopf{ display:flex; justify-content:space-between; align-items:baseline; gap:6px; }
+.cf-status-name{
+  font:900 10px var(--p-font); letter-spacing:.1em; text-transform:uppercase;
+  min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.cf-status-zahl{ font:900 13px var(--p-font); flex:none; }
+.cf-status-balken{
+  height:14px; margin-top:5px; overflow:hidden;
+  border:var(--p-rahmen); border-radius:6px; background:#F3EFE6;
+}
+.cf-status-balken > i{ display:block; height:100%; background:var(--p-ok); }
+.cf-status-balken--feind > i{ background:var(--p-falsch); }
+.cf-status-fuss{ display:flex; gap:6px; margin-top:7px; align-items:center; }
+.cf-status-platz{ height:39px; }
+.cf-traenke{ display:flex; gap:6px; }
+/* Trank im Kampf: 28 + Rahmen, Anzahl immer sichtbar (7.4). */
+.cf-status .cf-potion{
+  width:32px; height:32px; position:relative; padding:0; flex:none;
+  border:var(--p-rahmen); border-radius:9px;
+  display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:none;
+}
+.cf-status .cf-potion .potion-n{
+  position:absolute; right:-5px; bottom:-5px; min-width:18px; height:18px; padding:0 2px;
+  border:var(--p-rahmen); border-radius:7px; background:var(--p-gold); color:var(--p-ink);
+  font:900 8px/10px var(--p-font); text-align:center;
+}
+.cf-status .cf-waffe{
+  margin-left:auto; display:inline-flex; align-items:center; gap:4px;
+  border:var(--p-rahmen); border-radius:var(--p-r-chip); background:var(--p-lila);
+  padding:3px 8px; font:900 11px var(--p-font); color:var(--p-ink);
+}
+/* Schadenszahl (7.5, 7.6): Chip, steigt 8 Takte lang je 3 px, dann weg. */
+.cf-dmg{
+  position:absolute; z-index:7; transform:translateX(-50%); pointer-events:none; white-space:nowrap;
+  display:inline-flex; align-items:center; gap:4px;
+  border:var(--p-rahmen); border-radius:12px; padding:4px 11px;
+  font:900 15px var(--p-font); color:var(--p-ink); text-shadow:none;
+  box-shadow:0 3px 0 rgba(31,31,36,.25);
+  animation:cfPop 1s steps(8,end) forwards;
+}
+@keyframes cfPop{ from{ translate:0 0; } to{ translate:0 -24px; } }
+@media (prefers-reduced-motion:reduce){ .cf-dmg{ animation:none; } }
+
+/* ── Aufgabenkarte (7.4–7.13) ── */
+.mg-aufgabe{
+  position:relative; z-index:2; flex:none; overflow:hidden;
+  border:var(--p-rahmen); border-radius:var(--p-r-karte); background:var(--p-karte);
+  box-shadow:0 4px 0 rgba(31,31,36,.18);
+}
+.mg-aufgabe-zeile{ display:flex; align-items:center; gap:11px; padding:10px 12px; }
+.mg-aufgabe-kachel{
+  width:44px; height:44px; flex:none;
+  border:var(--p-rahmen); border-radius:13px;
+  display:flex; align-items:center; justify-content:center;
+}
+.mg-aufgabe-art{ font:800 9px var(--p-font); letter-spacing:.12em; text-transform:uppercase; color:var(--p-text-2); }
+.mg-aufgabe-frage{ font:900 22px/1.15 var(--p-font); margin-top:1px; color:var(--p-ink); }
+.mg-aufgabe-sek{ font:900 13px var(--p-font); flex:none; color:var(--p-ink); }
+.mg-de{ display:inline-flex; align-items:baseline; gap:7px; }
+.mg-de > span{ font:900 10px var(--p-font); letter-spacing:.12em; color:var(--p-text-akzent); }
+.mg-form{ border:var(--p-rahmen); border-radius:9px; padding:0 7px; font:900 15px var(--p-font); }
+.mg-form--past{ background:var(--p-blau); }
+.mg-form--pp{ background:var(--p-gold); }
+/* Zeitbalken an der Unterkante: 8 + Rahmen oben. */
+.mg-aufgabe-spur{ height:10px; border-top:var(--p-rahmen); background:var(--p-inaktiv); }
+.mg-aufgabe-fuell{ height:100%; width:100%; background:var(--p-gold); border-right:var(--p-rahmen); }
+/* Nochmal hören (Echo, 7.8): 42 + Rahmen. */
+.mg-aufgabe .mg-hoer{
+  width:46px; height:46px; border:var(--p-rahmen); border-radius:50%; background:var(--p-karte-hell);
+}
+/* Spielfläche unter der Karte. */
+.mg-flaeche{ position:relative; flex:1; min-height:170px; display:flex; flex-direction:column; }
+.mg-flaeche > .mg-feld{ position:relative; flex:1; min-height:0; overflow:hidden; }
+
+/* ── Buchstabensturm (7.4–7.6, 7.10) ── */
+.mg-slots{ display:flex; justify-content:center; gap:7px; flex-wrap:wrap; padding:14px 0 0; }
+.cf-slot{
+  min-width:42px; height:50px; padding:0 5px;
+  border:2px dashed var(--p-ink); border-radius:var(--p-r-slot); background:rgba(248,246,236,.5);
+  font:900 20px var(--p-font); transition:none;
+}
+.cf-slot.cf-filled{ border:var(--p-rahmen); background:var(--p-karte); }
+.cf-slot.cf-ok{ border:var(--p-rahmen); background:var(--p-ok); }
+.cf-tile{ width:62px; height:62px; border-radius:var(--p-r-chip-gross); transition:none; }
+.cf-tile.cf-shake{ background:var(--p-falsch); }
+.cf-tile.cf-shake span{ animation:none; }
+/* „Richtig · horse" nach der gelösten Welle (7.6). */
+.mg-richtig{
+  position:absolute; left:0; right:0; bottom:22px; z-index:3; display:flex; justify-content:center; pointer-events:none;
+}
+.mg-richtig > span{
+  display:inline-flex; align-items:center; gap:5px; white-space:nowrap;
+  border:var(--p-rahmen); border-radius:11px; background:var(--p-ok);
+  padding:6px 14px; font:900 13px var(--p-font); color:var(--p-ink);
+}
+
+/* ── Wort-Meteoriten (7.7, 7.11, 7.13) und Echo-Fang (7.8, 7.12) ── */
+.mg-meteor{
+  position:absolute; transform:translateX(-50%); z-index:2; padding:0; border:0; background:none; cursor:pointer;
+  display:flex; flex-direction:column; align-items:center;
+}
+.mg-treiber{
+  border:var(--p-rahmen); border-radius:var(--p-r-kachel); background:var(--p-karte);
+  padding:9px 15px; font:900 15px var(--p-font); color:var(--p-ink); white-space:nowrap;
+}
+.mg-meteor .mg-treiber{ margin-top:2px; padding:8px 14px; }
+.mg-treiber.is-falsch{ background:var(--p-falsch); opacity:.45; }
+.mg-treiber.is-richtig{ background:var(--p-ok); }
+
+/* ── Richtig oder falsch (7.9) ── */
+.tf-flaeche{ flex:1; display:flex; flex-direction:column; justify-content:center; gap:20px; padding:0 14px 16px; }
+.tf-punkte{ display:flex; justify-content:center; gap:8px; }
+.tf-dot{ width:16px; height:16px; border-radius:50%; border:var(--p-rahmen); background:var(--p-karte); }
+.tf-dot.done{ background:var(--p-ok); }
+.tf-dot.miss{ background:var(--p-falsch); }
+.tf-dot.now{ background:var(--p-gold); }
+.mg-wortkarte{
+  border:var(--p-rahmen); border-radius:var(--p-r-kachel); background:var(--p-karte-hell);
+  padding:18px 20px; display:flex; align-items:center; justify-content:center; gap:12px; flex-wrap:wrap;
+  transition:none;
+}
+.mg-wort-de, .mg-wort-en{ font:900 22px var(--p-font); }
+.mg-wort-strich{ font:800 17px var(--p-font); color:var(--p-text-2); }
+.tf-knoepfe{ display:flex; justify-content:center; gap:20px; }
+.tf-btn{
+  min-width:144px; padding:10px 14px 12px; gap:4px;
+  border:var(--p-rahmen); border-radius:18px; background:var(--p-karte);
+}
+.tf-btn .tf-lbl{ font:900 12px var(--p-font); letter-spacing:.08em; text-transform:uppercase; color:var(--p-ink); }
+
+/* ── Schutz-Meldung über der Figur (Fragment 6.8, N41) ── */
+.cf-schutz{
+  position:absolute; left:14px; top:-58px; z-index:9; max-width:280px; pointer-events:none;
+  display:flex; align-items:center; gap:10px;
+  border:var(--p-rahmen); border-radius:18px; padding:10px 13px;
+  box-shadow:0 4px 0 rgba(31,31,36,.22); color:var(--p-ink);
+}
+.cf-schutz-titel{ font:900 13px var(--p-font); }
+.cf-schutz-grund{ font:700 10.5px var(--p-font); color:var(--p-text-akzent); }
+
+/* ── Kampf-Ende (7.15–7.17) und Verlassen (7.14) ── */
+.cf-ende{ flex:1; display:flex; flex-direction:column; justify-content:center; }
+.cf-ende-karte{
+  border:var(--p-rahmen); border-radius:26px; background:var(--p-karte-hell);
+  padding:22px 18px 18px; color:var(--p-ink);
+}
+/* Emblem 68 + Rahmen, Boss-Kreis 84 + Rahmen. */
+.cf-ende-emblem{
+  width:72px; height:72px; margin:0 auto;
+  border:var(--p-rahmen); border-radius:22px;
+  display:flex; align-items:center; justify-content:center;
+}
+.cf-ende-emblem--boss{ width:88px; height:88px; border-radius:50%; background:var(--p-gold); }
+.cf-ende-titel{ font:900 26px var(--p-font); text-align:center; margin-top:14px; }
+.cf-ende-titel--boss{ font-size:28px; margin-top:12px; }
+.cf-ende-text{ font:700 12.5px/1.5 var(--p-font); color:var(--p-text-akzent); text-align:center; margin-top:6px; }
+.cf-ende-chips{ display:flex; justify-content:center; flex-wrap:wrap; gap:8px; margin-top:12px; }
+.cf-ende-chip{
+  display:inline-flex; align-items:center; gap:5px; white-space:nowrap;
+  border:var(--p-rahmen); border-radius:11px; padding:3px 10px; font:900 11px var(--p-font);
+}
+.cf-ende-liste{ display:flex; flex-direction:column; gap:8px; margin-top:14px; }
+.cf-ende-zeile{
+  display:flex; align-items:center; gap:10px;
+  border:var(--p-rahmen); border-radius:var(--p-r-chip-gross); background:var(--p-karte);
+  padding:9px 12px; font:800 12px var(--p-font);
+}
+.cf-ende-zeile--weg{ border:var(--p-rahmen-unverdient); background:var(--p-chip-leer); color:#4A4A52; }
+/* Knopf 52 + Rahmen. */
+.cf-ende-btn{
+  width:100%; height:56px; margin-top:16px;
+  border:var(--p-rahmen); border-radius:18px; background:var(--p-ink); color:var(--p-gold);
+  display:flex; align-items:center; justify-content:center; font:900 14px var(--p-font); cursor:pointer;
+}
+.p-dlg-grund.cf-weg-grund{ padding:18px; background:rgba(31,31,36,.45); }
+.p-dlg-karte.cf-weg-karte{ max-width:366px; background:var(--p-karte-hell); padding:22px 18px 18px; }
+.cf-weg-titel{ font:900 22px var(--p-font); text-align:center; margin-top:14px; }
+.cf-weg-text{ font:700 12.5px/1.55 var(--p-font); color:var(--p-text-akzent); text-align:center; margin-top:8px; }
+.cf-weg-knoepfe{ display:flex; gap:10px; margin-top:18px; }
+.cf-weg-btn{
+  flex:1; height:56px; border:var(--p-rahmen); border-radius:18px; background:var(--p-karte); color:var(--p-ink);
+  display:flex; align-items:center; justify-content:center; font:900 14px var(--p-font); cursor:pointer;
+}
+.cf-weg-btn--bleib{ background:var(--p-ink); color:var(--p-gold); }
+
+/* Konfetti beim Boss-Sieg (7.16): Plättchen 10 × 13 + Rahmen, fallen im Takt. */
+.cf-konfetti{ position:absolute; inset:0; z-index:9; pointer-events:none; overflow:hidden; }
+.cf-konfetti > span{
+  position:absolute; width:14px; height:17px;
+  border:var(--p-rahmen); border-radius:3px;
+}

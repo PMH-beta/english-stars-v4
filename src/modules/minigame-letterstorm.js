@@ -17,6 +17,30 @@
 
 import { playSfx } from './game.js';
 import { STORM_PENALTY_MS } from './campaign-balance.js';
+import { aufgabeKarte, frageDE, sekText } from './minigame-karte.js';
+import { iconHTML } from './pixel-icons.js';
+
+// Wackeln bei einem falschen Buchstaben (Übersicht 9.7): 8 Bilder im 8-fps-Takt,
+// harte Stufen, keine CSS-Übergänge. Bei „Bewegung reduzieren" nur die Farbe.
+const WACKELN = [0, -4, 4, -3, 3, -2, 2, 0];
+export function wackeln(el, fertig) {
+  const still = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let i = 0;
+  const t = setInterval(() => {
+    if (!still) el.style.translate = WACKELN[i] + 'px 0';
+    if (++i >= WACKELN.length) { clearInterval(t); el.style.translate = ''; if (fertig) fertig(); }
+  }, 125);
+}
+
+/** „✓ Richtig · horse" unten in der Spielfläche (7.6). */
+export function richtigChip(host, wort) {
+  const feld = host.querySelector('.mg-flaeche');
+  if (!feld) return;
+  const d = document.createElement('div');
+  d.className = 'mg-richtig';
+  d.innerHTML = `<span>${iconHTML('check', 14)}Richtig · ${window.escHtml ? window.escHtml(wort) : wort}</span>`;
+  feld.appendChild(d);
+}
 
 // Zielwort fürs Tippen: erste /-Alternative, führendes „to " weg (wie submitType).
 export function stormTarget(en) {
@@ -50,23 +74,15 @@ export function ensureStormStyle() {
       50%     { transform: translate(calc(-50% + var(--x2)), calc(-50% + var(--y2))); }
       75%     { transform: translate(calc(-50% + var(--x3)), calc(-50% + var(--y3))); }
     }
-    @keyframes cfShake { 0%,100% { translate: 0 0; } 25% { translate: -6px 0; } 75% { translate: 6px 0; } }
-    .cf-tile { position:absolute; width:58px; height:58px; cursor:pointer; padding:0; z-index:2;
-      border:2px solid var(--p-ink); border-radius:var(--p-r-chip-gross);
-      background:var(--p-karte); color:var(--p-ink); font:900 24px var(--p-font);
-      box-shadow:none;
-      animation: cfDrift var(--dur,12s) ease-in-out var(--del,0s) infinite; transition: opacity .25s, scale .25s; }
-    .cf-tile.cf-hit { opacity:0; scale:.3; pointer-events:none; }
-    .cf-tile.cf-shake { background:var(--p-falsch); }
-    .cf-tile.cf-shake span { display:inline-block; animation: cfShake .3s ease; }
-    /* Eingabefeld-Kacheln (Wortleiste): gleiche Kachel-Sprache wie die tippbaren
-       Buchstaben im Spielfeld — leer = angedeutete Kachel, getroffen = feste weiße Kachel. */
-    .cf-slot { display:inline-flex; align-items:center; justify-content:center; min-width:32px; height:38px;
-      border:2px dashed var(--p-ink); border-radius:var(--p-r-chip); background:rgba(248,246,236,.45);
-      font:900 17px var(--p-font); color:var(--p-ink); padding:0 5px;
-      transition:background .2s, border-color .2s; }
-    .cf-slot.cf-filled { border:2px solid var(--p-ink); background:var(--p-karte);
-      color:var(--p-ink); box-shadow:none; }
+    /* Nur die Mechanik steht hier (Lage, Drift). Das Aussehen von Kachel und
+       Wortleiste kommt aus style.css (Fragment 7.4) — eingespritzte Regeln
+       stünden später im Dokument und überstimmten es sonst. */
+    .cf-tile { position:absolute; cursor:pointer; padding:0; z-index:2;
+      display:flex; align-items:center; justify-content:center;
+      border:2px solid var(--p-ink); background:var(--p-karte); color:var(--p-ink); font:900 24px var(--p-font);
+      animation: cfDrift var(--dur,12s) ease-in-out var(--del,0s) infinite; }
+    .cf-tile.cf-hit { visibility:hidden; pointer-events:none; }
+    .cf-slot { display:inline-flex; align-items:center; justify-content:center; color:var(--p-ink); }
   `;
   document.head.appendChild(st);
 }
@@ -105,20 +121,12 @@ export function startLetterstorm({ host, de, en, prompt, timeLimitMs, guards = 0
     ? '<span style="width:12px;"></span>'
     : `<span class="cf-slot" data-i="${i}"></span>`).join('');
 
-  host.innerHTML = `
-    <div style="display:flex;justify-content:center;margin-bottom:16px;">
-      <div class="mg-titelkarte">
-        <div class="mg-titel">${prompt || `🇩🇪 ${de}`}</div>
-      </div>
-    </div>
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-      <div class="mg-zeitspur">
-        <div id="cf-timebar" class="mg-zeitfuell"></div>
-      </div>
-      <div id="cf-secs" class="mg-sek"></div>
-    </div>
-    <div id="cf-slots" style="display:flex;justify-content:center;gap:6px;flex-wrap:wrap;padding:0 0 12px;">${slotHtml}</div>
-    <div id="cf-field" style="position:relative;height:min(38dvh,320px);min-height:170px;overflow:hidden;"></div>`;
+  // Aufbau wie Fragment 7.4: Aufgabenkarte, darunter Wortleiste und Spielfeld.
+  host.innerHTML = aufgabeKarte({ art: 'sturm', frage: prompt || frageDE(de), zeitId: 'cf-timebar', sekId: 'cf-secs' })
+    + `<div class="mg-flaeche">
+      <div id="cf-slots" class="mg-slots">${slotHtml}</div>
+      <div id="cf-field" class="mg-feld"></div>
+    </div>`;
 
   // Tiles auf gemischtem Gitter platzieren (kein Anfangs-Überlappen), dann driften.
   const field = host.querySelector('#cf-field');
@@ -133,16 +141,23 @@ export function startLetterstorm({ host, de, en, prompt, timeLimitMs, guards = 0
   // die Untergrenze sorgt dafür, dass auch im engsten Gitter sichtbar Bewegung bleibt.
   const cellW = field.clientWidth * 0.84 / cols;
   const cellH = field.clientHeight * 0.74 / rows;
-  const driftX = Math.max(16, Math.min(30, (cellW - 58) / 2 + 8));
-  const driftY = Math.max(14, Math.min(26, (cellH - 58) / 2 + 8));
+  const driftX = Math.max(16, Math.min(30, (cellW - 62) / 2 + 8));
+  const driftY = Math.max(14, Math.min(26, (cellH - 62) / 2 + 8));
 
   let nextIdx = 0;   // nächster erwarteter Index in chars (Leerzeichen überspringen)
   const advance = () => { nextIdx++; while (nextIdx < chars.length && chars[nextIdx] === ' ') nextIdx++; };
+  let gefuellt = 0;  // Zahl der getroffenen Buchstaben (Versatz fürs Wippen)
 
   function _finish(success) {
     if (done) return;
     done = true;
     if (timer) clearInterval(timer);
+    if (success) {
+      // Gelöst (7.6): die ganze Leiste wird mint und steht still, darunter
+      // „Richtig · Wort".
+      host.querySelectorAll('.cf-slot').forEach(s => { s.classList.add('cf-ok'); delete s.dataset.ui; s.style.transform = ''; });
+      richtigChip(host, target);
+    }
     onResult(success, Math.max(0, endAt - Date.now()));
   }
 
@@ -153,34 +168,35 @@ export function startLetterstorm({ host, de, en, prompt, timeLimitMs, guards = 0
     btn.innerHTML = `<span>${t.ch}</span>`;
     const x = (cell.c + 0.5) / cols * 84 + 8;    // % innerhalb des Felds, mit Rand
     const y = (cell.r + 0.5) / rows * 74 + 10;
-    btn.style.left = `calc(${x}% - 23px)`;
-    btn.style.top = `calc(${y}% - 23px)`;
+    btn.style.left = `calc(${x}% - 31px)`;
+    btn.style.top = `calc(${y}% - 31px)`;
     setDrift(btn, driftX, driftY);
     btn.onclick = () => {
       if (done || btn.classList.contains('cf-hit')) return;
       if (t.ch === chars[nextIdx]) {
-        // Richtig: Tile poppt weg, Slot füllt sich. Bei doppelten Buchstaben gilt
-        // JEDES passende Tile (w-e-e-k: jedes „e" zählt fürs nächste „e").
+        // Richtig: Tile ist weg, Slot füllt sich und wippt (7.4, je 3 Takte
+        // versetzt). Bei doppelten Buchstaben gilt JEDES passende Tile (w-e-e-k:
+        // jedes „e" zählt fürs nächste „e").
         btn.classList.add('cf-hit');
         const slot = host.querySelector(`.cf-slot[data-i="${nextIdx}"]`);
-        if (slot) { slot.textContent = t.ch; slot.classList.add('cf-filled'); }
+        if (slot) {
+          slot.textContent = t.ch; slot.classList.add('cf-filled');
+          slot.dataset.a = '1.5'; slot.dataset.d = String((gefuellt++ * 3) % 12); slot.dataset.ui = 'bob';
+        }
         advance();
         try { playSfx('click'); } catch (e) {}
         if (nextIdx >= chars.length) _finish(true);
       } else if (guards > 0) {
         // 🐾 Gefährte fängt den Fehlgriff ab — kein Fehler, keine Zeitstrafe.
+        // Die Meldung zeigt der Kampf über der Figur (Fragment 6.8, N41).
         guards--;
         if (onGuardUsed) try { onGuardUsed(); } catch (e) {}
         try { playSfx('click'); } catch (e) {}
-        const note = document.createElement('div');
-        note.textContent = '🐾 Gefährte hilft!';
-        note.className = 'mg-note';
-        field.appendChild(note);
-        setTimeout(() => note.remove(), 1000);
       } else {
+        // Falsch (7.5): Kachel rosa, wackelt in 8 harten Stufen.
         try { playSfx('wrong'); } catch (e) {}
         btn.classList.add('cf-shake');
-        setTimeout(() => btn.classList.remove('cf-shake'), 350);
+        wackeln(btn, () => btn.classList.remove('cf-shake'));
         endAt -= STORM_PENALTY_MS;
         const bar = host.querySelector('#cf-timebar');
         if (bar) { bar.style.background = 'var(--p-falsch)'; setTimeout(() => { bar.style.background = ''; }, 350); }
@@ -195,14 +211,16 @@ export function startLetterstorm({ host, de, en, prompt, timeLimitMs, guards = 0
     const bar = host.querySelector('#cf-timebar');
     const secs = host.querySelector('#cf-secs');
     if (bar) bar.style.width = Math.max(0, remain / timeLimitMs * 100) + '%';
-    if (secs) secs.textContent = Math.max(0, Math.ceil(remain / 1000)) + 's';
+    if (secs) secs.textContent = sekText(remain);
     if (remain <= 0) _finish(false);
   }
   timer = setInterval(_tick, 100);
+  _tick();
 
   return {
     destroy() { done = true; if (timer) clearInterval(timer); },
-    pause() { if (done || pausedAt) return; pausedAt = Date.now(); clearInterval(timer); timer = null; },
+    // Pausiert (7.14): statt der Sekunden steht „pausiert".
+    pause() { if (done || pausedAt) return; pausedAt = Date.now(); clearInterval(timer); timer = null; const s = host.querySelector('#cf-secs'); if (s) s.textContent = 'pausiert'; },
     resume() { if (done || pausedAt == null) return; endAt += Date.now() - pausedAt; pausedAt = null; timer = setInterval(_tick, 100); },
   };
 }

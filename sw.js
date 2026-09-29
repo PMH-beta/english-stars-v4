@@ -37,7 +37,7 @@ const PRECACHE = [
   './src/modules/decks.js', './src/modules/default-decks.js', './src/modules/dialog.js',
   './src/modules/friends.js', './src/modules/game.js', './src/modules/irregular-game.js',
   './src/modules/irregular-verbs.js', './src/modules/lazyload.js',
-  './src/modules/minigame-echo.js', './src/modules/minigame-letterstorm.js',
+  './src/modules/minigame-echo.js', './src/modules/minigame-letterstorm.js', './src/modules/minigame-karte.js',
   './src/modules/minigame-meteors.js', './src/modules/minigame-truefalse.js',
   './src/modules/pixel-enemies.js', './src/modules/pixel-icons.js', './src/modules/pixel-items.js',
   // Dungeon-Gegner (Pastell-Redesign). campaign-fight.js importiert sie statisch,

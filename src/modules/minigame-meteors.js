@@ -8,29 +8,33 @@
 // Schnittstelle: startMeteors({host, de, answer, choices, fallMs, onMiss, onResult}) →
 // {destroy, pause, resume}. choices enthält answer; onResult(success, timeLeftMs) wird
 // genau einmal gerufen, onMiss bei JEDEM falschen Tipp. pause()/resume() frieren auch den
-// Fall (CSS-Transition, läuft unabhängig vom JS-Timer) exakt an der aktuellen Stelle ein.
+// Fall exakt an der aktuellen Stelle ein (er hängt am selben Takt wie die Restzeit).
 // prompt (optional): eigener Kopf statt „🇩🇪 de" — für die Verbform-Wellen der 🌀-Knoten.
 
 import { playSfx } from './game.js';
+import { aufgabeKarte, frageDE } from './minigame-karte.js';
+import { meteorHTML } from './pixel-icons.js';
+import { richtigChip } from './minigame-letterstorm.js';
+
+// Gefallen wird in harten Stufen im gemeinsamen 8-fps-Takt (Handoff-Regel 6:
+// keine CSS-Übergänge auf Sprites). Die Fallzeit selbst ist unverändert.
+const TAKT = 125;
 
 export function startMeteors({ host, de, answer, choices, prompt, fallMs, onMiss, onResult }) {
   let done = false, timer = null, pausedAt = null;
   let endAt = Date.now() + fallMs;
 
-  host.innerHTML = `
-    <div style="display:flex;justify-content:center;margin-bottom:16px;">
-      <div class="mg-titelkarte">
-        <div class="mg-titel">${prompt || `🇩🇪 ${de}`}</div>
-      </div>
-    </div>
-    <!-- Maske statt Hardcut: Meteore faden am oberen/unteren Rand des Himmels weich
-         ein bzw. aus, statt abrupt zu erscheinen/verschwinden. -->
-    <div id="cf-sky" style="position:relative;height:min(42dvh,360px);min-height:190px;overflow:hidden;
-      mask-image:linear-gradient(to bottom, transparent 0%, black 14%, black 82%, transparent 100%);
-      -webkit-mask-image:linear-gradient(to bottom, transparent 0%, black 14%, black 82%, transparent 100%);"></div>`;
+  // Aufbau wie Fragment 7.7: Aufgabenkarte ohne Zeitbalken (die Zeit ist der
+  // Fall), darunter der Himmel. Die Maske blendet Meteore an den Rändern aus.
+  host.innerHTML = aufgabeKarte({ art: 'meteore', frage: prompt || frageDE(de) })
+    + `<div class="mg-flaeche">
+      <div id="cf-sky" class="mg-feld" style="
+        mask-image:linear-gradient(to bottom, transparent 0%, black 14%, black 82%, transparent 100%);
+        -webkit-mask-image:linear-gradient(to bottom, transparent 0%, black 14%, black 82%, transparent 100%);"></div>
+    </div>`;
 
   const sky = host.querySelector('#cf-sky');
-  const skyH = 300;
+  const skyH = Math.max(190, sky.clientHeight || 300);
   const TOP0 = -80;    // Startpunkt der untersten Stufe, oberhalb des Himmels
   const STEP = 115;    // Höhe einer Versatz-Stufe (größer als ein Meteor hoch ist)
   const GAP  = 8;      // Mindest-Luft je Seite zwischen zwei Meteoren nebeneinander
@@ -41,19 +45,18 @@ export function startMeteors({ host, de, answer, choices, prompt, fallMs, onMiss
   const lanes = _shuffle(choices.map((_, i) => i));
 
   const btns = [];
-  function _freeze() {
-    btns.forEach(b => {
-      const top = b.getBoundingClientRect().top - sky.getBoundingClientRect().top;
-      b.style.transition = 'none';
-      b.style.top = top + 'px';
-      b.style.pointerEvents = 'none';
-    });
+  let startAt = 0;   // Beginn des Falls; Pausen schieben ihn nach hinten
+  // Jeder Meteor steht auf der Höhe, die zu „jetzt" gehört — in harten Stufen.
+  function _setzen() {
+    const t = Math.max(0, Date.now() - startAt);
+    btns.forEach(b => { b.style.top = Math.round(Math.min(skyH + 10, b._top0 + b._v * t)) + 'px'; });
   }
   function _finish(success) {
     if (done) return;
     done = true;
     if (timer) clearInterval(timer);
-    _freeze();
+    btns.forEach(b => { b.style.pointerEvents = 'none'; });
+    if (success) richtigChip(host, answer);
     onResult(success, Math.max(0, endAt - Date.now()));
   }
 
@@ -61,25 +64,22 @@ export function startMeteors({ host, de, answer, choices, prompt, fallMs, onMiss
     const isAnswer = word === answer;
     const btn = document.createElement('button');
     btn._answer = isAnswer;
-    btn.style.cssText = `position:absolute;top:${TOP0}px;left:${10 + (lanes[i] + 0.5) / choices.length * 80}%;
-      transform:translateX(-50%);border:none;background:transparent;cursor:pointer;padding:6px;z-index:2;`;
-    // Der Meteor selbst bleibt Emoji — er ist Teil des Spielfelds, nicht der
-    // Oberflaeche, und es gibt kein Pixelsymbol dafuer.
-    btn.innerHTML = `<div style="font-size:2.2rem;line-height:1;">☄️</div>
-      <div class="mg-treiber" style="margin-top:2px">${word}</div>`;
+    btn.className = 'mg-meteor';
+    btn.style.top = TOP0 + 'px';
+    btn.style.left = `${10 + (lanes[i] + 0.5) / choices.length * 80}%`;
+    // Meteor 3× über dem Wort (Fragment 7.7).
+    btn.innerHTML = meteorHTML(42, 'margin:0 auto') + `<div class="mg-treiber">${word}</div>`;
     btn.onclick = () => {
       if (done || btn._used) return;
       if (isAnswer) {
         try { playSfx('correct'); } catch (e) {}
-        btn.firstElementChild.textContent = '💥';
+        btn.lastElementChild.classList.add('is-richtig');
         _finish(true);
       } else {
-        // Falscher Meteor: verglüht und ist raus, kostet HP — der Rest fällt weiter.
+        // Falscher Meteor: ist raus und kostet HP — der Rest fällt weiter.
         btn._used = true;
         try { playSfx('wrong'); } catch (e) {}
-        btn.firstElementChild.textContent = '💨';
-        btn.lastElementChild.style.background = '#ffd6d6';
-        btn.style.opacity = '.4';
+        btn.lastElementChild.classList.add('is-falsch');
         btn.style.pointerEvents = 'none';
         if (onMiss) onMiss();
       }
@@ -108,33 +108,33 @@ export function startMeteors({ host, de, answer, choices, prompt, fallMs, onMiss
   const perm = _shuffle(taken.map((_, k) => k));   // Kollisionsfreiheit hängt nur daran,
                                                    // WER sich eine Stufe teilt — nicht an deren Höhe
   const baseDist = skyH + 10 - TOP0;
+  let answerDur = fallMs;
   btns.forEach((b, i) => {
     // Streuung obendrauf, damit die Meteore nicht auf exakt zwei Höhen einrasten; sie
     // bleibt klar unter STEP, damit zwei Stufen sich nie berühren.
     const top0 = TOP0 - perm[levels[i]] * STEP - Math.round(Math.random() * 16);
     const dist = skyH + 10 - top0;
-    b.style.top = top0 + 'px';   // noch ohne transition → springt, animiert nicht
     // Alle fallen exakt gleich schnell; unterschiedliche Fallzeiten würden den Versatz
     // während des Fallens wieder zulaufen lassen. Die Fallzeit des RICHTIGEN (durch den
     // Versatz ggf. länger als fallMs) ist das Zeitlimit der Welle.
     const dur = Math.round(dist / baseDist * fallMs);
-    b.style.transition = `top ${dur}ms linear`;
-    b._v = dist / dur;           // px pro ms — hält die Geschwindigkeit über eine Pause hinweg
-    if (b._answer) endAt = Date.now() + dur;
+    b._top0 = top0;
+    b._v = dist / dur;   // px pro ms
+    b.style.top = top0 + 'px';
+    if (b._answer) answerDur = dur;
   });
-
-  // Fall starten (nach Layout-Tick, damit die Transition greift). Kein JS-Fade nötig —
-  // die Maske auf #cf-sky blendet Meteore am Rand automatisch weich ein/aus.
-  setTimeout(() => { if (!done) btns.forEach(b => { b.style.top = (skyH + 10) + 'px'; }); }, 60);
+  startAt = Date.now() + 60;
+  endAt = startAt + answerDur;
 
   // Einschlag des richtigen Meteoriten = Welle verloren.
   function _tick() {
+    _setzen();
     if (Date.now() >= endAt) {
       try { playSfx('wrong'); } catch (e) {}
       _finish(false);
     }
   }
-  timer = setInterval(_tick, 100);
+  timer = setInterval(_tick, TAKT);
 
   return {
     destroy() { done = true; if (timer) clearInterval(timer); },
@@ -142,22 +142,15 @@ export function startMeteors({ host, de, answer, choices, prompt, fallMs, onMiss
       if (done || pausedAt) return;
       pausedAt = Date.now();
       if (timer) { clearInterval(timer); timer = null; }
-      _freeze();   // hält auch den Fall an, der sonst per CSS-Transition weiterliefe
+      btns.forEach(b => { b.style.pointerEvents = 'none'; });
     },
     resume() {
       if (done || pausedAt == null) return;
-      endAt += Date.now() - pausedAt;
+      const d = Date.now() - pausedAt;
+      startAt += d; endAt += d;
       pausedAt = null;
-      // Jeder Meteor bekommt SEINE Restzeit (aus eigener Position + eigener Geschwindig-
-      // keit) — eine gemeinsame Restzeit würde den Höhenversatz nach einer Pause zunichte
-      // machen und die Meteore wieder auf gleiche Höhe zusammenlaufen lassen.
-      btns.forEach(b => {
-        const ms = Math.max(0, (skyH + 10 - (parseFloat(b.style.top) || 0)) / b._v);
-        b.style.pointerEvents = b._used ? 'none' : '';   // schon verglühte bleiben tot
-        b.style.transition = `top ${Math.round(ms)}ms linear`;
-      });
-      setTimeout(() => { if (!done) btns.forEach(b => { b.style.top = (skyH + 10) + 'px'; }); }, 60);
-      timer = setInterval(_tick, 100);
+      btns.forEach(b => { b.style.pointerEvents = b._used ? 'none' : ''; });   // schon verglühte bleiben tot
+      timer = setInterval(_tick, TAKT);
     },
   };
 }

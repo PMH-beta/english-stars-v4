@@ -23,8 +23,9 @@
 // 1 und 2 px breit und die Kontur wirkt ungleich stark. iconHTML() rastet darum
 // auf das nächste Vielfache ein und meldet es in der Konsole. Drehungen nur in
 // 90°-Schritten — image-rendering:pixelated rettet keinen Zwischenwinkel.
-// Zwei Icons haben eine abweichende Box (ICON_BOX): grip ist schmal und hoch,
-// bossCrest zu groß für 14×14. Der Vergrößerungsfaktor bleibt derselbe.
+// Ein Icon hat eine abweichende Box (ICON_BOX): grip ist schmal und hoch. Der
+// Vergrößerungsfaktor bleibt derselbe. bossCrest steht wie in den Fragmenten
+// (7.13, 7.16) in 14 × 14 — die Referenz beschneidet dort die Kontur oben und unten.
 //
 // Einsatz im Markup (die App rendert per innerHTML):
 //   `<div class="zeile">${iconHTML('coin', 28)}<span>12</span></div>`
@@ -233,7 +234,6 @@ export const ICON_NAMES = Object.keys(ICONS);
 // nur das Seitenverhältnis weicht ab.
 export const ICON_BOX = {
   grip: [9, 14],        // 5×7-Maske, schmal und hoch; der Prototyp zeigt sie 18×28
-  bossCrest: [14, 18],  // 15×16-Maske plus Kontur — in 14×14 fiele oben und unten je eine Zeile weg
 };
 const boxOf = (name) => ICON_BOX[name] || [ICON_GRID, ICON_GRID];
 
@@ -297,7 +297,34 @@ export function paintIconCanvas(c) {
   if (!c || c.dataset.iconPainted === '1') return;
   const ctx = c.getContext('2d');
   ctx.clearRect(0, 0, c.width, c.height);
+  if (c.dataset.icon === 'meteor') { drawMeteor(ctx); c.dataset.iconPainted = '1'; return; }
   if (drawIcon(ctx, c.dataset.icon, c.width, c.height)) c.dataset.iconPainted = '1';
+}
+
+// ── Meteor (Kampf: Wort-Meteoriten) ─────────────────────────────────────────
+// Kein Masken-Icon, sondern eine eigene Zeichnung in 14 × 12 — unverändert aus
+// der Methode meteor() in „English Stars UI Pastell.dc.html": Schweif hell,
+// Kopf rot, 1-px-Tintenkontur nur in den vier Richtungen.
+export function drawMeteor(ctx) {
+  const fill = {}, K = '#1f1f24';
+  const set = (x, y, c) => { if (x >= 0 && x < 14 && y >= 0 && y < 12) fill[x + ',' + y] = c; };
+  const row = (y, x0, x1, c) => { for (let x = x0; x <= x1; x++) set(x, y, c); };
+  row(0, 1, 2, '#F2F6F8'); row(1, 2, 4, '#F2F6F8'); row(2, 3, 5, '#F2F6F8');
+  row(3, 4, 6, '#F2F6F8'); row(4, 5, 7, '#F2F6F8'); row(5, 6, 8, '#F2F6F8');
+  set(2, 1, '#C3CDD9'); set(3, 2, '#C3CDD9'); set(4, 3, '#C3CDD9'); set(5, 4, '#C3CDD9'); set(6, 5, '#C3CDD9');
+  row(5, 9, 11, '#D64545'); row(6, 8, 12, '#D64545'); row(7, 8, 12, '#D64545'); row(8, 9, 11, '#D64545');
+  set(9, 6, '#FF8A8A'); set(10, 6, '#F06060'); set(11, 7, '#A33131'); set(10, 8, '#A33131');
+  const out = {};
+  Object.keys(fill).forEach(k => { const [x, y] = k.split(',').map(Number);
+    [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dx, dy]) => { const nk = (x + dx) + ',' + (y + dy); if (!fill[nk]) out[nk] = K; }); });
+  Object.entries(out).forEach(([k, c]) => { const [x, y] = k.split(',').map(Number); px(ctx, x, y, c); });
+  Object.entries(fill).forEach(([k, c]) => { const [x, y] = k.split(',').map(Number); px(ctx, x, y, c); });
+}
+
+/** Meteor als Canvas-Markup; `size` ist die Anzeigebreite (Vielfaches von 14). */
+export function meteorHTML(size = 28, style = '') {
+  const k = Math.max(1, Math.round(size / 14));
+  return `<canvas data-icon="meteor" width="14" height="12" style="width:${14 * k}px;height:${12 * k}px;image-rendering:pixelated;flex:none;display:block;${style}"></canvas>`;
 }
 
 // Alle noch leeren Icon-Canvas unterhalb von root füllen.

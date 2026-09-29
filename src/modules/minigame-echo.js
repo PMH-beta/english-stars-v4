@@ -13,30 +13,21 @@
 
 import { playSfx } from './game.js';
 import { speakWord } from './speech.js';
-import { ensureStormStyle, setDrift } from './minigame-letterstorm.js';
+import { ensureStormStyle, setDrift, richtigChip } from './minigame-letterstorm.js';
 import { iconHTML } from './pixel-icons.js';
+import { aufgabeKarte, sekText } from './minigame-karte.js';
 
 export function startEcho({ host, answer, speakText, choices, prompt, timeLimitMs, onMiss, onResult }) {
   ensureStormStyle();   // cfDrift-Keyframes
   let done = false, timer = null, pausedAt = null;
   let endAt = Date.now() + timeLimitMs;
 
-  host.innerHTML = `
-    <div style="display:flex;justify-content:center;margin-bottom:16px;">
-      <div class="mg-titelkarte">
-        <div style="display:flex;align-items:center;gap:10px;">
-          <div class="mg-titel">${prompt || 'Welches Wort hörst du?'}</div>
-          <button id="cf-replay" class="mg-hoer" title="Nochmal anhören">${iconHTML('speaker', 28)}</button>
-        </div>
-      </div>
-    </div>
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-      <div class="mg-zeitspur">
-        <div id="cf-echobar" class="mg-zeitfuell"></div>
-      </div>
-      <div id="cf-echosecs" class="mg-sek"></div>
-    </div>
-    <div id="cf-echofield" style="position:relative;height:min(38dvh,320px);min-height:170px;overflow:hidden;"></div>`;
+  // Aufbau wie Fragment 7.8 (7.12 für Verbformen): Aufgabenkarte mit rundem
+  // Nochmal-Hören-Knopf, darunter die treibenden Wörter. Das Lautsprecher-
+  // Symbol schlägt nur bei der Wortfrage (7.8), bei Verbformen steht es.
+  const hoer = `<button id="cf-replay" class="mg-hoer" title="Nochmal anhören">${iconHTML('speaker', 28)}</button>`;
+  host.innerHTML = aufgabeKarte({ art: 'echo', frage: prompt || 'Welches Wort hörst du?', zeitId: 'cf-echobar', sekId: 'cf-echosecs', rechts: hoer, pochen: !prompt })
+    + `<div class="mg-flaeche"><div id="cf-echofield" class="mg-feld mg-echo"></div></div>`;
 
   const speak = () => { try { speakWord(speakText || answer); } catch (e) {} };
   host.querySelector('#cf-replay').onclick = speak;
@@ -46,6 +37,7 @@ export function startEcho({ host, answer, speakText, choices, prompt, timeLimitM
     if (done) return;
     done = true;
     if (timer) clearInterval(timer);
+    if (success) richtigChip(host, answer);
     onResult(success, Math.max(0, endAt - Date.now()));
   }
 
@@ -73,14 +65,13 @@ export function startEcho({ host, answer, speakText, choices, prompt, timeLimitM
       if (done || btn._used) return;
       if (word === answer) {
         try { playSfx('correct'); } catch (e) {}
-        btn.style.background = '#d3f9d8';
+        btn.classList.add('is-richtig');
         _finish(true);
       } else {
         // Falsches Wort: Chip ist raus und kostet HP — die übrigen treiben weiter.
         btn._used = true;
         try { playSfx('wrong'); } catch (e) {}
-        btn.style.background = '#ffd6d6';
-        btn.style.opacity = '.45';
+        btn.classList.add('is-falsch');
         if (onMiss) onMiss();
       }
     };
@@ -98,14 +89,15 @@ export function startEcho({ host, answer, speakText, choices, prompt, timeLimitM
     const bar = host.querySelector('#cf-echobar');
     const secs = host.querySelector('#cf-echosecs');
     if (bar) bar.style.width = Math.max(0, remain / timeLimitMs * 100) + '%';
-    if (secs) secs.textContent = Math.max(0, Math.ceil(remain / 1000)) + 's';
+    if (secs) secs.textContent = sekText(remain);
     if (remain <= 0) { try { playSfx('wrong'); } catch (e) {} _finish(false); }
   }
   timer = setInterval(_tick, 100);
+  _tick();
 
   return {
     destroy() { done = true; if (timer) clearInterval(timer); },
-    pause() { if (done || pausedAt) return; pausedAt = Date.now(); clearInterval(timer); timer = null; },
+    pause() { if (done || pausedAt) return; pausedAt = Date.now(); clearInterval(timer); timer = null; const s = host.querySelector('#cf-echosecs'); if (s) s.textContent = 'pausiert'; },
     resume() { if (done || pausedAt == null) return; endAt += Date.now() - pausedAt; pausedAt = null; timer = setInterval(_tick, 100); },
   };
 }

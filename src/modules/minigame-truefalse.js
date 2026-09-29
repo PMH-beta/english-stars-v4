@@ -13,29 +13,21 @@
 
 import { playSfx } from './game.js';
 import { iconHTML } from './pixel-icons.js';
+import { aufgabeKarte, sekText } from './minigame-karte.js';
 
 const LOCK_OK_MS = 220;    // kurze Sperre nach richtig — verhindert Doppel-Tipp
 const LOCK_BAD_MS = 700;   // länger nach falsch: man soll das Paar noch sehen
 
+// Aussehen in style.css (Fragment 7.9); eingespritzt wird nur, was die Knöpfe
+// zum Spalten-Knopf macht.
 let _styleDone = false;
 function _ensureStyle() {
   if (_styleDone) return;
   _styleDone = true;
   const st = document.createElement('style');
   st.textContent = `
-    .tf-btn { border:2px solid var(--p-ink); border-radius:var(--p-r-btn); min-width:104px;
-      padding:10px 14px 12px; cursor:pointer; background:var(--p-karte); box-shadow:none;
-      display:flex; flex-direction:column; align-items:center; gap:3px; }
-    .tf-btn:active { transform:none; background:var(--p-inaktiv); }
+    .tf-btn { cursor:pointer; box-shadow:none; display:flex; flex-direction:column; align-items:center; }
     .tf-btn .tf-ico { font-size:0; line-height:1; display:flex; }
-    .tf-btn .tf-lbl { font:900 12px var(--p-font); color:var(--p-ink);
-      text-transform:uppercase; letter-spacing:.08em; }
-    /* Punkte-Leiste: erledigte Paare voll, das laufende hervorgehoben, offene blass. */
-    .tf-dot { width:12px; height:12px; border-radius:50%;
-      border:2px solid var(--p-ink); background:var(--p-karte); }
-    .tf-dot.done { background:var(--p-ok); }
-    .tf-dot.miss { background:var(--p-falsch); }
-    .tf-dot.now { background:var(--p-gold); transform:none; }
   `;
   document.head.appendChild(st);
 }
@@ -46,30 +38,20 @@ export function startTrueFalse({ host, pairs, timeLimitMs, onMiss, onResult }) {
   let endAt = Date.now() + timeLimitMs;
   const missed = [];   // Index der falsch beurteilten Paare (für die Punkte-Leiste)
 
-  host.innerHTML = `
-    <div style="display:flex;justify-content:center;margin-bottom:16px;">
-      <div class="mg-titelkarte">
-        <div class="mg-titel">Richtig oder falsch?</div>
-      </div>
-    </div>
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-      <div class="mg-zeitspur">
-        <div id="tf-bar" class="mg-zeitfuell"></div>
-      </div>
-      <div id="tf-secs" class="mg-sek"></div>
-    </div>
-    <div id="tf-dots" style="display:flex;justify-content:center;align-items:center;gap:8px;height:14px;margin-bottom:18px;"></div>
-    <div style="display:flex;justify-content:center;margin-bottom:20px;">
+  // Aufbau wie Fragment 7.9: Aufgabenkarte, darunter mittig Punkte, Paar, Knöpfe.
+  host.innerHTML = aufgabeKarte({ art: 'richtig', frage: 'Passt das Paar?', zeitId: 'tf-bar', sekId: 'tf-secs' })
+    + `<div class="mg-flaeche"><div class="tf-flaeche">
+      <div id="tf-dots" class="tf-punkte"></div>
       <div id="tf-card" class="mg-wortkarte">
         <span id="tf-de" class="mg-wort-de"></span>
         <span class="mg-wort-strich">—</span>
         <span id="tf-en" class="mg-wort-en"></span>
       </div>
-    </div>
-    <div style="display:flex;justify-content:center;gap:20px;">
-      <button id="tf-no" class="tf-btn"><span class="tf-ico">${iconHTML('close', 28)}</span><span class="tf-lbl">falsch</span></button>
-      <button id="tf-yes" class="tf-btn"><span class="tf-ico">${iconHTML('check', 28)}</span><span class="tf-lbl">richtig</span></button>
-    </div>`;
+      <div class="tf-knoepfe">
+        <button id="tf-no" class="tf-btn"><span class="tf-ico">${iconHTML('close', 28)}</span><span class="tf-lbl">falsch</span></button>
+        <button id="tf-yes" class="tf-btn"><span class="tf-ico">${iconHTML('check', 28)}</span><span class="tf-lbl">richtig</span></button>
+      </div>
+    </div></div>`;
 
   const card = host.querySelector('#tf-card');
   const deEl = host.querySelector('#tf-de');
@@ -78,15 +60,10 @@ export function startTrueFalse({ host, pairs, timeLimitMs, onMiss, onResult }) {
 
   function _show() {
     const p = pairs[idx];
-    deEl.textContent = '🇩🇪 ' + p.de;
+    deEl.textContent = p.de;
     enEl.textContent = p.en;
     dots.innerHTML = pairs.map((_, i) =>
       `<span class="tf-dot${missed.includes(i) ? ' miss' : i < idx ? ' done' : i === idx ? ' now' : ''}"></span>`).join('');
-    // Karte poppt bei jedem Paar kurz auf — ohne das merkt man den Wechsel nicht,
-    // weil sich nur der Text ändert.
-    card.classList.remove('bounce-in');
-    void card.offsetWidth;
-    card.classList.add('bounce-in');
   }
 
   function _finish(success) {
@@ -104,7 +81,7 @@ export function startTrueFalse({ host, pairs, timeLimitMs, onMiss, onResult }) {
     setTimeout(() => {
       if (done) return;
       locked = false;
-      card.style.background = 'var(--p-karte)';
+      card.style.background = '';
       idx++;
       if (idx >= pairs.length) _finish(true);
       else _show();
@@ -136,14 +113,15 @@ export function startTrueFalse({ host, pairs, timeLimitMs, onMiss, onResult }) {
     const bar = host.querySelector('#tf-bar');
     const secs = host.querySelector('#tf-secs');
     if (bar) bar.style.width = Math.max(0, remain / timeLimitMs * 100) + '%';
-    if (secs) secs.textContent = Math.max(0, Math.ceil(remain / 1000)) + 's';
+    if (secs) secs.textContent = sekText(remain);
     if (remain <= 0) { try { playSfx('wrong'); } catch (e) {} _finish(false); }
   }
   timer = setInterval(_tick, 100);
+  _tick();
 
   return {
     destroy() { done = true; if (timer) clearInterval(timer); },
-    pause() { if (done || pausedAt) return; pausedAt = Date.now(); clearInterval(timer); timer = null; },
+    pause() { if (done || pausedAt) return; pausedAt = Date.now(); clearInterval(timer); timer = null; const s = host.querySelector('#tf-secs'); if (s) s.textContent = 'pausiert'; },
     resume() { if (done || pausedAt == null) return; endAt += Date.now() - pausedAt; pausedAt = null; timer = setInterval(_tick, 100); },
   };
 }

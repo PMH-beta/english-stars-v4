@@ -24,13 +24,15 @@
 // jsonb mit) → Reload mitten im Kampf verliert nichts; nur das aktuelle Wort der
 // Welle wird neu gezogen.
 
-import { scaledEnemy, FORM_BONUS, TALISMAN_MULT, STORM_BASE_MS, STORM_PER_LETTER_MS, STORM_MISS_DMG, WEAK_TIME_BONUS, WEAK_EMA, METEOR_FALL_MS, METEOR_COUNT, ECHO_TIME_MS, ECHO_CHOICES, TF_PAIRS, TF_TIME_MS, PERK_SPEER_BOSS, PERK_AXT_ELITE, PERK_HAMMER_MULT, PERK_BOGEN_FIGHT, POTION_HEAL, POTION_POWER, POTION_TIME_MS, POTION_TIME_WAVES, BOSS_WIN_TALER, CF_MIN_ASKED, CF_MASTER, CF_POOL_OPEN, CF_NO_REPEAT, CF_SEEN_MIN, CF_LEARNED_WEIGHT, CF_OWN_SHARE, CF_REVIEW_SHARE, VERB_OWN_SHARE_START, VERB_OWN_SHARE_PER_ROUND, VERB_OWN_SHARE_MIN, VERB_OWN_SEEN_MIN, VERB_TIER_START, VERB_TIER_PER_ROUND, VERB_TIER_SPREAD, VERB_TIER_FLOOR, VERB_FILLED_BONUS } from './campaign-balance.js';
+import { scaledEnemy, FORM_BONUS, TALISMAN_MULT, PERK_DOLCH_DODGE, STORM_BASE_MS, STORM_PER_LETTER_MS, STORM_MISS_DMG, WEAK_TIME_BONUS, WEAK_EMA, METEOR_FALL_MS, METEOR_COUNT, ECHO_TIME_MS, ECHO_CHOICES, TF_PAIRS, TF_TIME_MS, PERK_SPEER_BOSS, PERK_AXT_ELITE, PERK_HAMMER_MULT, PERK_BOGEN_FIGHT, POTION_HEAL, POTION_POWER, POTION_TIME_MS, POTION_TIME_WAVES, BOSS_WIN_TALER, CF_MIN_ASKED, CF_MASTER, CF_POOL_OPEN, CF_NO_REPEAT, CF_SEEN_MIN, CF_LEARNED_WEIGHT, CF_OWN_SHARE, CF_REVIEW_SHARE, VERB_OWN_SHARE_START, VERB_OWN_SHARE_PER_ROUND, VERB_OWN_SHARE_MIN, VERB_OWN_SEEN_MIN, VERB_TIER_START, VERB_TIER_PER_ROUND, VERB_TIER_SPREAD, VERB_TIER_FLOOR, VERB_FILLED_BONUS } from './campaign-balance.js';
 import { startLetterstorm, stormTarget } from './minigame-letterstorm.js';
 import { startMeteors } from './minigame-meteors.js';
 import { startEcho } from './minigame-echo.js';
 import { iconHTML } from './pixel-icons.js';
 import { startTrueFalse } from './minigame-truefalse.js';
-import { equippedWeapon, equipEffects, equippedGearMap, POTIONS, potionStacks } from './campaign-equipment.js';
+import { equippedWeapon, equipEffects, equippedGearMap, POTIONS, POTION_TON, potionStacks } from './campaign-equipment.js';
+import { frageForm } from './minigame-karte.js';
+import { STAKE_COST } from './campaign.js';   // nur zur Laufzeit gelesen — der Kreis-Import ist unkritisch
 import { pickEnemyKey, enemyName, enemyBattleSVG } from './enemies.js';
 import { arenaSVG, arenaForRound } from './world.js';
 import { renderAvatarInto, ensureAvatar } from './avatar.js';
@@ -43,11 +45,13 @@ import { uvFormPracticed } from './irregular-game.js';
 import { getPresetCategories } from './vocab.js';
 import { markDirty } from './sync.js';
 
+// Titel in der Kopfleiste: Pixel-Icon + Wort (Fragmente 7.4, 7.10, 7.13).
 const _TITLE = {
-  fight:     '⚔️ Übung',
-  irregular: '🌀 Unregelmäßige',
-  boss:      '👑 Boss',
+  fight:     ['sword', 'Übung'],
+  irregular: ['orb', 'Unregelmäßige'],
+  boss:      ['bossCrest', 'Boss'],
 };
+const _titelHTML = (typ) => { const [ic, wort] = _TITLE[typ] || _TITLE.fight; return iconHTML(ic, 14) + wort; };
 
 // Waffen-/Ausrüstungslogik lebt in campaign-equipment.js (equippedWeapon,
 // equipEffects) — der Kampf liest sie nur.
@@ -294,9 +298,9 @@ export function openFight({ run, node, save, onEnd, round, stat }) {
 function _renderPotions() {
   const el = _el('cf-potions');
   if (!el || !_ctx) return;
+  // Kachel in der Trankfarbe mit Pixel-Icon, Anzahl immer sichtbar (7.4).
   el.innerHTML = potionStacks(_ctx.run.potions).map(s =>
-    `<button class="cf-potion" data-pi="${s.index}" title="${POTIONS[s.key].name}: ${POTIONS[s.key].desc}">${POTIONS[s.key].icon}${
-      s.count > 1 ? `<span class="potion-n">${s.count}</span>` : ''}</button>`).join('');
+    `<button class="cf-potion" data-pi="${s.index}" title="${POTIONS[s.key].name}: ${POTIONS[s.key].desc}" style="background:${POTION_TON[s.key] || 'var(--p-karte)'}">${iconHTML('potion', 14)}<span class="potion-n">${s.count}</span></button>`).join('');
   el.querySelectorAll('[data-pi]').forEach(btn => { btn.onclick = () => _usePotion(+btn.dataset.pi); });
 }
 
@@ -320,7 +324,7 @@ function _usePotion(i) {
     if (key === 'shield') f.shield = true;
     else if (key === 'power') f.power = (f.power || 0) + POTION_POWER;
     else if (key === 'time') f.timeBoost = (f.timeBoost || 0) + POTION_TIME_WAVES;
-    _damagePop('cf-hero', `${p.icon} ${p.name}`, '#69db7c');
+    _damagePop('cf-hero', `${iconHTML('potion', 14)}${p.name}`, '#69db7c');
   }
   try { playSfx('streak'); } catch (e) {}
   save();
@@ -347,54 +351,49 @@ function _renderOverlay() {
   const ov = document.createElement('div');
   ov.id = 'cf-overlay';
   ov.style.cssText = 'position:fixed;inset:0;z-index:8000;background:#bfe6ff;display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;';
+  // Aufbau nach Fragment 7.4: Kulisse als Hintergrund, Kopfleiste, die Mitte
+  // (Aufgabenkarte + Spielfläche, befüllt vom Minispiel), unten die Bühne mit
+  // Held und Gegner und je einer Statuskarte. Tränke und Waffenschaden liegen in
+  // der Karte des Helden.
+  const boss = node.type === 'boss';
+  const esc = (s) => (window.escHtml ? window.escHtml(String(s)) : String(s));
   ov.innerHTML = `
-    <!-- Himmel als fullscreen-Hintergrund, hinter allem anderen. -->
     <div class="cf-scenery">${_arenaScene(_ctx.round)}</div>
-    <!-- Kopfzeile: schwebt als Pille über dem Himmel — bleibt wie gehabt. -->
     <div class="cf-kopf">
       <button id="cf-flee" class="cf-rund" title="Kampf verlassen (Fortschritt + Einsatz weg)">${iconHTML('close', 28)}</button>
-      <div class="cf-pill cf-kopfleiste">
-        <span class="cf-titel">${_TITLE[node.type] || _TITLE.fight}</span>
-        <span id="cf-wave" class="p-chip p-chip--gold">Welle ${f.wave}</span>
+      <div class="cf-kopfleiste">
+        <span class="cf-titel">${_titelHTML(node.type)}</span>
+        <span id="cf-wave" class="cf-welle">Welle ${f.wave}</span>
       </div>
     </div>
-    <!-- Kein Feedback-Text mehr: alle Ereignisse (Treffer/Heilung/Block) zeigen sich
-         als Popup direkt über dem betroffenen Character (_damagePop). -->
-    <!-- Spielfeld: die fliegenden/treibenden Elemente (Buchstaben/Meteore/Wörter),
-         auf dem Himmel, direkt über den Figuren. Zentrierte Spalte (max-width), damit
-         es auf breiten/Web-Bildschirmen nicht auseinandergezogen wirkt. -->
-    <!-- z-index deutlich über dem Rasen (2): treibende Buchstaben/Meteore/Wörter dürfen
-         nie hinter dem Boden-Bereich verschwinden, sonst sind sie nicht mehr antippbar. -->
-    <div id="cf-stage" style="position:relative;z-index:5;flex:1;min-height:100px;width:100%;max-width:440px;margin:0 auto;padding:18px 14px 0;box-sizing:border-box;"></div>
-    <!-- Boden-Bereich: enthält Figuren, Eingabefeld, Tränke, Leben. Der Rasen selbst
-         (.cf-grass) ist NUR eine Hintergrund-Ebene ab Schulterhöhe der Figuren — die
-         Figuren bleiben an ihrer normalen Position, Kopf/Schultern ragen in den Himmel. -->
-    <div class="cf-ground-wrap">
-      <div class="cf-arena">
-        <canvas class="cf-flug" id="cf-flug"></canvas>
-        <div class="cf-hero" id="cf-hero"><div class="cf-pet" id="cf-pet"></div></div>
-        <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
-          <div class="cf-enemy${node.type === 'boss' ? ' boss' : ''}" id="cf-enemy"></div>
-          <div class="cf-gegnerkarte">
-            <div class="cf-leiste-kopf">
-              <span class="cf-leiste-lbl">${enemyName(enemyKey) || enemy.name}</span>
-              <span class="cf-leiste-zahl"><span id="cf-ehp">${f.enemyHp}</span>/${f.enemyHpMax}</span>
+    <div id="cf-stage" class="cf-mitte"></div>
+    <div class="cf-buehne">
+      <canvas class="cf-flug" id="cf-flug"></canvas>
+      <div class="cf-reihe">
+        <div class="cf-spalte">
+          <div class="cf-hero" id="cf-hero"><div class="cf-pet" id="cf-pet"></div></div>
+          <div class="cf-status">
+            <div class="cf-status-kopf">
+              <span class="cf-status-name">${esc(window.SD?.playerName || 'Leben')}</span>
+              <span class="cf-status-zahl"><span id="cf-php">${run.hp}</span>/${run.hpMax}</span>
             </div>
-            <div class="p-balken p-balken--fehler" style="height:9px;margin-top:6px"><i id="cf-ehpbar" style="width:${f.enemyHp / f.enemyHpMax * 100}%"></i></div>
+            <div class="cf-status-balken"><i id="cf-phpbar" style="width:${run.hp / run.hpMax * 100}%"></i></div>
+            <div class="cf-status-fuss">
+              <div id="cf-potions" class="cf-traenke"></div>
+              <span class="cf-waffe" title="${esc(weapon.name)}">${iconHTML('sword', 14)}${weapon.dmg}</span>
+            </div>
           </div>
         </div>
-      </div>
-      <div id="cf-potions" style="position:relative;z-index:3;display:flex;gap:10px;justify-content:center;padding:10px 14px 0;min-height:10px;flex-shrink:0;"></div>
-      <div style="position:relative;z-index:3;padding:10px 14px 12px;flex-shrink:0;display:flex;justify-content:center;">
-        <div class="cf-pill cf-lebensleiste">
-          <div style="flex:1;min-width:0;">
-            <div class="cf-leiste-kopf">
-              <span class="cf-leiste-lbl">Leben</span>
-              <span class="cf-leiste-zahl"><span id="cf-php">${run.hp}</span>/${run.hpMax}</span>
+        <div class="cf-spalte">
+          <div class="cf-feind-platz${boss ? ' boss' : ''}"><div class="cf-enemy${boss ? ' boss' : ''}" id="cf-enemy"></div></div>
+          <div class="cf-status">
+            <div class="cf-status-kopf">
+              <span class="cf-status-name">${esc(enemyName(enemyKey) || enemy.name)}</span>
+              <span class="cf-status-zahl"><span id="cf-ehp">${f.enemyHp}</span>/${f.enemyHpMax}</span>
             </div>
-            <div class="p-balken" style="margin-top:6px"><i id="cf-phpbar" style="width:${run.hp / run.hpMax * 100}%"></i></div>
+            <div class="cf-status-balken cf-status-balken--feind"><i id="cf-ehpbar" style="width:${f.enemyHp / f.enemyHpMax * 100}%"></i></div>
+            <div class="cf-status-platz"></div>
           </div>
-          <div class="cf-waffe" title="${weapon.name}">${iconHTML('sword', 14)}${weapon.dmg}</div>
         </div>
       </div>
     </div>`;
@@ -410,13 +409,27 @@ function _renderOverlay() {
     // sichere Weg (Weiterkämpfen) ist der hervorgehobene ok-Button, nicht Verlassen.
     if (_ctx?.mg?.pause) _ctx.mg.pause();
     const leave = () => _close('death');
-    if (window.esConfirm) {
-      window.esConfirm({
-        icon: '💀', title: 'Kampf verlassen?',
-        body: 'Dein Fortschritt in diesem Kampf und dein Einsatz sind weg und du fängst wieder bei Runde 1 an — genau wie bei einer Niederlage.',
-        ok: 'Weiterkämpfen', cancel: 'Verlassen',
-      }).then(stay => { if (stay) { if (_ctx?.mg?.resume) _ctx.mg.resume(); } else leave(); });
-    } else leave();
+    // Dialog wie Fragment 7.14: Totenkopf auf Sand, Text ohne Vondu-Kasten,
+    // „Verlassen" hell, „Weiterkämpfen" als sicherer, hervorgehobener Knopf.
+    const d = document.createElement('div');
+    d.className = 'p-dlg-grund cf-weg-grund';
+    d.innerHTML = `<div class="p-dlg-karte cf-weg-karte">
+        <div class="cf-ende-emblem" style="background:var(--p-inaktiv)">${iconHTML('skull', 42)}</div>
+        <div class="cf-weg-titel">Kampf verlassen?</div>
+        <div class="cf-weg-text">Dein Fortschritt in diesem Kampf und dein Einsatz sind weg — du fängst wieder bei Runde 1 an, genau wie bei einer Niederlage.</div>
+        <div class="cf-weg-knoepfe">
+          <button class="cf-weg-btn" data-weg="1">Verlassen</button>
+          <button class="cf-weg-btn cf-weg-btn--bleib" data-weg="0">Weiterkämpfen</button>
+        </div>
+      </div>`;
+    d.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-weg]');
+      if (!b) return;
+      d.remove();
+      if (b.dataset.weg === '1') leave();
+      else if (_ctx?.mg?.resume) _ctx.mg.resume();
+    });
+    document.body.appendChild(d);
   };
   _renderPotions();
 }
@@ -487,26 +500,43 @@ function _anim(id, cls, ms = 500) {
   setTimeout(() => el.classList.remove(cls), ms);
 }
 
-// Schadenszahl, die über dem Getroffenen aufsteigt und verblasst.
-function _damagePop(overId, text, color) {
-  const arena = document.querySelector('.cf-arena');
+// Schadenszahl als Chip über dem Getroffenen (7.5, 7.6): steigt 8 Takte lang je
+// 3 px und ist dann weg. Die Farbe kommt vom Anlass: Treffer auf den Gegner lila,
+// eigener Schaden rosa, Heilung/Abwehr mint. `html` darf Pixel-Icons enthalten.
+const _POP_TON = { '#c084fc': 'var(--p-lila)', '#ff8787': 'var(--p-falsch)', '#69db7c': 'var(--p-ok)' };
+function _damagePop(overId, html, color) {
+  const arena = document.querySelector('.cf-buehne');
   const over = _el(overId);
   if (!arena || !over) return;
   const a = arena.getBoundingClientRect(), o = over.getBoundingClientRect();
   const s = document.createElement('span');
   s.className = 'cf-dmg';
-  s.textContent = text;
-  s.style.color = color;
+  s.innerHTML = html;
+  s.style.background = _POP_TON[color] || 'var(--p-karte)';
   s.style.left = (o.left - a.left + o.width / 2) + 'px';
-  s.style.top = (o.top - a.top - 6) + 'px';
+  s.style.top = (o.top - a.top + 4) + 'px';
   arena.appendChild(s);
-  setTimeout(() => s.remove(), 800);
+  setTimeout(() => s.remove(), 1000);
+}
+
+// Schutz-Meldung über der Figur (Fragment 6.8, N41): Karte mit Symbol, Titel und
+// Grund, kurz eingeblendet. Ersetzt die frühere Textzeile „Block!".
+function _schutzMeldung(icon, titel, grund, ton) {
+  const buehne = document.querySelector('.cf-buehne');
+  if (!buehne) return;
+  buehne.querySelector('.cf-schutz')?.remove();
+  const d = document.createElement('div');
+  d.className = 'cf-schutz';
+  d.style.background = ton;
+  d.innerHTML = `${iconHTML(icon, 28)}<div><div class="cf-schutz-titel">${titel}</div><div class="cf-schutz-grund">${grund}</div></div>`;
+  buehne.appendChild(d);
+  setTimeout(() => d.remove(), 1600);
 }
 
 // Aufschlag-Splitter: ein paar Pixel fliegen vom Getroffenen weg (CSS .cf-spark,
 // Richtung/Weite je Splitter über --dx/--dy). Kurz, hart gesteppt, kein Glow.
 function _impactBurst(overId, color) {
-  const arena = document.querySelector('.cf-arena');
+  const arena = document.querySelector('.cf-buehne');
   const over = _el(overId);
   if (!arena || !over) return;
   const a = arena.getBoundingClientRect(), o = over.getBoundingClientRect();
@@ -767,7 +797,10 @@ function _startWave() {
   let tBonus = eff.timeBonusMs || 0;
   if (f.timeBoost > 0) { tBonus += POTION_TIME_MS; f.timeBoost--; }
   const guards = Math.max(0, (eff.companionGuards || 0) - (f.guardsUsed || 0));
-  const onGuardUsed = () => { f.guardsUsed = (f.guardsUsed || 0) + 1; _ctx.save(); };
+  const onGuardUsed = () => {
+    f.guardsUsed = (f.guardsUsed || 0) + 1; _ctx.save();
+    _schutzMeldung('paw', 'Gefährte fängt den Fehler!', 'Kein Leben verloren', 'var(--p-falsch)');
+  };
 
   if (type === 'verbstorm' || type === 'verbmeteors' || type === 'verbecho') {
     // Verbform-Welle: „go → Simple Past?" — entweder zusammensetzen (Wirbelsturm) oder
@@ -780,7 +813,7 @@ function _startWave() {
     _ctx.cfSuf = CF_SUF + (which === 'pp' ? '_pp' : '_past');
     const raw = which === 'past' ? v.past : v.pp;   // mit /-Alternativen (Tippen erlaubt beide)
     const label = which === 'past' ? 'Simple Past' : 'Past Participle';
-    const head = `🌀 ${v.en} → <span style="color:#a67c00;">${label}</span>?`;
+    const head = frageForm(v.en, which);   // „go → [Simple Past]?" (7.10, 7.11)
     if (type === 'verbmeteors') {
       const choices = _shuffle([_displayEn(raw), ..._verbDistractors(v, which, METEOR_COUNT - 1)]);
       _ctx.mg = startMeteors({ host, de: v.de, answer: _displayEn(raw), choices, prompt: head, fallMs: METEOR_FALL_MS + tBonus, onMiss: _onMiss, onResult: _onWave });
@@ -789,7 +822,7 @@ function _startWave() {
       // welche Form dieses Verbs; die Auswahl sind lauter Verbformen.
       const choices = _shuffle([_displayEn(raw), ..._verbDistractors(v, which, ECHO_CHOICES - 1)]);
       _ctx.mg = startEcho({ host, answer: _displayEn(raw), speakText: _displayEn(raw), choices,
-        prompt: `🌀 ${v.en} → welche Form hörst du?`, timeLimitMs: ECHO_TIME_MS + tBonus, onMiss: _onMiss, onResult: _onWave });
+        prompt: `${window.escHtml ? window.escHtml(v.en) : v.en} → welche Form hörst du?`, timeLimitMs: ECHO_TIME_MS + tBonus, onMiss: _onMiss, onResult: _onWave });
     } else {
       _ctx.mg = startLetterstorm({
         host, de: v.de, en: raw, prompt: head,
@@ -844,6 +877,7 @@ function _onWave(success) {
   // fertig wurde, zählt dabei NICHT als gewusst (waveMiss) — sonst würde jedes Wort
   // als gelernt durchgewinkt, seit ein Fehler die Welle nicht mehr beendet.
   _record(_ctx.cfItem, success && !_ctx.waveMiss, _ctx.cfSuf);
+  let wurf;   // Ausweich-Wurf, siehe unten
   if (success) {
     // Schaden: Waffe + Formen-Bonus (Stahl=past / Gold=pp) + Typ-Vorteil
     // (Speer vs Boss, Axt vs Elite, Hammer verdoppelt Welle 1) + 💪 Krafttrank;
@@ -858,8 +892,8 @@ function _onWave(success) {
     const tali = node.type === 'irregular' && eff.talisman;
     if (tali) dmg = Math.round(dmg * TALISMAN_MULT);
     // Alle Zusatz-Effekte (Formen-Bonus/Hammer/Talisman) direkt in die Schadenszahl,
-    // die über dem Gegner aufsteigt — keine separate Text-Anzeige mehr nötig.
-    _strike('hero', '−' + dmg + (bonus ? ' ✨' : '') + (hammer ? ' 🔨' : '') + (tali ? ' 🧿' : ''), '#c084fc',
+    // die über dem Gegner aufsteigt — als Pixel-Icons statt Emoji.
+    _strike('hero', '−' + dmg + (bonus ? iconHTML('star', 14) : '') + (hammer ? iconHTML('hammer', 14) : '') + (tali ? iconHTML('orb', 14) : ''), '#c084fc',
       () => {
         f.enemyHp = Math.max(0, f.enemyHp - dmg);
         _setBars();
@@ -873,19 +907,23 @@ function _onWave(success) {
       });
     return;
   } else if (f.shield) {
-    // 🛡️ Schildtrank: wehrt genau eine verlorene Welle ab. Popup über dem eigenen
-    // Character statt Text-Feedback — analog zu Schaden über dem Gegner.
+    // 🛡️ Schildtrank: wehrt genau eine verlorene Welle ab. Meldung über der
+    // Figur wie Fragment 6.8 (N41).
     f.shield = false;
-    _damagePop('cf-hero', '🛡️ Block!', '#69db7c');
+    _schutzMeldung('potion', 'Schildtrank!', 'Verlorene Welle abgewehrt', 'var(--p-blau)');
     try { playSfx('click'); } catch (e) {}
-  } else if (eff.dodge && Math.random() < eff.dodge) {
+  } else if (eff.dodge && (wurf = Math.random()) < eff.dodge) {
     // 🥾 Stiefel / 🗡️ Dolch: der verlorenen Welle ausgewichen — kein HP-Verlust.
-    _damagePop('cf-hero', '🍃 Ausgewichen!', '#69db7c');
+    // Die Chance ist die Summe aus beiden; derselbe Wurf sagt nur noch, welcher
+    // Teil gegriffen hat (unterer Teil Stiefel, oberer Dolch) — für die Meldung.
+    const dolch = weapon.type === 'dolch' ? PERK_DOLCH_DODGE : 0;
+    const ausDolch = dolch > 0 && wurf >= eff.dodge - dolch;
+    _schutzMeldung(ausDolch ? 'sword' : 'boots', 'Ausgewichen!', ausDolch ? 'Dolch' : 'Stiefel', 'var(--p-pfirsich)');
     try { playSfx('click'); } catch (e) {}
   } else if ((f.headUsed || 0) < (eff.headGuards || 0)) {
     // 🪖 Helm: wehrt verlorene Wellen ab (Anzahl je Stufe).
     f.headUsed = (f.headUsed || 0) + 1;
-    _damagePop('cf-hero', '🪖 Block!', '#69db7c');
+    _schutzMeldung('helm', 'Helm blockt!', 'Kein Schaden', 'var(--p-stahl)');
     try { playSfx('click'); } catch (e) {}
   } else {
     _strike('enemy', '−' + enemy.dmg, '#ff8787',
@@ -907,31 +945,28 @@ function _onWave(success) {
   setTimeout(() => { if (_ctx) _startWave(); }, 900);
 }
 
-// Konfetti-Regen beim Boss-Sieg — nutzt .confetti-wrap/.confetti-piece aus style.css
-// (bisher ungenutzt vorbereitet), Farben/Größen/Timing kommen per Inline-Style dazu.
+// Konfetti beim Boss-Sieg (7.16): Pastell-Plättchen mit Kontur, die im Takt
+// fallen und sich drehen (data-ui="confetti", Übersicht 9.7). Liegt über allem
+// im Kampf-Overlay und bleibt, bis der Kampf geschlossen wird.
 function _confettiBurst() {
   const wrap = document.createElement('div');
-  wrap.className = 'confetti-wrap';
-  const colors = ['#ffd43b', '#c084fc', '#69db7c', '#ff8787', '#4dabf7'];
-  for (let i = 0; i < 26; i++) {
-    const p = document.createElement('div');
-    p.className = 'confetti-piece';
-    p.style.left = Math.random() * 100 + '%';
-    p.style.width = p.style.height = (6 + Math.random() * 6) + 'px';
-    p.style.background = colors[i % colors.length];
-    p.style.borderRadius = Math.random() < 0.5 ? '50%' : '2px';
-    p.style.animationDuration = (1.4 + Math.random() * 1.1) + 's';
-    p.style.animationDelay = (Math.random() * 0.3) + 's';
-    wrap.appendChild(p);
+  wrap.className = 'cf-konfetti';
+  const farben = ['#FFBBC1', '#BCE3FF', '#C9B8FF', '#B7E3C2', '#FFD6A5', '#FFD66B'];
+  const w = window.innerWidth || 402, h = window.innerHeight || 874;
+  let html = '';
+  for (let i = 0; i < 18; i++) {
+    const x = Math.round(Math.random() * (w - 16)), y = Math.round(Math.random() * h);
+    const dreh = Math.round(Math.random() * 70 - 35);
+    // position inline: ui-anim.js erkennt Plättchen nur daran.
+    html += `<span style="position:absolute;left:${x}px;top:${y}px;background:${farben[i % farben.length]};transform:rotate(${dreh}deg)"></span>`;
   }
-  // An #cf-overlay hängen, nicht an <body>: der Kampf-Overlay liegt auf z-index:8000,
-  // das gemeinsame .confetti-wrap nur auf 999 — an body würde es dahinter verschwinden.
+  wrap.innerHTML = html;
+  wrap.dataset.ui = 'confetti';
   (_el('cf-overlay') || document.body).appendChild(wrap);
-  setTimeout(() => wrap.remove(), 2600);
 }
 
 function _endScreen(victory, wellen = 0) {
-  const { node, round, players } = _ctx;
+  const { node, players } = _ctx;
   const boss = node.type === 'boss';
   const bossWin = victory && boss;
   const stage = _el('cf-stage');
@@ -949,18 +984,41 @@ function _endScreen(victory, wellen = 0) {
     players?.pet?.play('die');
     players?.feind?.play('win');
   }
-  if (stage) stage.innerHTML = `<div style="display:flex;justify-content:center;padding:20px 16px;">
-    <div style="background:#fff;border-radius:20px;padding:28px 24px;box-shadow:0 4px 14px rgba(0,0,0,.22);max-width:300px;text-align:center;">
-      <div style="font-size:4rem;margin-bottom:12px;">${victory ? (boss ? '👑' : '🎉') : '💀'}</div>
-      <div class="p-dlg-titel" style="margin-bottom:10px">${bossWin ? `🐉 Boss Nr. ${round + 1} besiegt!` : victory ? 'Gewonnen!' : 'Besiegt …'}</div>
-      ${victory && wellen > 0 ? `<div class="p-chip p-chip--gold" style="margin-bottom:12px">${wellen} ${wellen === 1 ? 'Welle' : 'Wellen'} gewonnen</div>` : ''}
-      <div style="font-size:.9rem;font-weight:700;color:#777;margin-bottom:${bossWin ? 14 : 22}px;line-height:1.5;">${victory
-        ? (boss ? 'Du hast dich bis ganz nach oben gekämpft — der Lauf ist geschafft!' : 'Der Weg ist frei — wähle den nächsten Knoten.')
-        : `Deine HP sind auf 0 — der Lauf ist vorbei und der Einsatz (2 🪙) weg.${round > 0 ? ' Der Aufstieg beginnt wieder bei Runde 1.' : ''}`}</div>
-      ${bossWin ? `<div class="bounce-in p-chip p-chip--gold p-chip--icon" style="border-radius:var(--p-r-chip-gross);padding:8px 14px;font-size:14px;margin-bottom:22px">${iconHTML('coin', 14)}+${BOSS_WIN_TALER}</div>` : ''}
-      <button id="cf-endbtn" class="p-btn p-btn--primaer" style="width:auto;padding:0 24px">${bossWin ? '🔄 Neue Runde starten' : 'Weiter'}</button>
-    </div>
-  </div>`;
+  // Karten wie Fragment 7.15 (Gegner besiegt), 7.16 (Boss besiegt) und 7.17
+  // (Lauf vorbei). Wirkung der Knöpfe unverändert.
+  const esc = (s) => (window.escHtml ? window.escHtml(String(s)) : String(s));
+  const hebt = (html) => html.replace('<canvas ', '<canvas data-ui="bob" data-a="2" ');
+  const chip = (ton, icon, text) => `<span class="cf-ende-chip" style="background:${ton}">${iconHTML(icon, 14)}${text}</span>`;
+  // „N Wellen gewonnen" bleibt nach Entscheidung F-13, auch wenn die neuen
+  // Fragmente keine Wellen mehr zeigen (Frage F-36).
+  const wellenChip = victory && wellen > 0 ? chip('var(--p-gold)', 'star', `${wellen} ${wellen === 1 ? 'Welle' : 'Wellen'} gewonnen`) : '';
+  let inhalt;
+  if (bossWin) {
+    inhalt = `<div class="cf-ende-emblem cf-ende-emblem--boss">${hebt(iconHTML('crownBig', 56))}</div>
+      <div class="cf-ende-titel cf-ende-titel--boss">Boss besiegt!</div>
+      <div class="cf-ende-text">${esc(enemyName(_ctx.enemyKey) || 'Der Boss')} ist gefallen — Lauf geschafft.</div>
+      <div class="cf-ende-chips">
+        ${chip('var(--p-gold)', 'crown', '+1 Boss')}${chip('var(--p-ok)', 'flag', 'Nächster Lauf gratis')}
+        ${chip('var(--p-gold)', 'coin', `+${BOSS_WIN_TALER} Taler`)}${wellenChip}
+      </div>
+      <button id="cf-endbtn" class="cf-ende-btn">Neue Runde starten</button>`;
+  } else if (victory) {
+    inhalt = `<div class="cf-ende-emblem" style="background:var(--p-ok)">${hebt(iconHTML('sword', 42))}</div>
+      <div class="cf-ende-titel">Gegner besiegt!</div>
+      <div class="cf-ende-text">Der Weg ist frei — wähle den nächsten Knoten auf der Karte.</div>
+      ${wellenChip ? `<div class="cf-ende-chips">${wellenChip}</div>` : ''}
+      <button id="cf-endbtn" class="cf-ende-btn" style="margin-top:18px">Weiter</button>`;
+  } else {
+    inhalt = `<div class="cf-ende-emblem" style="background:var(--p-inaktiv)">${iconHTML('skull', 42)}</div>
+      <div class="cf-ende-titel">Lauf vorbei</div>
+      <div class="cf-ende-liste">
+        <div class="cf-ende-zeile">${iconHTML('heart', 14)}Dein Leben ist auf 0</div>
+        <div class="cf-ende-zeile cf-ende-zeile--weg">${iconHTML('coinOff', 14)}Einsatz von ${STAKE_COST} Talern ist weg</div>
+        <div class="cf-ende-zeile">${iconHTML('flag', 14)}Nächster Lauf beginnt bei Runde 1</div>
+      </div>
+      <button id="cf-endbtn" class="cf-ende-btn">Weiter</button>`;
+  }
+  if (stage) stage.innerHTML = `<div class="cf-ende"><div class="cf-ende-karte">${inhalt}</div></div>`;
   const flee = _el('cf-flee');
   if (flee) flee.style.display = 'none';
   const btn = _el('cf-endbtn');
