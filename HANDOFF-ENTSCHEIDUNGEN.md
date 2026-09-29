@@ -71,6 +71,9 @@ Avatare dürfen bei einer Migration verloren gehen. Kein Umbau darf `SD.decks`,
 | F-48 | 4.10 Knopf „Nochmal versuchen“ nach falscher Aussprache — heute ist eine falsch erkannte Aussprache endgültig (Rückmeldung + „Weiter“) | Phase 7, Bereich 4 |
 | F-49 | 4.11 beim Selbstbewerten kein Mikrofon mehr — heute kann man dort mit „Nochmal“ noch einmal sprechen | Phase 7, Bereich 4 |
 | F-50 | 5.3 zeigt den Trainingsplatz ohne Einklapp-Karte (Überschrift, Knopf und Decks immer offen); 5.1 (älter) und heute: einklappbar | Phase 7, Bereich 5 |
+| F-51 | 5.7/5.8/5.11 geben zusätzlich die englische Grundform vor („write“ groß, „schreiben · Infinitiv“; 5.7 „get · bekommen“) — heute nur das deutsche Wort bzw. nur die falsche Form. Macht die Aufgaben leichter. | Phase 7, Bereich 5 |
+| F-52 | 5.7 streicht die falsche Form durch — im Juni bewusst entfernt (Commit `9396dfe`) | Phase 7, Bereich 5 |
+| F-53 | 5.8 Tipp-Knopf (Glühbirne) neben „Prüfen“ — gibt es heute nicht | Phase 7, Bereich 5 |
 
 ## Ohne Rückfrage entschieden (Aussehen) — Phase 7
 
@@ -115,3 +118,4 @@ Avatare dürfen bei einer Migration verloren gehen. Kein Umbau darf `SD.decks`,
 | 5.3 Deck-Karte | nach 5.3 (Nachtrag) in der einklappbaren Außenkarte aus 5.1 (F-50) — daher 32 px schmaler, senkrecht deckungsgleich. „Formen wählen“ nach dem Zurücksetzen mit den Kacheln aus 5.4. | 29.09.2026 |
 | 5.4/5.12 Dialoge | senkrecht mittig wie alle Dialoge (Entwurf: oben bei 52 bzw. 70 px), Liste scrollt. Stufe A1 mint, A2 pfirsich, ab B1 rosa (wie Schwierigkeit in 3.2; B2/C1 zeigt der Entwurf nicht). Hinweis nur „Anlegen erst bei genau 10“ — „+ 3 weitere Verben“ im Fragment bezieht sich auf die gekürzte Liste. Belegte Verben: Stufen-Chip „vergeben“, Zeile blass. „Abbrechen“ voll deckend (im Fragment wie „Anlegen“ blass). | 29.09.2026 |
 | 5.5 Statistik | wie 5.5 für beide Formen; bei nur einer Form eine Formen-Spalte. Prozent wie bisher aus gemeisterten Verben. | 29.09.2026 |
+| 5.6–5.11 Formen-Spiele | Plakette je Form (Simple Past hellblau, Past Participle gold, alle drei flieder), Anweisungen aus den Fragmenten, Vorgabe „wählen → Simple Past“ wie 5.9/5.10 auch bei 5.8/5.11 (bis F-51), Prüfen in Gold mit Haken vorn, kein Warte-Kasten. Lücke (5.10) als Kacheln mit Feld darunter; lange Wörter: Kacheln schrumpfen statt umzubrechen. | 29.09.2026 |

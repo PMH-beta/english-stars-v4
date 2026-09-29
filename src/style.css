@@ -4362,3 +4362,99 @@ button.p-chip{ cursor:pointer; }
 /* Dialoge 5.4/5.12 stehen 14 px vom Rand. */
 .uv-fill-overlay{ padding:14px; }
 .vm-kopf:has(#vm-deck-name:empty) #vm-deck-name{ display:none; }
+
+/* ══ FORMEN-SPIELE nach Fragment 5.6–5.11 (Phase 7, Bereich 5) ═════════════
+   Plakette je Form, Anweisung, Vorgabe „haben → Simple Past", Ordnen mit
+   Ablagen, Lücke als Kacheln mit Feld darunter, Prüfen in Gold. */
+.uv-badge{ color:var(--p-ink); margin:0; vertical-align:top; }
+/* Kopf der Formen-Aufgabe: ohne eigene Schrift, damit die Plakette oben anliegt. */
+.uv-kopf{ font-size:0; line-height:0; }
+.uv-instr{ font:800 13px var(--p-font); color:var(--p-text-akzent); margin-top:14px; }
+/* Pfeil „→" steht nicht in Nunito: Ersatzschrift wie im Entwurf (sans-serif). */
+.uv-wort{ font:900 18px 'Nunito',sans-serif; color:var(--p-ink); margin-top:6px; }
+.uv-wort--klein{ font-size:15px; }
+.uv-aufgabe{ font:900 22px var(--p-font); color:var(--p-ink); margin-top:8px; letter-spacing:.1em; }
+/* Falsche Form (5.7) in rosa Fläche — ohne Durchstreichen (F-52). */
+.uv-falsch{
+  display:inline-block; margin-top:12px; padding:10px 20px;
+  border:var(--p-rahmen); border-radius:18px; background:var(--p-falsch);
+  font:900 30px/1 var(--p-font); color:var(--p-ink);
+}
+/* Prüfen in Gold, Haken vorn (5.6, 5.8–5.10). */
+.submit-btn.uv-pruefen{ background:var(--p-gold); }
+.submit-btn{ margin-bottom:0; }
+.submit-btn:disabled{ opacity:.55; cursor:default; }
+/* Lücke (5.10): Kacheln 46×54 + Rahmen, Feld 120×56 + Rahmen. */
+/* Lange Wörter: die Kacheln schrumpfen, die Reihe bleibt einzeilig (der
+   Entwurf zeigt nur kurze Wörter). */
+.gap-reihe{ display:flex; justify-content:center; gap:8px; margin-top:20px; flex-wrap:nowrap; }
+.gap-kachel{
+  width:50px; min-width:0; height:58px; flex:0 1 50px; display:flex; align-items:center; justify-content:center;
+  border:var(--p-rahmen); border-radius:14px; background:var(--p-pfirsich);
+  font:900 22px var(--p-font); color:var(--p-ink);
+}
+.gap-kachel.is-luecke{ border-style:dashed; background:var(--p-feld); }
+.gap-feld{
+  display:block; width:124px; height:60px; margin:20px auto 0; padding:0;
+  border:var(--p-rahmen); border-radius:18px; background:var(--p-feld);
+  font:900 22px var(--p-font); color:var(--p-ink); text-align:center;
+}
+.gap-feld::placeholder{ color:var(--p-text-2); opacity:1; }
+.gap-feld:focus{ outline:2px solid var(--p-ink); outline-offset:2px; }
+.gap-feld.correct{ background:var(--p-ok); }
+.gap-feld.wrong{ background:var(--p-falsch); }
+.p-fragekarte .gap-feld + .submit-btn{ margin-top:16px; }
+/* Ordnen (5.6 Formen, 5.9 Buchstaben). */
+.p-fragekarte .order-slots{ display:flex; flex-direction:column; flex-wrap:nowrap; gap:9px; margin:16px 0 0; }
+.order-slots:not(.letters) .order-slot{
+  flex:none; display:grid; grid-template-columns:112px 1fr; gap:10px; align-items:center;
+  min-width:0; min-height:0; padding:0; border:0; border-radius:0; background:none; transition:none;
+}
+.order-slots:not(.letters) .slot-label{
+  font:900 9.5px var(--p-font); letter-spacing:.1em; text-transform:uppercase;
+  color:var(--p-text-akzent); text-align:left;
+}
+.order-slots:not(.letters) .order-slot::after{
+  content:''; box-sizing:border-box; height:54px;
+  border:2px dashed var(--p-ink); border-radius:16px; background:var(--p-feld);
+}
+/* Formen-Aufgaben zeigen keinen Warte-Kasten (5.6–5.11). */
+#game-screen.ist-formen .feedback:not(.show){ display:none; }
+.order-slots:not(.letters) .order-slot:has(.order-tile)::after{ display:none; }
+.order-slots:not(.letters) .order-slot.drop-hover::after{ background:var(--p-karte-hell); }
+.order-slots:not(.letters) .order-slot .order-tile{
+  height:54px; min-width:0; padding:0 10px; border-radius:16px; background:var(--p-pfirsich);
+  font:900 15px var(--p-font); box-shadow:none;
+}
+.p-fragekarte .order-slots.letters{ flex-direction:row; flex-wrap:nowrap; justify-content:center; gap:8px; margin-top:20px; }
+.order-slots.letters .order-slot{
+  flex:0 1 50px; width:50px; min-width:0; height:58px; min-height:0; padding:0;
+  border:2px dashed var(--p-ink); border-radius:14px; background:var(--p-feld); transition:none;
+}
+.order-slots.letters .order-slot:has(.order-tile){ border:0; background:none; }
+.order-slots.letters .order-slot.drop-hover{ background:var(--p-karte-hell); border-color:var(--p-ink); }
+.order-slots.letters .order-slot .order-tile{
+  width:100%; height:58px; min-width:0; padding:0; border-radius:14px; background:var(--p-pfirsich);
+  font:900 22px var(--p-font); box-shadow:none;
+}
+.p-fragekarte .order-tray{
+  display:flex; justify-content:center; flex-wrap:wrap; gap:10px; margin:18px 0 0;
+  min-height:54px; padding:0; border-radius:0; background:none; transition:none;
+}
+.p-fragekarte .order-tray.letters{ margin-top:22px; }
+.p-fragekarte .order-tray.drop-hover{ background:none; }
+.order-tile{
+  display:flex; align-items:center; justify-content:center; line-height:1;
+  border:var(--p-rahmen); color:var(--p-ink);
+}
+.order-tray .order-tile{
+  min-width:96px; height:54px; padding:0 14px; border-radius:16px; background:var(--p-karte);
+  font:900 16px var(--p-font); box-shadow:0 3px 0 rgba(31,31,36,.2);
+}
+.order-tray.letters .order-tile{ min-width:86px; }
+.order-tile.dragging{ box-shadow:var(--p-schatten-angehoben); opacity:1; }
+.order-tile.correct, .order-tile.wrong{ border-color:var(--p-ink); color:var(--p-ink); box-shadow:none; }
+.order-tile.correct{ background:var(--p-ok); }
+.order-tile.wrong{ background:var(--p-falsch); }
+.p-fragekarte #order-check{ margin-top:18px; }
+.p-fragekarte .order-tray.letters + #order-check{ margin-top:20px; }
