@@ -110,7 +110,6 @@ h1{
   background:var(--brand);-webkit-background-clip:text;background-clip:text;
   -webkit-text-fill-color:transparent;color:var(--purple);
 }
-.subtitle{color:#8a83a5;font-size:.9rem;margin-bottom:16px;font-weight:700;letter-spacing:.02em;}
 
 /* ── SCREENS ── */
 .screen{
@@ -120,89 +119,12 @@ h1{
 }
 .screen h2{font-family:'Nunito',system-ui,sans-serif;font-size:1.7rem;margin-bottom:10px;color:var(--text);}
 .screen p{color:#6f6889;margin-bottom:14px;font-size:.95rem;font-weight:600;line-height:1.55;}
-.emoji-big{
-  font-size:2.6rem;margin-bottom:14px;display:flex;align-items:center;justify-content:center;
-  width:84px;height:84px;border-radius:50%;
-  background:radial-gradient(circle at 35% 30%,#ffffff, #f0e6fd 70%,#e6d6fa);
-  box-shadow:0 6px 18px rgba(140,100,210,.18), inset 0 0 0 1px #eee4fb;
-}
-
-/* Einheitliche Eingabefelder + Fehlerbox (Login, Passwort-Reset …) */
-.es-input{
-  width:100%;max-width:300px;padding:13px 16px;box-sizing:border-box;
-  border:2px solid var(--line);border-radius:14px;background:#fbfaff;
-  font-size:.95rem;font-family:'Nunito',sans-serif;font-weight:700;color:var(--text);
-  margin-bottom:10px;outline:none;transition:border-color .15s, box-shadow .15s;
-}
-.es-input:focus{border-color:var(--purple);box-shadow:0 0 0 4px rgba(168,108,219,.14);background:#fff;}
-.es-input::placeholder{color:#b0a8c8;font-weight:600;}
-.es-error{
-  color:#c0001a;font-size:.82rem;font-weight:700;text-align:center;max-width:300px;width:100%;
-  margin-bottom:10px;padding:9px 12px;background:#fff0f2;border:1px solid #ffd9de;border-radius:12px;
-}
 
 /* Modus-Toggle im Menü (Segmented Control) */
 .mode-toggle{
   display:flex;width:100%;background:#e9e3f6;border-radius:16px;padding:4px;
   margin-bottom:18px;gap:3px;box-shadow:inset 0 2px 6px rgba(88,60,150,.08);
 }
-.mode-btn{
-  flex:1;font-family:'Nunito',system-ui,sans-serif;font-size:.78rem;padding:10px 4px;
-  border:none;border-radius:12px;cursor:pointer;transition:all .18s;
-  background:transparent;color:#8a83a5;
-}
-.mode-btn.active{background:#fff;color:var(--purple);box-shadow:0 3px 10px rgba(88,60,150,.16);}
-.mode-toggle.dark{background:#252134;}
-.mode-toggle.dark .mode-btn{color:#8a82a6;}
-.mode-toggle.dark .mode-btn.active{background:#3a3352;color:#d9b8ff;box-shadow:0 2px 6px rgba(0,0,0,.4);}
-
-/* ── BUTTONS ── */
-.big-btn{
-  font-family:'Nunito',system-ui,sans-serif;font-size:1.05rem;padding:15px 18px;
-  border:none;border-radius:16px;cursor:pointer;transition:all .15s;
-  color:white;display:flex;align-items:center;gap:12px;width:100%;margin-bottom:9px;
-  text-align:left;
-}
-.big-btn:hover{transform:translateY(-2px);filter:brightness(1.04);}
-.big-btn:active{transform:translateY(3px);}
-.big-btn.green {background:var(--green); box-shadow:0 5px 0 #3a9b45;}
-.big-btn.blue  {background:var(--blue);  box-shadow:0 5px 0 #2a6fcc;}
-.big-btn.orange{background:var(--orange);box-shadow:0 5px 0 #cc4a1a;}
-.big-btn.purple{background:var(--purple);box-shadow:0 5px 0 #9b4dcc;}
-.big-btn.teal  {background:var(--teal);  box-shadow:0 5px 0 #007a73;}
-.big-btn.pink  {background:var(--pink);  box-shadow:0 5px 0 #cc3a72;}
-.big-btn.gray  {background:#aaa;         box-shadow:0 5px 0 #777;}
-.big-btn.brand {background:linear-gradient(135deg,#a86cdb,#ff8fab);box-shadow:0 5px 0 #9b5bb8;}
-
-/* Text-Links (Auth: Registrieren, Passwort vergessen, Abbrechen …) */
-.link-btn{
-  margin-top:12px;background:none;border:none;color:#8a83a5;
-  font-family:'Nunito',system-ui,sans-serif;font-size:.85rem;cursor:pointer;
-  text-decoration:underline;text-underline-offset:3px;transition:color .15s;
-}
-.link-btn:hover{color:var(--purple);}
-.link-btn.accent{color:var(--purple);font-size:.88rem;}
-
-/* Google-Login */
-.google-btn{
-  margin-top:12px;max-width:300px;width:100%;padding:12px 16px;
-  background:#fff;color:#3c4043;border:2px solid var(--line);border-radius:14px;
-  font-family:'Nunito',system-ui,sans-serif;font-size:.95rem;cursor:pointer;
-  display:flex;align-items:center;justify-content:center;gap:10px;
-  box-shadow:0 3px 10px rgba(88,60,150,.10);transition:all .15s;
-}
-.google-btn:hover{border-color:#d9c8f2;transform:translateY(-1px);}
-
-/* „oder"-Trenner im Auth-Screen */
-.auth-divider{
-  display:flex;align-items:center;gap:10px;max-width:300px;width:100%;margin-top:18px;
-}
-.auth-divider::before,.auth-divider::after{content:'';flex:1;height:1px;background:var(--line);}
-.auth-divider span{font-size:.75rem;color:#b0a8c8;font-weight:700;white-space:nowrap;}
-.big-btn.center{justify-content:center;}
-.btn-sub{font-family:'Nunito',sans-serif;font-size:.72rem;font-weight:700;opacity:.85;display:block;margin-top:2px;}
-.icon-btn{font-size:1.45rem;flex-shrink:0;width:34px;text-align:center;}
-.mode-buttons{display:flex;flex-direction:column;gap:8px;margin-top:12px;width:100%;}
 
 /* ── NAME ── */
 .name-input{
@@ -214,46 +136,10 @@ h1{
 .name-input:focus{border-color:var(--purple);box-shadow:0 0 0 4px rgba(168,108,219,.14);background:#fff;}
 
 /* ── PLAYER BANNER ── */
-.player-banner{
-  background:linear-gradient(135deg,#ffffff,#f6f0fe);
-  border:1px solid var(--line);border-radius:18px;padding:12px 16px;
-  display:flex;align-items:center;justify-content:space-between;
-  gap:10px;margin-bottom:14px;box-shadow:var(--shadow);
-  width:100%;max-width:580px;flex-wrap:wrap;transition:transform .15s, box-shadow .15s;
-}
-.player-banner:hover{transform:translateY(-1px);box-shadow:0 10px 28px rgba(88,60,150,.15);}
 #menu-avatar{border-radius:50%;overflow:hidden;background:linear-gradient(135deg,#f3ecff,#ffe9f3);box-shadow:0 0 0 2.5px #fff,0 0 0 4.5px rgba(168,108,219,.35);}
 #prof-avatar{border-radius:50%;overflow:hidden;background:linear-gradient(135deg,#f3ecff,#ffe9f3);box-shadow:0 0 0 2.5px #fff,0 0 0 4.5px rgba(168,108,219,.35);}
 /* Charakter-Editor: Bühne als weiche Karte, Pfeile als schwebende Pills */
-#character-stage{
-  background:linear-gradient(180deg,#ffffff,#f6f0fe);
-  border:1px solid var(--line);border-radius:24px;box-shadow:var(--shadow);
-  padding:14px 0 6px;
-}
-#character-feature-chips{scrollbar-width:none;}
-#character-feature-chips::-webkit-scrollbar{display:none;}
-.char-arrow{
-  font-family:'Nunito',system-ui,sans-serif;font-size:1.7rem;line-height:1;
-  width:48px;height:48px;border:1px solid var(--line);border-radius:50%;cursor:pointer;
-  background:#fff;color:var(--purple);box-shadow:0 4px 14px rgba(88,60,150,.18);
-  display:flex;align-items:center;justify-content:center;z-index:2;
-  padding-bottom:4px;
-}
-.char-arrow:active{transform:translateY(-50%) translateY(3px);box-shadow:0 1px 0 #c9b3e6;}
-.player-name{font-family:'Nunito',system-ui,sans-serif;font-size:1.05rem;color:var(--purple);}
-.player-stats{display:flex;gap:10px;flex-wrap:wrap;}
-.pstat{font-weight:800;font-size:.82rem;color:#6f6889;}
-.back-btn{
-  font-family:'Nunito',system-ui,sans-serif;font-size:.88rem;padding:9px 18px;
-  background:#fff;color:#6f6889;border:1px solid var(--line);border-radius:50px;
-  cursor:pointer;box-shadow:0 3px 10px rgba(88,60,150,.10);transition:all .15s;display:inline-block;
-}
-.back-btn:hover{color:var(--purple);border-color:#d9c8f2;transform:translateY(-1px);}
 /* Sticky-Back: bleibt oben sichtbar beim Scrollen (in Stats/VocabManager etc.) */
-.back-btn.sticky{
-  position:sticky;top:8px;z-index:300;align-self:flex-start;
-  background:#fff;box-shadow:0 4px 14px rgba(88,60,150,.18);
-}
 /* Back-Button im VocabManager/Statistik (scan-screen ist center-aligned) links oben halten */
 #vm-back-area{width:100%;align-self:flex-start;}
 /* Sammlung umbenennen — kompakt unter dem Sammlungsnamen */
@@ -265,14 +151,6 @@ h1{
 }
 .vm-rename-btn:hover{background:#e9def9;}
 
-/* ── STATS SCREEN ── */
-.cat-progress-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:14px;}
-.cat-card{background:white;border:1px solid var(--line);border-radius:16px;padding:11px;box-shadow:var(--shadow);}
-.cat-card-title{font-family:'Nunito',system-ui,sans-serif;font-size:.88rem;margin-bottom:4px;}
-.mini-bar-wrap{background:#eee;border-radius:50px;height:6px;overflow:hidden;margin-bottom:3px;}
-.mini-bar{height:100%;border-radius:50px;}
-.cat-stat-small{font-size:.68rem;color:#888;font-weight:700;}
-
 /* Deck-Karten (Akkordeon) */
 .deck-card{
   background:#fff;border-radius:20px;margin-bottom:10px;
@@ -280,68 +158,6 @@ h1{
   border:1px solid var(--line);transition:all .25s ease;
   overflow:hidden;
 }
-.deck-card.deck-type-custom{
-  background:linear-gradient(135deg,#f2fbf3,#e2f6e6);
-  border-color:#d4ecd9;
-}
-.deck-card.deck-type-preset{
-  background:#fff;
-}
-.deck-card.expanded{
-  border-color:rgba(168,108,219,.55);
-  box-shadow:0 10px 30px rgba(88,60,150,.16);
-}
-.deck-activate-btn{
-  width:100%;font-family:'Nunito',system-ui,sans-serif;font-size:.88rem;
-  padding:10px 14px;background:linear-gradient(135deg,var(--purple),var(--pink));
-  color:#fff;border:none;border-radius:11px;cursor:pointer;
-  margin-bottom:10px;box-shadow:0 4px 0 #7d52a8;transition:transform .15s;
-}
-.deck-activate-btn:hover{transform:translateY(-2px);}
-.deck-active-badge{
-  font-family:'Nunito',system-ui,sans-serif;font-size:.78rem;color:var(--purple);
-  background:rgba(168,108,219,.10);padding:8px 14px;border-radius:11px;
-  text-align:center;margin-bottom:10px;
-}
-.deck-header{
-  padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;
-  font-family:'Nunito',system-ui,sans-serif;
-}
-.deck-icon{font-size:1.6rem;flex-shrink:0;}
-.deck-info{flex:1;min-width:0;}
-.deck-name{font-size:1.05rem;color:var(--text);margin-bottom:2px;}
-.deck-meta{font-size:.7rem;color:#888;font-weight:700;display:flex;gap:10px;flex-wrap:wrap;}
-.deck-meta span{display:inline-flex;align-items:center;gap:3px;}
-.deck-pct{
-  font-size:1.1rem;
-  background:linear-gradient(135deg,var(--purple),var(--pink));
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
-}
-.deck-chevron{font-size:.9rem;color:#bbb;transition:transform .25s;flex-shrink:0;}
-.deck-card.expanded .deck-chevron{transform:rotate(180deg);}
-.deck-progress-mini{
-  height:6px;background:#eee;border-radius:50px;margin-top:8px;overflow:hidden;
-}
-.deck-progress-mini-fill{
-  height:100%;border-radius:50px;
-  background:linear-gradient(90deg,#a86cdb,#ff8fab,#ffd166,#06d6a0);
-  background-size:200% 100%;animation:gradientFlow 8s linear infinite;
-  transition:width .6s ease;
-}
-.deck-body{display:none;padding:0 14px 14px;}
-.deck-card.expanded .deck-body{display:block;}
-.deck-actions{
-  display:flex;gap:6px;margin-top:10px;padding-top:10px;
-  border-top:1px solid #f0f0f0;
-}
-.deck-action-btn{
-  flex:1;font-family:'Nunito',system-ui,sans-serif;font-size:.78rem;padding:7px 10px;
-  border:none;border-radius:9px;cursor:pointer;transition:all .15s;
-  background:#f5f5f5;color:#666;
-}
-.deck-action-btn:hover{background:#eee;}
-.deck-action-btn.danger{color:#c0001a;}
-.deck-action-btn.danger:hover{background:#ffe0e0;}
 
 /* Sticky Footer (Export/Import/Reset) — Glas-Leiste */
 .menu-footer{
@@ -385,7 +201,6 @@ h1{
 }
 .vm-row:last-child{border-bottom:none;}
 .vm-row-de{flex:1;font-weight:700;color:var(--text);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.vm-row-arrow{color:#bbb;flex-shrink:0;}
 .vm-row-en{flex:1;color:#666;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .vm-row-del{
   background:transparent;border:none;cursor:pointer;font-size:1rem;
@@ -408,30 +223,6 @@ h1{
   display:flex;align-items:center;justify-content:space-between;
   background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 14px;
   margin-bottom:8px;box-shadow:0 3px 10px rgba(88,60,150,.08);
-}
-.preset-info{display:flex;flex-direction:column;gap:3px;}
-.preset-name{font-family:'Nunito',system-ui,sans-serif;font-size:1rem;color:var(--text);}
-.preset-count{font-size:.72rem;color:#aaa;font-weight:700;}
-.preset-toggle{
-  font-family:'Nunito',system-ui,sans-serif;font-size:.85rem;
-  padding:8px 16px;
-  border:2px solid rgba(168,108,219,.4);
-  border-radius:50px;
-  cursor:pointer;
-  background:rgba(168,108,219,.09);
-  color:#8b44c0;
-  transition:all .18s ease;white-space:nowrap;flex-shrink:0;
-}
-.preset-toggle:hover{
-  background:rgba(168,108,219,.18);
-  border-color:#a86cdb;
-  color:#7a3aac;
-}
-.preset-toggle:active{transform:scale(.95);}
-.preset-toggle.on{
-  background:linear-gradient(135deg,#a86cdb,#c084fc);
-  border-color:transparent;color:#fff;
-  box-shadow:0 3px 10px rgba(168,108,219,.4);
 }
 /* Music button */
 .music-btn{
@@ -485,7 +276,6 @@ h1{
 }
 body.in-game .music-vol-wrap.open{display:none;}
 /* Im Spiel: kein Music-Button in der Score-Bar - der globale unten reicht */
-body.in-game .score-bar .music-btn{display:none;}
 /* Im Spiel: globalen Music-Button + Vol-Button sichtbar lassen (statt verstecken) */
 body.in-game .music-btn-global{display:flex !important;}
 body.in-game .music-vol-btn{display:flex !important;}
@@ -511,16 +301,6 @@ body.in-game .music-vol-wrap.open{display:flex !important;}
 /* Popup Position anpassen wenn beide Buttons da sind */
 .music-vol-wrap{bottom:120px;right:16px;}
 /* PWA Install-Knopf - oben links (klein, dezent) */
-#pwa-install-btn{
-  display:none;position:fixed;top:14px;left:14px;z-index:500;
-  font-family:'Nunito',system-ui,sans-serif;font-size:.78rem;
-  padding:8px 12px;background:linear-gradient(135deg,#06d6a0,#3a9b45);
-  color:#fff;border:none;border-radius:50px;cursor:pointer;
-  box-shadow:0 3px 10px rgba(6,214,160,.4);
-  align-items:center;gap:6px;
-}
-#pwa-install-btn:hover{transform:translateY(-2px);}
-body.in-game #pwa-install-btn{display:none !important;}
 
 /* Modus-Gesamtfortschritt UNTER der Aufgabe */
 .mode-progress{
@@ -583,34 +363,13 @@ body.in-game .mode-progress{display:block;}
 .btn-progress-text{
   font-size:.7rem;font-weight:800;opacity:.95;display:inline-block;margin-top:3px;
 }
-.scroll-area{width:100%;overflow-y:auto;max-height:50vh;}
-.word-table{width:100%;border-collapse:collapse;font-size:.8rem;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 5px rgba(0,0,0,.07);margin-bottom:4px;}
-.word-table th{background:#efe7f9;color:var(--purple);padding:8px 9px;font-weight:800;text-align:left;position:sticky;top:0;}
-.word-table td{padding:8px 9px;border-bottom:1px solid #ececf3;vertical-align:middle;color:var(--text);}
-.word-table tbody tr:nth-child(even){background:#f8f6fc;}
-.word-table tbody tr:last-child td{border-bottom:none;}
-.section-title{font-family:'Nunito',system-ui,sans-serif;font-size:.95rem;color:#8a83a5;text-align:left;width:100%;max-width:540px;margin-bottom:7px;letter-spacing:.02em;}
-.ws-badge{display:inline-flex;align-items:center;gap:3px;font-size:.72rem;font-weight:800;padding:2px 8px;border-radius:50px;}
 .ws-green {background:#e8f8eb;color:#3a9b45;}
 .ws-yellow{background:#fff8e1;color:#d4a000;}
 .ws-red   {background:#ffe8e8;color:#c0001a;}
 .ws-gray  {background:#f0f0f0;color:#aaa;}
-.acc-mini{display:flex;align-items:center;gap:4px;font-size:.75rem;font-weight:700;}
-.acc-bar-wrap{background:#eee;border-radius:50px;height:5px;overflow:hidden;width:44px;display:inline-block;}
-.acc-bar{height:100%;border-radius:50px;}
-.wrong-dots{display:inline-flex;gap:2px;align-items:center;}
-.wrong-dot{width:6px;height:6px;border-radius:50%;background:var(--red);display:inline-block;}
 
 /* ── GAME SCREEN ── */
-.score-bar{display:flex;gap:9px;margin-bottom:12px;justify-content:center;flex-wrap:wrap;}
-.score-pill{background:white;border:1px solid var(--line);border-radius:50px;padding:6px 13px;font-weight:800;font-size:.88rem;box-shadow:0 3px 10px rgba(88,60,150,.10);display:flex;align-items:center;gap:4px;}
-.score-pill.streak{color:var(--orange);}
-.score-pill.points{color:#3a9b45;}
-.progress-wrap{width:100%;max-width:640px;background:#e6e0f4;border-radius:50px;height:12px;margin-bottom:16px;overflow:hidden;box-shadow:inset 0 2px 4px rgba(88,60,150,.10);}
 .progress-fill{height:100%;border-radius:50px;background:linear-gradient(90deg,#6BCB77,#4D96FF);transition:width .4s ease;}
-.game-top-row{display:flex;align-items:center;justify-content:space-between;width:100%;max-width:640px;margin-bottom:4px;}
-.home-btn{font-family:'Nunito',system-ui,sans-serif;font-size:.8rem;padding:7px 13px;background:#fff;color:#6f6889;border:1px solid var(--line);border-radius:50px;cursor:pointer;box-shadow:0 3px 10px rgba(88,60,150,.10);transition:all .15s;}
-.home-btn:hover{color:var(--purple);}
 .game-card{
   background:var(--card);border-radius:24px;padding:24px 22px;
   width:100%;max-width:640px;border:1px solid var(--line);
@@ -623,7 +382,6 @@ body.in-game .mode-progress{display:block;}
 .badge.spelling{background:rgba(199,125,255,.15);color:var(--purple);}
 .badge.pronounce{background:rgba(255,107,157,.15);color:var(--pink);}
 .question-text{font-family:'Nunito',system-ui,sans-serif;font-size:1.45rem;color:var(--text);margin-bottom:7px;line-height:1.35;}
-.hint-text{font-size:.85rem;color:#aaa;margin-bottom:18px;}
 
 /* MC choices */
 .choices{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;}
@@ -651,14 +409,7 @@ body.in-game .mode-progress{display:block;}
 
 /* Buchstaben-Lücke INLINE im Wort: getippter Buchstabe sitzt direkt an seiner
    Stelle → das Wort steht als Ganzes da. */
-.gap-word{display:flex;align-items:center;justify-content:center;gap:7px;flex-wrap:wrap;margin:8px 0 16px;}
-.gap-cell{font-family:'Nunito',system-ui,sans-serif;font-size:2rem;font-weight:800;color:var(--text);min-width:.7em;text-align:center;line-height:1.2;}
-.gap-cell.gap-input{width:1.1em;padding:0 0 2px;border:none;border-bottom:3px solid var(--purple);background:transparent;outline:none;color:var(--purple);caret-color:var(--purple);border-radius:0;}
-.gap-cell.gap-input::placeholder{color:#cdbce8;}
-.gap-input.filled{animation:gapPop .25s ease;}
 @keyframes gapPop{0%{transform:translateY(7px);opacity:.2;}100%{transform:translateY(0);opacity:1;}}
-.gap-cell.gap-input.correct{color:#1a7a2a;border-bottom-color:var(--green);}
-.gap-cell.gap-input.wrong{color:#b00;border-bottom-color:var(--red);}
 .submit-btn{
   font-family:'Nunito',system-ui,sans-serif;font-size:1rem;padding:11px 30px;
   background:var(--blue);color:white;border:none;border-radius:12px;
@@ -695,101 +446,10 @@ body.in-game .mode-progress{display:block;}
 .order-tile.correct{background:#E8F8EB;border-color:var(--green);color:#1a7a2a;box-shadow:0 4px 0 rgba(107,203,119,.4);}
 .order-tile.wrong{background:#FFE8E8;border-color:var(--red);color:#b00;box-shadow:0 4px 0 rgba(255,71,87,.3);}
 
-/* ── Sternenpfad (Gestaltwandler UV-Tab) ── */
-.star-path{background:linear-gradient(180deg,#1b1430,#241a40 50%,#1b1430);border-radius:18px;padding:16px 8px 24px;}
-.star-path-head{text-align:center;margin-bottom:14px;position:relative;}
-.sp-title{font-family:'Nunito',system-ui,sans-serif;color:#e9def7;font-size:1.15rem;}
-.sp-stand{font-size:.74rem;color:#ffd45e;font-weight:800;margin-top:3px;}
-.sp-info{position:absolute;top:0;right:2px;width:28px;height:28px;border-radius:50%;border:1.5px solid rgba(189,165,255,.5);background:rgba(189,165,255,.12);color:#cdbcff;font-family:'Nunito',system-ui,sans-serif;font-size:1rem;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;}
-.sp-info:active{background:rgba(189,165,255,.28);}
-.cst-words{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin-top:8px;}
-.cst-word{font-size:.66rem;font-weight:700;color:#c3b8e2;background:rgba(255,255,255,.06);border:1px solid rgba(189,165,255,.2);padding:2px 8px;border-radius:20px;}
-.cst-word b{color:#a99fc7;font-weight:800;}
-.cst-word.done{color:#5fd08a;background:rgba(95,208,138,.12);border-color:rgba(95,208,138,.35);}
-.cst-word.done b{color:#5fd08a;}
-
-/* Fortschritt-Seite: aufklappbare Verbliste pro Sternbild */
-.uv-cst{margin-bottom:5px;}
-.uv-cst summary{cursor:pointer;list-style:none;padding:2px 0;}
-.uv-cst summary::-webkit-details-marker{display:none;}
-.uv-cst-chev{font-size:.7rem;color:#bbb;transition:transform .2s;}
-.uv-cst[open] .uv-cst-chev{transform:rotate(180deg);}
-.uv-words{display:flex;flex-wrap:wrap;gap:4px;padding:6px 0 8px 24px;}
-.uv-word{font-size:.66rem;font-weight:700;color:#999;background:#f3f0f8;border-radius:20px;padding:2px 8px;}
-.uv-word.done{color:#2a8a4a;background:rgba(58,170,92,.14);}
-/* Fortschritt: Waffen je Auftrag + Wort-Stand (Past-Hälfte | PP-Hälfte) */
-.uv-cst-body{padding:4px 0 8px 24px;}
-.uv-weapon{display:flex;align-items:center;gap:8px;padding:3px 0;font-size:.7rem;}
-.uv-weapon-name{font-weight:700;color:#555;min-width:148px;}
-.uv-weapon-bar{flex:1;height:9px;background:#ececec;border-radius:5px;overflow:hidden;}
-.uv-weapon-fill{height:100%;border-radius:5px;transition:width .3s;}
-.uv-weapon-ct{font-weight:800;font-size:.66rem;white-space:nowrap;}
-.uv-words-head{font-size:.62rem;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#aaa;margin:8px 0 3px;}
-/* Fortschritt-Seite: Auftrag-Kacheln mit aufklappbarer Wortliste */
-.uv-auftrag summary{cursor:pointer;list-style:none;}
-.uv-auftrag summary::-webkit-details-marker{display:none;}
-.uv-auftrag-words{padding:0 8px 10px;}
-.uvw{display:flex;align-items:center;gap:8px;padding:3px 0;font-size:.7rem;}
-.uvw-en{font-weight:800;color:#444;min-width:78px;}
-.uvw-bars{display:flex;flex:1;gap:3px;}
-.uvw-half{flex:1;height:9px;background:#eee;border-radius:5px;overflow:hidden;}
-.uvw-fill{height:100%;border-radius:5px;transition:width .3s;}
-.uvw-pct{font-weight:700;color:#888;white-space:nowrap;font-size:.64rem;}
-.cst-block{max-width:360px;margin:0 auto;padding:8px 10px 14px;border-radius:16px;}
-.cst-block.locked{opacity:.5;}
-.cst-block.current{background:rgba(255,255,255,.05);box-shadow:inset 0 0 0 1px rgba(189,165,255,.35);}
-.cst-name{font-family:'Nunito',system-ui,sans-serif;font-size:.95rem;margin-bottom:4px;}
-.cst-cefr{font-size:.6rem;font-weight:700;color:#cdc3ea;background:rgba(255,255,255,.1);padding:1px 7px;border-radius:20px;}
-.cst-cap{font-size:.72rem;color:#c3b8e2;font-weight:700;margin-top:2px;min-height:1.1em;}
-.cst-link{height:26px;border-left:3px dotted rgba(189,165,255,.4);width:0;margin:0 auto;}
-.cst-svg{display:block;width:100%;max-width:300px;height:auto;margin:2px auto;overflow:visible;}
-.cst-line{stroke:rgba(255,255,255,.16);stroke-width:.8;}
-.cst-svg.past .cst-line{stroke:rgba(255,177,85,.2);}
-.cst-svg.pp   .cst-line{stroke:rgba(111,220,155,.2);}
-.cst-line.lit{stroke:rgba(255,212,94,.6);stroke-width:1;}
-.cst-star .core{fill:#574f70;transition:fill .25s;}
-.cst-star .halo{fill:transparent;}
-.cst-star .ring{fill:none;stroke:transparent;stroke-width:1;}
-.cst-chk{font-size:4.4px;font-weight:900;fill:#3a2a00;}
-/* Fortschritts-Bogen um noch nicht fertige Sterne (Anteil gemeisterter Wörter) */
-.cst-prog-track{stroke:rgba(255,255,255,.16);stroke-width:1.3;}
-.cst-prog{stroke-width:1.7;stroke-linecap:round;}
-.cst-prog.past{stroke:#ffb155;}
-.cst-prog.pp{stroke:#6fdc9b;}
-.cst-star[data-play]{cursor:pointer;}
-/* Geister-Sterne der anderen Form: nur angedeutet */
-.cst-star.ghost .core{fill:rgba(255,255,255,.16);}
-/* gesperrte aktive Form */
-.cst-star.locked .core{fill:#453f5c;}
-/* spielbar (nächste/offene Disziplin) — pulsiert in der Formfarbe */
-.cst-star.play.past .core{fill:#e8920a;}
-.cst-star.play.pp   .core{fill:#3aaa5c;}
-.cst-star.play.past .halo{fill:#ffb155;}
-.cst-star.play.pp   .halo{fill:#6fdc9b;}
-.cst-star.play .halo{animation:cstpulse 1.5s ease-in-out infinite;}
-/* gemeistert: deutlich golden mit Ring + ✓ */
-.cst-star.lit .core{fill:#ffd45e;}
-.cst-star.lit .halo{fill:#ffd45e;opacity:.3;}
-.cst-star.lit .ring{stroke:#fff3c4;stroke-width:1.1;}
-/* Komplett-Stern */
-.cst-star.complete .core{fill:#4a4366;}
-.cst-star.complete.lit .core{fill:#ffd45e;}
-.cst-star.complete.lit .halo{fill:#ffd45e;opacity:.32;}
-@keyframes cstpulse{0%,100%{opacity:.12;}50%{opacity:.5;}}
-
 /* UV: Flip-Karte (Vorderseite Sternbild / Rückseite Wörter) */
 .cst-flip{perspective:1200px;}
-.cst-flip-inner{display:grid;transform-style:preserve-3d;transition:transform .55s cubic-bezier(.4,.2,.2,1);}
-.cst-flip-inner>.cst-face{grid-area:1/1;height:100%;display:flex;flex-direction:column;align-items:center;backface-visibility:hidden;-webkit-backface-visibility:hidden;}
-.cst-back{transform:rotateY(180deg);}
-.cst-flip.flipped .cst-flip-inner{transform:rotateY(180deg);}
-.cst-back-title{font-family:'Nunito',system-ui,sans-serif;font-size:.85rem;color:#e7deff;margin:4px 0 8px;}
 /* margin-top:auto schiebt den Knopf auf beiden Seiten an dieselbe untere Kante,
    damit „↩ zurück" exakt dort sitzt wo „📖 Wörter" war. */
-.cst-flip-btn{margin-top:auto;font-family:'Nunito',system-ui,sans-serif;font-size:.72rem;padding:6px 16px;border-radius:50px;cursor:pointer;background:rgba(189,165,255,.18);color:#d9ccff;border:1px solid rgba(189,165,255,.35);}
-.cst-flip-btn.ghost{background:transparent;}
-.cst-active-btn{margin-top:16px;font-family:'Nunito',system-ui,sans-serif;font-size:.72rem;padding:6px 16px;border-radius:50px;cursor:pointer;background:rgba(95,208,138,.16);color:#9be6b8;border:1px solid rgba(95,208,138,.4);}
-.cst-active-tag{margin-top:16px;font-family:'Nunito',system-ui,sans-serif;font-size:.72rem;color:#5fd08a;}
 
 /* UV: Past/PP-Slider (das ganze Sternbild slidet & färbt sich um) */
 .cst-slider-wrap{margin-top:4px;width:100%;}
@@ -797,9 +457,6 @@ body.in-game .mode-progress{display:block;}
 .cst-slider-view{overflow:hidden;flex:1;max-width:300px;}
 .cst-track{display:flex;will-change:transform;touch-action:pan-y;transition:transform .42s cubic-bezier(.22,.61,.36,1);}
 .cst-page{flex:0 0 100%;}
-.cst-page-foot{font-size:.68rem;color:#c3b8e2;font-weight:700;margin-top:8px;min-height:1.2em;}
-.cst-page-foot .foot-lock{color:#a99fc7;}
-.cst-page-foot .foot-done{color:#ffd45e;}
 .cst-arrow{background:none;border:none;color:#bda5ff;font-size:1.4rem;line-height:1;cursor:pointer;padding:4px 6px;flex-shrink:0;}
 /* Aktuelle Zeitform als Label direkt unter dem Sternbild-Namen */
 .cst-form-now{font-family:'Nunito',system-ui,sans-serif;font-size:.84rem;margin-bottom:10px;}
@@ -809,15 +466,6 @@ body.in-game .mode-progress{display:block;}
 .cst-dots{display:flex;gap:10px;justify-content:center;margin-top:14px;}
 .uv-dot{width:9px;height:9px;border-radius:50%;border:none;padding:0;cursor:pointer;background:rgba(255,255,255,.22);transition:background .1s,transform .1s;}
 .uv-dot.active{background:#cdbcff;transform:scale(1.3);}
-
-/* UV: Befüllen-Karte (leeres Sternbild) */
-.cst-fill{display:flex;flex-direction:column;align-items:center;gap:6px;padding:18px 12px;border:2px dashed rgba(189,165,255,.45);background:rgba(189,165,255,.06);}
-.cst-fill-star{font-size:1.8rem;}
-.cst-fill-title{font-family:'Nunito',system-ui,sans-serif;color:#e7deff;font-size:1rem;}
-.cst-fill-sub{font-size:.72rem;color:#a99fc7;font-weight:700;}
-.cst-fill-sub b{color:#cdbcff;}
-.cst-fill-btn{margin-top:6px;font-family:'Nunito',system-ui,sans-serif;font-size:.82rem;padding:9px 22px;border-radius:50px;cursor:pointer;color:#1b1430;border:none;background:linear-gradient(135deg,#cdbcff,#a86cdb);box-shadow:0 4px 0 #7a4ba8;}
-.cst-fill-btn:active{transform:translateY(2px);box-shadow:0 2px 0 #7a4ba8;}
 
 /* UV: Befüllen-Popup (10 Wörter wählen) */
 .uv-fill-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;}
@@ -846,7 +494,6 @@ body.in-game .mode-progress{display:block;}
 .uv-form-choice{display:flex;gap:6px;margin-top:10px;}
 .uv-form-chip{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:9px 6px;border-radius:14px;border:2px solid #ddd6ee;background:#fff;cursor:pointer;font-family:'Nunito',system-ui,sans-serif;}
 .uv-form-chip .fc-title{font-size:.74rem;}
-.uv-form-chip .fc-sub{font-size:.58rem;font-weight:700;color:#8a83a5;}
 .uv-form-chip.past{color:#3a6ea8;}
 .uv-form-chip.pp{color:#a67c00;}
 .uv-form-chip.both{color:#7a3aac;}
@@ -858,15 +505,6 @@ body.in-game .mode-progress{display:block;}
 .uv-fill-cancel{font-family:'Nunito',system-ui,sans-serif;font-size:.92rem;padding:11px 20px;background:#eee;color:#333;border:none;border-radius:50px;cursor:pointer;}
 .uv-fill-ok{font-family:'Nunito',system-ui,sans-serif;font-size:.92rem;padding:11px 24px;border:none;border-radius:50px;cursor:pointer;color:#fff;background:linear-gradient(135deg,#a86cdb,#c084fc);box-shadow:0 4px 0 #7a4ba8;}
 .uv-fill-ok:disabled{background:#ccc;box-shadow:none;cursor:not-allowed;}
-
-/* UV: Pro-Wort-Fortschritt getrennt Past/PP */
-.cst-word{display:inline-flex;align-items:center;gap:5px;}
-.cst-word b{color:#e7deff;font-weight:800;}
-.w-form{font-size:.6rem;font-weight:800;padding:1px 6px;border-radius:20px;}
-.w-form.past{color:#ffb155;background:rgba(232,146,10,.14);}
-.w-form.pp{color:#6fdc9b;background:rgba(58,170,92,.14);}
-.w-form.past.done{color:#1b1430;background:#ffb155;}
-.w-form.pp.done{color:#1b1430;background:#6fdc9b;}
 
 /* ── SCAN / REVIEW SCREEN ── */
 .scan-zone{
@@ -890,22 +528,6 @@ body.in-game .mode-progress{display:block;}
 .review-item .sep{color:#ccc;font-weight:700;font-size:1rem;flex-shrink:0;}
 .review-del{background:none;border:none;cursor:pointer;font-size:1.1rem;padding:2px 4px;opacity:.5;transition:opacity .15s;flex-shrink:0;}
 .review-del:hover{opacity:1;}
-.add-row{display:flex;gap:8px;margin-bottom:12px;}
-.add-row input{
-  font-family:'Nunito',sans-serif;font-weight:700;font-size:.9rem;
-  padding:9px 12px;border:2px solid #e0e0e0;border-radius:10px;
-  flex:1;outline:none;color:var(--text);
-}
-.add-row input:focus{border-color:var(--purple);}
-.add-row button{
-  font-family:'Nunito',system-ui,sans-serif;font-size:.9rem;padding:9px 16px;
-  background:var(--purple);color:white;border:none;border-radius:10px;
-  cursor:pointer;box-shadow:0 3px 0 #9b4dcc;white-space:nowrap;
-}
-.scanning-overlay{
-  display:flex;flex-direction:column;align-items:center;gap:10px;padding:20px;
-  font-family:'Nunito',system-ui,sans-serif;font-size:1rem;color:var(--purple);
-}
 
 .mic-btn{
   font-family:'Nunito',system-ui,sans-serif;font-size:1.1rem;padding:18px 36px;
@@ -961,12 +583,6 @@ body.in-game .mode-progress{display:block;}
 }
 .speak-btn:hover{background:rgba(77,150,255,.2);}
 .pronounce-tip{font-size:.78rem;color:#aaa;font-weight:700;margin-bottom:12px;}
-.analyzing-pill{
-  display:inline-flex;align-items:center;gap:6px;
-  background:#f0f0f0;border-radius:50px;padding:7px 16px;
-  font-size:.85rem;font-weight:700;color:#888;margin:8px 0;
-}
-.dot-loader{display:flex;gap:4px;}
 .dot{width:6px;height:6px;border-radius:50%;background:var(--pink);animation:bounce .9s infinite;}
 .dot:nth-child(2){animation-delay:.2s;}
 .dot:nth-child(3){animation-delay:.4s;}
@@ -1018,49 +634,19 @@ body.in-game .mode-progress{display:block;}
 .stat-label{font-size:.7rem;color:#8a83a5;font-weight:700;}
 .stars-row{font-size:1.25rem;letter-spacing:4px;margin:4px 0;}
 
-/* ── API KEY SCREEN ── */
-.key-input{
-  font-family:'Nunito',sans-serif;font-weight:700;font-size:.95rem;
-  padding:13px 16px;border:3px solid #e0e0e0;border-radius:15px;
-  width:100%;outline:none;margin-bottom:10px;color:var(--text);
-  letter-spacing:0.5px;
-}
-.key-input:focus{border-color:var(--purple);}
-.key-hint{font-size:.78rem;color:#aaa;font-weight:700;line-height:1.6;margin-bottom:14px;text-align:left;width:100%;}
-.key-hint a{color:var(--purple);}
-.key-badge{
-  display:inline-flex;align-items:center;gap:6px;font-size:.75rem;font-weight:800;
-  padding:4px 10px;border-radius:50px;background:#e8f8eb;color:#3a9b45;margin-bottom:10px;
-}
-
 /* CONFETTI */
 .confetti-wrap{position:fixed;top:0;left:0;right:0;bottom:0;pointer-events:none;z-index:999;overflow:hidden;}
-.confetti-piece{position:absolute;top:-20px;animation:confetti-fall linear forwards;}
 @keyframes confetti-fall{to{transform:translateY(110vh) rotate(720deg);opacity:0;}}
 @keyframes bounce-in{0%{transform:scale(.3);opacity:0}60%{transform:scale(1.1)}100%{transform:scale(1);opacity:1}}
 .bounce-in{animation:bounce-in .3s ease forwards;}
 @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}
 .shake{animation:shake .28s ease;}
 
-/* stats panel */
-.stats-panel{background:white;border:1px solid var(--line);border-radius:20px;padding:16px;box-shadow:var(--shadow);margin-bottom:12px;width:100%;}
-/* Profilbild = Knopf zur Charakter-Anpassung, mit ✏️-Badge unten rechts */
-.prof-avatar-btn{position:relative;width:64px;height:64px;flex-shrink:0;background:none;border:none;padding:0;cursor:pointer;}
-.prof-edit-badge{
-  position:absolute;right:-5px;bottom:-3px;width:22px;height:22px;font-size:.72rem;
-  background:#fff;border:1px solid var(--line);border-radius:50%;
-  display:flex;align-items:center;justify-content:center;
-  box-shadow:0 2px 6px rgba(88,60,150,.18);
-}
-.stats-panel h3{font-family:'Nunito',system-ui,sans-serif;font-size:1rem;margin-bottom:9px;color:var(--text);}
-
 @media(min-width:600px){
   body{padding:24px 20px 40px;}
   h1{font-size:2.7rem;}
-  .subtitle{font-size:1rem;}
   .choice-btn{font-size:1rem;padding:13px 10px;}
   .submit-btn{font-size:1.1rem;padding:13px 36px;}
-  .score-pill{font-size:.95rem;}
 }
 
 /* Block 2 (war im <body> — muss nach dem ersten @keyframes bounce kommen, überschreibt ihn) */
@@ -1074,9 +660,7 @@ body.in-game .mode-progress{display:block;}
    (Werkstück-Stufen, Funken usw.) kommt in einer späteren Phase. */
 .forge{padding:4px 0 24px;}
 .forge-top{text-align:center;margin-bottom:14px;position:relative;}
-.forge-emoji{font-size:2rem;}
 .forge-h1{font-family:'Nunito',system-ui,sans-serif;color:var(--purple);font-size:1.2rem;}
-.forge-stand{font-size:.74rem;color:#a06a00;font-weight:800;margin-top:3px;}
 .forge-info{position:absolute;top:0;right:2px;width:28px;height:28px;border-radius:50%;border:1.5px solid rgba(168,108,219,.5);background:rgba(168,108,219,.1);color:var(--purple);font-family:'Nunito',system-ui,sans-serif;font-size:1rem;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;}
 
 .forge-station{max-width:420px;margin:0 auto 12px;padding:12px 12px 10px;border-radius:16px;background:#fff;box-shadow:var(--shadow);border:1px solid #eee;}
@@ -1085,47 +669,6 @@ body.in-game .mode-progress{display:block;}
 .forge-station.complete{border-color:#ffd45e;}
 .forge-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
 .forge-title{font-family:'Nunito',system-ui,sans-serif;font-size:1rem;color:var(--text);}
-.forge-del{
-  margin-left:auto;border:none;background:none;cursor:pointer;font-size:.95rem;
-  opacity:.4;padding:4px 6px;border-radius:8px;transition:opacity .15s,background .15s;
-}
-.forge-del:hover{opacity:1;background:rgba(224,49,49,.1);}
-.forge-cefr{font-size:.6rem;font-weight:800;color:var(--purple);background:rgba(168,108,219,.12);padding:2px 8px;border-radius:20px;}
-.forge-active-tag{margin-left:auto;font-family:'Nunito',system-ui,sans-serif;font-size:.72rem;color:#3a9b45;}
-.forge-active-btn{margin-left:auto;font-family:'Nunito',system-ui,sans-serif;font-size:.72rem;padding:5px 12px;border-radius:50px;cursor:pointer;background:rgba(95,208,138,.16);color:#2a8a4a;border:1px solid rgba(95,208,138,.5);}
-
-.forge-items{display:flex;gap:10px;}
-.forge-item{flex:1;min-width:0;border-radius:14px;padding:10px 8px;text-align:center;border:2px solid transparent;}
-.forge-item.past{background:linear-gradient(180deg,#eef2f7,#dbe4ef);border-color:#c2cedd;}   /* Stahl */
-.forge-item.pp{background:linear-gradient(180deg,#fff6da,#ffe7a6);border-color:#f0d486;}      /* Gold  */
-.forge-item.done{box-shadow:0 0 0 2px #ffd45e inset;}
-.fi-icon{font-size:2.7rem;line-height:1;transition:opacity .3s,filter .3s,text-shadow .3s;}
-.forge-item.past .fi-icon{filter:grayscale(.6);}
-.forge-item.done .fi-icon{filter:none;text-shadow:0 0 12px rgba(255,212,94,.95);}
-/* Bau-Segmente: pro Schritt ein Teil des Gegenstands. built = bleibt erhalten,
-   next = pulsiert (wird als Nächstes geschmiedet), empty = noch offen. */
-.fi-build{display:flex;gap:5px;justify-content:center;margin:6px 0 2px;}
-.fi-seg{width:15px;height:20px;border-radius:4px;border:1.5px dashed #d5d5d5;background:rgba(0,0,0,.03);transition:background .25s,border-color .25s;}
-.forge-item.past .fi-seg.built{background:linear-gradient(180deg,#cdd8e6,#9fb0c6);border:1.5px solid #8ea0b8;}
-.forge-item.pp   .fi-seg.built{background:linear-gradient(180deg,#ffe48a,#f3c34a);border:1.5px solid #e0ae33;}
-.fi-seg.next{border:1.5px solid var(--purple);background:rgba(168,108,219,.14);animation:forgePulse 1.3s ease-in-out infinite;}
-@keyframes forgePulse{0%,100%{opacity:.45;}50%{opacity:1;}}
-.fi-title{font-family:'Nunito',system-ui,sans-serif;font-size:.8rem;margin-top:4px;color:#444;}
-.fi-form{font-size:.66rem;font-weight:800;margin-top:1px;}
-.forge-item.past .fi-form{color:#3a6ea8;}
-.forge-item.pp .fi-form{color:#a06a00;}
-.forge-steps{display:flex;flex-direction:column;gap:5px;margin:8px 0 6px;}
-.forge-step{display:flex;align-items:center;gap:6px;width:100%;font-family:'Nunito',sans-serif;font-weight:800;font-size:.72rem;padding:6px 8px;border-radius:10px;border:1.5px solid #d8d8d8;background:#fff;color:#999;cursor:default;}
-.forge-step .fs-nm{flex:1;text-align:left;}
-.forge-step .fs-tl{flex-shrink:0;font-size:.66rem;}
-.forge-step.open{border-color:var(--purple);color:var(--purple);background:#faf5ff;cursor:pointer;}
-.forge-step.next{box-shadow:0 0 0 2px rgba(168,108,219,.4);}
-.forge-step.done{border-color:#ffd45e;background:#fff8df;color:#a06a00;cursor:pointer;}
-.forge-step.locked{opacity:.6;}
-.fi-foot{font-size:.66rem;font-weight:800;min-height:1.1em;}
-.fi-lock{color:#aaa;}
-.fi-done{color:#a06a00;}
-.fi-prog{color:#888;}
 
 .forge-words{margin-top:22px;text-align:center;}   /* Abstand zu den Navi-Punkten */
 .forge-words summary{display:inline-flex;align-items:center;gap:7px;font-family:'Nunito',system-ui,sans-serif;font-size:.8rem;color:var(--purple);cursor:pointer;list-style:none;background:#f3eefb;border:1.5px solid #e2d2f5;padding:8px 18px;border-radius:50px;}
@@ -1140,14 +683,6 @@ body.in-game .mode-progress{display:block;}
 .fw-p{color:#3a6ea8;}
 .fw-g{color:#a06a00;}
 .fw-p.done,.fw-g.done{color:#3a9b45;}
-
-.forge-fill{display:flex;flex-direction:column;align-items:center;gap:6px;padding:18px 12px;border:2px dashed rgba(168,108,219,.45);background:rgba(168,108,219,.05);}
-.forge-fill-ic{font-size:1.8rem;}
-.forge-fill-title{font-family:'Nunito',system-ui,sans-serif;color:var(--purple);font-size:1rem;}
-.forge-fill-sub{font-size:.72rem;color:#999;font-weight:700;}
-.forge-fill-sub b{color:var(--purple);}
-.forge-fill-btn{margin-top:6px;font-family:'Nunito',system-ui,sans-serif;font-size:.82rem;padding:9px 22px;border-radius:50px;cursor:pointer;color:#fff;border:none;background:linear-gradient(135deg,#a86cdb,#c084fc);box-shadow:0 4px 0 #7a4ba8;}
-.forge-fill-btn:active{transform:translateY(2px);box-shadow:0 2px 0 #7a4ba8;}
 
 /* Slider (Stahl-Past ↔ Gold-PP): wiederverwendete .cst-*-Mechanik, hell gemacht. */
 .forge .cst-slider-view{max-width:340px;}
@@ -1167,19 +702,6 @@ body.in-game .mode-progress{display:block;}
 .forge-weapon{position:relative;width:100%;height:176px;display:flex;align-items:center;justify-content:center;cursor:pointer;}
 .fw-werk{display:flex;align-items:center;justify-content:center;}
 .forge-weapon.locked{cursor:default;}
-
-/* Das Objekt als 5 PIXEL-Teile (Lo-Fi Pixel Art): built = solides Material,
-   next = pulsiert, ghost = angedeutet, keine Strokes, keine weichen Kanten.
-   Die Farben liegen jetzt pro Pixel im SVG (pixel-items.js, 32×48-Raster): fertige
-   und das gerade entstehende Teil tragen ihr echtes Material, das nächste pulsiert
-   nur über die Deckkraft. Hier darf deshalb KEIN fill mehr auf .built/.next stehen —
-   CSS würde die Pixel-Farben überschreiben. */
-.fw-weapon{width:100%;height:100%;overflow:visible;}
-/* Werkstuecke NIE mit opacity oder grayscale abdunkeln (Handoff-Regel 6): der
-   graue Zustand steckt in den Teile-Daten ('g'), das Gluehen in vier Bildern. */
-.wp{transition:opacity .45s;}
-.wp.ghost{fill:rgba(120,120,140,.16);}
-
 
 /* Fortschrittsbalken für den AKTUELLEN Schritt (das pulsierende Teil). */
 .fw-step{width:100%;max-width:280px;margin:2px auto 0;}
@@ -1206,76 +728,6 @@ body.in-game .mode-progress{display:block;}
   --r-lg:20px;--r-md:14px;--r-sm:10px;
 }
 
-/* Vollbild-Screen Ausrüstung — HELL wie die App (Kampf bleibt die dunkle Szene) */
-.adv-screen{
-  position:fixed;inset:0;z-index:8000;overflow-y:auto;
-  background:var(--bg);
-  background-image:radial-gradient(circle at 15% 10%,rgba(168,108,219,.14) 0%,transparent 45%),
-                   radial-gradient(circle at 85% 25%,rgba(255,143,171,.12) 0%,transparent 45%);
-  padding:max(14px,env(safe-area-inset-top)) 14px max(20px,env(safe-area-inset-bottom));
-  -webkit-overflow-scrolling:touch;
-}
-.adv-head{display:flex;align-items:center;gap:10px;margin:0 auto 12px;max-width:580px;}
-.adv-head-title{font-family:'Nunito',system-ui,sans-serif;color:var(--text);font-size:1.1rem;flex:1;}
-.adv-x{
-  border:1px solid var(--line);background:#fff;color:#6f6889;border-radius:50%;
-  width:38px;height:38px;font-size:1rem;cursor:pointer;flex-shrink:0;transition:all .15s;
-  box-shadow:0 3px 10px rgba(88,60,150,.10);
-}
-.adv-x:hover{color:var(--purple);}
-.adv-hint{font-size:.76rem;font-weight:700;color:#8a83a5;text-align:center;line-height:1.55;max-width:420px;margin:14px auto 0;}
-
-/* Modal-Karten (Trank-Wahl u. ä.) — heller Popup-Look wie dialog.js */
-.adv-backdrop{
-  position:fixed;inset:0;z-index:9998;display:flex;align-items:center;justify-content:center;
-  padding:20px;box-sizing:border-box;background:rgba(15,10,30,.55);backdrop-filter:blur(3px);
-}
-.adv-card{
-  background:#fff;border:1px solid var(--line);border-radius:22px;
-  padding:24px 20px;max-width:360px;width:100%;text-align:center;
-  box-shadow:0 14px 44px rgba(20,10,50,.35);max-height:86vh;overflow-y:auto;
-}
-.adv-card-icon{font-size:2.8rem;margin-bottom:8px;}
-.adv-card-title{font-family:'Nunito',system-ui,sans-serif;font-size:1.25rem;color:var(--purple);margin-bottom:6px;}
-.adv-card-sub{font-size:.85rem;font-weight:700;color:#8a83a5;margin-bottom:16px;}
-.adv-choice{
-  display:flex;align-items:center;gap:12px;width:100%;text-align:left;
-  background:#fbfaff;border:2px solid var(--line);border-radius:var(--r-md);
-  padding:12px 14px;margin-bottom:8px;cursor:pointer;transition:border-color .15s,background .15s;
-  font-family:'Nunito',sans-serif;
-}
-.adv-choice:hover{border-color:var(--purple);background:#f4edfd;}
-.adv-choice-icon{font-size:1.8rem;flex-shrink:0;}
-.adv-choice-txt{color:var(--text);font-weight:700;font-size:.85rem;line-height:1.4;}
-.adv-choice-txt b{font-family:'Nunito',system-ui,sans-serif;font-weight:400;font-size:.95rem;}
-.adv-choice-txt span{color:#8a83a5;font-size:.78rem;}
-
-/* ── Ausrüstung (ce-*) — helle Karten ── */
-.ce-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:580px;margin:0 auto;}
-.ce-slot{
-  border:1px solid var(--line);background:#fff;border-radius:var(--r-md);
-  padding:10px 6px;cursor:pointer;text-align:center;transition:all .15s;
-  box-shadow:0 3px 10px rgba(88,60,150,.08);
-}
-.ce-slot:hover{transform:translateY(-1px);}
-.ce-slot.open{border-color:var(--purple);box-shadow:0 0 0 3px rgba(168,108,219,.16);}
-.ce-slot-ic{font-size:1.6rem;line-height:1.2;}
-.ce-slot-nm{font-family:'Nunito',system-ui,sans-serif;font-size:.7rem;color:var(--text);margin:3px 0 2px;}
-.ce-slot-it{font-size:.68rem;font-weight:700;color:#8a83a5;}
-.ce-picker{background:#fff;border:1px solid var(--line);border-radius:var(--r-md);padding:10px;max-width:580px;margin:8px auto 0;box-shadow:var(--shadow);}
-.ce-picker-head{font-size:.76rem;font-weight:800;color:var(--purple);margin-bottom:7px;}
-.ce-pick{
-  display:block;width:100%;text-align:left;border:none;cursor:pointer;
-  background:#f6f2fd;color:var(--text);font-weight:700;font-size:.82rem;
-  padding:10px 12px;border-radius:var(--r-sm);margin-bottom:4px;transition:background .15s;
-}
-.ce-pick:hover{background:#ece2fa;}
-.ce-pick.sel{background:rgba(255,212,59,.30);}
-.ce-effects{
-  font-size:.78rem;font-weight:700;color:#6f6889;text-align:center;
-  max-width:580px;margin:14px auto 0;line-height:1.7;
-}
-
 /* ═══ KAMPF-SZENE: freundliches helles Overlay (Inline-Styles im JS) ═══
    NUR der Show-Teil ist Pixel-Art: der Taghimmel (Sonne + Wolken als SVG).
    Idle-Wackeln in 2 Frames, hartes Aufblinken bei Treffer. */
@@ -1287,18 +739,6 @@ body.in-game .mode-progress{display:block;}
    enthält Figuren + Eingabefeld + Leben + Tränke. Ist immer der LETZTE
    Flex-Kind des Overlays — dadurch reicht er bündig bis zum unteren Rand,
    während #cf-stage (Himmel/Spielfeld) den Rest der Höhe bekommt. */
-.cf-ground-wrap{
-  position:relative;z-index:2;flex-shrink:0;display:flex;flex-direction:column;
-  justify-content:space-between;gap:6px;
-  padding-top:8px;
-  /* Mindestanteil am Bildschirm garantiert: schiebt die Figuren spürbar nach
-     oben (statt nur so groß wie ihr Inhalt zu sein) und verteilt den
-     restlichen Platz per justify-content, statt Eingabefeld/Leben/Tränke
-     zusammenzustauchen. Etwas knapper als zuvor, damit der Interaktionsbereich
-     (Himmel/Spielfeld) mehr Raum bekommt. */
-  min-height:44vh;
-  min-height:44dvh;
-}
 /* Rasen: NICHT der ganze Boden-Bereich, sondern eine eigene, abgesetzte Ebene
    dahinter (position:absolute, unter den Figuren im z-index) — reicht nur von
    ~Schulterhöhe des Characters bis ganz unten. Figuren bleiben an ihrem Platz
@@ -1307,44 +747,19 @@ body.in-game .mode-progress{display:block;}
 /* Hügel-Ebenen zwischen Himmel und Rasen: exakt so hoch wie der Streifen über
    der Rasenkante (siehe .cf-grass top) — dadurch sitzt der Horizont immer richtig,
    egal wie hoch der Bildschirm ist. */
-.cf-hills{position:absolute;left:0;right:0;top:0;height:40px;z-index:0;overflow:hidden;}
-.cf-grass{
-  position:absolute;left:0;right:0;bottom:0;top:40px;z-index:0;
-  background-color:#6fae55;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3E%3Crect x='1' y='1' width='1' height='1' fill='%237dbb61'/%3E%3Crect x='5' y='2' width='1' height='1' fill='%235a9143'/%3E%3Crect x='3' y='4' width='1' height='1' fill='%237dbb61'/%3E%3Crect x='7' y='5' width='1' height='1' fill='%235a9143'/%3E%3Crect x='0' y='6' width='1' height='1' fill='%237dbb61'/%3E%3Crect x='6' y='0' width='1' height='1' fill='%235a9143'/%3E%3Crect x='4' y='7' width='1' height='1' fill='%237dbb61'/%3E%3C/svg%3E");
-  background-size:32px 32px;
-  image-rendering:pixelated;
-  border-radius:32px 32px 0 0;box-shadow:0 -6px 18px rgba(0,0,0,.12);
-}
 /* Grasnarbe an der Oberkante: heller Saum + kleine Büschel, damit die Kante
    nicht wie ein aufgeklebter Balken wirkt. */
-.cf-grass::before{
-  content:'';position:absolute;left:0;right:0;top:0;height:7px;
-  border-radius:32px 32px 0 0;
-  background:
-    repeating-linear-gradient(90deg,#8ac96e 0 3px,transparent 3px 7px,#7dbb61 7px 9px,transparent 9px 14px),
-    linear-gradient(180deg,#8ac96e,#6fae55);
-}
 /* Figuren-Zone: Held/Gegner, oben im Boden-Bereich — knapper Abstand zum
    Himmel, damit sie sichtbar auf dem Grün stehen statt am Rand zu kleben. */
-.cf-arena{
-  position:relative;z-index:3;display:flex;align-items:flex-end;justify-content:space-between;
-  flex-shrink:0;width:100%;max-width:420px;margin:0 auto;padding:0 24px;box-sizing:border-box;
-}
 @media (max-height:700px){
   .cf-hero{width:54px;height:87px;}
   .cf-enemy{width:72px;height:78px;}
   .cf-enemy.boss{width:96px;height:102px;}
-  .cf-grass{top:33px;}
-  .cf-hills{height:33px;}
 }
 @media (max-height:480px){   /* z.B. Handy quer oder Tastatur offen */
-  .cf-ground-wrap{padding-top:4px;}
   .cf-hero{width:54px;height:87px;}
   .cf-enemy{width:72px;height:78px;}
   .cf-enemy.boss{width:96px;height:102px;}
-  .cf-grass{top:21px;}
-  .cf-hills{height:21px;}
 }
 /* Ganzzahlige Vielfache der Rohgrafik (Handoff-Regel 6): Figur 54 × 87,
    Gegner 72 × 78, Boss 96 × 102. Die Flächen sind deshalb exakt 2× bzw. 1×
@@ -1369,11 +784,9 @@ body.in-game .mode-progress{display:block;}
   66%,100%{transform:translateY(-1px);}
 }
 .cf-enemy.hit svg{animation:none;filter:brightness(2.4);}
-.cf-enemy.poof svg{animation:cfBossPoof .6s ease-in forwards;}
 @keyframes cfBossPoof{0%{transform:scale(1) rotate(0deg);opacity:1;}55%{transform:scale(1.18) rotate(-5deg);opacity:1;}100%{transform:scale(0) rotate(14deg);opacity:0;}}
 /* Pille für HUD-Text über dem hellen Himmel: dunkles Glas, damit weiße
    Schrift lesbar bleibt. */
-.cf-pill{background:rgba(43,35,80,.6);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);border-radius:18px;}
 
 /* Kampf-Animationen — alles hart gesteppt (Pixel-Stil, kein Easing).
    Angriff des Helden in drei Phasen: Ausholen (zurück) · Vorstoß · Zurückfedern.
@@ -1462,23 +875,6 @@ body.in-game .mode-progress{display:block;}
   font-family:'Nunito',system-ui,sans-serif;font-size:.62rem;line-height:17px;text-align:center;
 }
 
-/* ── Objekt-Wahl im Befüllen-Popup ── */
-.uv-obj-row{
-  display:flex;align-items:center;gap:12px;width:100%;text-align:left;border:2px solid transparent;
-  background:#f7f4fc;border-radius:12px;padding:10px 12px;margin-bottom:6px;cursor:pointer;
-  transition:border-color .15s,background .15s;font-family:'Nunito',sans-serif;
-}
-.uv-obj-row:hover{background:#f0e9fa;}
-.uv-obj-row.sel{border-color:var(--purple);background:rgba(168,108,219,.12);}
-/* Platz für die echte Pixel-Art des Objekts (32×48-Raster) statt eines Emojis. */
-.uv-obj-ic{font-size:1.7rem;flex-shrink:0;width:36px;height:52px;display:flex;align-items:center;justify-content:center;}
-.uv-obj-tx{flex:1;min-width:0;color:var(--text);}
-.uv-obj-tx b{font-family:'Nunito',system-ui,sans-serif;font-weight:400;font-size:.95rem;display:block;}
-.uv-obj-perk{display:block;font-size:.74rem;font-weight:700;color:#8b6ab5;margin-top:1px;}
-.uv-obj-go{color:#c4b3de;font-size:1.2rem;flex-shrink:0;}
-.uv-obj-row.taken{opacity:.45;cursor:default;}
-.uv-obj-row.taken:hover{background:#f7f4fc;}
-
 /* Trainingsplatz: Namens-Feld im Anlegen-Popup */
 .uv-train-name{
   width:100%;box-sizing:border-box;margin-top:8px;padding:9px 12px;
@@ -1492,7 +888,6 @@ body.in-game .mode-progress{display:block;}
    hier nur Karten-Feinschliff im neuen Look. */
 .forge-station{border:1px solid var(--line);box-shadow:var(--shadow);border-radius:18px;}
 .forge-station.current{border-color:rgba(168,108,219,.55);box-shadow:0 0 0 2px rgba(168,108,219,.22),var(--shadow);}
-.forge-stand{color:#a67c00;}
 .fw-bar{background:#ece5f9;}
 
 /* Kampagnen-Tab: helles Lavendel-Panel, damit die Karte als Fläche lesbar ist */
@@ -1502,155 +897,19 @@ body.in-game .mode-progress{display:block;}
   padding:16px 12px 22px;box-shadow:var(--shadow);
 }
 /* Schnell-Toggle (Vokabeln-Kopfzeile) */
-.schnell-btn{
-  font-family:'Nunito',system-ui,sans-serif;font-size:.78rem;padding:7px 14px;
-  border:1px solid var(--line);border-radius:50px;cursor:pointer;transition:all .2s;
-  background:#fff;color:#8a83a5;box-shadow:0 3px 10px rgba(88,60,150,.10);white-space:nowrap;
-}
-.schnell-btn.on{background:linear-gradient(135deg,#FF6B35,#ff9463);color:#fff;border-color:transparent;box-shadow:0 4px 12px rgba(255,107,53,.4);}
 
 /* ── Popups/Overlays: sanfter Blur hinter allen Modal-Karten ── */
 .uv-fill-overlay{background:rgba(15,10,30,.55);backdrop-filter:blur(3px);}
 
 /* ── Charakter-Editor: Bühne + Varianten-Grid ── */
-#character-stage{display:flex;align-items:flex-end;justify-content:center;gap:12px;}
 #character-canvas{width:160px;height:240px;}   /* 2.5× von 64×96 */
 #character-pet-canvas{width:88px;height:88px;margin-bottom:10px;}   /* ~3.7× von 24×24 */
 /* Figur-Knöpfe: antippen wählt an, Markierung als Strich UNTER der Figur */
-.cg-fig{background:none;border:none;padding:0 0 4px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;}
-.cg-fig-lbl{
-  font-family:'Nunito',system-ui,sans-serif;font-size:.72rem;color:#8a83a5;
-  border-bottom:3px solid transparent;padding:0 6px 3px;
-}
-.cg-fig.sel .cg-fig-lbl{color:var(--purple);border-bottom-color:var(--purple);}
 /* Noch kein Gefährte freigespielt: grau + gesperrt, aber sichtbar */
-.cg-fig.locked{opacity:.4;filter:grayscale(1);cursor:default;}
-.cg-tile.cg-pet{padding:16%;}
-.cg-grid{
-  display:grid;grid-template-columns:repeat(5,1fr);gap:8px;width:100%;
-}
-.cg-tile{
-  aspect-ratio:1/1;padding:6px;border:2px solid var(--line);border-radius:14px;
-  background:#fff;cursor:pointer;transition:all .12s;box-shadow:0 3px 10px rgba(88,60,150,.08);
-}
-.cg-tile:hover{transform:translateY(-1px);border-color:#d9c8f2;}
-.cg-tile.sel{border-color:var(--purple);box-shadow:0 0 0 3px rgba(168,108,219,.18);background:#faf6ff;}
-.cg-tile svg{width:100%;height:100%;}
-
-/* ── Paperdoll + Inventar im Profil (WoW-artig) ── */
-.pd-wrap{display:flex;align-items:stretch;justify-content:center;gap:10px;margin-bottom:10px;}
-.pd-col{display:flex;flex-direction:column;gap:8px;justify-content:center;}
-.pd-center{display:flex;flex-direction:column;align-items:center;}
-.pd-avatar{
-  width:155px;height:232px;   /* 2:3 wie der Sprite, Höhe = 4 Slots + 3 Lücken */
-  background:linear-gradient(180deg,#f6f0fe,#ece2fa);
-  border:1px solid var(--line);border-radius:16px;padding:6px;
-}
-.pd-slot{
-  position:relative;width:52px;height:52px;padding:7px;
-  border:2px solid var(--line);border-radius:12px;background:#fbfaff;
-  cursor:pointer;transition:all .12s;
-}
-.pd-slot:hover{border-color:#d9c8f2;}
-.pd-slot.filled{border-color:rgba(168,108,219,.55);background:#fff;}
-.pd-slot.active{border-color:var(--purple);background:#faf6ff;box-shadow:0 0 0 3px rgba(168,108,219,.22);}
-.pd-slot.active .pd-slot-nm{color:var(--purple);border-color:var(--purple);}
-.pd-slot .pd-ghost{
-  font-size:1.3rem;opacity:.35;display:flex;align-items:center;justify-content:center;height:100%;
-  filter:grayscale(1);
-}
-.pd-slot-nm{
-  position:absolute;left:50%;bottom:-7px;transform:translateX(-50%);
-  font-size:.56rem;font-weight:800;color:#8a83a5;background:#fff;
-  padding:0 5px;border-radius:8px;white-space:nowrap;border:1px solid var(--line);
-}
-.pd-inv-title{font-family:'Nunito',system-ui,sans-serif;font-size:.85rem;color:#8a83a5;margin:10px 0 6px;}
-.pd-inv{display:grid;grid-template-columns:repeat(6,minmax(0,56px));gap:8px;justify-content:center;}
-.pd-item{
-  aspect-ratio:1/1;padding:8px;border:2px solid var(--line);border-radius:12px;
-  background:#fbfaff;cursor:pointer;transition:all .12s;
-  touch-action:pan-y;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
-}
-.pd-item:hover{transform:translateY(-1px);border-color:#d9c8f2;}
-.pd-item.sel{border-color:#f2a516;background:#fff8e6;box-shadow:0 0 0 3px rgba(242,165,22,.22);}
-.pd-item.empty{
-  border-style:dashed;border-color:#ddd4ef;background:transparent;cursor:default;
-  position:relative;
-}
-.pd-item.empty::after{
-  content:'';position:absolute;inset:0;margin:auto;width:8px;height:8px;
-  border-radius:2px;background:#eee6f8;
-}
-.pd-empty{font-size:.8rem;font-weight:700;color:#8a83a5;line-height:1.55;padding:10px 2px 2px;text-align:center;}
-
-/* Kampf-Werte als dezente RPG-Tabelle direkt unterm Charakter (2 Spalten,
-   Punktlinie zum Wert). Vorschau des angewählten Items = nur Textfarbe
-   grün/rot, die Punktlinie fängt breitere Werte ab — nichts springt. */
-.pd-stats{display:grid;grid-template-columns:1fr 1fr;gap:0 20px;margin:2px auto 6px;max-width:400px;width:100%;}
-.pd-stat{display:flex;align-items:baseline;gap:5px;padding:1px 0;}
-.pd-stat .lbl{font-size:.64rem;font-weight:800;color:#8a83a5;white-space:nowrap;}
-.pd-stat .dots{flex:1;border-bottom:2px dotted #e3dbf2;transform:translateY(-3px);}
-.pd-stat b{font-family:'Nunito',system-ui,sans-serif;font-size:.7rem;color:var(--text);white-space:nowrap;}
-.pd-stat.chg.up b{color:#2a7a35;}
-.pd-stat.chg.down b{color:#c0392b;}
-
-/* Vorschau-Karte des angewählten Items (unter der Tasche) */
-.pd-preview{
-  display:flex;align-items:center;gap:12px;margin-top:10px;padding:10px 12px;
-  background:#fff8e6;border:2px solid #f2a516;border-radius:14px;
-}
-.pd-preview-sprite{width:44px;height:44px;flex-shrink:0;}
-.pd-preview-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
-.pd-preview-info b{font-family:'Nunito',system-ui,sans-serif;font-size:.88rem;color:var(--text);}
-.pd-preview-info span{font-size:.68rem;font-weight:700;color:#8a83a5;}
-.pd-equip-btn{
-  font-family:'Nunito',system-ui,sans-serif;font-size:.85rem;padding:9px 16px;border:none;
-  border-radius:50px;cursor:pointer;flex-shrink:0;color:#fff;
-  background:linear-gradient(135deg,#5bc24a,#7ed957);box-shadow:0 3px 0 #3a9b45;
-}
-.pd-equip-btn.off{background:linear-gradient(135deg,#e57c73,#f09a90);box-shadow:0 3px 0 #b8564d;}
-
-/* Ziehen: die „gepackte" Kachel hängt am Finger, das Original bleibt blass zurück,
-   passende Slots leuchten und wachsen, wenn man darüber ist */
-.pd-item.dragging{opacity:.35;transform:scale(.94);}
-.pd-drag-ghost{
-  position:fixed;z-index:10000;width:58px;height:58px;pointer-events:none;
-  padding:9px;box-sizing:border-box;background:#fff8e6;border:2px solid #f2a516;
-  border-radius:12px;box-shadow:0 10px 24px rgba(20,10,50,.35);
-  transform:translate(-50%,-85%) scale(1.08);
-}
-.pd-slot.drop-ok{border-color:#7ed957;background:#f2fbec;animation:es-drop-pulse 1s ease-in-out infinite;}
-.pd-slot.drop-hover{
-  border-color:#2a7a35;background:#e2f7d8;box-shadow:0 0 0 4px rgba(126,217,87,.35);
-  animation:none;transform:scale(1.28);z-index:5;
-}
-@keyframes es-drop-pulse{0%,100%{box-shadow:0 0 0 2px rgba(126,217,87,.2);}50%{box-shadow:0 0 0 5px rgba(126,217,87,.4);}}
 
 /* Kampagnen-Karte: als Nächstes wählbare Punkte pulsieren (statt des zuletzt
    besuchten Punkts) — macht sichtbar, wohin man als Nächstes tippen kann. */
 @keyframes campNodeGlow{0%,100%{box-shadow:0 2px 6px rgba(0,0,0,.12),0 0 0 0 rgba(240,165,0,.5);}50%{box-shadow:0 2px 6px rgba(0,0,0,.12),0 0 0 6px rgba(240,165,0,0);}}
-
-/* Merkmal-Slider im Charakter-Editor */
-.cg-featbar{display:flex;align-items:center;justify-content:center;gap:12px;}
-.cg-featarrow{
-  font-family:'Nunito',system-ui,sans-serif;font-size:1.3rem;line-height:1;
-  width:42px;height:42px;border:1px solid var(--line);border-radius:50%;cursor:pointer;
-  background:#fff;color:var(--purple);box-shadow:0 3px 10px rgba(88,60,150,.14);
-  display:flex;align-items:center;justify-content:center;padding-bottom:3px;flex-shrink:0;
-  transition:all .12s;
-}
-.cg-featarrow:hover{transform:translateY(-1px);}
-.cg-featarrow:active{transform:translateY(1px);}
-.cg-featlbl{
-  font-family:'Nunito',system-ui,sans-serif;font-size:1.05rem;color:var(--text);
-  min-width:150px;text-align:center;
-}
-.cg-featdots{display:flex;gap:8px;justify-content:center;margin-top:10px;}
-.cg-dot{
-  width:10px;height:10px;border-radius:50%;border:none;padding:0;cursor:pointer;
-  background:#ddd4ef;transition:all .12s;
-}
-.cg-dot.active{background:var(--purple);transform:scale(1.3);}
 
 /* ── Wackelpudding: eindrücken und nachfedern ──
    Skaliert GLEICHMÄSSIG (x wie y) — Text und Bilder werden also nie verzerrt. Das
@@ -1707,13 +966,7 @@ body.in-game .mode-progress{display:block;}
 @media(max-width:420px){
   h1{font-size:1.9rem;}
   .screen{padding:22px 16px;}
-  .ce-grid{gap:6px;}
-  .ce-slot-ic{font-size:1.4rem;}
   .game-card{padding:18px 14px;}
-  .player-banner{padding:10px 14px;}
-  .pd-slot{width:46px;height:46px;padding:6px;}
-  .pd-avatar{width:139px;height:208px;}   /* Höhe = 4×46 + 3×8 */
-  .cg-grid{gap:6px;}
 }
 
 /* ══ PASTELL-REDESIGN: Bausteine ═══════════════════════════════════════════
@@ -2620,19 +1873,6 @@ button.p-chip{ cursor:pointer; }
   cursor:pointer; box-shadow:none;
 }
 
-/* Buchstabenluecke im Wort. */
-.gap-word{ margin-top:14px; display:flex; justify-content:center; gap:4px; flex-wrap:wrap; }
-.gap-cell{
-  min-width:26px; height:44px; padding:0 2px;
-  display:flex; align-items:center; justify-content:center;
-  font:900 28px var(--p-font); color:var(--p-ink);
-}
-.gap-input{
-  border:var(--p-rahmen); border-radius:var(--p-r-slot); background:var(--p-feld);
-  text-align:center; width:34px;
-}
-.gap-input.filled{ background:var(--p-ok); }
-
 /* Aussprache. */
 .pronounce-tip{ font:700 12px/1.5 var(--p-font); color:var(--p-text-3); margin-top:14px; }
 .mic-btn{
@@ -2645,10 +1885,6 @@ button.p-chip{ cursor:pointer; }
 .pronounce-result{
   border:var(--p-rahmen); border-radius:var(--p-r-karte); background:var(--p-karte);
   padding:11px 13px; margin-top:12px; font:800 12px var(--p-font); color:var(--p-ink);
-}
-#viz-canvas{
-  border:var(--p-rahmen); border-radius:var(--p-r-slot); background:var(--p-feld);
-  width:100%; max-width:300px;
 }
 
 /* Formen ordnen: Ablageplaetze und Kachelvorrat. */
@@ -2716,30 +1952,6 @@ button.p-chip{ cursor:pointer; }
    ist durchgehend klassenbasiert — darum wechselt hier nur das Aussehen der
    bestehenden Klassen, kein Markup. */
 
-/* Panel = Karte des Designs. */
-.stats-panel{
-  border:var(--p-rahmen); border-radius:var(--p-r-dialog); background:var(--p-karte);
-  box-shadow:none; padding:15px 14px 16px; margin-bottom:12px; width:100%;
-}
-.stats-panel h3{
-  font:900 10px var(--p-font); text-transform:uppercase; letter-spacing:var(--p-ls-kicker);
-  color:var(--p-text-2); margin-bottom:12px;
-}
-.stats-panel p, .stats-panel .hint-text{ font:700 12px/1.5 var(--p-font); color:var(--p-text-3); }
-
-/* Profilbild als Knopf zur Charakter-Anpassung, mit Stift-Plakette. */
-.prof-avatar-btn{
-  position:relative; width:64px; height:64px; flex:none; padding:0; cursor:pointer;
-  border:var(--p-rahmen); border-radius:var(--p-r-kachel); background:var(--p-karte);
-  overflow:hidden;
-}
-.prof-edit-badge{
-  position:absolute; right:-6px; bottom:-6px;
-  width:26px; height:26px;
-  border:var(--p-rahmen); border-radius:var(--p-r-chip); background:var(--p-gold);
-  display:flex; align-items:center; justify-content:center; font-size:0;
-}
-
 /* Wertkacheln (Highscore, Gesamtpunkte). */
 .p-kacheln{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
 .p-wertkachel{
@@ -2752,78 +1964,6 @@ button.p-chip{ cursor:pointer; }
   font:800 9px var(--p-font); text-transform:uppercase; letter-spacing:var(--p-ls-mikro);
   color:var(--p-text-2);
 }
-
-/* ── Ausrüstung (Paperdoll) ──────────────────────────────────────────────── */
-.pd-wrap{ gap:10px; margin-bottom:14px; }
-.pd-col{ gap:8px; flex:none; }
-.pd-avatar{
-  border:var(--p-rahmen); border-radius:var(--p-r-karte); background:var(--p-ton,var(--p-lila));
-  box-shadow:none; overflow:hidden;
-}
-/* Ausrüstungsfach: Symbol oben, Bezeichnung darunter. */
-.pd-slot{
-  width:54px; padding:7px 4px; text-align:center;
-  border:var(--p-rahmen); border-radius:var(--p-r-kachel); background:var(--p-inaktiv);
-  box-shadow:none; cursor:pointer;
-}
-.pd-slot.filled{ background:var(--p-karte); }
-.pd-slot.active{ background:var(--p-gold); box-shadow:none; }
-.pd-slot .pd-ghost{ opacity:.45; }
-.pd-slot-nm{
-  font:800 8px var(--p-font); color:var(--p-ink); border:0; margin-top:2px;
-  text-transform:none; letter-spacing:0;
-}
-.pd-slot.active .pd-slot-nm{ color:var(--p-ink); }
-.pd-inv-title{
-  font:900 10px var(--p-font); text-transform:uppercase; letter-spacing:var(--p-ls-kicker);
-  color:var(--p-text-2); margin:12px 0 8px;
-}
-.pd-item{
-  border:var(--p-rahmen); border-radius:var(--p-r-slot); background:var(--p-karte);
-  box-shadow:none; cursor:pointer;
-}
-.pd-item.empty{ border:var(--p-rahmen-leer); background:none; }
-.pd-preview{
-  border:var(--p-rahmen); border-radius:var(--p-r-karte); background:var(--p-karte-hell);
-  box-shadow:none; padding:12px;
-}
-/* Werte-Tabelle: zwei Spalten, Zeilen gepunktet getrennt. */
-.pd-stats{ display:grid; grid-template-columns:1fr 1fr; gap:6px 14px; margin-top:14px; }
-.pd-stats > div{
-  display:flex; justify-content:space-between;
-  border-bottom:var(--p-zeilentrenner); padding-bottom:4px;
-  font:700 11px var(--p-font); color:var(--p-ink);
-}
-
-/* ── Charakter-Anpassung ─────────────────────────────────────────────────── */
-#character-stage{ display:flex; justify-content:center; gap:14px; }
-.cg-fig{ padding:0 0 4px; }
-.cg-fig-lbl{
-  font:800 9px var(--p-font); text-transform:uppercase; letter-spacing:var(--p-ls-mikro);
-  color:var(--p-text-2); border-bottom:2px solid transparent; padding-bottom:3px;
-}
-.cg-fig.sel .cg-fig-lbl{ color:var(--p-ink); border-bottom-color:var(--p-ink); }
-.cg-grid{ gap:8px; }
-.cg-tile{
-  border:var(--p-rahmen); border-radius:var(--p-r-kachel); background:var(--p-karte);
-  box-shadow:none; cursor:pointer;
-}
-.cg-tile:hover{ transform:none; border-color:var(--p-ink); }
-.cg-tile.sel{ background:var(--p-gold); box-shadow:none; border-color:var(--p-ink); }
-/* Merkmal-Leiste: Pfeil, Bezeichnung, Pfeil — darunter die Punkte. */
-.cg-featlbl{ font:900 19px var(--p-font); color:var(--p-ink); min-width:150px; }
-.cg-featarrow{
-  width:42px; height:42px;
-  border:var(--p-rahmen); border-radius:var(--p-r-slot); background:var(--p-karte);
-  color:var(--p-ink); font:900 18px var(--p-font); line-height:1;
-  box-shadow:none; padding:0; transition:none;
-}
-.cg-featarrow:hover, .cg-featarrow:active{ transform:none; background:var(--p-inaktiv); }
-.cg-dot{
-  width:10px; height:10px; border-radius:50%;
-  border:2px solid var(--p-ink); background:var(--p-karte); transition:none;
-}
-.cg-dot.active{ background:var(--p-ink); transform:none; }
 
 /* ══ VOKABELVERWALTUNG · PRÜFEN · RUNDENENDE ═══════════════════════════════ */
 
@@ -2860,7 +2000,6 @@ button.p-chip{ cursor:pointer; }
 .vm-row-wort{ flex:1; min-width:0; }
 .vm-row-en{ font:900 13px var(--p-font); color:var(--p-ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .vm-row-de{ font:700 10px var(--p-font); color:var(--p-text-2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.vm-row-arrow{ color:var(--p-text-2); flex:none; font-weight:800; }
 .vm-row-stand{ display:flex; align-items:center; gap:8px; flex:none; }
 .vm-row-pct{ font:900 11px var(--p-font); width:30px; text-align:right; color:var(--p-ink); }
 .vm-row-del, .vm-row-edit{
@@ -2901,24 +2040,12 @@ button.p-chip{ cursor:pointer; }
 }
 .scan-zone p{ font:700 11px/1.45 var(--p-font); color:var(--p-text-2); margin:0; }
 .scan-preview{ border:var(--p-rahmen); border-radius:var(--p-r-kachel); max-width:100%; }
-.analyzing-pill{
-  border:var(--p-rahmen); border-radius:var(--p-r-chip-gross); background:var(--p-gold);
-  color:var(--p-ink); font:800 11px var(--p-font); padding:8px 13px; box-shadow:none;
-}
 
 /* Vorlagen-Zeilen. */
 .preset-row{
   border:var(--p-rahmen); border-radius:var(--p-r-btn); background:var(--p-karte);
   box-shadow:none; padding:11px 13px; margin-bottom:9px;
 }
-.preset-name{ font:900 13px var(--p-font); color:var(--p-ink); }
-.preset-count{ font:700 10px var(--p-font); color:var(--p-text-2); }
-.preset-toggle{
-  border:var(--p-rahmen); border-radius:var(--p-r-chip); background:var(--p-karte);
-  color:var(--p-ink); box-shadow:none;
-}
-.preset-toggle:hover{ background:var(--p-inaktiv); transform:none; }
-.preset-toggle.on{ background:var(--p-ok); }
 
 /* Prüfliste nach dem Scan. */
 .review-list{
@@ -3044,10 +2171,6 @@ button.p-chip{ cursor:pointer; }
   display:flex; align-items:center; justify-content:center;
 }
 /* Die schwebende Pille wird zur Karte mit Kontur. */
-.cf-pill{
-  border:var(--p-rahmen); border-radius:22px; background:var(--p-karte);
-  backdrop-filter:none; -webkit-backdrop-filter:none;
-}
 .cf-kopfleiste{
   flex:1; display:flex; align-items:center; justify-content:space-between; gap:10px;
   padding:9px 13px;
@@ -3057,21 +2180,6 @@ button.p-chip{ cursor:pointer; }
   text-transform:uppercase; color:var(--p-ink);
 }
 /* Namen und Zahl ueber den Balken. */
-.cf-leiste-kopf{ display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
-.cf-leiste-lbl{
-  font:800 9px var(--p-font); letter-spacing:var(--p-ls-mikro);
-  text-transform:uppercase; color:var(--p-text-2);
-}
-.cf-leiste-zahl{ font:900 13px var(--p-font); color:var(--p-ink); }
-.cf-gegnerkarte{
-  width:150px;
-  border:var(--p-rahmen); border-radius:var(--p-r-btn); background:var(--p-karte);
-  padding:8px 11px 9px;
-}
-.cf-lebensleiste{
-  width:100%; max-width:340px; padding:10px 13px;
-  display:flex; align-items:center; gap:12px;
-}
 .cf-waffe{
   display:flex; align-items:center; gap:6px; flex:none;
   border:var(--p-rahmen); border-radius:var(--p-r-chip-gross); background:var(--p-violett);
@@ -3094,23 +2202,10 @@ button.p-chip{ cursor:pointer; }
 /* ══ MINISPIELE IM KAMPF ═══════════════════════════════════════════════════
    Spielfeld und Mechanik bleiben. Umgestellt sind die wiederkehrenden Teile:
    Titelkarte, Zeitbalken, treibende Antwortkacheln. */
-.mg-titelkarte{
-  border:var(--p-rahmen); border-radius:var(--p-r-kachel); background:var(--p-karte);
-  padding:9px 18px 10px; text-align:center; box-shadow:none;
-}
-.mg-titel{ font:900 17px var(--p-font); color:var(--p-ink); }
 .mg-hoer{
   width:40px; height:40px; flex:none; padding:0; cursor:pointer;
   border:var(--p-rahmen); border-radius:50%; background:var(--p-inaktiv);
   display:flex; align-items:center; justify-content:center;
-}
-.mg-zeitspur{
-  flex:1; height:10px; border-radius:var(--p-r-balken); overflow:hidden;
-  border:var(--p-rahmen); background:var(--p-karte); box-sizing:content-box;
-}
-.mg-zeitfuell{ height:100%; width:100%; background:var(--p-gold); }
-.mg-sek{
-  font:900 13px var(--p-font); color:var(--p-ink); min-width:34px; text-align:right;
 }
 /* Wortkarte (Richtig oder falsch) — die Fläche färbt sich bei der Antwort. */
 .mg-wortkarte{
@@ -3127,11 +2222,6 @@ button.p-chip{ cursor:pointer; }
   color:var(--p-ink); font:900 15px var(--p-font); padding:10px 16px;
   box-shadow:none; cursor:pointer; white-space:nowrap; z-index:2;
 }
-.mg-note{
-  position:absolute; left:50%; top:8px; transform:translateX(-50%); z-index:3;
-  border:var(--p-rahmen); border-radius:var(--p-r-chip); background:var(--p-ok);
-  color:var(--p-ink); font:900 10px var(--p-font); padding:3px 9px;
-}
 
 /* ══ RESTE DER ALTEN SCHICHT ═══════════════════════════════════════════════
    Diese Klassen erzeugt weiterhin JS, das noch nicht umgebaut ist (UV-Trainings-
@@ -3143,31 +2233,8 @@ button.p-chip{ cursor:pointer; }
   border:var(--p-rahmen); border-radius:var(--p-r-dialog); background:var(--p-karte);
   box-shadow:none; padding:0; margin-bottom:11px; overflow:visible;
 }
-.deck-card.deck-type-custom, .deck-card.deck-type-preset{
-  border:var(--p-rahmen); background:var(--p-karte);
-}
-.deck-card.expanded{ border:var(--p-rahmen); box-shadow:none; }
-.deck-header{ padding:13px 14px; gap:11px; }
-.deck-name{ font:900 15px var(--p-font); color:var(--p-ink); }
-.deck-meta{ font:700 10px var(--p-font); color:var(--p-text-2); gap:6px; flex-wrap:wrap; }
-.deck-chevron{ color:var(--p-ink); font-size:12px; }
-.deck-body{ padding:0 14px 14px; }
-.deck-progress-mini{
-  height:8px; border-radius:5px; overflow:hidden; background:var(--p-spur); margin-top:7px;
-}
-.deck-progress-mini-fill{ height:100%; background:var(--p-ok); }
-.deck-actions{ border-top:var(--p-trenner); gap:7px; padding-top:11px; margin-top:11px; }
-.deck-action-btn{
-  flex:1; height:40px;
-  border:var(--p-rahmen); border-radius:var(--p-r-chip-gross); background:var(--p-blatt);
-  color:var(--p-ink); font:800 10px var(--p-font); box-shadow:none; cursor:pointer;
-}
-.deck-action-btn.danger{ background:var(--p-falsch); }
-.deck-pct{ font:900 19px var(--p-font); color:var(--p-ink); }
 
 /* Untertitel und Minibalken in den Modus-Zeilen der Trainings-Decks. */
-.mode-buttons{ display:flex; flex-direction:column; gap:9px; margin-top:12px; width:100%; }
-.btn-sub{ font:700 10px var(--p-font); opacity:1; display:block; margin-top:3px; }
 .btn-progress-text{ display:block; font:700 10px var(--p-font); color:var(--p-text-3); }
 .btn-progress{
   display:block; height:9px; border-radius:5px; overflow:hidden;
@@ -3182,22 +2249,6 @@ button.p-chip{ cursor:pointer; }
 }
 .fr-zeile:last-child{ border-bottom:0; }
 
-/* Statistiktabellen auf der Fortschritt-Seite. */
-.word-table{
-  border:var(--p-rahmen); border-radius:var(--p-r-karte); background:var(--p-karte);
-  box-shadow:none; overflow:hidden; border-collapse:collapse; width:100%;
-}
-.word-table th{
-  background:var(--p-inaktiv); color:var(--p-ink);
-  font:900 9px var(--p-font); text-transform:uppercase; letter-spacing:var(--p-ls-mikro);
-  padding:8px 10px; text-align:left;
-}
-.word-table td{
-  font:700 11px var(--p-font); color:var(--p-ink);
-  border-bottom:var(--p-zeilentrenner); padding:8px 10px;
-}
-.word-table tbody tr:last-child td{ border-bottom:0; }
-
 /* Kleine Statistikkaesten. */
 .stat-box.p-ton-pfirsich, .stat-box.p-ton-mint, .stat-box.p-ton-blau{ background:var(--p-ton); }
 
@@ -3205,54 +2256,6 @@ button.p-chip{ cursor:pointer; }
    Die Waffen selbst zeichnet weiter pixel-items.js — unveraendert. Umgestellt
    ist die Werkbank drumherum: Auftragskopf, Werkstueck-Rahmen, Schritt-Balken
    und die Liste der Verbformen. */
-
-/* Zwei Waffen pro Station (Stahl = Simple Past, Gold = Past Participle). */
-.forge-items{ display:flex; gap:10px; }
-.forge-item{
-  flex:1; min-width:0; text-align:center; padding:11px 8px;
-  border:var(--p-rahmen); border-radius:var(--p-r-kachel); background:var(--p-karte);
-}
-.forge-item.past{ background:var(--p-stahl); border-color:var(--p-ink); }
-.forge-item.pp  { background:var(--p-gold);  border-color:var(--p-ink); }
-.forge-item.done{ box-shadow:0 0 0 3px var(--p-gold) inset; }
-.fi-icon{ font-size:0; }
-.forge-item.past .fi-icon, .forge-item.done .fi-icon{ filter:none; text-shadow:none; }
-/* Bau-Segmente: gebaute Teile solide, das naechste gestrichelt und pulsierend. */
-.fi-seg{
-  width:15px; height:20px; border-radius:4px;
-  border:2px dashed var(--p-ink); background:rgba(31,31,36,.05);
-}
-.forge-item.past .fi-seg.built{ background:var(--p-stahl-dunkel); border:2px solid var(--p-ink); }
-.forge-item.pp   .fi-seg.built{ background:var(--p-gold-dunkel);  border:2px solid var(--p-ink); }
-.fi-seg.next{ border:2px solid var(--p-ink); background:var(--p-karte); }
-.fi-title{ font:900 12px var(--p-font); color:var(--p-ink); margin-top:5px; }
-.fi-form{
-  font:800 9px var(--p-font); text-transform:uppercase; letter-spacing:var(--p-ls-mikro);
-  margin-top:2px;
-}
-.forge-item.past .fi-form, .forge-item.pp .fi-form{ color:var(--p-text-3); }
-.fi-foot{ font:800 9px var(--p-font); min-height:1.1em; color:var(--p-text-2); }
-.fi-lock{ color:var(--p-text-2); }
-.fi-done, .fi-prog{ color:var(--p-ink); }
-
-/* ── Verbform-Schritte ───────────────────────────────────────────────────── */
-/* Erledigt Mint mit Haken, jetzt dran Gold mit Nummer, offen cremefarben und
-   gedimmt — so zeigt es der Entwurf. */
-.forge-steps{ display:flex; flex-direction:column; gap:8px; margin:10px 0 6px; }
-.forge-step{
-  display:flex; align-items:center; gap:10px; width:100%; padding:11px 13px;
-  border:var(--p-rahmen); border-radius:var(--p-r-btn); background:var(--p-karte);
-  font:900 13px var(--p-font); color:var(--p-ink); cursor:default; box-shadow:none;
-}
-.forge-step .fs-nm{ flex:1; text-align:left; }
-.forge-step .fs-tl{
-  flex:none; font:700 10px var(--p-font); text-transform:uppercase;
-  letter-spacing:var(--p-ls-mikro); color:var(--p-text-3);
-}
-.forge-step.open{ background:var(--p-gold); color:var(--p-ink); cursor:pointer; }
-.forge-step.next{ box-shadow:none; }
-.forge-step.done{ background:var(--p-ok); color:var(--p-ink); cursor:pointer; }
-.forge-step.locked{ opacity:.6; }
 
 /* ── Werkstueck ──────────────────────────────────────────────────────────── */
 .forge-weapon-wrap{ display:flex; flex-direction:column; align-items:center; gap:8px; padding:4px 0 2px; }
@@ -3264,7 +2267,6 @@ button.p-chip{ cursor:pointer; }
   display:flex; align-items:center; justify-content:center; cursor:pointer;
 }
 .forge-weapon.locked{ cursor:default; }
-.wp.ghost{ fill:rgba(31,31,36,.14); }
 /* Schritt-Balken mit eigener Kontur — der einzige Balken im Design, der eine hat. */
 .fw-step{ width:100%; max-width:280px; margin:4px auto 0; }
 .fw-step-top{
@@ -3299,31 +2301,7 @@ button.p-chip{ cursor:pointer; }
 .fw-g{ color:var(--p-gold-dunkel); }
 .fw-p.done, .fw-g.done{ color:var(--p-ink); }
 
-/* Leere Station: gestrichelte Ablage mit Aufforderung. */
-.forge-fill{
-  display:flex; flex-direction:column; align-items:center; gap:7px; padding:20px 14px;
-  border:var(--p-rahmen-leer); border-radius:var(--p-r-dialog); background:var(--p-karte);
-}
-.forge-fill-ic{ font-size:0; }
-.forge-fill-title{ font:900 17px var(--p-font); color:var(--p-ink); }
-.forge-fill-sub{ font:700 11px var(--p-font); color:var(--p-text-2); }
-.forge-fill-sub b{ color:var(--p-ink); }
-.forge-fill-btn{
-  margin-top:8px; height:48px; padding:0 22px;
-  border:var(--p-rahmen); border-radius:var(--p-r-btn); background:var(--p-ink);
-  color:var(--p-gold); font:900 13px var(--p-font); cursor:pointer; box-shadow:none;
-}
-.forge-fill-btn:active{ transform:none; box-shadow:none; }
-
 /* Kopfzeile eines Auftrags. */
-.forge-active-tag{
-  margin-left:auto; font:800 10px var(--p-font); color:var(--p-ink);
-}
-.forge-active-btn{
-  margin-left:auto; padding:5px 11px; cursor:pointer;
-  border:var(--p-rahmen); border-radius:var(--p-r-chip); background:var(--p-ok);
-  color:var(--p-ink); font:800 10px var(--p-font);
-}
 /* Sternbild-Slider und Navigationspunkte. */
 .forge .cst-arrow{ color:var(--p-ink); }
 .forge .cst-form-now.past{ color:var(--p-stahl-dunkel); }
@@ -3340,50 +2318,12 @@ button.p-chip{ cursor:pointer; }
   --adv-gold:var(--p-gold); --adv-accent:var(--p-violett);
   --r-lg:var(--p-r-karte); --r-md:var(--p-r-chip-gross); --r-sm:var(--p-r-chip);
 }
-.adv-screen{
-  background:var(--p-lila); background-image:none;
-}
-.adv-head-title{ font:900 13px var(--p-font); letter-spacing:var(--p-ls-titel); text-transform:uppercase; }
-.adv-x{
-  width:34px; height:34px; flex:none; padding:0;
-  border:var(--p-rahmen); border-radius:50%; background:var(--p-karte);
-  color:var(--p-ink); font:900 15px var(--p-font);
-  display:flex; align-items:center; justify-content:center; cursor:pointer;
-}
-.adv-x:hover{ color:var(--p-ink); background:var(--p-inaktiv); }
-.adv-hint{ font:700 11px/1.55 var(--p-font); color:var(--p-text-3); }
-.adv-backdrop{ background:rgba(31,31,36,.42); backdrop-filter:none; -webkit-backdrop-filter:none; }
-.adv-card{
-  border:var(--p-rahmen); border-radius:28px; background:var(--p-karte);
-  box-shadow:none; color:var(--p-ink);
-}
-.adv-card-icon{ font-size:0; margin-bottom:10px; }
-.adv-card-title{ font:900 21px var(--p-font); color:var(--p-ink); margin-bottom:6px; }
-.adv-card-sub{ font:700 12px/1.5 var(--p-font); color:var(--p-text-3); margin-bottom:14px; }
-.adv-choice{
-  border:var(--p-rahmen); border-radius:var(--p-r-btn); background:var(--p-karte);
-  cursor:pointer;
-}
-.adv-choice:hover{ border-color:var(--p-ink); background:var(--p-inaktiv); }
-.adv-choice-icon{ font-size:1.6rem; flex:none; }
-.adv-choice-txt{ color:var(--p-ink); font:700 12px/1.4 var(--p-font); }
-.adv-choice-txt b{ font:900 13px var(--p-font); }
-.adv-choice-txt span{ color:var(--p-text-2); font-size:11px; }
-.ce-pick{
-  border:var(--p-rahmen); background:var(--p-karte); color:var(--p-ink);
-  font:800 12px var(--p-font); padding:10px 12px; margin-bottom:6px;
-}
-.ce-pick:hover{ background:var(--p-inaktiv); }
-.ce-pick.sel{ background:var(--p-gold); }
-.ce-effects{ font:700 11px/1.7 var(--p-font); color:var(--p-text-3); }
 
 /* Kopf und Stationen der Schmiede. */
 .forge{ padding:0 0 10px; }
 .forge-top{ text-align:center; margin-bottom:14px; position:relative; }
 .forge-kopfzeile{ display:flex; align-items:center; gap:10px; }
-.forge-emoji{ display:none; }
 .forge-h1{ font:900 19px var(--p-font); color:var(--p-ink); text-align:left; }
-.forge-stand{ display:none; }
 /* Info-Kreis rechts in der Kopfzeile. */
 .forge-info{
   position:static; margin-left:auto; width:26px; height:26px; flex:none; padding:0;
@@ -3401,59 +2341,8 @@ button.p-chip{ cursor:pointer; }
 .forge-station.complete{ border:var(--p-rahmen); background:var(--p-karte); }
 .forge-head{ display:flex; align-items:center; gap:10px; margin-bottom:6px; }
 .forge-title{ flex:1; min-width:0; font:900 18px var(--p-font); color:var(--p-ink); }
-.forge-del{
-  width:30px; height:30px; flex:none; padding:0; opacity:1;
-  border:var(--p-rahmen); border-radius:var(--p-r-chip); background:var(--p-falsch);
-  color:var(--p-ink); cursor:pointer;
-  display:flex; align-items:center; justify-content:center;
-}
-.forge-del:hover{ opacity:1; background:var(--p-inaktiv); }
-
-/* ══ STERNBILDER UND WORTLISTEN DER SCHMIEDE ═══════════════════════════════
-   Diese Klassen kommen aus der dunklen Sternbild-Fassung. Sie werden weiter
-   gerendert (Slider, Wortlisten, Fortschritt), tragen aber jetzt Papier und
-   Tinte statt Nachthimmel. */
-.cst-word{
-  border:var(--p-rahmen); border-radius:var(--p-r-chip); background:var(--p-karte);
-  color:var(--p-ink); font:700 10px var(--p-font); padding:3px 9px;
-}
-.cst-word b{ color:var(--p-ink); font-weight:900; }
-.cst-word.done{ background:var(--p-ok); color:var(--p-ink); border-color:var(--p-ink); }
-.cst-word.done b{ color:var(--p-ink); }
-.cst-block{ max-width:none; padding:8px 0 12px; border-radius:var(--p-r-kachel); }
-.cst-block.current{ background:none; box-shadow:none; }
-.cst-name{ font:900 15px var(--p-font); color:var(--p-ink); margin-bottom:5px; }
-.cst-cefr{
-  border:var(--p-rahmen); border-radius:var(--p-r-chip); background:var(--p-inaktiv);
-  color:var(--p-ink); font:800 9px var(--p-font); padding:2px 8px;
-}
-.cst-cap{ font:700 11px var(--p-font); color:var(--p-text-2); margin-top:3px; }
-.cst-link{ border-left:3px dotted rgba(31,31,36,.3); }
-.cst-line{ stroke:rgba(31,31,36,.18); }
-.cst-svg.past .cst-line, .cst-svg.pp .cst-line{ stroke:rgba(31,31,36,.18); }
-.cst-line.lit{ stroke:var(--p-ink); stroke-width:1; }
 
 /* Aufklappbare Verb- und Wortlisten auf der Fortschritt-Seite. */
-.uv-cst-chev{ color:var(--p-text-2); }
-.uv-word{
-  border:2px solid var(--p-ink); border-radius:var(--p-r-chip); background:var(--p-karte);
-  color:var(--p-ink); font:700 10px var(--p-font); padding:2px 8px;
-}
-.uv-word.done{ background:var(--p-ok); color:var(--p-ink); }
-.uv-words-head{
-  font:900 9px var(--p-font); letter-spacing:var(--p-ls-mikro); text-transform:uppercase;
-  color:var(--p-text-2); margin:9px 0 4px;
-}
-.uv-weapon-name{ font:800 11px var(--p-font); color:var(--p-ink); }
-.uv-weapon-bar{
-  flex:1; height:9px; border-radius:5px; overflow:hidden; background:var(--p-spur);
-}
-.uv-weapon-fill{ height:100%; border-radius:0; background:var(--p-ink); }
-.uv-weapon-ct{ font:800 10px var(--p-font); color:var(--p-text-2); }
-.uvw-en{ font:900 11px var(--p-font); color:var(--p-ink); min-width:78px; }
-.uvw-half{ flex:1; height:9px; border-radius:5px; overflow:hidden; background:var(--p-spur); }
-.uvw-fill{ height:100%; border-radius:0; }
-.uvw-pct{ font:700 10px var(--p-font); color:var(--p-text-2); }
 /* Navigationspunkte unter dem Sternbild. */
 .uv-dot{
   width:10px; height:10px; border-radius:50%;

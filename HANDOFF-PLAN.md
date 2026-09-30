@@ -111,7 +111,15 @@ aller Elemente in 78 Zuständen (vorher/nachher), dazu Build und Ablauf-Tests.
   der API-Key-Screen (F-17); kleinere Reste und ungenutzte Importe; `sw.js`
   ohne die beiden Dateien. Fingerabdruck: bis auf den entfallenen API-Key-Screen
   keine Abweichung (Ausreißer der Vorher-Aufnahme gegen HEAD nachgeprüft).
-- **C:** tote CSS-Regeln — folgt.
+- **C fertig:** 556 CSS-Regeln, die nie greifen konnten (Klassen/IDs kommen in
+  Markup, Modulen und `dev/*` nirgends vor), aus `src/style.css` entfernt
+  (5462 → 4386 Zeilen) — mehr als die 466 der Liste, weil nach A + B auch die
+  Klassen der gelöschten Renderer verwaist waren. Fingerabdruck: alle 78 Zustände
+  vorher/nachher gleich.
+
+Offen (nicht freigegeben): der alte CSS-Block Regel für Regel (Regeln, die noch
+greifen, aber vermutlich von der p-Schicht überschrieben werden) und tote Stellen
+ohne Redesign-Bezug.
 
 ## Was in jeder Phase gilt
 
