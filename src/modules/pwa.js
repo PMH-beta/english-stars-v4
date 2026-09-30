@@ -1,5 +1,6 @@
 // src/modules/pwa.js
 import { isIOS, isStandalone, APP_VERSION } from './config.js';
+import { iconHTML } from './pixel-icons.js';
 
 let _pwaPrompt = null;
 
@@ -27,6 +28,39 @@ export function pwaInstall() {
   } else {
     window.esAlert({ icon: '📲', title: 'Installieren', body: 'Auf Chrome/Edge: ein "Installieren"-Symbol erscheint in der Adressleiste.' });
   }
+}
+
+// ── „Hol mich auf deinen Startbildschirm!" (9.2, F-20) ──
+// Einmal, beim dritten Start im Browser. Der Zähler liegt nur auf diesem Gerät
+// (localStorage, nicht in der Cloud) — auf einem neuen Gerät zählt er neu.
+// Die Anleitung ist die für iPhone/iPad (Teilen → Zum Home-Bildschirm); auf
+// Android und am Computer gibt es den Installieren-Knopf und den Browser-Dialog.
+const START_SK = 'es_starts', HINWEIS_SK = 'es_install_hinweis';
+try {
+  if (!isStandalone()) localStorage.setItem(START_SK, String((parseInt(localStorage.getItem(START_SK) || '0', 10) || 0) + 1));
+} catch (e) {}
+
+export function installHinweisEinmal() {
+  try {
+    if (isStandalone() || !isIOS()) return;
+    if (localStorage.getItem(HINWEIS_SK)) return;
+    if ((parseInt(localStorage.getItem(START_SK) || '0', 10) || 0) < 3) return;
+    localStorage.setItem(HINWEIS_SK, '1');
+  } catch (e) { return; }
+  const ov = document.createElement('div');
+  ov.className = 'p-dlg-grund p-ih-grund';
+  ov.innerHTML = `<div class="p-dlg-karte p-ih-karte">
+    <div class="p-ih-kopf"><img src="vondu-logo.svg" alt="Vondu" width="56" height="54" data-ui="bob" data-a="1">
+      <div class="p-ih-titel">Hol mich auf deinen Startbildschirm!</div></div>
+    <div class="p-ih-schritte">
+      <div class="p-ih-schritt"><span class="p-ih-nr">1</span><span class="p-ih-text">Tippe unten auf Teilen</span>${iconHTML('install', 14)}</div>
+      <div class="p-ih-schritt"><span class="p-ih-nr">2</span><span class="p-ih-text">„Zum Home-Bildschirm"</span>${iconHTML('check', 14)}</div>
+    </div>
+    <div class="p-ih-notiz">Kommt nur einmal — beim dritten Start im Browser.</div>
+    <div class="p-ih-knoepfe"><button class="p-ih-btn p-ih-btn--spaeter">Später</button><button class="p-ih-btn p-ih-btn--ok">Verstanden</button></div>
+  </div>`;
+  ov.querySelectorAll('.p-ih-btn').forEach((b) => b.addEventListener('click', () => ov.remove()));
+  document.body.appendChild(ov);
 }
 
 /**

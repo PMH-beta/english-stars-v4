@@ -5141,3 +5141,30 @@ body.schnell-active .p-sammlung:not(.is-offen) > .p-balken{ height:9px; margin-t
 }
 .p-si-text{ font:800 12px/1.45 var(--p-font); }
 .p-si-ok{ margin-top:16px; }
+
+/* ══ APP INSTALLIEREN 9.2 (F-20) ════════════════════════════════════════════ */
+.p-dlg-grund.p-ih-grund{ padding:18px; background:rgba(31,31,36,.45); }
+.p-dlg-karte.p-ih-karte{ max-width:366px; background:var(--p-karte-hell); padding:22px 18px 18px; text-align:left; }
+.p-ih-kopf{ display:flex; align-items:center; gap:12px; }
+.p-ih-kopf img{ display:block; flex:none; }
+.p-ih-titel{ font:900 20px/1.2 var(--p-font); }
+.p-ih-schritte{ display:flex; flex-direction:column; gap:8px; margin-top:14px; }
+.p-ih-schritt{
+  display:flex; align-items:center; gap:11px;
+  border:var(--p-rahmen); border-radius:16px; background:var(--p-karte); padding:10px 12px;
+}
+.p-ih-nr{
+  width:30px; height:30px; flex:none;
+  border:var(--p-rahmen); border-radius:50%; background:var(--p-karte-hell);
+  display:flex; align-items:center; justify-content:center; font:900 12px var(--p-font);
+}
+.p-ih-text{ flex:1; font:800 12px var(--p-font); }
+.p-ih-notiz{ font:700 11px/1.5 var(--p-font); color:var(--p-text-2); margin-top:10px; }
+.p-ih-knoepfe{ display:flex; gap:10px; margin-top:14px; }
+.p-ih-btn{
+  flex:1; height:58px; cursor:pointer;
+  border:var(--p-rahmen); border-radius:18px;
+  display:flex; align-items:center; justify-content:center; gap:8px; font:900 14px var(--p-font);
+}
+.p-ih-btn--spaeter{ background:var(--p-inaktiv); color:var(--p-ink); }
+.p-ih-btn--ok{ background:var(--p-ink); color:var(--p-gold); }

@@ -12,6 +12,7 @@ import { iconHTML } from './pixel-icons.js';
 import { uvMap, uvLernstand, constellationWords, FORGE_DISC, SLOTS_PER_FORM, uvTrainProgress, uvTrainForms, uvTrainWords, uvPruneOrphanSlotStats, UV_TRAIN_SIZE, migrateUvTrainSize } from './irregular-game.js';
 import { renderAvatarInto, renderCharacter, commitAvatar, resetCharacterFeature, setCharacterCompanion, setCharacterGear, stageHTMLFor } from './avatar.js';
 import { paintStages } from './hero.js';
+import { installHinweisEinmal } from './pwa.js';
 import { IRREGULAR_PRESET_ID, uvAvailableVerbs, CONSTELLATION_SIZE, cefrOf, forgeObject, FORGE_OBJECTS, usedForgeObjects, fillObjectType, getConstellations, allVerbsSorted, verbsByEns, UV_TRAIN_SUF } from './irregular-verbs.js';
 import { objectPerkText, renderEquipmentPanel, resetEquipmentSelection, forgedItems, equippedGearMap, objectInfoRows, ohneEmoji, SLOTS } from './campaign-equipment.js';
 import { renderFriendsSection, refreshFriendBadge, friendProgress, subscribeFriendRealtime, unsubscribeFriendRealtime } from './friends.js';
@@ -1959,6 +1960,7 @@ export function showMenu() {
   _applyModeActiveDeck(mode);   // aktives Deck des Modus sicherstellen (nach Cloud-Load 1:1)
   renderModeContent(mode);      // rendert die Decks des aktiven Modus
   refreshFriendBadge();         // roter Anfrage-Zähler über dem Profilkopf
+  installHinweisEinmal();       // 9.2: einmal beim dritten Start im Browser (iPhone/iPad)
 }
 
 // ────────────────────────────────────────────────
