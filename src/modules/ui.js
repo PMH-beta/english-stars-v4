@@ -10,7 +10,7 @@ import { commitDirty } from './dialog.js';
 import { setGrundton, clearGrundton } from './screen-shell.js';
 import { iconHTML } from './pixel-icons.js';
 import { uvMap, uvLernstand, constellationWords, FORGE_DISC, SLOTS_PER_FORM, uvTrainProgress, uvTrainForms, uvTrainWords, uvPruneOrphanSlotStats, UV_TRAIN_SIZE, migrateUvTrainSize } from './irregular-game.js';
-import { renderAvatarInto, renderCharacter, commitAvatar, resetCharacterFeature, setCharacterCompanion, setCharacterGear, stageHTMLFor } from './avatar.js';
+import { renderAvatarInto, renderCharacter, resetCharacterFeature, setCharacterCompanion, stageHTMLFor, charEditorOeffnen, charEditorGeaendert, charEditorUebernehmen, charAenderungenFragen } from './avatar.js';
 import { paintStages } from './hero.js';
 import { installHinweisEinmal } from './pwa.js';
 import { IRREGULAR_PRESET_ID, uvAvailableVerbs, CONSTELLATION_SIZE, cefrOf, forgeObject, FORGE_OBJECTS, usedForgeObjects, fillObjectType, getConstellations, allVerbsSorted, verbsByEns, UV_TRAIN_SUF } from './irregular-verbs.js';
@@ -198,7 +198,7 @@ function _topOverlay() {
     // Laden nur display:none gesetzt, nicht entfernt wird) — sonst „schluckt"
     // der erste Back dieses tote Overlay statt das Schließen-Popup zu öffnen.
     if (s && s.display === 'none') continue;
-    if (el.classList && el.classList.contains('es-overlay')) return el;
+    if (el.classList && (el.classList.contains('es-overlay') || el.classList.contains('p-dlg-grund'))) return el;
     if (s && s.position === 'fixed' && s.zIndex === '9999') return el;
   }
   return null;
@@ -229,6 +229,13 @@ function _onBackNavPop() {
     if (_currentScreen === 'game-screen') {
       try { (window.confirmHome || function(){})(); } catch(e) {}
       _ensureGuard();   // Back-Eintrag IMMER sicherstellen, egal wie confirmHome ausgeht
+      return;
+    }
+    // 2a) Charakter-Editor im Profil → wie der Zurück-Pfeil (F-16): verwirft,
+    //     bei Änderungen erst die Rückfrage 8.12. BLEIBEN → Wächter sichern.
+    if (_currentScreen === 'character-screen' && document.getElementById('character-screen')?.classList.contains('ist-profil')) {
+      try { closeCharacter(); } catch(e) {}
+      _ensureGuard();
       return;
     }
     // 2b) Draft „neue Sammlung" → wie „Abbrechen": Rückfrage statt direkt ins Menü.
@@ -2000,47 +2007,63 @@ export function showProfile() {
   }
 }
 
-// Charakter-Anpassung öffnen/schließen.
-function _setCharOnboarding(on) {
-  const ids = { 'char-back-btn': !on, 'char-heading': !on, 'char-name-row': !on, 'char-pick-pet': !on, 'char-onboard-done': on };
-  for (const [id, show] of Object.entries(ids)) {
-    const el = document.getElementById(id);
-    if (el) el.style.display = show ? '' : 'none';
-  }
-}
+// Charakter-Editor (1.9, 1.10, 8.4–8.12). Bearbeitet wird ein Entwurf
+// (avatar.js); übernommen wird erst mit „Speichern" bzw. „Los geht's!" (F-16).
 export function showCharacter() {
-  _setCharOnboarding(false);   // normaler Weg: Überschrift, Name, Zurück
   resetCharacterFeature();
-  // Gefährte neben dem Charakter: angelegter, sonst bester geschmiedeter
-  // (Gold vor Stahl); keiner → Figur ausgegraut (noch freispielbar).
+  // Gefährte freigespielt = irgendein fertig geschmiedeter Gefährte (Gold vor Stahl);
+  // sonst zeigt der Reiter „Gefährte" den Zustand 8.10.
   const pets = forgedItems().filter((i) => i.slot === 'companion');
   const gear = equippedGearMap();
   const pet = gear.companion || pets.find((p) => p.which === 'pp') || pets[0] || null;
   setCharacterCompanion({ available: !!pet, which: pet ? pet.which : null });
-  // Angelegte Teile auf der Bühne zeigen — der Gefährte steht dort schon als
-  // eigene Figur daneben, deshalb ohne ihn.
-  setCharacterGear({ ...gear, companion: null });
+  charEditorOeffnen('profil');
   showScreen('character-screen');
   renderCharacter();
 }
-// Erst-Login: Charakter-Anpassung ohne Überschrift/Name/Zurück, mit „Los geht's" —
-// und ohne Gefährten (der gehört zur Profilseite, nicht ins Onboarding).
+// Erster Start (1.9/1.10): „Wer bist du?", 7 Reiter ohne Gefährte, „Los geht's!".
 export function showCharacterOnboarding() {
-  _setCharOnboarding(true);
   resetCharacterFeature();
   setCharacterCompanion(null);
-  setCharacterGear(null);        // Erst-Login: noch keine Ausrüstung im Spiel
+  charEditorOeffnen('start');
   showScreen('character-screen');
   renderCharacter();
 }
 export function finishCharacterOnboarding() {
-  commitAvatar();   // gesammelte Avatar-Änderungen in die Cloud schreiben
-  _setCharOnboarding(false);
+  charEditorUebernehmen();
   showMenu();
 }
-export function closeCharacter() {
-  commitAvatar();   // gesammelte Avatar-Änderungen in die Cloud schreiben
+// „Speichern" im Kopf (8.4–8.10): übernehmen und zurück ins Profil.
+export function charSpeichern() {
+  charEditorUebernehmen();
   showProfile();
+}
+// Zurück (Pfeil und Zurück-Taste): verwirft — bei Änderungen erst die Rückfrage 8.12.
+export async function closeCharacter() {
+  if (charEditorGeaendert()) {
+    const wahl = await charAenderungenFragen();
+    if (!wahl) return;
+    if (wahl === 'speichern') charEditorUebernehmen();
+  }
+  showProfile();
+}
+// Name im Kopf des Editors (F-59): öffnet „Dein Name" und übernimmt sofort.
+export function charNameBearbeiten() { editPlayerName(); }
+// „Zur Schmiede" (8.10, F-60): verlässt den Editor (bei Änderungen erst 8.12),
+// öffnet den Formen-Tab und scrollt zur Station bzw. zum Objekt „Gefährte".
+export async function charZurSchmiede() {
+  if (charEditorGeaendert()) {
+    const wahl = await charAenderungenFragen();
+    if (!wahl) return;
+    if (wahl === 'speichern') charEditorUebernehmen();
+  }
+  showMenu();
+  setActiveMode('student');
+  setTimeout(() => {
+    const ziel = [...document.querySelectorAll('.forge-title')].find((t) => t.dataset.obj === 'Gefährte')?.closest('.forge-station')
+      || [...document.querySelectorAll('.forge-objekt')].find((o) => o.querySelector('.forge-objekt-name')?.textContent === 'Gefährte');
+    ziel?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 350);
 }
 
 export function editPlayerName() {

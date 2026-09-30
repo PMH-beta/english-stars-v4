@@ -19,8 +19,9 @@ import { markDirty } from './sync.js';
 import { commitDirty } from './dialog.js';
 import { itemGroupSVG, itemIconSVG, matPalette, gemPalette } from './pixel-items.js';
 // Paletten der NEUEN Figur — nur für die Migration (nächstliegender Farbton).
-import { imgTag, petTag, gearFor, fitScale, MASSE, ausschnitt, petLabel, stageHTML, petKind, petColorHex } from './hero.js';
-import { SKIN as NEU_SKIN, HAIR as NEU_HAIR, CLOTH as NEU_CLOTH, IRIS as NEU_IRIS } from './pixel-hero-fine.js';
+import { imgTag, petTag, petURL, gearFor, fitScale, MASSE, ausschnitt, petLabel, stageHTML, petKind, petColorHex, editorFigurHTML, editorPetHTML, kachelURL, paintStages } from './hero.js';
+import { SKIN as NEU_SKIN, HAIR as NEU_HAIR, CLOTH as NEU_CLOTH, IRIS as NEU_IRIS, HAIR_N as NEU_HAIR_N, EYES_N as NEU_EYES_N, MOUTH_N as NEU_MOUTH_N, TOPS_N as NEU_TOPS_N, PANTS_N as NEU_PANTS_N, PETS as NEU_PETS } from './pixel-hero-fine.js';
+import { iconHTML } from './pixel-icons.js';
 
 // Reihenfolge + Beschriftung der Einstell-Zeilen; anchor = vertikale Position der
 // Pfeile (% der Sprite-Höhe, 96 Rasterzeilen) am jeweils veränderten Körperteil.
@@ -1078,186 +1079,224 @@ export function stageHTMLFor(sd, gearMap, scale = 2) {
 }
 
 // ────────────────────────────────────────────────
-//  CHARAKTER-SCREEN (Anpassung)
-//  UX: Merkmal-Slider oben, darunter ein KACHEL-GRID mit Live-Vorschau
-//  jeder Variante (antippen = anziehen). Gefährte hat eine eigene
-//  Merkmal-Leiste (Tier/Ohren/Schwanz/Augen/Muster/Farbe).
+//  CHARAKTER-EDITOR (1.9, 1.10, 8.4–8.12)
+//  Oben die Bühne (Figur und Gefährte 3×, atmend), darunter Reiter und Tafel:
+//  Name der Option, Zähler, ‹ ›, falls vorhanden die Farbreihe, dann das
+//  Kachel-Raster (jede Kachel zeigt die Figur mit allen aktuellen Einstellungen,
+//  nur die Option der Kachel ist getauscht).
+//  Profil (F-16): bearbeitet wird ein ENTWURF — „Speichern" übernimmt, Zurück
+//  verwirft (bei Änderungen vorher die Rückfrage 8.12). Erster Start (F-15):
+//  7 Reiter ohne Gefährte, „Los geht's!" übernimmt.
 // ────────────────────────────────────────────────
-let _activeFeature = 'hair';
-let _activePetFeature = 'pet';
+const _FARBEN_HAAR = ['Schwarz', 'Dunkelbraun', 'Braun', 'Kupfer', 'Blond', 'Hellblond', 'Rot', 'Pink', 'Blau', 'Mint', 'Grau', 'Weiß'];
+const _FARBEN_AUGE = ['Blau', 'Grün', 'Braun', 'Lila', 'Dunkel', 'Rot', 'Gold', 'Grau'];
+const _FARBEN_STOFF = ['Lila', 'Blau', 'Grün', 'Rot', 'Gelb', 'Orange', 'Anthrazit', 'Creme', 'Pink', 'Petrol', 'Braun', 'Marine'];
+const _HAUT = ['Hell', 'Rosé', 'Beige', 'Mittel', 'Karamell', 'Braun', 'Dunkelbraun', 'Tiefbraun', 'Mint', 'Moosgrün', 'Himmelblau', 'Nachtblau', 'Flieder', 'Rosa', 'Stein', 'Gold'];
+const _STATUR = ['Schmal', 'Mittel', 'Kräftig'];
 
-// Bearbeitungs-Ziel der Bühne: Charakter oder Gefährte. Ob ein Gefährte
-// freigespielt ist (und welches Material er trägt), sagt ui.js über
-// setCharacterCompanion — avatar.js importiert die Schmiede bewusst nicht.
-let _editTarget = 'char';
+// Reiter: key des Merkmals, Namen, Farbe (optional), Ausschnitt + Maßstab der Kachel.
+const _REITER = [
+  { id: 'frisur', label: 'Frisur', icon: 'catHair', key: 'hair', namen: () => NEU_HAIR_N, art: 'kopf', s: 2,
+    farbe: { key: 'hairC', label: 'Haarfarbe', namen: _FARBEN_HAAR, pal: () => NEU_HAIR } },
+  { id: 'haut', label: 'Haut', icon: 'catSkin', key: 'skin', namen: () => _HAUT, art: 'kopf', s: 2,
+    gruppen: [['Natürlich', 0, 8], ['Fantasie', 8, 16]] },
+  { id: 'augen', label: 'Augen', icon: 'catEye', key: 'eyes', namen: () => NEU_EYES_N, art: 'gesicht', s: 3,
+    farbe: { key: 'iris', label: '', namen: _FARBEN_AUGE, pal: () => NEU_IRIS, proZeile: 8 } },
+  { id: 'mund', label: 'Mund', icon: 'catMouth', key: 'mouth', namen: () => NEU_MOUTH_N, art: 'gesicht', s: 3 },
+  { id: 'oberteil', label: 'Oberteil', icon: 'catTop', key: 'top', namen: () => NEU_TOPS_N, art: 'oberkoerper', s: 2,
+    farbe: { key: 'topC', label: 'Farbe', namen: _FARBEN_STOFF, pal: () => NEU_CLOTH } },
+  { id: 'hose', label: 'Hose', icon: 'catPants', key: 'pants', namen: () => NEU_PANTS_N, art: 'beine', s: 2,
+    farbe: { key: 'pantsC', label: 'Farbe', namen: _FARBEN_STOFF, pal: () => NEU_CLOTH } },
+  { id: 'statur', label: 'Statur', icon: 'catBuild', key: 'build', namen: () => _STATUR, art: 'voll', s: 1, hoch: true },
+  { id: 'gefaehrte', label: 'Gefährte', icon: 'paw', key: 'pet', namen: () => NEU_PETS.map((p) => p[1]), pet: true,
+    farbe: { key: 'petColor', label: 'Farbe', namen: [1, 2, 3, 4, 5, 6].map((n) => 'Variante ' + n), pal: (cfg) => NEU_PETS[cfg.pet][2] } },
+];
+
+let _modus = 'profil';          // 'start' (1.9/1.10) | 'profil' (8.4–8.10)
+let _reiter = 'frisur';
+let _entwurf = null;             // bearbeitete Kopie von SD.avatar
+let _vorher = '';                // Stand beim Öffnen (Vergleich für 8.12)
+
+// Ob ein Gefährte freigespielt ist, sagt ui.js (avatar.js kennt die Schmiede nicht).
 let _petInfo = { available: false, which: null };
 export function setCharacterCompanion(info) {
   _petInfo = info || { available: false, which: null };
-  if (!_petInfo.available) _editTarget = 'char';
 }
 
-// Angelegte Ausrüstung für die Bühne der Charakter-Anpassung. Reicht ui.js herein
-// (avatar.js kennt die Schmiede bewusst nicht — wie beim Gefährten).
-let _charGear = null;
-export function setCharacterGear(map) { _charGear = map || null; }
-// Teile, die das gerade bearbeitete Merkmal verdecken würden, bleiben weg — man
-// sieht also immer, was man gerade ändert, und trotzdem seine Ausrüstung.
-const GEAR_HIDDEN_BY = {
-  hair: ['head'], hairC: ['head'], eyes: ['head'], iris: ['head'], mouth: ['head'], skin: ['head'],
-  top: ['body', 'arms'], topC: ['body', 'arms'], pants: ['legs'], pantsC: ['legs'], build: ['body', 'arms', 'legs'],
-};
-function _stageGear() {
-  if (!_charGear) return null;
-  const hide = GEAR_HIDDEN_BY[_activeFeature] || [];
-  const out = {};
-  for (const k in _charGear) if (!hide.includes(k)) out[k] = _charGear[k];
-  return out;
+/** Editor öffnen: modus 'start' (erster Start) oder 'profil'. */
+export function charEditorOeffnen(modus) {
+  _modus = modus === 'start' ? 'start' : 'profil';
+  _reiter = 'frisur';
+  const cfg = ensureAvatar(window.SD);
+  _entwurf = { ...cfg };
+  _vorher = JSON.stringify(cfg);
 }
-export function charEditTarget(t) {
-  if (t === 'pet' && !_petInfo.available) return;   // ausgegraut = nicht anwählbar
-  _editTarget = t === 'pet' ? 'pet' : 'char';
-  renderCharacter();
+/** Hat der Entwurf Änderungen gegenüber dem Stand beim Öffnen? */
+export function charEditorGeaendert() {
+  return !!_entwurf && JSON.stringify(_entwurf) !== _vorher;
 }
-
-export function renderCharacter() {
+/** Entwurf übernehmen: in den Spielstand schreiben und synchronisieren. */
+export function charEditorUebernehmen() {
   const sd = window.SD;
-  if (!sd) return;
-  const cfg = ensureAvatar(sd);
-  renderAvatarInto('character-canvas', sd, { headOnly: false, gear: _stageGear() });
-
-  // Gefährten-Figur neben dem Charakter: eigenes Aussehen, Halsband = Material;
-  // ohne freigespielten Gefährten grau + gesperrt; Markierung unter der Figur.
-  const petBtn = document.getElementById('char-pick-pet');
-  const charBtn = document.getElementById('char-pick-char');
-  if (petBtn && charBtn) {
-    const petCv = document.getElementById('character-pet-canvas');
-    if (petCv) petCv.innerHTML = petSVG(cfg, { which: _petInfo.which, locked: !_petInfo.available });
-    petBtn.classList.toggle('locked', !_petInfo.available);
-    petBtn.classList.toggle('sel', _editTarget === 'pet');
-    charBtn.classList.toggle('sel', _editTarget === 'char');
-    petBtn.title = _petInfo.available ? 'Gefährte anpassen' : 'Noch kein Gefährte — spiele ihn in der ⚒️ Schmiede frei';
-  }
-
-  if (_editTarget === 'pet') return _renderPetEditor(cfg);
-
-  // Name: Eingabefeld befüllen (nur wenn nicht gerade darin getippt wird)
-  const nameIn = document.getElementById('char-name-input');
-  if (nameIn && document.activeElement !== nameIn) nameIn.value = sd.playerName || '';
-  _wireNameInput();
-
-  _renderFeatureBar(AVATAR_FEATURES, _activeFeature);
-
-  // Varianten-Grid: jede Stufe als Mini-Vorschau, aktuelle markiert.
-  const grid = document.getElementById('character-variants');
-  if (grid) {
-    const key = _activeFeature;
-    const headKeys = ['hair', 'hairC', 'eyes', 'iris', 'mouth', 'skin'];
-    grid.innerHTML = Array.from({ length: NEUE_COUNTS[key] }, (_, v) => {
-      const preview = avatarSVG({ ...cfg, [key]: v }, { headOnly: headKeys.includes(key) });
-      const on = cfg[key] === v;
-      return `<button class="cg-tile${on ? ' sel' : ''}" onclick="avatarSet('${key}',${v})" aria-label="${key} ${v + 1}">${preview}</button>`;
-    }).join('');
-  }
-}
-
-// Merkmal-Slider: ‹ Merkmal › + Punkte — so ist garantiert jedes Merkmal
-// erreichbar (Chips liefen rechts aus dem Bild).
-function _renderFeatureBar(features, activeKey) {
-  const bar = document.getElementById('character-feature-chips');
-  if (!bar) return;
-  const idx = features.findIndex(f => f.key === activeKey);
-  const feat = features[idx] || features[0];
-  bar.innerHTML = `
-    <div class="cg-featbar">
-      <button class="cg-featarrow" onclick="avatarPickStep(-1)" aria-label="voriges Merkmal">‹</button>
-      <div class="cg-featlbl">${feat.label}</div>
-      <button class="cg-featarrow" onclick="avatarPickStep(1)" aria-label="nächstes Merkmal">›</button>
-    </div>
-    <div class="cg-featdots">${features.map((f, i) =>
-      `<button class="cg-dot${i === idx ? ' active' : ''}" onclick="avatarPick('${f.key}')" title="${f.label}" aria-label="${f.label}"></button>`).join('')}
-    </div>`;
-}
-
-// Namensfeld: speichert beim Tippen (debounced via change/blur), Menü-Banner
-// aktualisiert sich beim nächsten showMenu; Cloud-Commit beim Verlassen
-// (commitAvatar) — kein Prompt-Popup mehr.
-let _nameWired = false;
-function _wireNameInput() {
-  if (_nameWired) return;
-  const inp = document.getElementById('char-name-input');
-  if (!inp) return;
-  _nameWired = true;
-  const save = () => {
-    const v = (inp.value || '').trim().slice(0, 20);
-    if (!v || v === window.SD.playerName) return;
-    window.SD.playerName = v;
-    persist(window.SD);
-    if (window.currentUser) markDirty('profile');
-  };
-  inp.addEventListener('change', save);
-  inp.addEventListener('blur', save);
-}
-
-// Gefährten-Editor: eigene Merkmal-Leiste, das Grid zeigt je Merkmal die
-// 10 Varianten als Live-Vorschau des Tiers (Halsband = Material).
-function _renderPetEditor(cfg) {
-  _renderFeatureBar(PET_FEATURES, _activePetFeature);
-  const grid = document.getElementById('character-variants');
-  if (grid) {
-    const key = _activePetFeature;
-    grid.innerHTML = Array.from({ length: NEUE_COUNTS[key] }, (_, v) => {
-      const preview = petSVG({ ...cfg, [key]: v }, { which: _petInfo.which });
-      const name = key === 'pet' ? petLabel(v) : `Farbe ${v + 1}`;
-      return `<button class="cg-tile cg-pet${cfg[key] === v ? ' sel' : ''}" onclick="avatarSet('${key}',${v})" title="${name}" aria-label="${name}">${preview}</button>`;
-    }).join('');
-  }
-}
-
-// Tier wählen — Alt-API, nutzt jetzt avatarSet.
-export function petSet(v) { avatarSet('pet', v); }
-
-// Merkmal auswählen (Punkt) → Varianten-Grid wechselt.
-export function avatarPick(key) {
-  if (AVATAR_FEATURES.some(f => f.key === key)) _activeFeature = key;
-  else if (PET_FEATURES.some(f => f.key === key)) _activePetFeature = key;
-  renderCharacter();
-}
-
-// Merkmal-Slider: ‹/› blättert durch die Merkmale (mit Umlauf), je nach Ziel.
-export function avatarPickStep(dir) {
-  const feats = _editTarget === 'pet' ? PET_FEATURES : AVATAR_FEATURES;
-  const active = _editTarget === 'pet' ? _activePetFeature : _activeFeature;
-  const idx = feats.findIndex(f => f.key === active);
-  const n = feats.length;
-  const next = feats[(((idx + dir) % n) + n) % n].key;
-  if (_editTarget === 'pet') _activePetFeature = next; else _activeFeature = next;
-  renderCharacter();
-}
-
-// Variante direkt setzen (Kachel im Grid) — Charakter- UND Gefährten-Merkmale.
-export function avatarSet(key, v) {
-  const sd = window.SD;
-  const cfg = ensureAvatar(sd);
-  if (!(key in NEUE_COUNTS) || !Number.isInteger(v)) return;
-  cfg[key] = wrapK(key, v);
+  if (!sd || !_entwurf) return;
+  sd.avatar = { ..._entwurf };
+  _vorher = JSON.stringify(sd.avatar);
   persist(sd);
-  if (window.currentUser) markDirty('profile');   // Pending-Flag überlebt auch Hardware-Zurück
-  renderCharacter();
+  if (window.currentUser) { markDirty('profile'); commitDirty(); }
   renderAvatarInto('menu-avatar', sd, { bust: true, scale: 2 });
   renderAvatarInto('prof-avatar', sd, { bust: true, scale: 2 });
 }
 
-// Alt-API (Pfeile ‹/›) — bleibt für Kompatibilität, nutzt jetzt avatarSet.
-export function avatarArrow(dir) {
-  const cfg = ensureAvatar(window.SD);
-  const key = _editTarget === 'pet' ? _activePetFeature : _activeFeature;
-  avatarSet(key, wrapK(key, cfg[key] + dir));
+// Rückfrage 8.12. Liefert 'speichern' | 'ohne' | null (Zurück-Taste schließt).
+export function charAenderungenFragen() {
+  return new Promise((resolve) => {
+    const ov = document.createElement('div');
+    ov.className = 'p-dlg-grund p-ce-grund';
+    ov.innerHTML = `<div class="p-dlg-karte p-ce-karte" role="dialog" aria-label="Änderungen speichern?">
+      <div class="p-ce-emblem">${iconHTML('pencil', 42)}</div>
+      <div class="p-ce-titel">Änderungen speichern?</div>
+      <div class="p-ce-text">Du hast deinen Charakter verändert. Ohne Speichern bleibt er so, wie er vorher war.</div>
+      <div class="p-ce-knoepfe"><button class="p-ce-btn p-ce-btn--ohne">Ohne Speichern</button><button class="p-ce-btn p-ce-btn--ja">Speichern</button></div>
+    </div>`;
+    ov.querySelector('.p-ce-btn--ohne').onclick = () => { ov.remove(); resolve('ohne'); };
+    ov.querySelector('.p-ce-btn--ja').onclick = () => { ov.remove(); resolve('speichern'); };
+    document.body.appendChild(ov);
+  });
 }
 
-// Beim Öffnen Standard-Merkmal setzen (und wieder den Charakter anwählen).
-export function resetCharacterFeature() { _activeFeature = 'hair'; _activePetFeature = 'pet'; _editTarget = 'char'; }
+const _aktiverReiter = () => _REITER.find((r) => r.id === _reiter) || _REITER[0];
+const _sichtbareReiter = () => (_modus === 'start' ? _REITER.filter((r) => !r.pet) : _REITER);
 
-// Beim Verlassen des Screens Cloud-Sync anstoßen (gesammelt, nicht pro Klick).
-export function commitAvatar() {
-  if (window.currentUser) { markDirty('profile'); commitDirty(); }
+export function renderCharacter() {
+  const sd = window.SD;
+  if (!sd) return;
+  if (!_entwurf) charEditorOeffnen(_modus);
+  const scr = document.getElementById('character-screen');
+  if (scr) { scr.classList.toggle('ist-start', _modus === 'start'); scr.classList.toggle('ist-profil', _modus !== 'start'); }
+  const nm = document.getElementById('char-name-text');
+  if (nm) nm.textContent = sd.playerName || 'Spieler';
+  _renderBuehne();
+  _renderReiter();
+  _renderTafel();
 }
+
+function _renderBuehne() {
+  const fig = document.getElementById('character-canvas');
+  if (fig) { fig.innerHTML = editorFigurHTML(_entwurf, 3); paintStages(fig); }
+  const pet = document.getElementById('character-pet-canvas');
+  if (!pet) return;
+  if (_modus === 'start') { pet.innerHTML = ''; pet.style.display = 'none'; return; }
+  pet.style.display = '';
+  if (_petInfo.available) { pet.innerHTML = editorPetHTML(_entwurf.pet, _entwurf.petColor, 3); paintStages(pet); }
+  else pet.innerHTML = '<div class="ce-kein-pet"><span class="ce-kein-pet-chip">Noch kein Gefährte</span><span class="ce-kein-pet-platz"></span></div>';
+}
+
+function _renderReiter() {
+  const el = document.getElementById('ce-reiter');
+  if (!el) return;
+  el.innerHTML = _sichtbareReiter().map((r) => `<button class="ce-reiter-tab${r.id === _reiter ? ' is-aktiv' : ''}" role="tab"`
+    + ` aria-selected="${r.id === _reiter}" aria-label="${r.label}" onclick="charReiter('${r.id}')">${iconHTML(r.icon, 28)}</button>`).join('');
+}
+
+function _renderTafel() {
+  const el = document.getElementById('ce-tafel');
+  if (!el) return;
+  const r = _aktiverReiter();
+  const namen = r.namen();
+  const n = NEUE_COUNTS[r.key];
+  const gesperrt = r.pet && !_petInfo.available;
+  const v = _entwurf[r.key];
+  let html = `<div class="ce-tafel-kopf">
+      <div class="ce-tafel-text"><div class="ce-tafel-kat">${r.label}</div>
+        <div class="ce-tafel-name">${gesperrt ? 'Noch keiner freigespielt' : namen[v]}</div></div>
+      <span class="ce-zaehler${gesperrt ? ' is-aus' : ''}">${gesperrt ? 0 : v + 1} / ${n}</span>
+      <button class="ce-pfeil${gesperrt ? ' is-aus' : ''}" aria-label="Vorherige" onclick="charSchritt(-1)"${gesperrt ? ' disabled' : ''}>‹</button>
+      <button class="ce-pfeil${gesperrt ? ' is-aus' : ''}" aria-label="Nächste" onclick="charSchritt(1)"${gesperrt ? ' disabled' : ''}>›</button>
+    </div>`;
+  if (gesperrt) {
+    // 8.10: Hinweis mit „Zur Schmiede" (F-60), darunter alle Gefährten als Silhouette.
+    html += `<div class="ce-pet-hinweis"><img src="vondu-logo.svg" alt="Vondu" width="48" height="46" data-ui="bob" data-a="1">
+        <div class="ce-pet-hinweis-text"><div class="ce-pet-hinweis-titel">Noch kein Gefährte</div>
+          <div class="ce-pet-hinweis-sub">Deinen Gefährten schmiedest du selbst: Füll in der Schmiede die Station „Gefährte“ mit Wörtern und schmiede sie fertig.</div>
+          <button class="ce-zur-schmiede" onclick="charZurSchmiede()">${iconHTML('hammer', 14)}Zur Schmiede</button></div></div>
+      <div class="ce-gruppe is-weiter"><span>Diese Gefährten warten auf dich</span><span>${n}</span></div>
+      <div class="ce-kacheln">${namen.map((name, i) => `<div class="ce-kachel" aria-label="${name} · noch nicht freigespielt">
+        <img src="${petURL(i, 0, { scale: 2, locked: true })}" alt="" style="image-rendering:pixelated;display:block"></div>`).join('')}</div>`;
+    el.innerHTML = html;
+    return;
+  }
+  if (r.farbe) {
+    const f = r.farbe, pal = f.pal(_entwurf), fw = _entwurf[f.key];
+    if (f.label) html += `<div class="ce-gruppe"><span>${f.label}</span><span>${f.namen[fw] || ''}</span></div>`;
+    html += `<div class="ce-farben${f.label ? '' : ' ohne-titel'}" style="grid-template-columns:repeat(${f.proZeile || 6},minmax(0,1fr))">`
+      + pal.map((hex, i) => `<button class="ce-farbe${i === fw ? ' is-aktiv' : ''}" aria-label="${f.namen[i] || ''}" onclick="charFarbe('${f.key}',${i})"><span style="background:${hex}"></span></button>`).join('')
+      + '</div>';
+  }
+  const kachel = (i) => `<button class="ce-kachel${r.hoch ? ' is-hoch' : ''}${i === v ? ' is-aktiv' : ''}" aria-label="${namen[i]}" data-i="${i}" onclick="charOption(${i})">`
+    + `<img class="ce-kachel-bild" alt="" style="image-rendering:pixelated;display:block">`
+    + `<span class="ce-haken">${iconHTML('check', 14)}</span></button>`;
+  if (r.gruppen) {
+    html += r.gruppen.map(([titel, a, b], gi) => `<div class="ce-gruppe${gi ? ' is-weiter' : ''}"><span>${titel}</span><span>${b - a}</span></div>`
+      + `<div class="ce-kacheln">${Array.from({ length: b - a }, (_, k) => kachel(a + k)).join('')}</div>`).join('');
+  } else {
+    html += `<div class="ce-kacheln">${Array.from({ length: n }, (_, i) => kachel(i)).join('')}</div>`;
+  }
+  el.innerHTML = html;
+  _fuelleKacheln(el, r);
+}
+
+// Kachel-Bilder in kleinen Portionen zeichnen (eine Figur kostet einige ms) —
+// ein neuerer Aufruf bricht ältere ab.
+let _fuellLauf = 0;
+function _fuelleKacheln(el, r) {
+  const lauf = ++_fuellLauf;
+  const imgs = [...el.querySelectorAll('.ce-kachel[data-i] .ce-kachel-bild')];
+  const cfg = { ..._entwurf };
+  let i = 0;
+  const schritt = () => {
+    if (lauf !== _fuellLauf) return;
+    for (let n = 0; n < 4 && i < imgs.length; n++, i++) {
+      const v = +imgs[i].parentElement.dataset.i;
+      imgs[i].src = r.pet ? petURL(v, cfg.petColor, { scale: 2 }) : kachelURL({ ...cfg, [r.key]: v }, r.art, r.s);
+    }
+    if (i < imgs.length) requestAnimationFrame(schritt);
+  };
+  schritt();
+}
+
+// Auswahl ohne neue Bilder: Markierung, Zähler und Name nachziehen.
+function _markiere() {
+  const r = _aktiverReiter(), v = _entwurf[r.key];
+  document.querySelectorAll('#ce-tafel .ce-kachel[data-i]').forEach((k) => k.classList.toggle('is-aktiv', +k.dataset.i === v));
+  const z = document.querySelector('#ce-tafel .ce-zaehler');
+  if (z) z.textContent = `${v + 1} / ${NEUE_COUNTS[r.key]}`;
+  const nm = document.querySelector('#ce-tafel .ce-tafel-name');
+  if (nm) nm.textContent = r.namen()[v];
+}
+
+export function charReiter(id) {
+  if (!_REITER.some((r) => r.id === id)) return;
+  _reiter = id;
+  _renderReiter();
+  _renderTafel();
+}
+export function charOption(v) {
+  const r = _aktiverReiter();
+  _entwurf[r.key] = wrapK(r.key, v);
+  // Beim Gefährten hängt die Farbreihe am Tier — dann die Tafel neu.
+  if (r.pet) _renderTafel(); else _markiere();
+  _renderBuehne();
+}
+export function charSchritt(dir) {
+  const r = _aktiverReiter();
+  charOption(_entwurf[r.key] + dir);
+}
+export function charFarbe(key, i) {
+  if (!(key in NEUE_COUNTS)) return;
+  _entwurf[key] = wrapK(key, i);
+  _renderTafel();   // alle Kacheln zeigen die neue Farbe
+  _renderBuehne();
+}
+
+// Beim Öffnen: erster Reiter (Merkmal) wieder anwählen.
+export function resetCharacterFeature() { _reiter = 'frisur'; }

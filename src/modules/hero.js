@@ -15,7 +15,7 @@
 // Menü zeichnet sie bei jedem Render neu. Der Zwischenspeicher hat als Schlüssel
 // Avatar + Ausrüstung + Maßstab, genau wie im Handoff verlangt.
 
-import { hero, pet, crop, shadowed, toCanvas, renderHeroWithPet, renderPet, renderPetSilhouette, petBattleFrames, petBattleSequence, PET_BATTLE, PETS } from './pixel-hero-fine.js';
+import { hero, pet, crop, shadowed, toCanvas, renderHeroWithPet, renderPet, renderPetSilhouette, petBattleFrames, petBattleSequence, petMenuImage, PET_BATTLE, PETS } from './pixel-hero-fine.js';
 
 // Maße der Rohgrafik: ganze Figur und Kopf-Ausschnitt (34 × 34 ab (10, 0)).
 // hero().render() ist immer 54 × 81 — mit jeder Statur und Ausrüstung. Mit
@@ -207,6 +207,46 @@ export function stageHTML(cfg, { gear, gefaehrte = null, scale = 2 } = {}) {
     + ` style="width:${w * s}px;height:${h * s}px;image-rendering:pixelated;display:block;flex:none"></canvas>`;
 }
 
+// ── Charakter-Editor (1.9, 1.10, 8.4–8.12) ──────────────────────────────────
+// Bühne: Figur mit Pixel-Schatten und Gefährte (Menü-Ansicht mit Schatten), je
+// 3×, beide atmend — die Figur ab Zeile 50, der Gefährte ab Fußzeile − 6
+// (wie uiIdle der Referenz für E_st…/E_pet…).
+function _atemEinzeln(img, split) { return _ATEM.map((f) => _senken(img, split, f)); }
+function _canvasAtem(k, bilder, scale, d) {
+  if (!_buehnen.has(k)) {
+    if (_buehnen.size >= 24) _buehnen.delete(_buehnen.keys().next().value);
+    _buehnen.set(k, bilder().map((img) => toCanvas(img, 1)));
+  }
+  const { width: w, height: h } = _buehnen.get(k)[0];
+  return `<canvas data-ui="idle"${d ? ` data-d="${d}"` : ''} data-idle="${encodeURIComponent(k)}" width="${w}" height="${h}"`
+    + ` style="width:${w * scale}px;height:${h * scale}px;image-rendering:pixelated;display:block;flex:none"></canvas>`;
+}
+export function editorFigurHTML(cfg, scale = 3) {
+  return _canvasAtem(JSON.stringify(['ef', cfg]), () => _atemEinzeln(shadowed(hero(cfg).render()), 50), scale, 0);
+}
+export function editorPetHTML(petIdx, colorIdx, scale = 3) {
+  const kind = petKind(petIdx), farbe = petColorHex(petIdx, colorIdx);
+  return _canvasAtem(JSON.stringify(['ep', kind, farbe]), () => {
+    const img = petMenuImage(kind, farbe);
+    return _atemEinzeln(img, _unterkante(img) - 6);
+  }, scale, 2);
+}
+
+// Kacheln: Ausschnitte der Figur mit allen aktuellen Einstellungen (START-HERE):
+// Kopf 34 × 34 ab (10, 0), Gesicht 26 × 24 ab (14, 9), Oberkörper 38 × 36 ab
+// (8, 31), Beine 34 × 31 ab (10, 50), ganze Figur 54 × 81.
+export const KACHEL_AUSSCHNITT = {
+  kopf: [10, 0, 34, 34], gesicht: [14, 9, 26, 24], oberkoerper: [8, 31, 38, 36], beine: [10, 50, 34, 31], voll: [0, 0, 54, 81],
+};
+export function kachelURL(cfg, art, scale) {
+  const s = Math.max(1, Math.round(scale));
+  const k = JSON.stringify(['k', cfg, art, s]);
+  const da = _cache.get(k);
+  if (da) return da;
+  const [x, y, w, h] = KACHEL_AUSSCHNITT[art];
+  return _merken(k, toCanvas(crop(hero(cfg).render(), x, y, w, h), s).toDataURL('image/png'));
+}
+
 /** Atem-Bilder zu einem Bühnen-Canvas (für den UI-Takt, ui-anim „idle“). */
 export function stageFrames(el) {
   const k = el && el.dataset && el.dataset.idle;
@@ -245,13 +285,14 @@ export function petLabel(petIdx) {
  * Gefährte als <img>-Tag. `locked` zeigt die graue Silhouette für
  * „noch nicht freigespielt" (Screen 8.10).
  */
-export function petTag(petIdx, colorIdx, { scale = 2, locked = false } = {}) {
+export function petURL(petIdx, colorIdx, { scale = 2, locked = false } = {}) {
   const s = Math.max(1, Math.round(scale));
   const kind = petKind(petIdx);
   const k = 'pet:' + kind + ':' + (locked ? 'x' : petColorHex(petIdx, colorIdx)) + ':' + s;
-  let url = _cache.get(k);
-  if (!url) url = _merken(k, (locked ? renderPetSilhouette(kind, s) : renderPet(kind, petColorHex(petIdx, colorIdx), s)).toDataURL('image/png'));
-  return `<img src="${url}" alt="" style="image-rendering:pixelated;display:block;flex:none">`;
+  return _cache.get(k) || _merken(k, (locked ? renderPetSilhouette(kind, s) : renderPet(kind, petColorHex(petIdx, colorIdx), s)).toDataURL('image/png'));
+}
+export function petTag(petIdx, colorIdx, opts = {}) {
+  return `<img src="${petURL(petIdx, colorIdx, opts)}" alt="" style="image-rendering:pixelated;display:block;flex:none">`;
 }
 
 // ── Gefährte im Kampf ───────────────────────────────────────────────────────

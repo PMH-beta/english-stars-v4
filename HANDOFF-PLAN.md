@@ -44,11 +44,11 @@ im Dev-Server wie auf der veröffentlichten Seite. `vite.config.js` musste dafü
 nicht angefasst werden. `npm run build` schreibt weiterhin nur `dist/`, was für
 die Auslieferung keine Rolle spielt.
 
-## Phase 7 — läuft
+## Phase 7 — fertig (30.09.2026)
 
 Alle Screens ohne offene Frage sind gebaut (Commits je Bereich, zuletzt
 `922b542`). Am 29.09.2026 hat der Nutzer alle 43 offenen Fragen beantwortet
-(`HANDOFF-ENTSCHEIDUNGEN.md`). Daraus ist noch zu bauen:
+(`HANDOFF-ENTSCHEIDUNGEN.md`). Daraus gebaut (ein Commit je Bereich):
 
 | Bereich | Umsetzung der Antworten |
 | --- | --- |
@@ -59,7 +59,7 @@ Alle Screens ohne offene Frage sind gebaut (Commits je Bereich, zuletzt
 | 5 · Formen | **fertig:** F-08 Raster „Noch nicht begonnen“ mit „Wörter befüllen“, ohne Löschen · F-09 „i“ je Objekt (5.2) · F-54 Info 5.13 mit Punkt 4 „Verzaubern ist eines der 5 Teile und kommt nie vor dem dritten.“ |
 | 6/7 · Kampagne | **fertig:** F-33 Schatz: auswählen + „Nehmen“ · F-34 Zeittrank-Text = Regel · F-35 Boss: „Zur Kampagne“ + Taler-Chip · F-36 Wellen-Chip weg |
 | 9 · Überall | **fertig:** F-20 Installier-Popup beim 3. Start (Zähler lokal) |
-| 1/8 · Charakter-Editor | F-15 7 Reiter (Profil 8) · F-16 „Speichern“, Zurück verwirft, Rückfrage 8.12 — Screens 1.9/1.10, 8.4–8.12 |
+| 1/8 · Charakter-Editor | **fertig:** F-15 7 Reiter (Profil 8) · F-16 „Speichern“, Zurück (Pfeil und Zurück-Taste) verwirft, Rückfrage 8.12 · F-59 Name im Kopf · F-60 „Zur Schmiede“ — Screens 1.9/1.10, 8.4–8.12 |
 
 Unverändert (Antwort „wie heute“): F-17, F-18, F-19, F-26, F-28, F-32, F-37,
 F-38, F-39, F-43, F-49, F-50, F-51, F-52, F-53, F-55, F-56, F-58.

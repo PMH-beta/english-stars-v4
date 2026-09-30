@@ -309,42 +309,30 @@
 </div>
 
 <!-- ═══ CHARACTER SCREEN ═══ -->
+<!-- Charakter-Editor nach 1.9/1.10 (erster Start: „Wer bist du?") und 8.4–8.12
+     (Profil: Zurück verwirft, „Speichern" übernimmt, Name im Kopf antippbar).
+     Bühne, Reiter und Tafel füllt avatar.js (renderCharacter). -->
 <div id="character-screen" class="p-screen p-ton-rosa" style="display:none">
   <div class="p-kopf">
-    <div class="p-titel">
-      <button id="char-back-btn" class="p-back" onclick="closeCharacter()"><canvas data-icon="back" width="14" height="14" style="width:28px;height:28px;image-rendering:pixelated;flex:none"></canvas></button>
-      <div class="p-titel-text" id="char-heading">Charakter</div>
-      <div class="p-back-platz"></div>
+    <div class="ce-kopf">
+      <button id="char-back-btn" class="p-back ce-nur-profil" onclick="closeCharacter()" aria-label="Zurück"><canvas data-icon="back" width="14" height="14" style="width:28px;height:28px;image-rendering:pixelated;flex:none"></canvas></button>
+      <div class="p-titel-text ce-nur-start" id="char-heading">Wer bist du?</div>
+      <button class="ce-name ce-nur-profil" id="char-name-btn" onclick="charNameBearbeiten()" aria-label="Name ändern"><span id="char-name-text"></span><span class="ce-name-stift"><canvas data-icon="pencil" width="14" height="14" style="width:14px;height:14px;image-rendering:pixelated;flex:none"></canvas></span></button>
+      <button class="ce-speichern ce-nur-profil" onclick="charSpeichern()">Speichern</button>
+    </div>
+    <div class="ce-buehne">
+      <div class="ce-boden"></div>
+      <div class="ce-figuren">
+        <div id="character-canvas"></div>
+        <div id="character-pet-canvas"></div>
+      </div>
     </div>
   </div>
-  <div class="p-blatt">
-  <!-- Name als normales Eingabefeld (speichert beim Tippen; im Onboarding ausgeblendet) -->
-  <div id="char-name-row" style="margin-bottom:12px">
-    <div class="p-kicker" style="border:0;padding:0 0 5px">Dein Name</div>
-    <input id="char-name-input" class="p-feld" type="text" maxlength="20" placeholder="Dein Name…">
-  </div>
-
-  <!-- Bühne: Charakter + Gefährte, beide antippbar (Markierung unter der Figur).
-       Gefährte im Onboarding ausgeblendet, ohne freigespielten Gefährten ausgegraut. -->
-  <div id="character-stage">
-    <button id="char-pick-char" class="cg-fig sel" onclick="charEditTarget('char')">
-      <div id="character-canvas"></div>
-      <span class="cg-fig-lbl">Charakter</span>
-    </button>
-    <button id="char-pick-pet" class="cg-fig" onclick="charEditTarget('pet')">
-      <div id="character-pet-canvas"></div>
-      <span class="cg-fig-lbl">Gefährte</span>
-    </button>
-  </div>
-
-  <!-- Merkmal-Auswahl (Slider ‹ › + Punkte, gerendert von renderCharacter) -->
-  <div id="character-feature-chips" style="padding:12px 0;"></div>
-
-  <!-- Varianten-Grid: 10 Kacheln mit Live-Vorschau, antippen = anziehen -->
-  <div id="character-variants" class="cg-grid"></div>
-
-  <!-- Nur im Onboarding: Avatar bestätigen und ins Menü -->
-  <button id="char-onboard-done" class="p-btn p-btn--primaer" onclick="finishCharacterOnboarding()" style="display:none;margin-top:14px;">Los geht's!</button>
+  <div class="p-blatt ce-blatt">
+    <div class="ce-reiter" id="ce-reiter" role="tablist"></div>
+    <div class="ce-tafel" id="ce-tafel"></div>
+    <div class="ce-platz ce-nur-start"></div>
+    <button id="char-onboard-done" class="p-btn p-btn--primaer ce-los ce-nur-start" onclick="finishCharacterOnboarding()">Los geht's!</button>
   </div>
 </div>
 

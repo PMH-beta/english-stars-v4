@@ -5168,3 +5168,151 @@ body.schnell-active .p-sammlung:not(.is-offen) > .p-balken{ height:9px; margin-t
 }
 .p-ih-btn--spaeter{ background:var(--p-inaktiv); color:var(--p-ink); }
 .p-ih-btn--ok{ background:var(--p-ink); color:var(--p-gold); }
+
+/* ══ CHARAKTER-EDITOR 1.9 · 1.10 · 8.4–8.12 (F-15, F-16, F-59, F-60) ═══════
+   Kopf: Zurück · Name (antippbar) · Speichern — beim ersten Start nur
+   „Wer bist du?". Bühne 314 + Rahmen mit Boden, Figur und Gefährte 3×.
+   Im Blatt die Reiter (Karteikarten) und die Tafel. Außenmaße = Fragment + Rahmen. */
+#character-screen .p-kopf{ padding-top:calc(6px + env(safe-area-inset-top,0px)); }
+#character-screen.ist-start .ce-nur-profil,
+#character-screen.ist-profil .ce-nur-start{ display:none !important; }
+.ce-kopf{ display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); align-items:center; gap:8px; }
+.ce-kopf > .p-back{ justify-self:start; }
+.ce-kopf > .p-titel-text{ grid-column:2; height:34px; display:flex; align-items:center; }
+#character-screen.ist-start .ce-kopf{ display:flex; justify-content:center; }
+/* Name statt „Charakter" (F-59): wie der Titel gesetzt, mit Stift-Plakette in Gold. */
+.ce-name{
+  justify-self:center; min-width:0; max-width:100%; display:inline-flex; align-items:center; gap:8px;
+  padding:0; border:0; background:none; cursor:pointer; color:var(--p-ink);
+  font:900 13px var(--p-font); letter-spacing:var(--p-ls-titel); text-transform:uppercase;
+}
+#char-name-text{ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ce-name-stift{
+  width:26px; height:26px; flex:none;
+  border:var(--p-rahmen); border-radius:8px; background:var(--p-gold);
+  display:flex; align-items:center; justify-content:center;
+}
+.ce-speichern{
+  justify-self:end; height:38px; padding:0 14px; cursor:pointer;
+  border:var(--p-rahmen); border-radius:12px; background:var(--p-ink); color:var(--p-gold);
+  display:flex; align-items:center; font:900 13px var(--p-font);
+}
+.ce-buehne{
+  position:relative; height:318px; margin-top:12px; overflow:hidden;
+  border:var(--p-rahmen); border-radius:26px; background:var(--p-karte-hell);
+}
+.ce-boden{
+  position:absolute; left:0; right:0; bottom:0; height:56px;
+  border-top:var(--p-rahmen); background:var(--p-inaktiv);
+}
+.ce-figuren{
+  position:absolute; left:0; right:0; bottom:28px;
+  display:flex; align-items:flex-end; justify-content:center; gap:2px;
+}
+/* Alte Maße der Bühnen-Kästen (vor dem Umbau) aufheben. */
+#character-screen #character-canvas, #character-screen #character-pet-canvas{ width:auto; height:auto; margin:0; }
+/* Noch kein Gefährte (8.10): gestrichelter Platz auf der Bühne. */
+.ce-kein-pet{ width:120px; height:138px; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; }
+.ce-kein-pet-chip{
+  border:2px dashed rgba(31,31,36,.55); border-radius:12px; background:var(--p-chip-leer);
+  padding:5px 10px; font:800 11px var(--p-font); color:#4A4A52; white-space:nowrap; margin-bottom:30px;
+}
+.ce-kein-pet-platz{ display:block; width:96px; height:26px; border:2px dashed rgba(31,31,36,.45); border-radius:50%; }
+
+#character-screen .p-blatt{ padding-top:14px; display:flex; flex-direction:column; }
+.ce-reiter{
+  display:flex; align-items:flex-end; gap:4px; padding:0 8px;
+  position:relative; z-index:1; margin-bottom:-2px;
+}
+.ce-reiter-tab{
+  flex:1; min-width:0; height:42px; padding:0; cursor:pointer;
+  border:var(--p-rahmen); border-radius:12px 12px 0 0; background:var(--p-spur);
+  display:flex; align-items:center; justify-content:center;
+}
+.ce-reiter-tab.is-aktiv{
+  height:52px; padding-top:5px; background:var(--p-karte-hell); border-bottom-color:var(--p-karte-hell);
+  box-shadow:inset 0 5px 0 var(--p-ton,var(--p-rosa));
+}
+.ce-tafel{ border:var(--p-rahmen); border-radius:18px; background:var(--p-karte-hell); padding:12px 8px; }
+.ce-tafel-kopf{ display:flex; align-items:center; gap:8px; padding:0 4px; }
+.ce-tafel-text{ flex:1; min-width:0; }
+.ce-tafel-kat{
+  font:900 9px var(--p-font); letter-spacing:.14em; text-transform:uppercase; color:var(--p-text-2);
+}
+.ce-tafel-name{ font:900 17px/1.25 var(--p-font); color:var(--p-ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ce-zaehler{
+  flex:none; border:var(--p-rahmen); border-radius:10px; background:var(--p-ton,var(--p-rosa));
+  padding:3px 9px; font:900 11px var(--p-font); color:var(--p-ink); white-space:nowrap;
+}
+.ce-zaehler.is-aus{ background:var(--p-chip-leer); }
+.ce-pfeil{
+  flex:none; width:36px; height:36px; padding:0; cursor:pointer;
+  border:var(--p-rahmen); border-radius:12px; background:var(--p-karte);
+  display:flex; align-items:center; justify-content:center;
+  font:900 17px var(--p-font); color:var(--p-ink);
+}
+.ce-pfeil.is-aus{ border-style:dashed; color:#8A867A; cursor:default; }
+.ce-gruppe{ display:flex; justify-content:space-between; align-items:baseline; gap:10px; margin-top:12px; }
+.ce-gruppe > span:first-child{
+  font:900 10px var(--p-font); text-transform:uppercase; letter-spacing:.14em; color:var(--p-text-2);
+}
+.ce-gruppe > span + span{ font:800 11px var(--p-font); color:var(--p-text-akzent); }
+.ce-gruppe.is-weiter{ margin-top:16px; }
+.ce-farben{ display:grid; margin-top:4px; }
+.ce-farben.ohne-titel{ margin-top:12px; }
+.ce-farbe{
+  height:44px; padding:0; border:0; background:none; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+}
+.ce-farbe > span{ width:36px; height:36px; border:var(--p-rahmen); border-radius:50%; }
+.ce-farbe.is-aktiv > span{ box-shadow:0 0 0 3px var(--p-blatt), 0 0 0 5px var(--p-ink); }
+.ce-kacheln{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; margin-top:10px; }
+.ce-kachel{
+  position:relative; height:90px; padding:0; cursor:pointer; overflow:hidden;
+  border:var(--p-rahmen); border-radius:14px; background:var(--p-karte);
+  display:flex; align-items:center; justify-content:center;
+}
+div.ce-kachel{ cursor:default; }
+.ce-kachel.is-hoch{ height:104px; }
+.ce-kachel.is-aktiv{ background:var(--p-gold); }
+.ce-haken{
+  display:none; position:absolute; right:4px; top:4px; width:26px; height:26px;
+  border:var(--p-rahmen); border-radius:50%; background:var(--p-karte-hell);
+  align-items:center; justify-content:center;
+}
+.ce-kachel.is-aktiv .ce-haken{ display:flex; }
+/* Noch kein Gefährte (8.10): Vondu-Hinweis mit „Zur Schmiede". */
+.ce-pet-hinweis{
+  margin-top:12px; border:2px dashed var(--p-ink); border-radius:20px; background:var(--p-karte);
+  padding:13px 13px 14px; display:flex; gap:12px; align-items:flex-start;
+}
+.ce-pet-hinweis img{ display:block; flex:none; }
+.ce-pet-hinweis-text{ flex:1; min-width:0; }
+.ce-pet-hinweis-titel{ font:900 14px var(--p-font); }
+.ce-pet-hinweis-sub{ font:700 12px/1.5 var(--p-font); color:var(--p-text-akzent); margin-top:3px; text-wrap:pretty; }
+.ce-zur-schmiede{
+  margin-top:10px; height:48px; padding:0 14px; cursor:pointer;
+  border:var(--p-rahmen); border-radius:14px; background:var(--p-lila);
+  display:inline-flex; align-items:center; gap:8px; font:900 13px var(--p-font); color:var(--p-ink);
+}
+.ce-platz{ flex:1; }
+.ce-los{ margin-top:18px; font-size:15px; }
+
+/* Rückfrage „Änderungen speichern?" (8.12). */
+.p-dlg-grund.p-ce-grund{ padding:18px; background:rgba(31,31,36,.45); }
+.p-dlg-karte.p-ce-karte{ max-width:366px; background:var(--p-karte-hell); padding:22px 18px 18px; }
+.p-ce-emblem{
+  width:72px; height:72px; margin:0 auto;
+  border:var(--p-rahmen); border-radius:22px; background:var(--p-pfirsich);
+  display:flex; align-items:center; justify-content:center;
+}
+.p-ce-titel{ font:900 22px var(--p-font); text-align:center; margin-top:14px; }
+.p-ce-text{ font:700 12.5px/1.55 var(--p-font); color:var(--p-text-akzent); text-align:center; margin-top:8px; text-wrap:pretty; }
+.p-ce-knoepfe{ display:flex; gap:10px; margin-top:18px; }
+.p-ce-btn{
+  flex:1; height:56px; cursor:pointer;
+  border:var(--p-rahmen); border-radius:18px;
+  display:flex; align-items:center; justify-content:center; font:900 14px var(--p-font);
+}
+.p-ce-btn--ohne{ background:var(--p-karte); color:var(--p-ink); }
+.p-ce-btn--ja{ background:var(--p-ink); color:var(--p-gold); }

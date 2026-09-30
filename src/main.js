@@ -7,8 +7,8 @@ import { _trackUrl, _discoverTracks, _playNext, _initAudio, startMusic, startMus
 import { effectivePct, isMastered } from './modules/stats.js';
 import { buildPool, toggleSchnell, syncSchnellForMode, startGame, confirmHome, goHomeSaving, nextQuestion, restartSame, checkMC, submitType, checkOrder, showSelfRateButtons, retryPronounce, evaluateWithClaude, setMicFinalStatus, _sfx, playSfx } from './modules/game.js';
 import { syncMirrorFromActiveDeck, activeDeck, switchDeck, createDeck, deleteDeck, renameDeck, deckProgress, renderDecks, toggleDeck, activateDeck, startGameWithDeck, newDeckPrompt, renameDeckPrompt, confirmDeleteDeck, resetDeckProgress, vmDeleteWord, vmEditWord, vmAddManual, openDeckStats } from './modules/decks.js';
-import { avatarPick, avatarPickStep, avatarArrow, avatarSet, charEditTarget, petSet } from './modules/avatar.js';
-import { showScreen, saveName, showMenu, saveApiKey, skipApiKey, showProfile, editPlayerName, showCharacter, showCharacterOnboarding, finishCharacterOnboarding, closeCharacter, showStats, showFriendStats, closeFriendStats, confirmReset, showFeedback, hideFeedback, exportData, importData, showAuth, authToggleMode, authSubmit, authResend, authLogout, authGoogleSignIn, handleLogin, handleLogout, showPasswordReset, submitPasswordReset, showNewPasswordScreen, submitNewPassword, cancelNewPassword, setActiveMode, renderModeContent, openProbetestPicker, toggleProbetestHistory, deleteProbetestEntry, uvFlip, uvSlide, uvSetForm, uvInfo, uvWaffenInfo, uvOpenFill, uvDeleteStation, uvTestForge, uvTestForgeRandom, toggleUvTraining, uvTrainOpenCreate, uvTrainDelete, uvTrainToggleDeck, uvTrainChooseForms, uvTrainReset, uvTrainOpenStats, onAppResume, checkForRemoteChange, softRefresh } from './modules/ui.js';
+import { charReiter, charOption, charSchritt, charFarbe } from './modules/avatar.js';
+import { showScreen, saveName, showMenu, saveApiKey, skipApiKey, showProfile, editPlayerName, showCharacter, showCharacterOnboarding, finishCharacterOnboarding, closeCharacter, charSpeichern, charNameBearbeiten, charZurSchmiede, showStats, showFriendStats, closeFriendStats, confirmReset, showFeedback, hideFeedback, exportData, importData, showAuth, authToggleMode, authSubmit, authResend, authLogout, authGoogleSignIn, handleLogin, handleLogout, showPasswordReset, submitPasswordReset, showNewPasswordScreen, submitNewPassword, cancelNewPassword, setActiveMode, renderModeContent, openProbetestPicker, toggleProbetestHistory, deleteProbetestEntry, uvFlip, uvSlide, uvSetForm, uvInfo, uvWaffenInfo, uvOpenFill, uvDeleteStation, uvTestForge, uvTestForgeRandom, toggleUvTraining, uvTrainOpenCreate, uvTrainDelete, uvTrainToggleDeck, uvTrainChooseForms, uvTrainReset, uvTrainOpenStats, onAppResume, checkForRemoteChange, softRefresh } from './modules/ui.js';
 import { pwaInstall } from './modules/pwa.js';
 import { startConstellationStar, startConstellationForm, startUvTraining, uvProgress } from './modules/irregular-game.js';
 import { openVocabManager, openPresetDeckStats, vmTab, renderVocabList, parsePastedText, onScanFile, showReview, renderReviewList, removeReviewItem, addReviewItem, rescanReview, confirmAddVocab, renderPresetsTab, togglePresetCategory, vmBack, vmRenameActiveDeck, newDeckFlow, newDeckPreset, newDeckCustom, confirmAbortDraft } from './modules/vocab.js';
@@ -134,6 +134,9 @@ window.showCharacter = showCharacter;
 window.showCharacterOnboarding = showCharacterOnboarding;
 window.finishCharacterOnboarding = finishCharacterOnboarding;
 window.closeCharacter = closeCharacter;
+window.charSpeichern = charSpeichern;
+window.charNameBearbeiten = charNameBearbeiten;
+window.charZurSchmiede = charZurSchmiede;
 window.showFriendStats = showFriendStats;
 window.closeFriendStats = closeFriendStats;
 window.onFriendSearchInput = onFriendSearchInput;
@@ -150,12 +153,10 @@ window.talerTest = talerTest;   // Debug: Test-Taler in der Konsole (talerTest(5
 window.talerDeckTest = talerDeckTest;   // Debug: Taler aus „fertigen" Deck-Übungsarten (talerDeckTest(4))
 window.openFriendStats = openFriendStats;
 window.refreshFriendBadge = refreshFriendBadge;
-window.avatarPick = avatarPick;
-window.avatarPickStep = avatarPickStep;
-window.avatarArrow = avatarArrow;
-window.avatarSet = avatarSet;
-window.charEditTarget = charEditTarget;
-window.petSet = petSet;
+window.charReiter = charReiter;
+window.charOption = charOption;
+window.charSchritt = charSchritt;
+window.charFarbe = charFarbe;
 window.showStats = showStats;
 window.confirmReset = confirmReset;
 window.showFeedback = showFeedback;
