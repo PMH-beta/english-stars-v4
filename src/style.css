@@ -4990,3 +4990,38 @@ body.p-app .music-vol-btn{ bottom:calc(88px + env(safe-area-inset-bottom,0px)); 
 
 /* Aussprache falsch, erster Versuch (4.10, F-48): „Nochmal versuchen" in der Karte. */
 .sp-nochmal-versuchen{ margin-top:14px; gap:8px; }
+
+/* ══ SCHNELLMODUS IM MENÜ 2.10 / 2.11 (F-29, F-31) ═════════════════════════
+   Rückfrage vor dem Einschalten; eingeschaltet: Chip im Banner, schlanke
+   Karten (ohne Datum, Chips und Pfeil — Antippen klappt weiter auf). */
+.p-dlg-grund.p-sm-grund{ padding:18px; background:rgba(31,31,36,.45); }
+.p-dlg-karte.p-sm-karte{ max-width:366px; background:var(--p-karte-hell); padding:22px 18px 18px; }
+.p-sm-emblem{
+  width:68px; height:68px; margin:0 auto;
+  border:var(--p-rahmen); border-radius:16px; background:var(--p-gold);
+  display:flex; align-items:center; justify-content:center;
+}
+.p-sm-titel{ font:900 22px var(--p-font); text-align:center; margin-top:14px; }
+.p-sm-text{ font:700 12.5px/1.6 var(--p-font); color:var(--p-text-akzent); text-align:center; margin-top:10px; }
+.p-sm-knoepfe{ display:flex; gap:10px; margin-top:14px; }
+.p-sm-btn{
+  flex:1; height:58px; cursor:pointer;
+  border:var(--p-rahmen); border-radius:18px; color:var(--p-ink);
+  display:flex; align-items:center; justify-content:center; gap:8px; font:900 14px var(--p-font);
+}
+.p-sm-btn--ab{ background:var(--p-inaktiv); }
+.p-sm-btn--an{ background:var(--p-gold); }
+.p-banner-rechts{ display:flex; align-items:center; gap:7px; flex:none; }
+.p-schnell-chip{ display:none; border-radius:11px; }
+body.schnell-active .p-schnell-chip{ display:inline-flex; }
+body.schnell-active .p-sammlung-datum,
+body.schnell-active .p-sammlung-chips,
+body.schnell-active .p-sammlung .p-chevron{ display:none; }
+/* Schlanke Karte im Schnellmodus (2.11): Radius 22, innen 13/14, Name 16 px,
+   Prozent 22 px mittig, Balken 9 px mit 9 px Abstand. Aufgeklappt wie sonst. */
+body.schnell-active .p-sammlung:not(.is-offen){ border-radius:22px; padding:13px 14px; }
+body.schnell-active .p-sammlung:not(.is-offen) .p-sammlung-kopf{ align-items:center; }
+body.schnell-active .p-sammlung:not(.is-offen) .p-sammlung-name{ font-size:16px; }
+body.schnell-active .p-sammlung:not(.is-offen) .p-sammlung-meta{ margin-top:0; }
+body.schnell-active .p-sammlung:not(.is-offen) .p-sammlung-pct{ font-size:22px; }
+body.schnell-active .p-sammlung:not(.is-offen) > .p-balken{ height:9px; margin-top:9px; }

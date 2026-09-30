@@ -276,7 +276,7 @@ export function renderDecks(mode) {
       <div class="p-sammlung-kopf">
         <div class="p-wachs">
           <div class="p-sammlung-name">${window.escHtml(deck.name)}</div>
-          <div class="p-sammlung-meta">${dateStr} · ${deck.vocab.length} Wörter</div>
+          <div class="p-sammlung-meta"><span class="p-sammlung-datum">${dateStr} · </span>${deck.vocab.length} Wörter</div>
           <div class="p-sammlung-chips">${artChip}${talerChip}</div>
         </div>
         <div class="p-sammlung-rechts">

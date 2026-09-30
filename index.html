@@ -230,7 +230,11 @@
           </div>
         </div>
       </div>
-      <button class="p-fortschritt" onclick="event.stopPropagation();showStats()"><canvas data-icon="trophy" width="14" height="14" style="width:14px;height:14px;image-rendering:pixelated;flex:none"></canvas>Fortschritt</button>
+      <div class="p-banner-rechts">
+        <!-- Schnellmodus an (2.11) -->
+        <span class="p-chip p-chip--icon p-chip--gold p-schnell-chip"><canvas data-icon="flame" data-ui="swap" data-seq="flame,flameR,flame,flameL" data-d="0" width="14" height="14" style="width:14px;height:14px;image-rendering:pixelated;flex:none"></canvas>Schnellmodus</span>
+        <button class="p-fortschritt" onclick="event.stopPropagation();showStats()"><canvas data-icon="trophy" width="14" height="14" style="width:14px;height:14px;image-rendering:pixelated;flex:none"></canvas>Fortschritt</button>
+      </div>
     </div>
 
     <!-- Drei Tabs. Jeder traegt seinen eigenen Grundton; der aktive faerbt den

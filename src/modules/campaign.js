@@ -219,6 +219,9 @@ export async function refreshClaimedTaler() {
     if (!deck?.vocab?.length) continue;
     const mode = deck.mode || 'free';
     if (mode === 'free') {
+      // Schnellmodus bringt keine Taler (F-30): solange er läuft, stehen in den
+      // Decks nur die vorläufigen Schnell-Stände — nichts davon wird eingelöst.
+      if (window.schnellByMode && window.schnellByMode.free) continue;
       const pm = deckProgress(deck).perMode;
       for (const m of TALER_MODES) {
         if (!isModeComplete(m.prog(pm))) continue;

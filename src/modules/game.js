@@ -476,6 +476,26 @@ export function syncSchnellForMode(mode){
   _setSchnellBtn('student-schnell-toggle', !!(window.schnellByMode && window.schnellByMode.student));
 }
 
+// Rückfrage vor dem Einschalten (Fragment 2.10, F-29). Zurück-Taste bzw.
+// Schließen = Abbrechen (das Promise bleibt dann einfach offen).
+function _schnellFragen() {
+  return new Promise((resolve) => {
+    const flamme = (d, px) => iconHTML('flame', px)
+      .replace('<canvas ', `<canvas data-ui="swap" data-seq="flame,flameR,flame,flameL" data-d="${d}" `);
+    const ov = document.createElement('div');
+    ov.className = 'p-dlg-grund p-sm-grund';
+    ov.innerHTML = `<div class="p-dlg-karte p-sm-karte">
+      <div class="p-sm-emblem">${flamme(0, 42)}</div>
+      <div class="p-sm-titel">Schnellmodus</div>
+      <div class="p-sm-text">Nur zum schnellen Üben — zählt <strong>nicht</strong> in die Statistik und bringt keine Taler.</div>
+      <div class="p-sm-knoepfe"><button class="p-sm-btn p-sm-btn--ab">Abbrechen</button><button class="p-sm-btn p-sm-btn--an">${flamme(2, 14)}Einschalten</button></div>
+    </div>`;
+    ov.querySelector('.p-sm-btn--ab').onclick = () => { ov.remove(); resolve(false); };
+    ov.querySelector('.p-sm-btn--an').onclick = () => { ov.remove(); resolve(true); };
+    document.body.appendChild(ov);
+  });
+}
+
 export function toggleSchnell() {
   const sd=window.SD; if(!sd) return;
   const mode = sd.activeMode||'free';
@@ -484,26 +504,28 @@ export function toggleSchnell() {
   const btnId = mode==='student' ? 'student-schnell-toggle' : 'schnell-toggle';
 
   if(!window.schnellByMode[mode]){
-    // → AN (nur dieser Modus): echten Stand der Modus-Decks sichern + auf 0.
-    const backup={decks:{},preset:null};
-    for(const [id,d] of _decksOfMode(sd, mode)){
-      backup.decks[id]=JSON.parse(JSON.stringify(d.wordStats||{}));
-      d.wordStats={};
-    }
-    if(mode==='free' && sd.globalPresetStats){
-      backup.preset=JSON.parse(JSON.stringify(sd.globalPresetStats.wordStats||{}));
-      sd.globalPresetStats.wordStats={};
-    }
-    window._schnellBackup[mode]=backup;
-    window.schnellByMode[mode]=true;
-    window.isSchnellModus=true;
-    _persistSchnellBackup();
-    syncMirrorFromActiveDeck();
-    _setSchnellBtn(btnId, true);
-    document.body.classList.add('schnell-active');
-    showMenu();   // Menü + Haupt-Toggle sofort im Dark-Mode, schon während der Popup offen ist
-    window.esAlert({ icon:'⚡', title:'Wiederholungsmodus an',
-      body:'Nur zum schnellen Üben — zählt NICHT in die Statistik. Eine richtige Antwort genügt für ein Wort, falsche zählen nicht. Beim Beenden wird dieser Fortschritt wieder verworfen.' });
+    // → AN (nur dieser Modus), erst nach der Rückfrage 2.10: echten Stand der
+    // Modus-Decks sichern + auf 0.
+    _schnellFragen().then((ja)=>{
+      if(!ja) return;
+      const backup={decks:{},preset:null};
+      for(const [id,d] of _decksOfMode(sd, mode)){
+        backup.decks[id]=JSON.parse(JSON.stringify(d.wordStats||{}));
+        d.wordStats={};
+      }
+      if(mode==='free' && sd.globalPresetStats){
+        backup.preset=JSON.parse(JSON.stringify(sd.globalPresetStats.wordStats||{}));
+        sd.globalPresetStats.wordStats={};
+      }
+      window._schnellBackup[mode]=backup;
+      window.schnellByMode[mode]=true;
+      window.isSchnellModus=true;
+      _persistSchnellBackup();
+      syncMirrorFromActiveDeck();
+      _setSchnellBtn(btnId, true);
+      document.body.classList.add('schnell-active');
+      showMenu();
+    });
   } else {
     // → AUS (nur dieser Modus): abbrechbare Warnung; bei „Beenden" echten Stand zurück.
     window.esConfirm({ icon:'⚠️', title:'Wiederholungsmodus beenden?',
