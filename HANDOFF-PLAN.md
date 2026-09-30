@@ -33,7 +33,7 @@ Es gibt **keinen Schalter `pastell`** (F-02). Der Rückweg ist `git revert`.
 | **6** | Kampf-Animationen | `campaign-fight.js`, `hero.js`, `style.css` | — | **fertig** |
 | **7** | Screens, ein Commit je Bereich | `index.html`, `ui.js`, `decks.js`, `vocab.js`, `game.js`, `campaign*.js`, `style.css` | alle beantwortet (29.09.) | **fertig** |
 | **7b** | App-Tour | neu `tour.js`, dazu `ui.js`, `storage.js`, `sync.js` | F-14 = A (automatisch + Profil-Knopf) | **fertig** — `tourSeen` in `campaign`, Whitelist `_campaignFrom` |
-| **8** | Aufräumen | alte SVG-Renderer, alter CSS-Block (~1000 Zeilen) | Freigabe | hoch — erst zum Schluss |
+| **8** | Aufräumen | alte SVG-Renderer, alter CSS-Block (~1000 Zeilen) | Freigabe | **fertig** (A + B + C, 30.09.) |
 
 ## Wie die Prüfseite erreichbar ist
 
@@ -97,7 +97,7 @@ Nachgezogen am 30.09.: F-61 (Installier-Popup auf allen Geräten jeden 3. Start 
 „Nicht mehr anzeigen“, Karte „App installieren“ im Profil, alter Menü-Knopf weg) und
 F-62 (Schmiede-Kopf zählt gegen 15 Stationen / 150 Schritte).
 
-## Phase 8 — läuft (30.09.2026)
+## Phase 8 — fertig, soweit freigegeben (30.09.2026)
 
 Liste gezeigt, freigegeben sind A + B (Dateien und JS-Reste) und C (CSS-Regeln,
 die nie greifen). Nicht freigegeben: alter CSS-Block Regel für Regel, tote Stellen
@@ -113,7 +113,7 @@ aller Elemente in 78 Zuständen (vorher/nachher), dazu Build und Ablauf-Tests.
   keine Abweichung (Ausreißer der Vorher-Aufnahme gegen HEAD nachgeprüft).
 - **C fertig:** 556 CSS-Regeln, die nie greifen konnten (Klassen/IDs kommen in
   Markup, Modulen und `dev/*` nirgends vor), aus `src/style.css` entfernt
-  (5462 → 4386 Zeilen) — mehr als die 466 der Liste, weil nach A + B auch die
+  (5462 → 4350 Zeilen) — mehr als die 466 der Liste, weil nach A + B auch die
   Klassen der gelöschten Renderer verwaist waren. Fingerabdruck: alle 78 Zustände
   vorher/nachher gleich.
 
