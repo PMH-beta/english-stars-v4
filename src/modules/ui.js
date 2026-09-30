@@ -13,14 +13,12 @@ import { uvMap, uvLernstand, constellationWords, FORGE_DISC, SLOTS_PER_FORM, uvT
 import { renderAvatarInto, renderCharacter, resetCharacterFeature, setCharacterCompanion, stageHTMLFor, charEditorOeffnen, charEditorGeaendert, charEditorUebernehmen, charAenderungenFragen } from './avatar.js';
 import { paintStages } from './hero.js';
 import { installHinweisEinmal, installMoeglich } from './pwa.js';
-import { IRREGULAR_PRESET_ID, uvAvailableVerbs, CONSTELLATION_SIZE, cefrOf, forgeObject, FORGE_OBJECTS, usedForgeObjects, fillObjectType, getConstellations, allVerbsSorted, verbsByEns, UV_TRAIN_SUF } from './irregular-verbs.js';
+import { IRREGULAR_PRESET_ID, uvAvailableVerbs, CONSTELLATION_SIZE, cefrOf, forgeObject, FORGE_OBJECTS, usedForgeObjects, allVerbsSorted, verbsByEns, UV_TRAIN_SUF } from './irregular-verbs.js';
 import { objectPerkText, renderEquipmentPanel, resetEquipmentSelection, forgedItems, equippedGearMap, objectInfoRows, ohneEmoji, SLOTS } from './campaign-equipment.js';
 import { renderFriendsSection, refreshFriendBadge, friendProgress, subscribeFriendRealtime, unsubscribeFriendRealtime } from './friends.js';
 import { renderCampaign, renderCampaignDemo, updateTalerBadge, refreshClaimedTaler } from './campaign.js';
 import { tourStarten, tourLaeuft, tourZurueck, tourAbbrechen, TOUR_SCHRITTE } from './tour.js';
-import { itemTag, forgeTag, forgeGrauTag, forgeScale, PART_ANIM } from './world.js';
-
-const API_KEY_SK = 'es_apikey';
+import { itemTag, forgeTag, forgeGrauTag, PART_ANIM } from './world.js';
 
 // ────────────────────────────────────────────────
 //  AUTH UI STATE
@@ -52,7 +50,6 @@ const P_TON = {
   'profile-screen': 'blau',
   'character-screen': 'rosa',
   'stats-screen': 'lila',
-  'apikey-screen': 'mint',
   'scan-screen': 'mint',
   'review-screen': 'pfirsich',
   'end-screen': 'amber',
@@ -74,7 +71,7 @@ export function showScreen(id) {
     try { voskStop(); } catch(e) {}
     try { stopVisualizer(); } catch(e) {}
   }
-  ['loading-screen','apikey-screen','name-screen','menu-screen','game-screen','end-screen','stats-screen','profile-screen','character-screen','scan-screen','review-screen','auth-screen','email-confirm-screen','password-reset-screen','password-reset-sent-screen','new-password-screen'].forEach(s => {
+  ['loading-screen','name-screen','menu-screen','game-screen','end-screen','stats-screen','profile-screen','character-screen','scan-screen','review-screen','auth-screen','email-confirm-screen','password-reset-screen','password-reset-sent-screen','new-password-screen'].forEach(s => {
     const el = document.getElementById(s); if (el) el.style.display = 'none';
   });
   const el = document.getElementById(id);
@@ -148,7 +145,7 @@ let _inPopstate = false;    // true während _onBackNavPop läuft → unterdrüc
 // sondern direkt zum Toast-Hinweis (Branch 4).
 const NAV_IGNORE = ['loading-screen','auth-screen','email-confirm-screen',
   'password-reset-screen','password-reset-sent-screen','new-password-screen',
-  'name-screen','apikey-screen'];
+  'name-screen'];
 
 function initBackNav() {
   if (_navActive) return;
@@ -318,25 +315,6 @@ export async function saveName() {
   if (window.currentUser) { markDirty('profile'); await commitDirty(); }
   // Erst-Login: direkt in die Charakter-Anpassung (Onboarding-Variante).
   showCharacterOnboarding();
-}
-
-// ────────────────────────────────────────────────
-//  API KEY SCREEN
-// ────────────────────────────────────────────────
-export function saveApiKey() {
-  const v = document.getElementById('apikey-input').value.trim();
-  if (!v.startsWith('AIza') && v.length < 20) {
-    document.getElementById('apikey-input').style.borderColor = 'var(--red)';
-    return;
-  }
-  try { localStorage.setItem(API_KEY_SK, v); } catch (e) {}
-  if (!window.SD.playerName) showScreen('name-screen');
-  else showMenu();
-}
-
-export function skipApiKey() {
-  if (!window.SD.playerName) showScreen('name-screen');
-  else showMenu();
 }
 
 // ────────────────────────────────────────────────
@@ -1097,37 +1075,6 @@ export function openProbetestPicker() {
   refresh();
 }
 
-// UV-Tab (Gestaltwandler): Sternenpfad. Ein nach unten scrollbarer Nachthimmel;
-// jedes Sternbild = gezeichnetes 6-Punkt-Muster (5 spielbare Disziplin-Sterne +
-// 1 Komplett-Leuchtstern). Sterne leuchten golden auf, wenn gemeistert; der nächste
-// spielbare pulsiert in seiner Disziplin-Farbe und wird angetippt (startConstellationStar).
-//
-// Echte Silhouetten. Die 5 Disziplin-Sterne sind so auf die Form-Ketten verteilt,
-// dass Simple Past (Index 0→2→4) und Past Participle (1→3) je einer zusammenhängenden
-// Linie des Bildes FOLGEN — keine Sterne werden diagonal übersprungen. Index 5 =
-// Komplett-Stern. Jedes Muster hat daher die Kanten 0-2,2-4 (Past) und 1-3 (PP) plus
-// die Kanten, die die Silhouette schließen. viewBox 0..100 × 0..72.
-const CST_PATTERNS = [
-  // Kleiner Wagen: Kasten (bl-tl-tr-br) + Deichsel zum Komplett-Stern.
-  { pts: [[38,46],[56,44],[38,30],[74,34],[56,28],[90,20]], edges: [[0,2],[2,4],[4,1],[1,0],[1,3],[3,5]] },
-  // Großer Wagen: größerer Kasten + Deichsel.
-  { pts: [[16,44],[40,42],[16,28],[62,34],[40,26],[92,24]], edges: [[0,2],[2,4],[4,1],[1,0],[1,3],[3,5]] },
-  // Kassiopeia: 5-Sterne-W — linke Hälfte Past, rechte Hälfte PP.
-  { pts: [[12,28],[64,48],[28,48],[80,30],[46,28],[94,22]], edges: [[0,2],[2,4],[4,1],[1,3],[3,5]] },
-  // Orion: linke Linie (Schulter-Gürtel-Fuß) Past, rechte Seite PP, Gürtel über den
-  // Komplett-Stern in der Mitte.
-  { pts: [[28,16],[72,16],[40,40],[70,60],[34,62],[54,42]], edges: [[0,2],[2,4],[1,3],[2,5],[5,1],[5,3]] },
-  // Schwan (Nordkreuz): senkrechte Achse Past, Flügel PP, Komplett-Stern unten.
-  { pts: [[50,10],[26,42],[50,28],[74,42],[50,44],[50,66]], edges: [[0,2],[2,4],[4,5],[1,4],[4,3]] },
-  // Adler: Flügel-Chevron — linker Flügel Past, rechter Flügel PP, Körper = Komplett.
-  { pts: [[20,42],[64,28],[36,28],[80,42],[50,18],[50,40]], edges: [[0,2],[2,4],[4,1],[1,3],[4,5]] },
-  // Leier: Vega oben + Harfe — linke Seite Past, rechte PP, Komplett-Stern unten.
-  { pts: [[44,12],[64,32],[28,32],[68,54],[36,54],[50,60]], edges: [[0,2],[2,4],[0,1],[1,3],[4,5],[5,3]] },
-  // Cluster: Fünfeck-Ring mit Komplett-Stern im Zentrum — rechter Bogen Past, linker PP.
-  { pts: [[50,12],[32,56],[74,28],[26,28],[68,56],[50,40]], edges: [[0,2],[2,4],[4,1],[1,3],[3,0],[0,5],[5,1]] },
-];
-function _cstPattern(idx) { return CST_PATTERNS[idx % CST_PATTERNS.length]; }
-
 // Form-Themen: das Muster färbt sich um, je nachdem ob Simple Past oder Past
 // Participle angezeigt wird (gleiche Farbsprache wie überall: Past = bernstein ⏱,
 // PP = grün ✓).
@@ -1135,146 +1082,6 @@ const FORM_THEME = {
   past: { key: 'past', label: '⏱ Simple Past' },
   pp:   { key: 'pp',   label: '✓ Past Participle' },
 };
-
-// Sternbild für EINE Form (past|pp): die 3 Disziplin-Sterne dieser Form sind
-// farbig + tippbar (auch schon gemeisterte → Wiederholung), die 3 Sterne der
-// anderen Form sind blasse Geister-Punkte, der Komplett-Stern leuchtet golden,
-// sobald alle sechs Disziplinen sitzen. Tippen wird zentral im Track behandelt
-// (data-play), damit ein Wisch nicht versehentlich eine Runde startet.
-// Fortschritts-Bogen um einen noch nicht fertigen Stern: dünner Track + farbiger
-// Bogen, der den Anteil gemeisterter Wörter dieser Disziplin zeigt (oben startend).
-function _progArc(x, y, pct, which) {
-  const r = 6.3, circ = 2 * Math.PI * r;
-  const len = Math.max(0.02, Math.min(1, pct)) * circ;
-  return `<circle class="cst-prog-track" cx="${x}" cy="${y}" r="${r}" fill="none"/>`
-    + `<circle class="cst-prog ${which}" cx="${x}" cy="${y}" r="${r}" fill="none"`
-    + ` stroke-dasharray="${len.toFixed(2)} ${(circ - len).toFixed(2)}" transform="rotate(-90 ${x} ${y})"/>`;
-}
-
-function _cstFormSvg(m, which) {
-  const pat = _cstPattern(m.c.idx), st = m.stars;
-  const lines = pat.edges.map(([a, b]) => {
-    const lit = st[a].lit && st[b].lit;
-    const [x1, y1] = pat.pts[a], [x2, y2] = pat.pts[b];
-    return `<line class="cst-line${lit ? ' lit' : ''}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`;
-  }).join('');
-  const stars = st.map((s, i) => {
-    const [x, y] = pat.pts[i];
-    if (s.done) {   // Komplett-Stern (beide Formen)
-      return `<g class="cst-star complete${s.lit ? ' lit' : ''}">`
-        + `<circle class="halo" cx="${x}" cy="${y}" r="8"/>`
-        + `<circle class="core" cx="${x}" cy="${y}" r="4.4"/></g>`;
-    }
-    if (s.which !== which) {   // Sterne der anderen Form: blasser Geister-Punkt
-      return `<g class="cst-star ghost"><circle class="core" cx="${x}" cy="${y}" r="2"/></g>`;
-    }
-    let cls = 'cst-star ' + which, play = '';
-    if (s.lit)           { cls += ' lit';    play = `${m.c.idx}:${s.i}`; }
-    else if (s.unlocked) { cls += ' play';   play = `${m.c.idx}:${s.i}`; }
-    else                 { cls += ' locked'; }
-    const on = play ? ` data-play="${play}"` : '';
-    const prog = s.prog || { mastered: 0, total: 0 };
-    const pct = prog.total ? prog.mastered / prog.total : 0;
-    return `<g class="${cls}"${on}>`
-      + `<circle class="halo" cx="${x}" cy="${y}" r="7.5"/>`
-      + (!s.lit && pct > 0 ? _progArc(x, y, pct, which) : '')
-      + `<circle class="ring" cx="${x}" cy="${y}" r="5.2"/>`
-      + `<circle class="core" cx="${x}" cy="${y}" r="3.8"/>`
-      + (s.lit ? `<text class="cst-chk" x="${x + 5.4}" y="${y - 4.6}" text-anchor="middle" dominant-baseline="central">✓</text>` : '')
-      + `</g>`;
-  }).join('');
-  return `<svg class="cst-svg ${which}" viewBox="0 0 100 72" preserveAspectRatio="xMidYMid meet">${lines}${stars}</svg>`;
-}
-
-// Statuszeile unter einer Form-Seite: Sperre, „komplett" oder nächste Disziplin.
-function _formFoot(m, which) {
-  const stars = m.stars.filter((s) => s.which === which);
-  const open = stars.some((s) => s.unlocked || s.lit);
-  if (!open) return `<span class="foot-lock">🔒 erst das Sternbild davor</span>`;
-  if (stars.every((s) => s.lit))
-    return `<span class="foot-done">✓ Form komplett${m.last ? '' : ' · 🔓 nächstes Sternbild frei'}</span>`;
-  const next = stars.find((s) => s.unlocked && !s.lit);
-  if (!next) return '';
-  const pct = next.prog && next.prog.total ? Math.round((next.prog.mastered / next.prog.total) * 100) : 0;
-  return `${next.icon} ${next.name} · <b>${pct}%</b>`;
-}
-
-// Past/PP-Slider: das ganze Sternbild slidet zwischen Simple Past und Past
-// Participle und färbt sich um. Auf jedem freigespielten Sternbild verfügbar.
-function _cstSlider(m) {
-  const idx = m.c.idx;
-  const page = (which) =>
-    `<div class="cst-page">${_cstFormSvg(m, which)}<div class="cst-page-foot">${_formFoot(m, which)}</div></div>`;
-  // Aktuelle Form als Label direkt unter dem Namen (nur die gerade gezeigte) und
-  // antippbare Punkte unten zum Wechseln. Beides aktualisiert _applyTrack beim
-  // Sliden. Start: Simple Past (Slide-Index 1).
-  return `<div class="cst-slider-wrap">
-    <div class="cst-form-now past">${FORM_THEME.past.label}</div>
-    <div class="cst-slider">
-      <button class="cst-arrow" onclick="uvSlide(${idx},-1)" aria-label="andere Form">‹</button>
-      <div class="cst-slider-view"><div class="cst-track" data-cst="${idx}" data-idx="1">
-        ${page('pp')}${page('past')}${page('pp')}${page('past')}
-      </div></div>
-      <button class="cst-arrow" onclick="uvSlide(${idx},1)" aria-label="andere Form">›</button>
-    </div>
-    <div class="cst-dots">
-      <button class="uv-dot active" onclick="uvSetForm(${idx},'past')" aria-label="Simple Past"></button>
-      <button class="uv-dot" onclick="uvSetForm(${idx},'pp')" aria-label="Past Participle"></button>
-    </div>
-  </div>`;
-}
-
-function _cstCaption(m) {
-  if (m.complete) return '🌟 Sternbild komplett';
-  if (!m.unlocked) return '🔒 erst eine Form im Sternbild davor schaffen';
-  const next = m.stars.find(s => s.unlocked && !s.lit && !s.done);
-  if (!next) return '';
-  return `nächster: ${next.icon} ${next.name} · ${next.form}`;
-}
-
-// Pro-Wort-Liste (Rückseite jeder Flip-Karte): Fortschritt getrennt nach
-// Simple Past (⏱ x/3) und Past Participle (✓ x/3).
-function _cstWords(m) {
-  const words = constellationWords(m.c);
-  const chips = words.map(w => {
-    const pd = w.past.mastered >= w.past.total, ppd = w.pp.mastered >= w.pp.total;
-    return `<span class="cst-word"><b>${window.escHtml(w.en)}</b>` +
-      `<span class="w-form past${pd ? ' done' : ''}">⏱ ${w.past.mastered}/${w.past.total}</span>` +
-      `<span class="w-form pp${ppd ? ' done' : ''}">✓ ${w.pp.mastered}/${w.pp.total}</span></span>`;
-  }).join('');
-  return `<div class="cst-words">${chips}</div>`;
-}
-
-// Flip-Karte: Vorderseite = Sternbild als Past/PP-Slider, Rückseite = Wörter mit
-// Fortschritt. Jede Karte ist umdrehbar (auch gesperrte, zum Anschauen). Jedes
-// freigespielte Sternbild hat den Slider (auch nicht-aktive), gesperrte zeigen
-// nur das ausgegraute Muster.
-function _cstBlock(m, isActive) {
-  const col = m.complete ? '#ffd45e' : (m.unlocked ? '#fff' : '#8a82a8');
-  // Aktiv setzen wie bei Decks: rein kosmetisch (Hervorhebung), das Spielen geht
-  // jetzt auf jedem freigespielten Sternbild über den Slider.
-  const activeCtrl = !m.unlocked ? ''
-    : (isActive ? '<div class="cst-active-tag">● Aktiv</div>'
-                : `<button class="cst-active-btn" onclick="setUvActive(${m.c.idx})">▶ Aktiv setzen</button>`);
-  const body = m.unlocked
-    ? _cstSlider(m)
-    : `${_cstFormSvg(m, 'past')}<div class="cst-cap">${_cstCaption(m)}</div>`;
-  const front = `<div class="cst-face cst-front">
-    <div class="cst-name" style="color:${col};">${m.complete ? '🌟 ' : ''}${m.c.name} <span class="cst-cefr">${m.c.cefr}</span></div>
-    ${body}
-    ${activeCtrl}
-    <button class="cst-flip-btn" onclick="uvFlip(this)">📖 Wörter</button>
-  </div>`;
-  const back = `<div class="cst-face cst-back">
-    <div class="cst-back-title">${m.c.name} · Wörter</div>
-    ${_cstWords(m)}
-    <button class="cst-flip-btn ghost" onclick="uvFlip(this)">↩ zurück</button>
-  </div>`;
-  return `<div class="cst-flip cst-block${isActive ? ' current' : ''}${m.unlocked ? '' : ' locked'}">
-    <div class="cst-flip-inner">${front}${back}</div>
-  </div>`;
-}
-
 
 // Erstinitialisierung des Befüllen-Systems: fehlt uvFills (kein Array), wird es
 // leer angelegt — es wird NICHTS mehr gelöscht. Der frühere Einmal-Migrations-
@@ -1298,60 +1105,6 @@ function _uvFill(ens, obj) {
   persist(window.SD);
   if (window.currentUser) { markDirty('profile'); commitDirty(); }
   renderStudentUV();
-}
-
-// Anzeigename eines Auftrags: nach dem Gegenstand benannt, der geschmiedet wird
-// (Objekt-Wahl der Station — Stahl & Gold sind dasselbe Objekt). Legacy-Stationen
-// ohne Objekt-Wahl haben zwei verschiedene Zyklus-Waffen → dort bleibt „Auftrag n".
-function _auftragName(idx) {
-  const past = forgeObject(idx, 'past'), pp = forgeObject(idx, 'pp');
-  return past.type === pp.type ? `${past.icon} ${past.name}` : `Auftrag ${idx + 1}`;
-}
-
-// Auftrag (Station) löschen — nach Bestätigung mit Ausrüstungs-Warnung.
-// Räumt ALLES ab: Schmiede-Fortschritt der 10 Verben (lokal + Cloud via
-// queuePresetStatDelete/Offline-Queue), angelegte Ausrüstung aus dieser Station und die
-// f:<idx>:<form>-Ids HÖHERER Stationen (rutschen nach, weil der Array-Index
-// die Stations-Nummer ist). uvFills + campaign syncen über profile.
-export async function uvDeleteStation(idx) {
-  const fills = window.SD && window.SD.uvFills;
-  if (!Array.isArray(fills) || !fills[idx]) return;
-  const c = getConstellations().find((x) => x.idx === idx);
-  const ob = forgeObject(idx, 'past');
-  const ok = await window.esConfirm({
-    icon: '🗑️', title: `${_auftragName(idx)} löschen?`,
-    body: `${ob.icon} ${ob.name} (Stahl & Gold) wird eingeschmolzen — du verlierst auch diese Ausrüstung in der Kampagne! Der Schmiede-Fortschritt der Station ist weg, die ${CONSTELLATION_SIZE} Verben werden wieder frei.`,
-    ok: 'Löschen', cancel: 'Behalten', danger: true,
-  });
-  if (!ok) return;
-  // 1) Stats der Stations-Verben löschen (alle 5 Teile × Past/PP)
-  const gps = window.SD.globalPresetStats;
-  const keys = [];
-  if (c && gps && gps.wordStats) {
-    for (const v of c.verbs) for (const which of ['past', 'pp']) for (let i = 0; i < SLOTS_PER_FORM; i++) {
-      const k = statKeyFor(v.de, v.en, `_${which}_s${i}`, IRREGULAR_PRESET_ID);
-      if (gps.wordStats[k]) { delete gps.wordStats[k]; keys.push(k); }
-    }
-  }
-  // 2) Ausrüstung: Items dieser Station ablegen, höhere Stations-Ids nachrücken
-  const eq = window.SD.campaign && window.SD.campaign.equipment;
-  if (eq) for (const slot in eq) {
-    const m = /^f:(\d+):(past|pp)$/.exec(eq[slot] || '');
-    if (!m) continue;
-    const si = +m[1];
-    if (si === idx) delete eq[slot];
-    else if (si > idx) eq[slot] = `f:${si - 1}:${m[2]}`;
-  }
-  // 3) Auftrag entfernen + speichern/syncen
-  fills.splice(idx, 1);
-  persist(window.SD);
-  if (window.currentUser) {
-    if (keys.length) queuePresetStatDelete(keys);   // via Offline-Queue (mit Nachhol-Retry)
-    markDirty('profile');
-    commitDirty();
-  }
-  renderStudentUV();
-  renderEquipmentPanel();
 }
 
 // Debug-Helfer (nur Konsole, kein UI): legt n zufällige, KOMPLETT fertige
@@ -1430,80 +1183,20 @@ export function uvTestForgeRandom(n = 3) {
   return done;
 }
 
-// Befüllen-Karte für das nächste, noch leere Sternbild.
-function _cstFillCard() {
-  const remaining = uvAvailableVerbs().length;
-  return `<div class="cst-block cst-fill">
-    <div class="cst-fill-star">✨</div>
-    <div class="cst-fill-title">Neues Sternbild</div>
-    <div class="cst-fill-sub">Wähle ${CONSTELLATION_SIZE} Wörter zum Üben · <b>${remaining}</b> noch frei</div>
-    <button class="cst-fill-btn" onclick="uvOpenFill()">✨ Befüllen</button>
-  </div>`;
-}
-
-// Popup „Neuer Auftrag" in ZWEI Schritten:
-// 1) Objekt wählen (Waffe ODER Rüstungsteil, mit Vorteil-Info für die Kampagne)
-// 2) genau 10 Wörter wählen — mit Zurück-Knopf zur Objekt-Wahl (Auswahl bleibt).
-// Aus dem Raster „Noch nicht begonnen" (F-08) kommt das Objekt schon mit: dann
-// geht es direkt zu den Wörtern (5.12), und „← Objekt" führt zurück zum Raster.
+// Popup „Wörter befüllen" (5.12) für ein Objekt aus dem Raster „Noch nicht
+// begonnen" (F-08): genau 10 Wörter wählen; „← Objekt" führt zurück zum Raster.
 export function uvOpenFill(objType) {
   const avail = uvAvailableVerbs();
   if (avail.length < CONSTELLATION_SIZE) return;
-  if (objType && usedForgeObjects().includes(objType)) return;
+  if (!objType || usedForgeObjects().includes(objType)) return;
   const N = CONSTELLATION_SIZE;
   const overlay = document.createElement('div');
   overlay.className = 'uv-fill-overlay';
   document.body.appendChild(overlay);
   const close = () => overlay.remove();
   overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
-  let chosenObj = objType || null;
+  const chosenObj = objType;
   const sel = new Set();
-
-  function showObjectStep() {
-    // Einmal-Wahl: jedes Objekt kann nur für EINE Station geschmiedet werden.
-    const used = new Set(usedForgeObjects());
-    // Stand der schon vergebenen Objekte: nur eine FERTIGE Station (alle Teile beider
-    // Formen) ist wirklich „geschmiedet" — sonst wird noch daran gearbeitet.
-    const byType = {};
-    for (const r of uvLernstand().rows) {
-      const t = fillObjectType(r.idx);
-      if (t) byType[t] = r;
-    }
-    overlay.innerHTML = `<div class="uv-fill-card">
-      <div class="uv-fill-head">
-        <div class="uv-fill-title">Was willst du schmieden?</div>
-        <div class="uv-fill-hint">Entsteht in Stahl und Gold und hilft dir in der Kampagne. Jedes Objekt gibt es nur einmal.</div>
-      </div>
-      <div class="uv-fill-list">
-        ${FORGE_OBJECTS.map((o) => {
-          const taken = used.has(o.type);
-          const row = byType[o.type];
-          const done = taken && (!row || row.complete);
-          // Vorschau in 🔩 Stahl: so sieht das Objekt fertig aus (Gold ist dasselbe
-          // Objekt im anderen Material) — der Emoji bleibt nur als Notnagel.
-          // 1×: so sah es bisher tatsächlich aus (itemTag hat den Maßstab bis
-          // zur Korrektur in world.js verloren); der Dialog kommt in Bereich 5 neu.
-          const art = itemTag(o.type, 'past', 1);
-          let note;
-          if (!taken) note = objectPerkText(o);
-          else if (done) note = 'fertig geschmiedet';
-          else note = `wird geschmiedet${row ? ' · ' + row.scorePct + ' %' : ''}`;
-          return `<button class="uv-obj-row${chosenObj === o.type ? ' sel' : ''}${taken ? ' taken' : ''}" data-obj="${o.type}"${taken ? ' disabled' : ''}>
-          <span class="uv-obj-ic">${art || o.icon}</span>
-          <span class="uv-obj-tx"><b>${o.name}</b><span class="uv-obj-perk">${note}</span></span>
-          <span class="uv-obj-go">${taken ? iconHTML(done ? 'check' : 'hammer', 14) : '›'}</span>
-        </button>`;
-        }).join('')}
-      </div>
-      <div class="uv-fill-foot">
-        <button class="uv-fill-cancel" id="uv-obj-cancel">Abbrechen</button>
-      </div>
-    </div>`;
-    overlay.querySelector('#uv-obj-cancel').addEventListener('click', close);
-    overlay.querySelectorAll('[data-obj]').forEach((btn) => {
-      btn.addEventListener('click', () => { chosenObj = btn.dataset.obj; showWordStep(); });
-    });
-  }
 
   function showWordStep() {
     const ob = FORGE_OBJECTS.find((o) => o.type === chosenObj);
@@ -1534,7 +1227,7 @@ export function uvOpenFill(objType) {
     const nEl = overlay.querySelector('#uv-fill-n');
     const okBtn = overlay.querySelector('#uv-fill-ok');
     startForgeAnim();   // glühendes Teil in der Kachel (4 fps)
-    overlay.querySelector('#uv-fill-back').addEventListener('click', objType ? close : showObjectStep);
+    overlay.querySelector('#uv-fill-back').addEventListener('click', close);
     overlay.querySelectorAll('.uv-fill-row').forEach((row) => {
       const cb = row.querySelector('.uv-fill-cb');
       const en = row.getAttribute('data-en');
@@ -1553,32 +1246,14 @@ export function uvOpenFill(objType) {
     });
   }
 
-  if (chosenObj) showWordStep(); else showObjectStep();
+  showWordStep();
 }
 
-// ── Schmiede (Gestaltwandler): ersetzt den Sternenpfad ──────────────────────
-// Jede Gruppe = eine Schmiede-Station mit ZWEI Werkstücken desselben Typs:
-// 🔩 Stahl = ⏱ Simple Past · 🥇 Gold = ✓ Past Participle. Die bestehende Engine
-// (uvMap) liefert weiter die Disziplin-„Sterne" pro Form; sie werden hier nur als
-// Schmiede-Schritte dargestellt: 🪨 Erz brechen (Erkennen) · 🔨 Hämmern (Schmieden)
-// · 🔥 Härten (Rufen, nur Simple Past). Stat/Logik/Freischaltung UNVERÄNDERT.
-// Optik bewusst schlicht (Platzhalter) — Feinschliff folgt in späterer Phase.
-const FORGE_STEP = {
-  vocab:     { icon: '🔍', name: 'Erkennen' },
-  forms:     { icon: '🧩', name: 'Formen ordnen' },
-  spelling:  { icon: '🔨', name: 'Schmieden' },
-  letters:   { icon: '🔤', name: 'Buchstaben' },
-  pronounce: { icon: '🗣️', name: 'Aussprache' },
-};
 const FORGE_MAT = {
   past: { label: '⏱ Simple Past', mat: 'Stahl' },
   pp:   { label: '✓ Past Participle', mat: 'Gold' },
 };
 
-// Das Objekt als 5-teiliges Pixel-SVG (Geometrie + Farben: pixel-items.js, 32×48).
-// Gemeisterte Teile stehen in vollem Material (built), das nächste zu schmiedende
-// pulsiert in denselben Farben (next) — man sieht also, WAS gerade entsteht — und
-// der Rest bleibt eine farblose Andeutung (ghost).
 // Werkstueck mit Teile-Zustaenden aus pixel-world-fine.js. Die fertigen Teile
 // sind immer die ersten — die Schmiede schaltet der Reihe nach frei —, deshalb
 // reicht ihre ANZAHL: partStates() setzt daraus 'bb' + glühendes Teil + 'ggg'.
@@ -2171,17 +1846,6 @@ export function wordStatus(stat, minAsked) {
   if (pct >= 0.9) return {cls:'ws-green', label:'✓ ' + display + '%', pct};
   if (pct >= 0.3) return {cls:'ws-yellow', label:'~ ' + display + '%', pct};
   return {cls:'ws-red', label:'✗ ' + display + '%', pct};
-}
-
-export function wrongDots(stat) {
-  if (!stat || !stat.asked) return '<span style="color:#bbb;font-size:.75rem">–</span>';
-  const a = Math.floor(stat.asked || 0);
-  const c = Math.floor(stat.correct || 0);
-  const w = Math.floor(stat.wrong || 0);
-  return '<span style="font-size:.75rem;color:#666;font-weight:700;white-space:nowrap;">' +
-    '<span style="color:#3a9b45">●</span>' + c +
-    ' <span style="color:#c0001a">●</span>' + w +
-    '</span>';
 }
 
 // Fortschritt eines Freundes (schreibgeschützt): fremden Stand temporär als window.SD

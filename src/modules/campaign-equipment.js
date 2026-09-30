@@ -35,11 +35,6 @@ export const SLOTS = {
   companion: { icon: '🐾', px: 'paw',    name: 'Gefährte',    kurz: 'Gefährte', mehrzahl: 'Gefährten',  desc: 'fängt Fehlgriffe pro Kampf ab' },
 };
 const SLOT_TYPE = { ring1: 'ring' };   // sonst = Slot-Key selbst
-export const TIER = {
-  stahl:      { icon: '🔩', name: 'Stahl' },
-  gold:       { icon: '🥇', name: 'Gold' },
-  verzaubert: { icon: '✨', name: 'Verzaubert' },
-};
 
 // Vorteil-Text eines Objekts (Objekt-Wahl in der Schmiede + Picker hier).
 export function objectPerkText(ob) {

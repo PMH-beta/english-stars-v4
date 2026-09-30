@@ -12,10 +12,10 @@
 // Binnenzeichnung (Stern, Haken, X, Chevrons, Statusleiste, Griff) tragen ihre
 // Kontur in der Maske selbst und setzen dafür noOutline.
 //
-// NICHT übernommen: weapon(), enemy(), arena() und hero() aus dem Prototyp. Die
-// Sprites der App bleiben, wie sie sind — avatar.js (Charakter, Gefährte),
-// pixel-items.js (Schmiede-Waffen), pixel-enemies.js (Gegner). Dieses Modul
-// liefert ausschließlich UI-Symbole.
+// NICHT übernommen: weapon(), enemy(), arena() und hero() aus dem Prototyp.
+// Figuren, Gegner und Gegenstände zeichnen die Handoff-Module (pixel-hero-fine.js,
+// pixel-enemies-dungeon.js, pixel-world-fine.js). Dieses Modul liefert
+// ausschließlich UI-Symbole.
 //
 // SKALIERUNG — der häufigste Fehler beim Nachbau: der Backing-Store ist 14×14,
 // angezeigt werden darf nur in ganzzahligen Vielfachen von 14 (14/28/42/56).

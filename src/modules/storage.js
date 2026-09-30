@@ -74,7 +74,7 @@ export function freshData() {
  * (für sauberen App-Start)
  */
 export function cleanupStorage() {
-  const KEEP_KEYS = [SK, SK_OLD, 'es_apikey', 'es_vosk_loaded'];
+  const KEEP_KEYS = [SK, SK_OLD, 'es_vosk_loaded'];
   try {
     const toRemove = [];
     for (let i = 0; i < localStorage.length; i++) {

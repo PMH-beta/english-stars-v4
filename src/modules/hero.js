@@ -15,7 +15,7 @@
 // Menü zeichnet sie bei jedem Render neu. Der Zwischenspeicher hat als Schlüssel
 // Avatar + Ausrüstung + Maßstab, genau wie im Handoff verlangt.
 
-import { hero, pet, crop, shadowed, toCanvas, renderHeroWithPet, renderPet, renderPetSilhouette, petBattleFrames, petBattleSequence, petMenuImage, PET_BATTLE, PETS } from './pixel-hero-fine.js';
+import { hero, pet, crop, shadowed, toCanvas, renderPet, renderPetSilhouette, petBattleFrames, petBattleSequence, petMenuImage, PET_BATTLE, PETS } from './pixel-hero-fine.js';
 
 // Maße der Rohgrafik: ganze Figur und Kopf-Ausschnitt (34 × 34 ab (10, 0)).
 // hero().render() ist immer 54 × 81 — mit jeder Statur und Ausrüstung. Mit
@@ -59,9 +59,6 @@ function _merken(k, url) {
   return url;
 }
 
-/** Leert den Zwischenspeicher — nach einer Änderung an der Figur. */
-export function clearHeroCache() { _cache.clear(); }
-
 // ── Zeichnen ────────────────────────────────────────────────────────────────
 
 /** Ausschnitt einer Figur: ganze Figur (mit oder ohne Schatten), Brustbild oder nur der Kopf. */
@@ -92,14 +89,6 @@ export function imgTag(cfg, opts = {}) {
   const s = Math.max(1, Math.round(opts.scale ?? 2));
   const b = MASSE[ausschnitt(opts)];
   return `<img src="${heroURL(cfg, { ...opts, scale: s })}" width="${b[0] * s}" height="${b[1] * s}"`
-    + ` alt="" style="image-rendering:pixelated;display:block;flex:none">`;
-}
-
-/** Figur mit Gefährtem als EIN Bild mit gemeinsamem Schatten (Screens 8.1–8.3). */
-export function heroWithPetTag(cfg, kind, color, scale = 2) {
-  const s = Math.max(1, Math.round(scale));
-  const cv = renderHeroWithPet(cfg, kind, color, s);
-  return `<img src="${cv.toDataURL('image/png')}" width="${cv.width}" height="${cv.height}"`
     + ` alt="" style="image-rendering:pixelated;display:block;flex:none">`;
 }
 

@@ -197,8 +197,8 @@ export const CONSTELLATION_NAMES = [
 // Past) und eine Gold-Waffe (Past Participle), die sich auch in der Form unterscheiden.
 // Kuratiertes Set: Gegenstände, die sich sauber in 5 gestapelte Teile zerlegen
 // lassen (Griff→Kopf/Klinge), damit jede Waffe Teil für Teil geschmiedet werden
-// kann. Die Pixel-Art der Teile liegt in pixel-items.js (ITEM_ART, je type).
-// icon = Fallback. Neue Typen: type + 5 Teile in ITEM_ART ergänzen.
+// kann. Grafik und Teile-Karte je type liegen in pixel-world-fine.js (PART_MAPS).
+// icon = Fallback.
 // slot = Ausrüstungs-Slot in der Kampagne ('weapon' | 'head' | 'body' | 'arms' |
 // 'legs' | 'talisman' | 'ring' | 'companion'). Waffen haben zusätzlich einen
 // Typ-Vorteil (campaign-balance.js WEAPON_PERK).

@@ -39,14 +39,13 @@ const PRECACHE = [
   './src/modules/irregular-verbs.js', './src/modules/lazyload.js',
   './src/modules/minigame-echo.js', './src/modules/minigame-letterstorm.js', './src/modules/minigame-karte.js',
   './src/modules/minigame-meteors.js', './src/modules/minigame-truefalse.js',
-  './src/modules/pixel-enemies.js', './src/modules/pixel-icons.js', './src/modules/pixel-items.js',
+  './src/modules/pixel-icons.js',
   // Dungeon-Gegner (Pastell-Redesign). campaign-fight.js importiert sie statisch,
   // also müssen sie mit in den Precache — sonst steht ein frisch installiertes,
-  // sofort offline genutztes Gerät ohne Gegner da. pixel-enemies.js bleibt bis
-  // Phase 8 daneben stehen (Aufräumen erst nach Freigabe).
+  // sofort offline genutztes Gerät ohne Gegner da.
   './src/modules/pixel-enemies-dungeon.js', './src/modules/enemies.js',
   // Neue Figur + ihre Anbindung (Phase 4). avatar.js laedt sie statisch, also
-  // gehoeren sie in den Precache. avatar.js selbst bleibt bis Phase 8 stehen.
+  // gehoeren sie in den Precache.
   './src/modules/pixel-hero-fine.js', './src/modules/hero.js',
   // Gegenstände, Kampfplätze, Lagerfeuer (Phase 5) und Kampf-Animationen
   // (Phase 6) — alle statisch importiert, fehlten bisher hier.

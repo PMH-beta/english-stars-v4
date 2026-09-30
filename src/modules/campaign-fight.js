@@ -35,7 +35,7 @@ import { frageForm } from './minigame-karte.js';
 import { STAKE_COST } from './campaign.js';   // nur zur Laufzeit gelesen — der Kreis-Import ist unkritisch
 import { pickEnemyKey, enemyName, enemyBattleSVG } from './enemies.js';
 import { arenaSVG, arenaForRound } from './world.js';
-import { renderAvatarInto, ensureAvatar } from './avatar.js';
+import { ensureAvatar } from './avatar.js';
 import { heroCombatSheet, enemyCombatSheet, SpritePlayer, ProjectileLayer } from './pixel-anim.js';
 import { gearFor, createPetPlayer, petKind, petColorHex } from './hero.js';
 import { playSfx } from './game.js';
@@ -480,24 +480,6 @@ function _setBars() {
   const p = _el('cf-php'), pb = _el('cf-phpbar');
   if (p) p.textContent = run.hp;
   if (pb) pb.style.width = (run.hp / run.hpMax * 100) + '%';
-}
-
-// Gegner/Spieler blinken hart auf, wenn sie Schaden nehmen (kein Glow, nur Helligkeit).
-function _hitFlash(id) {
-  const el = _el(id);
-  if (!el) return;
-  el.classList.add('hit');
-  setTimeout(() => el.classList.remove('hit'), 200);
-}
-// Kurze Kampf-Animation (attack = Ausfallschritt, shake = Wackeln) — Klasse
-// neu triggern über Reflow, damit sie auch direkt hintereinander feuert.
-function _anim(id, cls, ms = 500) {
-  const el = _el(id);
-  if (!el) return;
-  el.classList.remove(cls);
-  void el.offsetWidth;
-  el.classList.add(cls);
-  setTimeout(() => el.classList.remove(cls), ms);
 }
 
 // Schadenszahl als Chip über dem Getroffenen (7.5, 7.6): steigt 8 Takte lang je

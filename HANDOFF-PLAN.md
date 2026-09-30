@@ -96,7 +96,22 @@ App-Tour 1.11–1.15 nach „App-Tour" in START-HERE (F-14 A): neues Modul
 Nachgezogen am 30.09.: F-61 (Installier-Popup auf allen Geräten jeden 3. Start mit
 „Nicht mehr anzeigen“, Karte „App installieren“ im Profil, alter Menü-Knopf weg) und
 F-62 (Schmiede-Kopf zählt gegen 15 Stationen / 150 Schritte).
-Als Nächstes Phase 8 (Aufräumen) — erst die Liste zeigen, löschen nur mit Freigabe.
+
+## Phase 8 — läuft (30.09.2026)
+
+Liste gezeigt, freigegeben sind A + B (Dateien und JS-Reste) und C (CSS-Regeln,
+die nie greifen). Nicht freigegeben: alter CSS-Block Regel für Regel, tote Stellen
+ohne Redesign-Bezug. Nachweis je Schritt: Fingerabdruck der berechneten Styles
+aller Elemente in 78 Zuständen (vorher/nachher), dazu Build und Ablauf-Tests.
+
+- **A + B fertig:** `pixel-enemies.js`, `pixel-items.js`, `dev/_vergleich.html`
+  gelöscht; in `avatar.js` der alte SVG-Zeichner (1303 → 434 Zeilen, bleibt:
+  Migration, Zeichnen über hero.js, Editor); in `ui.js` der alte Sternbild-/
+  Schmiede-Renderer, `uvDeleteStation`, der Objekt-Schritt in `uvOpenFill` und
+  der API-Key-Screen (F-17); kleinere Reste und ungenutzte Importe; `sw.js`
+  ohne die beiden Dateien. Fingerabdruck: bis auf den entfallenen API-Key-Screen
+  keine Abweichung (Ausreißer der Vorher-Aufnahme gegen HEAD nachgeprüft).
+- **C:** tote CSS-Regeln — folgt.
 
 ## Was in jeder Phase gilt
 

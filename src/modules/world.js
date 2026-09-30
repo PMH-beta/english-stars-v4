@@ -85,9 +85,6 @@ export function forgeGrauTag(type, scale = 2) {
   return _hole(`fg:${type}:${s}`, () => _tag(itemPartsCanvasTrimmed(type, 'past', 'ggggg', 0, s)));
 }
 
-/** Namen der fünf Teile eines Objekts, in Bauabfolge. */
-export const partNames = (type) => PART_NAMES[type] || [];
-
 // ── Kampfplätze ─────────────────────────────────────────────────────────────
 export const ARENA_KEYS = Object.keys(ARENAS);
 
