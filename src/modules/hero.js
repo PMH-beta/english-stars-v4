@@ -221,6 +221,13 @@ function _canvasAtem(k, bilder, scale, d) {
   return `<canvas data-ui="idle"${d ? ` data-d="${d}"` : ''} data-idle="${encodeURIComponent(k)}" width="${w}" height="${h}"`
     + ` style="width:${w * scale}px;height:${h * scale}px;image-rendering:pixelated;display:block;flex:none"></canvas>`;
 }
+/**
+ * Vier Bilder im Takt des Stehens (4 fps über data-ui="idle"), z. B. Vondu und
+ * das glühende Werkstück in der App-Tour. bilder() liefert vier {w,h,col}.
+ */
+export function atemBilderHTML(k, bilder, scale = 2) {
+  return _canvasAtem(JSON.stringify(['ab', k]), bilder, scale, 0);
+}
 export function editorFigurHTML(cfg, scale = 3) {
   return _canvasAtem(JSON.stringify(['ef', cfg]), () => _atemEinzeln(shadowed(hero(cfg).render()), 50), scale, 0);
 }

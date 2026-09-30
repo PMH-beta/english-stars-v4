@@ -29,7 +29,7 @@ const ROWS = 13;            // Reihe 0 = Start (unten), Reihe ROWS-1 = Boss (obe
 const COLS = 5;
 const PATHS = 6;            // Anzahl generierter Pfade von unten nach oben
 export const STAKE_COST = 2;
-const UNLOCK_NEED = 2;      // so viele 100%-Deck-Modi (Taler) zum Freischalten
+export const UNLOCK_NEED = 2;      // so viele 100%-Deck-Modi (Taler) zum Freischalten
 
 // Knotentypen. Farben nach Fragment 6.1: Kampf pfirsich, Rast rosa, Schatz
 // hellblau, Boss flieder. Die „Unregelmäßigen" zeigt 6.1 nur ausgegraut — ihr
@@ -573,6 +573,14 @@ export function renderCampaign() {
   refreshClaimedTaler().then(() => {
     if (!_camp().run && _camp().claimed.length !== before) _renderCampaignNow(host);
   }).catch(() => {});
+}
+
+// App-Tour (1.14): nur die Startansicht zeichnen — ohne Vorlagen-Nachschub und ohne
+// das nachgelagerte Taler-Nachzählen. Beides liefe erst nach dem Demo-Zeichnen und
+// läse dann den echten Stand (renderMenuDemo in ui.js).
+export function renderCampaignDemo() {
+  const host = document.getElementById('mode-campaign');
+  if (host) _renderCampaignNow(host);
 }
 
 function _renderCampaignNow(host) {

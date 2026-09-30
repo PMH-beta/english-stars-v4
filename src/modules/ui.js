@@ -1,7 +1,7 @@
 // src/modules/ui.js
 import { persist, freshData, clearStorage } from './storage.js';
 import { effectivePct, isStatMastered, statKeyFor } from './stats.js';
-import { syncMirrorFromActiveDeck, deckProgress, presetProgressPct, renderDecks, renderModeSubBy, migrateStatKeys, migrateDeckModes, deckMode, activeDeckIdForMode, createDeck, deleteDeck } from './decks.js';
+import { syncMirrorFromActiveDeck, deckProgress, presetProgressPct, renderDecks, renderModeSubBy, migrateStatKeys, migrateDeckModes, deckMode, activeDeckIdForMode, createDeck, deleteDeck, tourAufgeklappt } from './decks.js';
 import { getPresetCategories } from './vocab.js';
 import { releaseMicStream, stopVisualizer, voskStop, speakWord } from './speech.js';
 import { signIn, signUp, signOut, resendConfirmation, requestPasswordReset, updatePassword, signInWithGoogle } from './auth.js';
@@ -16,7 +16,8 @@ import { installHinweisEinmal } from './pwa.js';
 import { IRREGULAR_PRESET_ID, uvAvailableVerbs, CONSTELLATION_SIZE, cefrOf, forgeObject, FORGE_OBJECTS, usedForgeObjects, fillObjectType, getConstellations, allVerbsSorted, verbsByEns, UV_TRAIN_SUF } from './irregular-verbs.js';
 import { objectPerkText, renderEquipmentPanel, resetEquipmentSelection, forgedItems, equippedGearMap, objectInfoRows, ohneEmoji, SLOTS } from './campaign-equipment.js';
 import { renderFriendsSection, refreshFriendBadge, friendProgress, subscribeFriendRealtime, unsubscribeFriendRealtime } from './friends.js';
-import { renderCampaign, updateTalerBadge, refreshClaimedTaler } from './campaign.js';
+import { renderCampaign, renderCampaignDemo, updateTalerBadge, refreshClaimedTaler } from './campaign.js';
+import { tourStarten, tourLaeuft, tourZurueck, tourAbbrechen, TOUR_SCHRITTE } from './tour.js';
 import { itemTag, forgeTag, forgeGrauTag, forgeScale, PART_ANIM } from './world.js';
 
 const API_KEY_SK = 'es_apikey';
@@ -58,6 +59,9 @@ const P_TON = {
 };
 
 export function showScreen(id) {
+  // App-Tour läuft nur auf dem Menü: übernimmt ein anderer Screen (z. B. die
+  // Anmeldung), räumt sie sich ab — ohne tourSeen, sie kommt dann wieder.
+  if (id !== 'menu-screen' && tourLaeuft()) tourAbbrechen();
   // Freund-Fortschritt zeigt fremde Daten über einen temporären window.SD-Tausch.
   // Verlässt man die Fortschritt-Seite auf IRGENDEINEM Weg (auch Hardware-Zurück),
   // hier den eigenen Stand zurückholen — sonst rendert/persistiert das Menü fremde Daten.
@@ -225,6 +229,14 @@ function _onBackNavPop() {
       return;
     }
 
+    // 1b) App-Tour: einen Schritt zurück (im ersten Schritt nichts) — die Tour
+    //     selbst schließt nur „Überspringen" bzw. „Los geht's!".
+    if (tourLaeuft()) {
+      try { tourZurueck(); } catch(e) {}
+      _ensureGuard();
+      return;
+    }
+
     // 2) Spiel → Menü mit Speichern-Nachfrage. BLEIBEN (Dialog) → Wächter sicherstellen.
     if (_currentScreen === 'game-screen') {
       try { (window.confirmHome || function(){})(); } catch(e) {}
@@ -356,6 +368,47 @@ export function renderModeContent(mode) {
   else if (mode === 'campaign') renderCampaign();
   // Schnell-Zustand DIESES Modus spiegeln (isSchnellModus + Dark-Mode + Buttons).
   if (window.syncSchnellForMode) window.syncSchnellForMode(mode);
+}
+
+// App-Tour (1.11–1.15, F-14): das Menü mit einem Demo-Stand zeichnen. window.SD
+// zeigt nur für die Dauer dieses SYNCHRONEN Aufrufs auf den Demo-Stand (wie die
+// Freund-Ansicht, aber ohne dass etwas davon den Aufruf überlebt); Speichern und
+// Sync sind so lange gesperrt (window._tourDemoAktiv, storage.js/sync.js). Darum
+// nur Renderer ohne Nachlauf: kein renderCampaign (Taler-Nachzählen per Promise),
+// kein Freundes-Zähler, kein Installier-Hinweis. Klappzustände (Probetest,
+// Trainingsplatz, Sammlung) gelten nur für die Demo und kommen danach zurück.
+export function renderMenuDemo(sd, mode, aufgeklappt = null) {
+  const echt = window.SD, schnell = window.schnellByMode;
+  const klapp = [_probetestExpanded, _uvTrainExpanded];
+  window._tourDemoAktiv = true;
+  window.SD = sd;
+  window.schnellByMode = {};
+  _probetestExpanded = false;
+  _uvTrainExpanded = false;
+  const deckVorher = tourAufgeklappt(aufgeklappt);
+  try {
+    if (_currentScreen !== 'menu-screen') showScreen('menu-screen');
+    document.getElementById('menu-player-name').textContent = sd.playerName;
+    document.getElementById('menu-avatar')?.classList.remove('is-leer');
+    renderAvatarInto('menu-avatar', sd, { bust: true, scale: 2 });
+    updateTalerBadge();
+    const bereiche = { free: 'mode-free', student: 'mode-student', campaign: 'mode-campaign' };
+    for (const m in bereiche) {
+      const el = document.getElementById(bereiche[m]);
+      if (el) el.style.display = m === mode ? '' : 'none';
+    }
+    _renderModeToggle(mode);
+    if (mode === 'free') { renderProbetestSection(); renderDecks('free'); }
+    else if (mode === 'student') renderStudentMode();
+    else renderCampaignDemo();
+    if (window.syncSchnellForMode) window.syncSchnellForMode(mode);
+  } finally {
+    tourAufgeklappt(deckVorher);
+    [_probetestExpanded, _uvTrainExpanded] = klapp;
+    window.schnellByMode = schnell;
+    window.SD = echt;
+    window._tourDemoAktiv = false;
+  }
 }
 
 // Aktives Deck des Modus in den Spiegel übernehmen. SD.activeDeckByMode überlebt
@@ -1675,7 +1728,7 @@ function renderStudentUV() {
         <div class="forge-h1">Die Schmiede</div>
         <button class="forge-info" onclick="uvInfo()" aria-label="Info">i</button>
       </div>
-      <div class="p-kacheln" style="grid-template-columns:repeat(3,1fr);margin:13px 0 0">
+      <div class="p-kacheln" style="grid-template-columns:repeat(3,1fr);margin:12px 0 0">
         <div class="p-wertkachel">
           <div class="p-wertkachel-zahl">${L.complete}/${L.total}</div>
           <div class="p-wertkachel-lbl">Stationen</div>
@@ -1967,7 +2020,10 @@ export function showMenu() {
   _applyModeActiveDeck(mode);   // aktives Deck des Modus sicherstellen (nach Cloud-Load 1:1)
   renderModeContent(mode);      // rendert die Decks des aktiven Modus
   refreshFriendBadge();         // roter Anfrage-Zähler über dem Profilkopf
-  installHinweisEinmal();       // 9.2: einmal beim dritten Start im Browser (iPhone/iPad)
+  // App-Tour (F-14): steht sie noch aus (neuer Spielstand), startet sie hier —
+  // der Installier-Hinweis wartet dann bis zum nächsten Menü.
+  if (window.SD.campaign?.tourSeen === false) { if (!tourLaeuft()) tourStarten('start'); }
+  else installHinweisEinmal();  // 9.2: einmal beim dritten Start im Browser (iPhone/iPad)
 }
 
 // ────────────────────────────────────────────────
@@ -1991,6 +2047,8 @@ export function showProfile() {
       ps.textContent = 'Dabei seit ' + d.toLocaleDateString('de-DE', {day:'2-digit',month:'2-digit',year:'numeric'});
     } else ps.textContent = '';
   }
+  const tourSub = document.getElementById('pf-tour-sub');
+  if (tourSub) tourSub.textContent = `Die wichtigsten Bereiche in ${TOUR_SCHRITTE} Schritten`;
   // Cloud-Konto als blaue Karte (8.1). Nicht angemeldet: gleiche Karte mit
   // „Anmelden" (Zustand fehlt im Entwurf).
   const cloudSection = document.getElementById('prof-cloud-section');
@@ -2030,6 +2088,11 @@ export function showCharacterOnboarding() {
   renderCharacter();
 }
 export function finishCharacterOnboarding() {
+  // Neuer Spielstand: die App-Tour kommt genau einmal (F-14) — bis sie beendet
+  // oder übersprungen ist. Gespeichert wird mit dem Avatar in charEditorUebernehmen.
+  const sd = window.SD;
+  if (!sd.campaign || typeof sd.campaign !== 'object') sd.campaign = { claimed: [], talerSpent: 0, run: null };
+  sd.campaign.tourSeen = false;
   charEditorUebernehmen();
   showMenu();
 }

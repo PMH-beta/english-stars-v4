@@ -9,6 +9,8 @@ const SK_OLD = 'english_stars_v2';
  * @param {object} state
  */
 export function persist(state) {
+  // App-Tour: der Demo-Stand wird nie gespeichert (renderMenuDemo in ui.js).
+  if (window._tourDemoAktiv || state?._tourDemo) return;
   const json = JSON.stringify(state);
   try { localStorage.setItem(SK, json); } catch (e) {
     console.error('[storage] persist localStorage failed:', e);

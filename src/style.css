@@ -4475,6 +4475,8 @@ button.p-chip{ cursor:pointer; }
    Kopf, Werte-Kacheln, Stationskarten. „Werkstoff wählen“ und das Löschen
    bleiben bis F-08, der Info-Knopf je Station kommt mit F-09. */
 .forge-kopfzeile{ gap:10px; }
+/* 5.1/1.13: 18 px zwischen Trainingsplatz und Schmiede-Kopf. */
+#student-uv .forge-top{ margin-top:18px; }
 .forge-h1{ flex:1; font:900 21px var(--p-font); }
 /* Info-Kreis 30 + Rahmen. */
 .forge-info{ width:34px; height:34px; font:900 14px var(--p-font); }
@@ -4482,7 +4484,7 @@ button.p-chip{ cursor:pointer; }
 .forge .p-kacheln{ display:flex; gap:9px; margin:12px 0 0; }
 .forge .p-wertkachel{
   flex:1; border:var(--p-rahmen); border-radius:18px; background:var(--p-lila);
-  padding:12px 8px; text-align:center;
+  padding:12px 8px; text-align:center; gap:0;   /* kein Grund-gap: Zahl + Label (2 px) wie 5.1 */
 }
 .forge .p-wertkachel.p-ton-amber{ background:var(--p-gold); }
 .forge .p-wertkachel-zahl{ font:900 22px var(--p-font); }
@@ -5316,3 +5318,131 @@ div.ce-kachel{ cursor:default; }
 }
 .p-ce-btn--ohne{ background:var(--p-karte); color:var(--p-ink); }
 .p-ce-btn--ja{ background:var(--p-ink); color:var(--p-gold); }
+
+/* ══ APP-TOUR 1.11–1.15 (F-14) ══════════════════════════════════════════════
+   Abdunklung über allem; das markierte Element liegt darüber (z-index 41,
+   Umriss in Flamme, Puls in harten Stufen). Die Dialog-Box mit Vondu sitzt am
+   Rand gegenüber: oben 124 px ab Geräteoberkante = 91 px unter der Statusleiste,
+   unten 16 px (Schritt 3: 10 px). Keyframes wörtlich aus START-HERE.
+   Außenmaße = Fragment + Rahmen. */
+@keyframes tourPulse{0%{box-shadow:0 0 0 0 rgba(255,138,61,.6)}100%{box-shadow:0 0 0 12px rgba(255,138,61,0)}}
+@keyframes tvNudge{0%,49%{transform:translateX(0)}50%,100%{transform:translateX(2px)}}
+body.tour-aktiv #friend-badge,
+body.tour-aktiv #version-badge,
+body.tour-aktiv #pwa-install-btn,
+body.tour-aktiv .music-btn-global,
+body.tour-aktiv .music-vol-btn{ display:none !important; }
+/* Platz zum Nachrücken, falls das markierte Element auf kleinen Handys unter der Box läge. */
+body.tour-aktiv #menu-screen .p-blatt{ padding-bottom:60vh; }
+/* Das Menü darunter ist nur Kulisse (zusätzlich zu inert, für ältere Browser). */
+body.tour-aktiv #menu-screen{ pointer-events:none; }
+.tv-dunkel{ position:fixed; inset:0; z-index:40; background:rgba(31,31,36,.62); }
+.tv-ziel{
+  position:relative; z-index:41;
+  outline:3px solid var(--p-flamme); outline-offset:3px;
+  animation:tourPulse 1.6s steps(4,end) infinite;
+}
+/* Markierte Gruppen bekommen eine eigene Fläche (Polster + gleiche negative Ränder). */
+.tv-gruppe--start{
+  margin:11px -6px 0; padding:6px; border-radius:26px; background:var(--p-blatt);
+  display:flex; flex-direction:column; gap:11px;
+}
+.tv-gruppe--start > .p-leerwahl-karte{ margin-top:0; }
+.tv-gruppe--karte{ margin:-6px; padding:6px; border-radius:22px; background:var(--p-karte); }
+.tv-gruppe--karte > .p-balken{ margin-top:10px; }
+.tv-gruppe--schmiede{ margin-left:-8px; margin-right:-8px; padding:8px; border-radius:24px; background:var(--p-blatt); }
+
+.tv-box{
+  position:fixed; z-index:43;
+  left:max(12px, calc(50% - 372px)); right:max(12px, calc(50% - 372px));
+  border:var(--p-rahmen); border-radius:18px; background:var(--p-karte-hell);
+  box-shadow:inset 0 0 0 3px var(--p-karte-hell), inset 0 0 0 5px var(--p-spur);
+  padding:22px 18px 14px; color:var(--p-ink); font-family:var(--p-font);
+}
+.tv-box--oben{ top:calc(91px + env(safe-area-inset-top,0px)); }
+.tv-box--unten{ bottom:calc(16px + env(safe-area-inset-bottom,0px)); }
+.tv-box--eng{ padding:20px 16px 12px; }
+.tv-box--eng.tv-box--unten{ bottom:calc(10px + env(safe-area-inset-bottom,0px)); }
+/* Vondu steht auf der Box (Füße auf der Kontur) und schaut hinein. */
+.tv-vondu{ position:absolute; left:10px; bottom:calc(100% - 4px); }
+.tv-schild{
+  position:absolute; left:100px; top:-13px; height:24px; padding:0 11px; border-radius:8px;
+  background:var(--p-ink); color:var(--p-gold);
+  display:flex; align-items:center; font:900 11px var(--p-font); letter-spacing:.18em;
+}
+.tv-leiste{
+  position:absolute; right:16px; top:-10px; height:20px; padding:0 7px;
+  border:var(--p-rahmen); border-radius:8px; background:var(--p-karte-hell);
+  display:flex; align-items:center; gap:4px;
+}
+.tv-leiste > span{ width:8px; height:8px; border-radius:2px; border:var(--p-rahmen); }
+.tv-leiste > span.is-fertig{ border:0; background:var(--p-ink); }
+.tv-leiste > span.is-jetzt{ background:var(--p-flamme); }
+.tv-titel{ font:900 19px/1.2 var(--p-font); color:var(--p-ink); }
+.tv-text{ font:700 13px/1.5 var(--p-font); color:var(--p-text-akzent); margin-top:6px; text-wrap:pretty; }
+.tv-knoepfe{ display:flex; align-items:center; gap:8px; margin-top:14px; }
+.tv-box--eng .tv-knoepfe{ margin-top:10px; }
+.tv-skip{
+  height:44px; padding:0 2px; border:0; background:none; cursor:pointer;
+  display:flex; align-items:center;
+  font:800 12px var(--p-font); color:var(--p-text-2);
+  text-decoration:underline; text-underline-offset:3px;
+}
+.tv-zurueck{
+  width:48px; height:48px; flex:none; padding:0; cursor:pointer;
+  border:var(--p-rahmen); border-radius:14px; background:var(--p-karte);
+  display:flex; align-items:center; justify-content:center;
+  font:900 17px var(--p-font); color:var(--p-ink);
+}
+.tv-weiter{
+  height:48px; flex:none; padding:0 14px 0 16px; cursor:pointer;
+  border:var(--p-rahmen); border-radius:14px; background:var(--p-ink); color:var(--p-gold);
+  display:flex; align-items:center; gap:7px; font:900 13px var(--p-font);
+}
+.tv-nudge{ display:inline-block; animation:tvNudge .5s steps(1,end) infinite; }
+/* Schritt 3: Speer im Zustand „bbngg" neben Fortschritt und Satz. */
+.tv-beispiel{ display:flex; gap:12px; margin-top:8px; align-items:center; }
+.tv-beispiel-bild{
+  flex:none; width:86px; padding:8px 0;
+  border:var(--p-rahmen); border-radius:16px; background:var(--p-inaktiv);
+  display:flex; justify-content:center;
+}
+.tv-beispiel-rechts{ flex:1; min-width:0; }
+.tv-beispiel-kopf{ display:flex; align-items:center; justify-content:space-between; }
+.tv-beispiel-label{
+  display:inline-flex; align-items:center; gap:7px;
+  font:900 9px var(--p-font); letter-spacing:.14em; text-transform:uppercase;
+}
+.tv-beispiel-label canvas{ display:block; }
+.tv-beispiel-pct{ font:900 13px var(--p-font); }
+.tv-beispiel-balken{
+  height:16px; margin-top:7px; overflow:hidden;
+  border:var(--p-rahmen); border-radius:7px; background:var(--p-spur);
+}
+.tv-beispiel-balken > i{ display:block; height:100%; background:var(--p-stahl-dunkel); }
+.tv-beispiel-satz{ font:700 12px/1.5 var(--p-font); color:var(--p-text-akzent); margin-top:9px; text-wrap:pretty; }
+.tv-beispiel-satz strong{ font-weight:900; }
+.tv-chips{ display:flex; gap:6px; margin-top:10px; flex-wrap:wrap; }
+.tv-chip--stahl{ background:var(--p-stahl); }
+.tv-chip--gold{ background:var(--p-gold); }
+@media (prefers-reduced-motion: reduce){
+  .tv-ziel, .tv-nudge{ animation:none !important; }
+}
+
+/* Profil 8.1: „App-Tour ansehen" zwischen Freunden und Cloud-Konto. */
+.pf-tour{
+  margin-top:11px; display:flex; align-items:center; gap:12px;
+  border:var(--p-rahmen); border-radius:20px; background:var(--p-karte); padding:12px 12px 12px 14px;
+}
+.pf-tour-kachel{
+  width:44px; height:44px; flex:none;
+  border:var(--p-rahmen); border-radius:14px; background:var(--p-gold);
+  display:flex; align-items:center; justify-content:center;
+}
+.pf-tour-titel{ font:900 14px var(--p-font); }
+.pf-tour-sub{ font:700 11px/1.4 var(--p-font); color:var(--p-text-2); }
+.pf-tour-knopf{
+  height:48px; flex:none; padding:0 14px; cursor:pointer;
+  border:var(--p-rahmen); border-radius:14px; background:var(--p-karte-hell);
+  display:flex; align-items:center; font:800 12px var(--p-font); color:var(--p-ink);
+}

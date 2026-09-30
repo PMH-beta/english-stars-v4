@@ -31,8 +31,8 @@ Es gibt **keinen Schalter `pastell`** (F-02). Der Rückweg ist `git revert`.
 | **4** | Figur & Gefährte | `avatar.js`, neu `hero.js`, `campaign-fight.js`, `campaign-equipment.js`, `style.css`, `sw.js` | — | **fertig** |
 | **5** | Gegenstände, Kampfplätze, Lagerfeuer | neu `world.js`; `campaign-fight.js`, `campaign-equipment.js`, `ui.js`, `campaign.js`, `style.css` | — | **fertig** |
 | **6** | Kampf-Animationen | `campaign-fight.js`, `hero.js`, `style.css` | — | **fertig** |
-| **7** | Screens, ein Commit je Bereich | `index.html`, `ui.js`, `decks.js`, `vocab.js`, `game.js`, `campaign*.js`, `style.css` | alle beantwortet (29.09.) | gering je Bereich |
-| **7b** | App-Tour | neu `tour.js`, dazu `ui.js`, `storage.js`, `sync.js` | F-14 = A (automatisch + Profil-Knopf) | `tourSeen` muss in die sync-Whitelist |
+| **7** | Screens, ein Commit je Bereich | `index.html`, `ui.js`, `decks.js`, `vocab.js`, `game.js`, `campaign*.js`, `style.css` | alle beantwortet (29.09.) | **fertig** |
+| **7b** | App-Tour | neu `tour.js`, dazu `ui.js`, `storage.js`, `sync.js` | F-14 = A (automatisch + Profil-Knopf) | **fertig** — `tourSeen` in `campaign`, Whitelist `_campaignFrom` |
 | **8** | Aufräumen | alte SVG-Renderer, alter CSS-Block (~1000 Zeilen) | Freigabe | hoch — erst zum Schluss |
 
 ## Wie die Prüfseite erreichbar ist
@@ -75,6 +75,26 @@ gemeinsamen 8-fps-Takt. Den Charakter-Editor (1.9, 1.10, 8.4–8.10) nach
 „Charakter-Editor" in START-HERE.
 
 Danach 7b (App-Tour, F-14) und zuletzt 8 (Aufräumen, nur mit Freigabe).
+
+## Phase 7b — fertig (30.09.2026)
+
+App-Tour 1.11–1.15 nach „App-Tour" in START-HERE (F-14 A): neues Modul
+`src/modules/tour.js`, dazu `renderMenuDemo` in `ui.js`, Sperren in
+`storage.js`/`sync.js`, Karte „App-Tour ansehen" im Profil (8.1).
+
+- Start genau einmal nach der Charakter-Erstellung (`campaign.tourSeen === false`,
+  gesetzt in `finishCharacterOnboarding`, Start in `showMenu`); Beenden und
+  Überspringen setzen `tourSeen: true`. Ältere Stände haben kein Feld und gelten
+  als „gesehen" — keine Migration nötig. Aus 8.1 jederzeit, Ende im Profil.
+- Demo-Stand wird nur während des synchronen Zeichnens eingesetzt; Speichern und
+  Sync sind so lange gesperrt. Test: nichts davon in localStorage/Queue, echter
+  Stand, Schnellmodus und Klappzustände danach unverändert.
+- Abgleich: alle fünf Schritte gegen die Referenz vermessen (Box, Vondu, Leiste,
+  Knöpfe, markierte Elemente deckungsgleich); Unterschiede nur aus echten Daten
+  (siehe `HANDOFF-ENTSCHEIDUNGEN.md`, Abschnitt Phase 7b).
+
+Offen: F-61 (Installier-Popup nur iOS?) und F-62 (Nenner im Schmiede-Kopf).
+Als Nächstes Phase 8 (Aufräumen) — erst die Liste zeigen, löschen nur mit Freigabe.
 
 ## Was in jeder Phase gilt
 

@@ -81,7 +81,8 @@ Avatare dürfen bei einer Migration verloren gehen. Kein Umbau darf `SD.decks`,
 
 | Nr. | Frage (kurz) | Gebraucht vor |
 | --- | --- | --- |
-| F-61 | 9.2 Installier-Popup nur auf iPhone/iPad? Gebaut: nur iOS, weil die Anleitung (Teilen → „Zum Home-Bildschirm“) nur dort stimmt; Android/Computer behalten Installieren-Knopf und Browser-Dialog. | 7b |
+| F-61 | 9.2 Installier-Popup nur auf iPhone/iPad? Gebaut: nur iOS, weil die Anleitung (Teilen → „Zum Home-Bildschirm“) nur dort stimmt; Android/Computer behalten Installieren-Knopf und Browser-Dialog. | 8 |
+| F-62 | 5.1/1.13 Schmiede-Kopf: Entwurf zählt gegen das Maximum („0/15 Stationen · 3/150 Schritte“, 15 Objekte), die App gegen die begonnenen Stationen („0/3 · 3/30“, neues Konto „0/0 · 0/0“). Nenner auf 15 bzw. 150 umstellen? | 8 |
 
 ## Ohne Rückfrage entschieden (Aussehen) — Phase 7
 
@@ -144,3 +145,18 @@ Avatare dürfen bei einer Migration verloren gehen. Kein Umbau darf `SD.decks`,
 | Charakter-Editor | nach 1.9/1.10 und 8.4–8.12: Bühne mit Boden, Figur und Gefährte je 3× und atmend (`data-ui="idle"`), **ohne Ausrüstung** (wie in den Fragmenten; vorher trug die Figur im Editor die angelegte Ausrüstung). Reiter als Karteikarten, Tafel mit Name der Wahl, Zähler „n / N“, Pfeilen, Farbkreisen und Kacheln im Ausschnitt je Reiter (Kopf, Gesicht, Oberkörper, Beine, ganze Figur). Der Name ändert sich über sein Popup sofort — „Speichern“/8.12 betreffen nur das Aussehen (F-59). | 30.09.2026 |
 | 8.10 ohne Gefährten | Vondu-Hinweis mit „Zur Schmiede“, darunter „Diese Gefährten warten auf dich · N“ mit den Schattenrissen (gesperrter Zustand ohne `opacity`/`grayscale`). | 30.09.2026 |
 | Zurück-Taste bei Dialogen | Fehler behoben: seit dem Umbau der Dialoge (9ee5be4) erkannte die Zurück-Taste die Pastell-Dialoge nicht mehr und schloss den Screen dahinter. Jetzt schließt sie wieder zuerst den Dialog (wie vor dem Umbau). | 30.09.2026 |
+
+## Ohne Rückfrage entschieden — Phase 7b (App-Tour)
+
+| Punkt | Entscheidung | Datum |
+| --- | --- | --- |
+| Demo-Stand | `renderMenuDemo` (ui.js) setzt den Demo-Stand nur für die Dauer des synchronen Zeichnens als `window.SD` ein (wie die Freund-Ansicht) und sperrt so lange `persist`, `markDirty`, `flushPendingSync`, `saveProfile`, `saveDeck`; Demo-Objekte tragen `_tourDemo`. Kein Renderer mit Nachlauf (Kampagne ohne Taler-Nachzählen, kein Freundes-Zähler). Klappzustände (Probetest, Trainingsplatz, Sammlung) und Schnellmodus kommen danach zurück. | 30.09.2026 |
+| `tourSeen` | liegt in `campaign` (jsonb) und steht in der Whitelist `_campaignFrom`. Der Überschreib-Schutz bleibt unverändert: eine „triviale“ Kampagne (neues Konto ohne Fortschritt) schreibt `saveProfile` weiterhin nicht — das Feld reist mit, sobald es Fortschritt gibt. Fehlt es, gilt die Tour als gesehen (Bestandskonten ohne Migration). | 30.09.2026 |
+| Hintergrund | das echte Menü mit dem Demo-Stand, darum wie 2.2/2.3, 5.1 und 6.2 statt der vereinfachten Tour-Fragmente: Schritt 1/5 ohne Probetest-Karte (Demo ohne Verlauf, wie jedes neue Konto), Schritt 2 mit „Schnell: Aus“ und 16 px Abstand wie 2.3 (Liste 30 px tiefer). | 30.09.2026 |
+| Sammlung „Tiere“ | die Starter-Liste der App (10 Wörter), als Vorlage — daher ohne „Vokabeln verwalten“ (gibt es nur bei eigenen Sammlungen); Datum „Heute“ wie 1.12. | 30.09.2026 |
+| Formen im Demo | Trainingsplatz ohne Standard-Deck (die App legt keins an): „Eigene Übungsdecks aus genau 10 Verben“ statt „1 Deck“. Schmiede-Werte aus echten Daten („0/0 · 0/0 · 150“, siehe F-62), Raster mit allen 15 Objekten ab Schwert. | 30.09.2026 |
+| Schritt 3 Beispiel | wie Fragment 1.13 (Speer 3×, 24 × 36, Balken 40 %, Satz, zwei Material-Chips) — ohne die in START-HERE beschriebene Teile-Liste (Fragment geht vor). Vorteil-Text und Zahlen (10 Verben, 5 Teile, 2 Übungsarten) aus den echten Werten. | 30.09.2026 |
+| Vondu, Münze | `VONDU_FRAMES` über `data-ui="idle"` (4 Bilder, 4 fps am gemeinsamen Takt, bei reduzierter Bewegung Bild 0); in Schritt 2 dreht sich die Taler-Münze im Banner (`data-ui="flip"`). | 30.09.2026 |
+| Bedienung | Menü darunter ist nur Kulisse (`inert`); Zurück-Taste = ein Schritt zurück, im ersten nichts. Musik-Knopf, Versions-Anzeige, Freundes-Zähler und Installieren-Knopf sind während der Tour aus. Übernimmt ein anderer Screen (z. B. abgelaufene Anmeldung), räumt sich die Tour ohne `tourSeen` ab. Der Installier-Hinweis 9.2 wartet bis zum nächsten Menü. | 30.09.2026 |
+| Kleine Handys | die Seite rückt so weit nach, dass das markierte Element frei zwischen Box und Rand steht (Blatt unten während der Tour verlängert); auf 874 px wird nicht gescrollt. Passt es nicht ganz (Schritt 2 auf 667 px), steht sein Anfang direkt unter der Box. | 30.09.2026 |
+| 5.1 nebenbei | beim Abgleich mit 1.13 gefunden: 18 px zwischen Trainingsplatz und Schmiede-Kopf ergänzt, Werte-Kacheln ohne das Grund-`gap` (3 px niedriger), Kachelreihe 12 statt 13 px unter dem Titel. | 30.09.2026 |

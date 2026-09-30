@@ -229,6 +229,14 @@ function _renderEmptyChooser(c) {
   wrap.querySelector('#empty-custom').addEventListener('click', () => { if (window.newDeckCustom) window.newDeckCustom(); });
 }
 
+// App-Tour (1.12): die Demo-Sammlung aufgeklappt zeichnen, ohne den echten
+// Klappzustand zu verlieren. Gibt den bisherigen Wert zurück.
+export function tourAufgeklappt(id) {
+  const alt = _expandedDeckId;
+  _expandedDeckId = id;
+  return alt;
+}
+
 export function renderDecks(mode) {
   _ensureDocListeners();
   const SD = window.SD;

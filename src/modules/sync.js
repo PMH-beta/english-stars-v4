@@ -270,6 +270,9 @@ function _campaignFrom(profile) {
       // Länge der schon abgeschlossenen Karten des laufenden Aufstiegs (Anzeige
       // „Run-Länge" + Rekord stats.bestRun).
       runLen:     Number(c.runLen) || 0,
+      // App-Tour gesehen (F-14). Fehlt das Feld (ältere Stände), gilt die Tour als
+      // gesehen; false heißt: neuer Spielstand, Tour steht noch aus (tour.js).
+      tourSeen:   typeof c.tourSeen === 'boolean' ? c.tourSeen : undefined,
     };
   }
   return { claimed: [], talerSpent: 0, run: null, equipment: {}, bossWins: 0, round: 0, stats: {}, freeStart: false, carryPotions: null, runLen: 0 };
@@ -281,6 +284,7 @@ function _campaignFrom(profile) {
 // ────────────────────────────────────────────────
 
 export async function saveProfile(sd, userId) {
+  if (sd?._tourDemo) return;   // App-Tour: Demo-Stand nie in die Cloud
   // Empty-Write-Schutz: kein Profil-Write, bevor der Cloud-Stand bestätigt ist.
   if (!_cloudConfirmed) { console.warn('[sync] saveProfile übersprungen — Cloud-Stand noch nicht bestätigt'); return; }
   // updated_at NICHT mitschicken — DB-Trigger setzt es serverseitig (now()).
@@ -322,6 +326,7 @@ export async function saveProfile(sd, userId) {
  * - String-ID (lokal erzeugt) → INSERT → ersetzt lokale ID durch Cloud-UUID in window.SD
  */
 export async function saveDeck(deck, userId) {
+  if (deck?._tourDemo) return;   // App-Tour: Demo-Sammlung nie in die Cloud
   const now = new Date().toISOString();
   // updated_at setzt der DB-Trigger serverseitig; created_at bleibt client-seitig (Insert).
   const row = {
@@ -544,7 +549,7 @@ function writePending(items) {
 
 /** Markiert einen Datensatz als "muss synchronisiert werden". */
 export function markDirty(type, deckId = null) {
-  if (!window.currentUser) return;
+  if (!window.currentUser || window._tourDemoAktiv) return;
   const pending = readPending();
   // Deduplizieren: gleicher type+deckId nur einmal in der Queue
   const filtered = pending.filter(p => !(p.type === type && p.deckId === deckId));
@@ -584,6 +589,7 @@ export async function flushPendingSync() {
 
   const userId = window.currentUser.id;
   const sd = window.SD;
+  if (window._tourDemoAktiv || sd?._tourDemo) return;   // App-Tour: nie den Demo-Stand hochladen
   const failed = [];
 
   for (const item of pending) {
