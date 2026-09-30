@@ -75,6 +75,16 @@ export function forgeTag(type, which, fertig, bild = 0, scale = null) {
   return _hole(`fp:${type}:${mat}:${zu}:${f}:${s}`, () => _tag(itemPartsCanvasTrimmed(type, mat, zu, f, s)));
 }
 
+/**
+ * Unbegonnenes Werkstück (5.1 „Noch nicht begonnen", Referenz-Sprite PGt_…):
+ * alle fünf Teile im Zustand „offen" (grau) — kein Graufilter, sondern die
+ * Teile-Zustände von itemPartsCanvasTrimmed (Schmiede-Regel).
+ */
+export function forgeGrauTag(type, scale = 2) {
+  const s = Math.max(1, Math.round(scale));
+  return _hole(`fg:${type}:${s}`, () => _tag(itemPartsCanvasTrimmed(type, 'past', 'ggggg', 0, s)));
+}
+
 /** Namen der fünf Teile eines Objekts, in Bauabfolge. */
 export const partNames = (type) => PART_NAMES[type] || [];
 

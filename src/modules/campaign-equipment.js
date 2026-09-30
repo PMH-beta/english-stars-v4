@@ -26,8 +26,8 @@ import { iconHTML } from './pixel-icons.js';
 // kurz = Beschriftung unter dem Fach (8.1), mehrzahl = Kopf der Tasche („Waffen · 4“).
 export const SLOTS = {
   weapon:    { icon: '⚔️', px: 'sword',  name: 'Waffe',       kurz: 'Waffe',    mehrzahl: 'Waffen',     desc: 'Schaden pro gewonnener Welle' },
-  head:      { icon: '🪖', px: 'helm',   name: 'Helm',        kurz: 'Helm',     mehrzahl: 'Helme',      desc: 'wehrt verlorene Wellen ab (pro Kampf)' },
-  body:      { icon: '🛡️', px: 'shield', name: 'Rüstung',     kurz: 'Rüstung',  mehrzahl: 'Rüstungen',  desc: 'mehr HP' },
+  head:      { icon: '🪖', px: 'helm',   name: 'Helm',        kurz: 'Helm',     mehrzahl: 'Helme',      desc: 'wehrt verlorene Wellen ab' },
+  body:      { icon: '🛡️', px: 'shield', name: 'Rüstung',     kurz: 'Rüstung',  mehrzahl: 'Rüstungen',  desc: 'mehr Leben' },
   arms:      { icon: '🧤', px: 'glove',  name: 'Handschuhe',  kurz: 'Handsch.', mehrzahl: 'Handschuhe', desc: 'mehr Zeit pro Minispiel' },
   legs:      { icon: '🥾', px: 'boots',  name: 'Stiefel',     kurz: 'Stiefel',  mehrzahl: 'Stiefel',    desc: 'Chance auszuweichen' },
   talisman:  { icon: '🧿', px: 'orb',    name: 'Talisman',    kurz: 'Talisman', mehrzahl: 'Talismane',  desc: '+50 % Schaden an Formen-Knoten' },
@@ -46,6 +46,47 @@ export function objectPerkText(ob) {
   if (ob.slot === 'weapon') return WEAPON_PERK[ob.type]?.text || '';
   const slotKey = ob.slot === 'ring' ? 'ring1' : ob.slot === 'companion' ? 'companion' : ob.slot;
   return SLOTS[slotKey]?.desc || '';
+}
+
+// Text ohne Emojis (die Vorteil-Texte tragen noch „🌀-Elite", „👾 Wortgeister").
+export const ohneEmoji = (t) => String(t || '').replace(/\p{Extended_Pictographic}\uFE0F?-?\s*/gu, '').trim();
+
+// Werte eines Schmiede-Objekts in einer Form für die Info 5.2 (F-09): Zeilen
+// { px, label, wert, sub }. Fertig heißt immer „verzaubert" (alle 5 Teile).
+export function objectInfoRows(type, which, fertig) {
+  const ob = { type, slot: (forgeSlotOf(type)) };
+  const gold = which === 'pp';
+  const bald = fertig >= SLOTS_PER_FORM ? '' : `sobald alle ${SLOTS_PER_FORM} Teile fertig sind`;
+  if (ob.slot === 'weapon') {
+    const dmg = WEAPON_BASE_DMG + SLOTS_PER_FORM + (type === 'schwert' ? PERK_SCHWERT_DMG : 0) + (gold ? WEAPON_GOLD_BONUS : 0);
+    const perkPx = { dolch: 'boots', speer: 'crown', axt: 'orb', stab: 'glove', streitkolben: 'helm' }[type] || 'sword';
+    const rows = [
+      { px: 'sword', label: 'Schaden', wert: String(dmg), sub: bald },
+      { px: perkPx, label: 'Eigenschaft', wert: ohneEmoji(WEAPON_PERK[type]?.text) },
+    ];
+    if (!gold) rows.push({ px: 'coin', label: 'Gold-Fassung', wert: `+${WEAPON_GOLD_BONUS} Schaden`, sub: 'mit dem Past Participle' });
+    rows.push({ px: 'glove', label: 'Ohne Waffe (Faust)', wert: String(FIST_DMG) });
+    return rows;
+  }
+  const slotKey = ob.slot === 'ring' ? 'ring1' : ob.slot;
+  const wert = (w) => {
+    const it = { which: w, tier: 'verzaubert' };
+    if (ob.slot === 'head') return `${_equipVal('head', it)}× Abwehr`;
+    if (ob.slot === 'body') return `+${_equipVal('body', it)} Leben`;
+    if (ob.slot === 'arms') return `+${_equipVal('arms', it) / 1000} s Zeit`;
+    if (ob.slot === 'legs') return `+${Math.round(_equipVal('legs', it) * 100)} % Ausweichen`;
+    if (ob.slot === 'talisman') return `+${Math.round((TALISMAN_MULT - 1) * 100)} % Schaden an Formen-Knoten`;
+    if (ob.slot === 'ring') return `+${RING_POTION_BONUS} Trank zur Wahl`;
+    if (ob.slot === 'companion') return `fängt ${COMPANION_GUARDS[w === 'past' ? 'stahl' : 'gold']} Fehler pro Kampf`;
+    return '';
+  };
+  const rows = [{ px: SLOTS[slotKey]?.px || 'star', label: 'Wirkung', wert: wert(which), sub: bald }];
+  if (!gold && wert('pp') !== wert('past')) rows.push({ px: 'coin', label: 'Gold-Fassung', wert: wert('pp'), sub: 'mit dem Past Participle' });
+  return rows;
+}
+// Fach eines Objekt-Typs (Waffe oder Rüstungsteil) — wie forgeObject().slot.
+function forgeSlotOf(type) {
+  return ({ helm: 'head', ruestung: 'body', handschuhe: 'arms', stiefel: 'legs', talisman: 'talisman', ring: 'ring', gefaehrte: 'companion' })[type] || 'weapon';
 }
 
 // ── SD-Zugriff (mit Default-Reparatur, wie campaign.js _camp) ────────────────

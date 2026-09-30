@@ -13,10 +13,10 @@ import { uvMap, uvLernstand, constellationWords, FORGE_DISC, SLOTS_PER_FORM, uvT
 import { renderAvatarInto, renderCharacter, commitAvatar, resetCharacterFeature, setCharacterCompanion, setCharacterGear, stageHTMLFor } from './avatar.js';
 import { paintStages } from './hero.js';
 import { IRREGULAR_PRESET_ID, uvAvailableVerbs, CONSTELLATION_SIZE, cefrOf, forgeObject, FORGE_OBJECTS, usedForgeObjects, fillObjectType, getConstellations, allVerbsSorted, verbsByEns, UV_TRAIN_SUF } from './irregular-verbs.js';
-import { objectPerkText, renderEquipmentPanel, resetEquipmentSelection, forgedItems, equippedGearMap } from './campaign-equipment.js';
+import { objectPerkText, renderEquipmentPanel, resetEquipmentSelection, forgedItems, equippedGearMap, objectInfoRows, ohneEmoji, SLOTS } from './campaign-equipment.js';
 import { renderFriendsSection, refreshFriendBadge, friendProgress, subscribeFriendRealtime, unsubscribeFriendRealtime } from './friends.js';
 import { renderCampaign, updateTalerBadge, refreshClaimedTaler } from './campaign.js';
-import { itemTag, forgeTag, forgeScale, PART_ANIM } from './world.js';
+import { itemTag, forgeTag, forgeGrauTag, forgeScale, PART_ANIM } from './world.js';
 
 const API_KEY_SK = 'es_apikey';
 
@@ -1385,16 +1385,19 @@ function _cstFillCard() {
 // Popup „Neuer Auftrag" in ZWEI Schritten:
 // 1) Objekt wählen (Waffe ODER Rüstungsteil, mit Vorteil-Info für die Kampagne)
 // 2) genau 10 Wörter wählen — mit Zurück-Knopf zur Objekt-Wahl (Auswahl bleibt).
-export function uvOpenFill() {
+// Aus dem Raster „Noch nicht begonnen" (F-08) kommt das Objekt schon mit: dann
+// geht es direkt zu den Wörtern (5.12), und „← Objekt" führt zurück zum Raster.
+export function uvOpenFill(objType) {
   const avail = uvAvailableVerbs();
   if (avail.length < CONSTELLATION_SIZE) return;
+  if (objType && usedForgeObjects().includes(objType)) return;
   const N = CONSTELLATION_SIZE;
   const overlay = document.createElement('div');
   overlay.className = 'uv-fill-overlay';
   document.body.appendChild(overlay);
   const close = () => overlay.remove();
   overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
-  let chosenObj = null;
+  let chosenObj = objType || null;
   const sel = new Set();
 
   function showObjectStep() {
@@ -1472,7 +1475,7 @@ export function uvOpenFill() {
     const nEl = overlay.querySelector('#uv-fill-n');
     const okBtn = overlay.querySelector('#uv-fill-ok');
     startForgeAnim();   // glühendes Teil in der Kachel (4 fps)
-    overlay.querySelector('#uv-fill-back').addEventListener('click', showObjectStep);
+    overlay.querySelector('#uv-fill-back').addEventListener('click', objType ? close : showObjectStep);
     overlay.querySelectorAll('.uv-fill-row').forEach((row) => {
       const cb = row.querySelector('.uv-fill-cb');
       const en = row.getAttribute('data-en');
@@ -1491,7 +1494,7 @@ export function uvOpenFill() {
     });
   }
 
-  showObjectStep();
+  if (chosenObj) showWordStep(); else showObjectStep();
 }
 
 // ── Schmiede (Gestaltwandler): ersetzt den Sternenpfad ──────────────────────
@@ -1622,7 +1625,8 @@ function _forgeSlider(m) {
 function _forgeStation(m) {
   const body = m.unlocked ? _forgeSlider(m) : _forgeItem(m, 'past');
   // Kopf wie 5.1: „Stahl-Dolch", darunter die Form; der Slider schaltet beides
-  // auf „Gold-… · Past Participle" um (_showChrome). Rechts bleibt Löschen (F-08).
+  // auf „Gold-… · Past Participle" um (_showChrome). Rechts „i" mit den Werten
+  // der gezeigten Waffe (5.2, F-09); Löschen gibt es nicht mehr (F-08).
   const ob = forgeObject(m.c.idx, 'past');
   return `<div class="forge-station${m.unlocked ? '' : ' locked'}${m.complete ? ' complete' : ''}">
     <div class="forge-head">
@@ -1630,7 +1634,7 @@ function _forgeStation(m) {
         <div class="forge-title" data-obj="${window.escHtml(ob.name)}">${FORGE_MAT.past.mat}-${window.escHtml(ob.name)}</div>
         <div class="forge-form">${iconHTML('hourglass', 14)}<span>Simple Past</span></div>
       </div>
-      <button class="forge-del" onclick="uvDeleteStation(${m.c.idx})" title="Auftrag löschen" aria-label="Auftrag löschen">${iconHTML('trash', 14)}</button>
+      <button class="forge-waffe-info" onclick="uvWaffenInfo(${m.c.idx})" aria-label="Info zur Waffe">i</button>
     </div>
     ${body}
     ${_forgeWords(m)}
@@ -1647,14 +1651,9 @@ function renderStudentUV() {
   // Auftrag 1 = ältester.)
   const parts = map.map((m) => _forgeStation(m)).reverse();
 
-  // „Neuer Auftrag" steckt platzsparend MIT im Schmiede-Kopf (statt eigener
-  // Karte): eine Zeile Info + der bekannte „Werkstoff wählen"-Button. Nur
-  // solange genug freie Verben für eine volle Station da sind.
+  // Neue Aufträge beginnen im Raster „Noch nicht begonnen" unter den Stationen
+  // (5.1, F-08) — „Werkstoff wählen" gibt es nicht mehr.
   const remaining = uvAvailableVerbs().length;
-  const fillPart = remaining >= CONSTELLATION_SIZE
-    ? `<button class="p-btn p-btn--akzent" style="margin-top:13px;height:52px" onclick="uvOpenFill()">Werkstoff wählen</button>
-       <div class="forge-fill-sub" style="margin-top:10px;">Neuer Auftrag: <b>${CONSTELLATION_SIZE} Verben</b> wählen · <b>${remaining}</b> noch frei</div>`
-    : '';
 
   const L = uvLernstand();
   host.style.textAlign = 'center';
@@ -1682,12 +1681,71 @@ function renderStudentUV() {
           <div class="p-wertkachel-lbl">Noch frei</div>
         </div>
       </div>
-      ${fillPart}
     </div>
     ${parts.join('')}
+    ${_forgeRaster(remaining)}
   </div>`;
   initUvSliders();   // Slider-Wisch + Tap-auf-Schritt (data-play → Runde) binden
   startForgeAnim();  // 4-fps-Takt fuer das gluehende Teil der Werkstuecke
+}
+
+// „Noch nicht begonnen" (5.1, F-08): alle noch freien Objekte als Raster — das
+// Werkstück grau, der Vorteil, „i" (5.2) und „Wörter befüllen" (öffnet 5.12).
+// Nur solange genug freie Verben für einen ganzen Auftrag da sind.
+function _forgeRaster(remaining) {
+  if (remaining < CONSTELLATION_SIZE) return '';
+  const used = new Set(usedForgeObjects());
+  const frei = FORGE_OBJECTS.filter((o) => !used.has(o.type));
+  if (!frei.length) return '';
+  return `<div class="forge-raster-kopf"><span>Noch nicht begonnen · ${frei.length}</span><span class="forge-raster-linie"></span></div>
+    <div class="forge-raster">${frei.map((o) => `<div class="forge-objekt">
+      <div class="forge-objekt-kopf"><span class="forge-objekt-name">${window.escHtml(o.name)}</span>
+        <button class="forge-objekt-info" onclick="uvWaffenInfo(null,'${o.type}')" aria-label="Info">i</button></div>
+      <div class="forge-objekt-bild">${forgeGrauTag(o.type, 2)}</div>
+      <div class="forge-objekt-vorteil">${window.escHtml(ohneEmoji(objectPerkText(o)))}</div>
+      <button class="forge-objekt-los" onclick="uvOpenFill('${o.type}')">${iconHTML('pencil', 14)}Wörter befüllen</button>
+    </div>`).join('')}</div>`;
+}
+
+// Info zur Waffe (5.2, F-09): Bild, Form, Teile-Stand und die Werte genau
+// dieses Objekts. Station: die gerade gezeigte Form; Raster: Stahl, 0 Teile.
+export function uvWaffenInfo(idx, type) {
+  let which = 'past', ob = null, fertig = 0;
+  if (idx != null) {
+    const track = document.querySelector(`.cst-track[data-cst="${idx}"]`);
+    which = track && +track.dataset.form ? 'pp' : 'past';
+    ob = forgeObject(idx, which);
+    const r = uvLernstand().rows.find((x) => x.idx === idx);
+    fertig = r ? (which === 'past' ? r.pastLit : r.ppLit) : 0;
+  } else {
+    ob = FORGE_OBJECTS.find((o) => o.type === type);
+  }
+  if (!ob) return;
+  const slotKey = ob.slot === 'ring' ? 'ring1' : ob.slot;
+  const art = ob.slot === 'weapon' ? 'Waffe' : (SLOTS[slotKey]?.name || ob.name);
+  const teile = Array.from({ length: SLOTS_PER_FORM }, (_, i) =>
+    `<span${i < fertig ? ` class="is-fertig is-${which}"` : ''}></span>`).join('');
+  const zeilen = objectInfoRows(ob.type, which, fertig).map((z) => `<div class="p-wi-zeile">${iconHTML(z.px, 14)}
+      <span class="p-wi-label">${z.label}</span><span class="p-wachs"></span>
+      <span class="p-wi-wert"><span>${window.escHtml(z.wert)}</span>${z.sub ? `<span class="p-wi-sub">${z.sub}</span>` : ''}</span></div>`).join('');
+  const ov = document.createElement('div');
+  ov.className = 'p-dlg-grund p-wi-grund';
+  ov.innerHTML = `<div class="p-dlg-karte p-wi-karte">
+    <div class="p-wi-kopf">
+      <span class="p-wi-bild">${itemTag(ob.type, which, 2)}</span>
+      <div class="p-wi-text">
+        <div class="p-wi-kicker">${art} · ${which === 'past' ? 'Simple Past' : 'Past Participle'}</div>
+        <div class="p-wi-name">${which === 'past' ? 'Stahl' : 'Gold'}-${window.escHtml(ob.name)}</div>
+        <div class="p-wi-teile">${teile}</div>
+        <div class="p-wi-stand">${fertig} von ${SLOTS_PER_FORM} Teilen geschmiedet</div>
+      </div>
+    </div>
+    <div class="p-wi-zeilen">${zeilen}</div>
+    <button class="p-btn p-btn--primaer p-wi-ok">Verstanden</button>
+  </div>`;
+  ov.querySelector('.p-wi-ok').addEventListener('click', () => ov.remove());
+  ov.addEventListener('click', (e) => { if (e.target === ov) ov.remove(); });
+  document.body.appendChild(ov);
 }
 
 // Flip-Karte umdrehen (Vorderseite Sternbild ↔ Rückseite Wörter).
@@ -1795,20 +1853,26 @@ export function uvSetForm(idx, which) {
   _snapToggle(track, -2 * _trackW(track), want);
 }
 
-// Info-Popup (ⓘ oben): erklärt den Sternenpfad — ersetzt den Dauer-Erklärtext.
+// Info „Die Schmiede" (5.13): Vondu, vier farbige Punkte, „Verstanden".
+// Punkt 4 nach der heutigen Regel (F-54, Wortlaut vom Nutzer gewählt).
 export function uvInfo() {
-  window.esAlert?.({
-    icon: '⚒️',
-    title: 'Die Schmiede',
-    body: 'Jede Station schmiedet zwei Waffen:\n'
-      + '🔩 Stahl = ⏱ Simple Past · 🥇 Gold = ✓ Past Participle.\n\n'
-      + 'Jede Waffe hat 5 Teile aus drei Disziplinen:\n'
-      + '🔍 Erkennen · 🔨 Schmieden · 🪄 Verzaubern (Aussprache).\n'
-      + 'Verzaubern kommt erst in den späteren Teilen — erst kennen & schreiben.\n\n'
-      + 'Tippe die Waffe → das aktuelle Teil wird geschmiedet (Aufgaben kommen '
-      + 'zufällig). Ist EINE Waffe fertig, geht die nächste Station auf.\n\n'
-      + 'Wische zwischen den beiden Waffen. „📖 Wörter" zeigt die Verbliste.',
-  });
+  const punkte = [
+    ['var(--p-stahl)', 'Jede Station schmiedet <strong>zwei Waffen</strong>: Stahl übt Simple Past, Gold übt Past Participle. Wisch zwischen beiden hin und her.'],
+    ['var(--p-pfirsich)', 'Eine Waffe hat <strong>5 Teile</strong>. Jeder geschaffte Schritt schmiedet ein Teil.'],
+    ['var(--p-ok)', 'Geübt wird in <strong>drei Disziplinen</strong>: Erkennen, Schmieden und Verzaubern.'],
+    ['var(--p-lila)', '<strong>Verzaubern</strong> ist eines der 5 Teile und kommt nie vor dem dritten.'],
+  ];
+  const ov = document.createElement('div');
+  ov.className = 'p-dlg-grund p-si-grund';
+  ov.innerHTML = `<div class="p-dlg-karte p-si-karte">
+    <div class="p-si-kopf"><img src="vondu-logo.svg" alt="Vondu" width="54" height="52" data-ui="bob" data-a="1"><div class="p-si-titel">Die Schmiede</div></div>
+    <div class="p-si-punkte">${punkte.map(([ton, text], i) => `<div class="p-si-punkt" style="background:${ton}">
+      <span class="p-si-nr">${i + 1}</span><div class="p-si-text">${text}</div></div>`).join('')}</div>
+    <button class="p-btn p-btn--primaer p-si-ok">Verstanden</button>
+  </div>`;
+  ov.querySelector('.p-si-ok').addEventListener('click', () => ov.remove());
+  ov.addEventListener('click', (e) => { if (e.target === ov) ov.remove(); });
+  document.body.appendChild(ov);
 }
 
 // Jeder Slider bekommt Finger-Swipe + Tap. Tap und Wisch werden über die Strecke

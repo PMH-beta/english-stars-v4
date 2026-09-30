@@ -5046,3 +5046,98 @@ body.schnell-active .p-sammlung:not(.is-offen) > .p-balken{ height:9px; margin-t
   display:flex; align-items:center; justify-content:center;
   font:900 13px var(--p-font); color:var(--p-text-akzent);
 }
+
+/* ══ SCHMIEDE 5.1 / 5.2 / 5.13 (F-08, F-09, F-54) ══════════════════════════
+   Station: „i" statt Löschen. Darunter das Raster „Noch nicht begonnen".
+   Info zur Waffe (5.2) und „Die Schmiede" (5.13) als eigene Dialoge.
+   Außenmaße = Fragmentwert + 2 × 2 Rahmen. */
+.forge-waffe-info{
+  width:38px; height:38px; flex:none; padding:0; cursor:pointer;
+  border:var(--p-rahmen); border-radius:50%; background:var(--p-karte-hell);
+  display:flex; align-items:center; justify-content:center;
+  font:900 15px var(--p-font); color:var(--p-ink);
+}
+.forge-raster-kopf{ display:flex; align-items:center; gap:10px; margin-top:18px; text-align:left; }
+.forge-raster-kopf > span:first-child{
+  font:900 10px var(--p-font); text-transform:uppercase; letter-spacing:.14em;
+  color:var(--p-text-2); white-space:nowrap;
+}
+.forge-raster-linie{ flex:1; height:2px; background:rgba(31,31,36,.2); }
+.forge-raster{
+  display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-top:10px;
+  grid-auto-rows:1fr; text-align:left;
+}
+.forge-objekt{
+  border:var(--p-rahmen); border-radius:20px; background:var(--p-karte);
+  padding:10px 10px 11px; display:flex; flex-direction:column; gap:8px; min-width:0;
+}
+.forge-objekt-kopf{ display:flex; align-items:center; justify-content:space-between; gap:6px; }
+.forge-objekt-name{ font:900 13px var(--p-font); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.forge-objekt-info{
+  width:30px; height:30px; flex:none; padding:0; cursor:pointer;
+  border:var(--p-rahmen); border-radius:50%; background:var(--p-karte-hell);
+  display:flex; align-items:center; justify-content:center;
+  font:900 13px var(--p-font); color:var(--p-ink);
+}
+.forge-objekt-bild{
+  height:96px; border:2px dashed rgba(31,31,36,.3); border-radius:14px; background:var(--p-inaktiv);
+  display:flex; align-items:center; justify-content:center;
+}
+.forge-objekt-vorteil{
+  font:700 10px/1.35 var(--p-font); color:var(--p-text-2); text-align:center; min-height:27px;
+}
+.forge-objekt-los{
+  height:44px; margin-top:auto; cursor:pointer;
+  border:var(--p-rahmen); border-radius:14px; background:var(--p-lila);
+  display:flex; align-items:center; justify-content:center; gap:6px;
+  font:900 12px var(--p-font); color:var(--p-ink);
+}
+
+/* Info zur Waffe (5.2). */
+.p-dlg-grund.p-wi-grund{ padding:18px; background:rgba(31,31,36,.45); }
+.p-dlg-karte.p-wi-karte{ max-width:366px; background:var(--p-karte-hell); padding:20px 18px 18px; text-align:left; }
+.p-wi-kopf{ display:flex; align-items:center; gap:14px; }
+.p-wi-bild{
+  width:88px; height:112px; flex:none;
+  border:var(--p-rahmen); border-radius:20px; background:var(--p-inaktiv);
+  display:flex; align-items:center; justify-content:center;
+}
+.p-wi-text{ min-width:0; }
+.p-wi-kicker{
+  font:800 9px var(--p-font); letter-spacing:.12em; text-transform:uppercase; color:var(--p-text-2);
+}
+.p-wi-name{ font:900 22px var(--p-font); margin-top:2px; }
+.p-wi-teile{ display:flex; gap:4px; margin-top:8px; }
+.p-wi-teile > span{ width:22px; height:14px; border:var(--p-rahmen); border-radius:4px; background:var(--p-feld); }
+.p-wi-teile > span.is-past{ background:var(--p-stahl); }
+.p-wi-teile > span.is-pp{ background:var(--p-gold); }
+.p-wi-stand{ font:700 10px var(--p-font); color:var(--p-text-2); margin-top:5px; }
+.p-wi-zeilen{ margin-top:14px; }
+.p-wi-zeile{
+  display:flex; align-items:center; gap:10px; padding:10px 0;
+  border-top:1px dotted rgba(31,31,36,.3);
+}
+.p-wi-label{ font:800 12px var(--p-font); }
+.p-wi-wert{ text-align:right; }
+.p-wi-wert > span:first-child{ font:900 14px var(--p-font); }
+.p-wi-sub{ display:block; font:700 10px var(--p-font); color:var(--p-text-2); }
+.p-wi-ok{ height:56px; margin-top:14px; }
+
+/* Die Schmiede (5.13). */
+.p-dlg-grund.p-si-grund{ padding:18px; background:rgba(31,31,36,.45); }
+.p-dlg-karte.p-si-karte{ max-width:366px; background:var(--p-karte-hell); padding:22px 18px 18px; text-align:left; }
+.p-si-kopf{ display:flex; align-items:center; gap:12px; }
+.p-si-kopf img{ display:block; flex:none; }
+.p-si-titel{ font:900 20px var(--p-font); }
+.p-si-punkte{ display:flex; flex-direction:column; gap:8px; margin-top:14px; }
+.p-si-punkt{
+  display:flex; gap:11px; align-items:flex-start;
+  border:var(--p-rahmen); border-radius:16px; padding:11px 12px;
+}
+.p-si-nr{
+  width:30px; height:30px; flex:none;
+  border:var(--p-rahmen); border-radius:50%; background:var(--p-karte-hell);
+  display:flex; align-items:center; justify-content:center; font:900 12px var(--p-font);
+}
+.p-si-text{ font:800 12px/1.45 var(--p-font); }
+.p-si-ok{ margin-top:16px; }
