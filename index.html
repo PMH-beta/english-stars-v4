@@ -310,6 +310,13 @@
     <button class="pf-tour-knopf" onclick="tourAnsehen()">Starten</button>
   </div>
 
+  <!-- APP INSTALLIEREN (8.1, F-61): nur im Browser — Dialog des Browsers oder Anleitung 9.2 -->
+  <div class="pf-tour pf-install" id="pf-install" style="display:none">
+    <div class="pf-tour-kachel pf-install-kachel"><canvas data-icon="install" width="14" height="14" style="width:28px;height:28px;image-rendering:pixelated;flex:none"></canvas></div>
+    <div class="p-wachs"><div class="pf-tour-titel">App installieren</div><div class="pf-tour-sub">Hol mich auf deinen Startbildschirm!</div></div>
+    <button class="pf-tour-knopf" onclick="pwaInstall()">Installieren</button>
+  </div>
+
   <!-- CLOUD-KONTO — gefüllt durch showProfile() -->
   <div id="prof-cloud-section" class="pf-cloud"></div>
   </div>
@@ -546,7 +553,6 @@
 <!-- Globaler Musik-Button (sichtbar im Menü/Stats, im Spiel ist eigener Button in der Score-Bar) -->
 <button class="music-btn-global" id="music-btn-global" onclick="toggleMusic()" title="Musik an/aus"><canvas data-icon="music" width="14" height="14" style="width:28px;height:28px;image-rendering:pixelated;flex:none"></canvas></button>
 <!-- PWA Install-Button (nur sichtbar wenn Browser PWA-Install anbietet) -->
-<button id="pwa-install-btn" onclick="pwaInstall()" title="Als App installieren">📲 App installieren</button>
 <button class="music-vol-btn" id="music-vol-btn" onclick="toggleVolPopup()" title="Lautstärke"><canvas data-icon="speaker" width="14" height="14" style="width:14px;height:14px;image-rendering:pixelated;flex:none"></canvas></button>
 <div class="music-vol-wrap" id="music-vol-wrap">
   <span id="music-vol-lbl">50%</span>

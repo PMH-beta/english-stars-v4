@@ -12,7 +12,7 @@ import { iconHTML } from './pixel-icons.js';
 import { uvMap, uvLernstand, constellationWords, FORGE_DISC, SLOTS_PER_FORM, uvTrainProgress, uvTrainForms, uvTrainWords, uvPruneOrphanSlotStats, UV_TRAIN_SIZE, migrateUvTrainSize } from './irregular-game.js';
 import { renderAvatarInto, renderCharacter, resetCharacterFeature, setCharacterCompanion, stageHTMLFor, charEditorOeffnen, charEditorGeaendert, charEditorUebernehmen, charAenderungenFragen } from './avatar.js';
 import { paintStages } from './hero.js';
-import { installHinweisEinmal } from './pwa.js';
+import { installHinweisEinmal, installMoeglich } from './pwa.js';
 import { IRREGULAR_PRESET_ID, uvAvailableVerbs, CONSTELLATION_SIZE, cefrOf, forgeObject, FORGE_OBJECTS, usedForgeObjects, fillObjectType, getConstellations, allVerbsSorted, verbsByEns, UV_TRAIN_SUF } from './irregular-verbs.js';
 import { objectPerkText, renderEquipmentPanel, resetEquipmentSelection, forgedItems, equippedGearMap, objectInfoRows, ohneEmoji, SLOTS } from './campaign-equipment.js';
 import { renderFriendsSection, refreshFriendBadge, friendProgress, subscribeFriendRealtime, unsubscribeFriendRealtime } from './friends.js';
@@ -97,8 +97,6 @@ export function showScreen(id) {
   document.body.classList.toggle('schnell-active', !!window.isSchnellModus && !_noDark);
   const ft = document.getElementById('menu-footer');
   if (ft) ft.style.display = (id === 'menu-screen') ? 'flex' : 'none';
-  const installBtn = document.getElementById('pwa-install-btn');
-  if (installBtn) installBtn.style.display = (id === 'menu-screen' && window._pwaInstallReady) ? 'flex' : 'none';
   const isLoading = id === 'loading-screen';
   const musicBtnGlobal = document.getElementById('music-btn-global');
   const musicVolBtn = document.getElementById('music-vol-btn');
@@ -1717,6 +1715,9 @@ function renderStudentUV() {
   const remaining = uvAvailableVerbs().length;
 
   const L = uvLernstand();
+  // Gezählt wird gegen das Maximum (F-62): jedes Objekt ist eine Station, je
+  // Station 2 × 5 Schritte. Alt-Stände mit mehr Aufträgen zählen voll mit.
+  const maxSt = Math.max(FORGE_OBJECTS.length, L.total);
   host.style.textAlign = 'center';
   host.style.padding = '0';
   // Kopf wie im Entwurf: Hammer, Name, Info-Kreis in einer Zeile; darunter die
@@ -1730,11 +1731,11 @@ function renderStudentUV() {
       </div>
       <div class="p-kacheln" style="grid-template-columns:repeat(3,1fr);margin:12px 0 0">
         <div class="p-wertkachel">
-          <div class="p-wertkachel-zahl">${L.complete}/${L.total}</div>
+          <div class="p-wertkachel-zahl">${L.complete}/${maxSt}</div>
           <div class="p-wertkachel-lbl">Stationen</div>
         </div>
         <div class="p-wertkachel">
-          <div class="p-wertkachel-zahl">${L.totalLit}/${L.maxLit}</div>
+          <div class="p-wertkachel-zahl">${L.totalLit}/${maxSt * 2 * SLOTS_PER_FORM}</div>
           <div class="p-wertkachel-lbl">Schritte</div>
         </div>
         <div class="p-wertkachel p-ton-amber">
@@ -2047,6 +2048,9 @@ export function showProfile() {
       ps.textContent = 'Dabei seit ' + d.toLocaleDateString('de-DE', {day:'2-digit',month:'2-digit',year:'numeric'});
     } else ps.textContent = '';
   }
+  // „App installieren" (F-61) nur im Browser — die installierte App braucht sie nicht.
+  const inst = document.getElementById('pf-install');
+  if (inst) inst.style.display = installMoeglich() ? '' : 'none';
   const tourSub = document.getElementById('pf-tour-sub');
   if (tourSub) tourSub.textContent = `Die wichtigsten Bereiche in ${TOUR_SCHRITTE} Schritten`;
   // Cloud-Konto als blaue Karte (8.1). Nicht angemeldet: gleiche Karte mit

@@ -93,7 +93,9 @@ App-Tour 1.11–1.15 nach „App-Tour" in START-HERE (F-14 A): neues Modul
   Knöpfe, markierte Elemente deckungsgleich); Unterschiede nur aus echten Daten
   (siehe `HANDOFF-ENTSCHEIDUNGEN.md`, Abschnitt Phase 7b).
 
-Offen: F-61 (Installier-Popup nur iOS?) und F-62 (Nenner im Schmiede-Kopf).
+Nachgezogen am 30.09.: F-61 (Installier-Popup auf allen Geräten jeden 3. Start mit
+„Nicht mehr anzeigen“, Karte „App installieren“ im Profil, alter Menü-Knopf weg) und
+F-62 (Schmiede-Kopf zählt gegen 15 Stationen / 150 Schritte).
 Als Nächstes Phase 8 (Aufräumen) — erst die Liste zeigen, löschen nur mit Freigabe.
 
 ## Was in jeder Phase gilt

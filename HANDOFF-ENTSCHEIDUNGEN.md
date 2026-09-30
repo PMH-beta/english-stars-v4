@@ -38,7 +38,7 @@ Avatare dürfen bei einer Migration verloren gehen. Kein Umbau darf `SD.decks`,
 | F-14 | App-Tour 1.11–1.15 | **A — automatisch + Profil-Knopf.** Genau einmal nach der Charakter-Erstellung; neues Feld `tourSeen` (Bestandskonten bekommen true, muss in die sync-Whitelist); „App-Tour ansehen“ im Profil; Demo-Stand ohne echte Daten. Phase 7b. | 7b | 29.09.2026 |
 | F-15 | Erster Start: 7 Reiter | **A — 7 Reiter** (Frisur, Haut, Augen, Mund, Oberteil, Hose, Statur; Farben im jeweiligen Reiter), im Profil 8 (+ Gefährte). | 7 | 29.09.2026 |
 | F-16 | Charakter-Editor: Zurück / Speichern | **A — wie im Entwurf.** „Speichern“ übernimmt; Zurück verwirft, bei ungespeicherten Änderungen Rückfrage 8.12. commitAvatar darf beim Verwerfen nicht laufen. | 7 | 29.09.2026 |
-| F-20 | 9.2 „App installieren“ | **B — Popup beim 3. Start, Zähler nur lokal** (localStorage, nicht in der Cloud). | 7 | 29.09.2026 |
+| F-20 | 9.2 „App installieren“ | **B — Popup beim 3. Start, Zähler nur lokal** (localStorage, nicht in der Cloud). Erweitert am 30.09.2026 durch F-61. | 7 | 29.09.2026 |
 | F-28 | 2.5 Ausblenden beim Sortieren | **B — stehen lassen** (wie heute), sonst springt die Liste unter dem Finger. | 7 | 29.09.2026 |
 | F-29 | 2.10 Rückfrage vor dem Schnellmodus | **A — erst fragen** („Abbrechen“ / „Einschalten“), danach kein zusätzlicher OK-Hinweis. | 7 | 29.09.2026 |
 | F-30 | 2.10 „bringt keine Taler“ | **A — im Schnellmodus keine Taler.** Schon eingelöste Taler bleiben. | 7 | 29.09.2026 |
@@ -76,13 +76,14 @@ Avatare dürfen bei einer Migration verloren gehen. Kein Umbau darf `SD.decks`,
 | F-36 | 7.15/7.16 Wellen-Chip | **A — weglassen** wie im neuen Entwurf. Hebt F-13 („N Wellen gewonnen“) auf. | 7 | 29.09.2026 |
 | F-59 | Charakter-Editor: Name ändern | **Name im Kopf des Editors:** wo im Entwurf „Charakter“ steht, steht der Name als antippbarer Knopf im Pastell-Stil; Antippen öffnet das Popup „Dein Name“ im App-Dialog-Stil und übernimmt mit dessen „Speichern“ sofort. Beim ersten Start (1.9/1.10) bleibt der Titel „Wer bist du?“. Das Namensfeld unter der Bühne entfällt. | 7 | 30.09.2026 |
 | F-60 | 8.10 „Zur Schmiede“ | **A — einbauen:** verlässt den Editor (bei ungespeicherten Änderungen erst die Rückfrage 8.12), öffnet den Formen-Tab und scrollt zur Station bzw. zum Objekt „Gefährte“. | 7 | 30.09.2026 |
+| F-61 | 9.2 App installieren: Geräte, Häufigkeit, Profil | **Alle Geräte + Profil + „Nicht mehr anzeigen“:** Das Popup kommt im Browser jeden 3. Start (3., 6., 9. …), bis „Nicht mehr anzeigen“ angehakt oder die App installiert ist (a). iPhone/iPad: Anleitung wie 9.2; bietet der Browser seinen Installations-Dialog an (Android, Chrome/Edge): Knopf „Jetzt installieren“, sonst Anleitung „⋮ → App installieren“, Mac-Safari „Datei“ → „Zum Dock hinzufügen …“ (b). Im Profil die Karte „App installieren“ wie „App-Tour ansehen“, nur im Browser; „Installieren“ öffnet den Browser-Dialog bzw. die Anleitung, ohne Haken (c). Der alte Knopf „📲 App installieren“ oben links im Menü entfällt (d). Erweitert F-20. | 7b | 30.09.2026 |
+| F-62 | Schmiede-Kopf zählt gegen das Maximum | **A — wie im Entwurf:** Stationen x/15, Schritte x/150 (15 Objekte × 2 × 5 Schritte). Alt-Stände mit mehr Aufträgen zählen voll mit (Nenner = größere Zahl). | 7b | 30.09.2026 |
 
 ## Offen — je Phase zu beantworten
 
 | Nr. | Frage (kurz) | Gebraucht vor |
 | --- | --- | --- |
-| F-61 | 9.2 Installier-Popup nur auf iPhone/iPad? Gebaut: nur iOS, weil die Anleitung (Teilen → „Zum Home-Bildschirm“) nur dort stimmt; Android/Computer behalten Installieren-Knopf und Browser-Dialog. | 8 |
-| F-62 | 5.1/1.13 Schmiede-Kopf: Entwurf zählt gegen das Maximum („0/15 Stationen · 3/150 Schritte“, 15 Objekte), die App gegen die begonnenen Stationen („0/3 · 3/30“, neues Konto „0/0 · 0/0“). Nenner auf 15 bzw. 150 umstellen? | 8 |
+| — | keine offenen Fragen (F-61, F-62 am 30.09.2026 beantwortet) | — |
 
 ## Ohne Rückfrage entschieden (Aussehen) — Phase 7
 
@@ -154,7 +155,8 @@ Avatare dürfen bei einer Migration verloren gehen. Kein Umbau darf `SD.decks`,
 | `tourSeen` | liegt in `campaign` (jsonb) und steht in der Whitelist `_campaignFrom`. Der Überschreib-Schutz bleibt unverändert: eine „triviale“ Kampagne (neues Konto ohne Fortschritt) schreibt `saveProfile` weiterhin nicht — das Feld reist mit, sobald es Fortschritt gibt. Fehlt es, gilt die Tour als gesehen (Bestandskonten ohne Migration). | 30.09.2026 |
 | Hintergrund | das echte Menü mit dem Demo-Stand, darum wie 2.2/2.3, 5.1 und 6.2 statt der vereinfachten Tour-Fragmente: Schritt 1/5 ohne Probetest-Karte (Demo ohne Verlauf, wie jedes neue Konto), Schritt 2 mit „Schnell: Aus“ und 16 px Abstand wie 2.3 (Liste 30 px tiefer). | 30.09.2026 |
 | Sammlung „Tiere“ | die Starter-Liste der App (10 Wörter), als Vorlage — daher ohne „Vokabeln verwalten“ (gibt es nur bei eigenen Sammlungen); Datum „Heute“ wie 1.12. | 30.09.2026 |
-| Formen im Demo | Trainingsplatz ohne Standard-Deck (die App legt keins an): „Eigene Übungsdecks aus genau 10 Verben“ statt „1 Deck“. Schmiede-Werte aus echten Daten („0/0 · 0/0 · 150“, siehe F-62), Raster mit allen 15 Objekten ab Schwert. | 30.09.2026 |
+| Formen im Demo | Trainingsplatz ohne Standard-Deck (die App legt keins an): „Eigene Übungsdecks aus genau 10 Verben“ statt „1 Deck“. Schmiede-Werte aus echten Daten („0/15 · 0/150 · 150 frei“ seit F-62), Raster mit allen 15 Objekten ab Schwert. | 30.09.2026 |
+| F-61 Aussehen | Profil-Karte „App installieren“: Kachel Mint mit dem Pixel-Symbol „install“, Unterzeile „Hol mich auf deinen Startbildschirm!“ (Titel aus 9.2), Knopf „Installieren“. Haken „Nicht mehr anzeigen“ als Kästchen wie in 2.7 (angehakt Tinte mit hellem Haken) an der Stelle der früheren Notiz „Kommt nur einmal …“. | 30.09.2026 |
 | Schritt 3 Beispiel | wie Fragment 1.13 (Speer 3×, 24 × 36, Balken 40 %, Satz, zwei Material-Chips) — ohne die in START-HERE beschriebene Teile-Liste (Fragment geht vor). Vorteil-Text und Zahlen (10 Verben, 5 Teile, 2 Übungsarten) aus den echten Werten. | 30.09.2026 |
 | Vondu, Münze | `VONDU_FRAMES` über `data-ui="idle"` (4 Bilder, 4 fps am gemeinsamen Takt, bei reduzierter Bewegung Bild 0); in Schritt 2 dreht sich die Taler-Münze im Banner (`data-ui="flip"`). | 30.09.2026 |
 | Bedienung | Menü darunter ist nur Kulisse (`inert`); Zurück-Taste = ein Schritt zurück, im ersten nichts. Musik-Knopf, Versions-Anzeige, Freundes-Zähler und Installieren-Knopf sind während der Tour aus. Übernimmt ein anderer Screen (z. B. abgelaufene Anmeldung), räumt sich die Tour ohne `tourSeen` ab. Der Installier-Hinweis 9.2 wartet bis zum nächsten Menü. | 30.09.2026 |
