@@ -11,7 +11,7 @@ import { avatarPick, avatarPickStep, avatarArrow, avatarSet, charEditTarget, pet
 import { showScreen, saveName, showMenu, saveApiKey, skipApiKey, showProfile, editPlayerName, showCharacter, showCharacterOnboarding, finishCharacterOnboarding, closeCharacter, showStats, showFriendStats, closeFriendStats, confirmReset, showFeedback, hideFeedback, exportData, importData, showAuth, authToggleMode, authSubmit, authResend, authLogout, authGoogleSignIn, handleLogin, handleLogout, showPasswordReset, submitPasswordReset, showNewPasswordScreen, submitNewPassword, cancelNewPassword, setActiveMode, renderModeContent, openProbetestPicker, toggleProbetestHistory, deleteProbetestEntry, uvFlip, uvSlide, uvSetForm, uvInfo, uvOpenFill, uvDeleteStation, uvTestForge, uvTestForgeRandom, toggleUvTraining, uvTrainOpenCreate, uvTrainDelete, uvTrainToggleDeck, uvTrainChooseForms, uvTrainReset, uvTrainOpenStats, onAppResume, checkForRemoteChange, softRefresh } from './modules/ui.js';
 import { pwaInstall } from './modules/pwa.js';
 import { startConstellationStar, startConstellationForm, startUvTraining, uvProgress } from './modules/irregular-game.js';
-import { openVocabManager, openPresetDeckStats, vmTab, renderVocabList, parsePastedText, onScanFile, showReview, renderReviewList, removeReviewItem, addReviewItem, confirmAddVocab, renderPresetsTab, togglePresetCategory, vmBack, vmRenameActiveDeck, newDeckFlow, newDeckPreset, newDeckCustom, confirmAbortDraft } from './modules/vocab.js';
+import { openVocabManager, openPresetDeckStats, vmTab, renderVocabList, parsePastedText, onScanFile, showReview, renderReviewList, removeReviewItem, addReviewItem, rescanReview, confirmAddVocab, renderPresetsTab, togglePresetCategory, vmBack, vmRenameActiveDeck, newDeckFlow, newDeckPreset, newDeckCustom, confirmAbortDraft } from './modules/vocab.js';
 import { onFriendSearchInput, onFriendSearchEnter, sendFriendRequest, respondFriendRequest, cancelFriendRequest, confirmRemoveFriend, openFriendStats, refreshFriendBadge, refreshFriendsLive } from './modules/friends.js';
 import { startCampaignRun, campaignNode, campaignGiveUp, campPotionInfo, talerTest, talerDeckTest } from './modules/campaign.js';
 import './modules/dialog.js'; // registriert window.esAlert/esConfirm/esPrompt (App-Overlays statt nativer Dialoge)
@@ -215,6 +215,7 @@ window.showReview = showReview;
 window.renderReviewList = renderReviewList;
 window.removeReviewItem = removeReviewItem;
 window.addReviewItem = addReviewItem;
+window.rescanReview = rescanReview;
 window.confirmAddVocab = confirmAddVocab;
 window.renderPresetsTab = renderPresetsTab;
 window.togglePresetCategory = togglePresetCategory;

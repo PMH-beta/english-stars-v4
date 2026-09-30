@@ -56,9 +56,10 @@ export function openVocabManager(deckId) {
   }
   const backArea = document.getElementById('vm-back-area');
   if (backArea) {
-    backArea.innerHTML = window._draftDeck
-      ? ''
-      : '<button class="p-back" onclick="vmBack()"><canvas data-icon="back" width="14" height="14" style="width:28px;height:28px;image-rendering:pixelated;flex:none"></canvas></button>';
+    // In einer neuen, noch nicht bestätigten Sammlung wirkt Zurück wie
+    // „Abbrechen" (F-44, Fragment 3.2) — mit derselben Rückfrage.
+    backArea.innerHTML = '<button class="p-back" onclick="' + (window._draftDeck ? 'confirmAbortDraft()' : 'vmBack()')
+      + '"><canvas data-icon="back" width="14" height="14" style="width:28px;height:28px;image-rendering:pixelated;flex:none"></canvas></button>';
   }
   if (window.SD?.activeMode === 'free' && (!deck.deckPath || deck.deckPath === 'none')) {
     if (!window._draftDeck) _showPathChoiceDialog();
@@ -611,9 +612,8 @@ export function renderReviewList() {
       <button class="review-del" onclick="removeReviewItem(${i})" title="Entfernen">${iconHTML('trash', 14)}</button>
     </div>
   `).join('');
-  const newCount = window._reviewItems.filter(i => !i.isDuplicate).length;
-  const dupCount = window._reviewItems.filter(i => i.isDuplicate).length;
-  count.textContent = `${window._reviewItems.length} Wörter erkannt · ${newCount} neu · ${dupCount} bereits vorhanden (grau)`;
+  // Kopfzeile kurz wie 3.6 (F-42); bereits vorhandene Wörter bleiben grau.
+  count.textContent = `${window._reviewItems.length} erkannt`;
 }
 
 export function removeReviewItem(i) {
@@ -622,26 +622,32 @@ export function removeReviewItem(i) {
   renderReviewList();
 }
 
+// „+ Wort manuell ergänzen" (3.6, F-41): hängt eine leere Zeile an und setzt
+// den Cursor ins erste Feld. Vorher gab es hier keine Felder — nach einem
+// Fehlscan führte „Wörter manuell eingeben" auf eine leere Liste.
 export function addReviewItem() {
-  const de = document.getElementById('add-de').value.trim();
-  const en = document.getElementById('add-en').value.trim();
-  if (!de || !en) {
-    document.getElementById('add-de').style.borderColor = de ? '#e0e0e0' : 'var(--red)';
-    document.getElementById('add-en').style.borderColor = en ? '#e0e0e0' : 'var(--red)';
-    return;
-  }
-  document.getElementById('add-de').value = '';
-  document.getElementById('add-en').value = '';
-  document.getElementById('add-de').style.borderColor = '#e0e0e0';
-  document.getElementById('add-en').style.borderColor = '#e0e0e0';
-  const existing = new Set(window.VOCAB.map(v => v.en.toLowerCase()));
-  window._reviewItems.push({ id: window._reviewItems.length, de, en, isDuplicate: existing.has(en.toLowerCase()) });
+  window._reviewItems.push({ id: window._reviewItems.length, de: '', en: '', isDuplicate: false });
   renderReviewList();
-  document.getElementById('review-list').lastElementChild?.scrollIntoView({ behavior: 'smooth' });
+  const row = document.getElementById('review-list').lastElementChild;
+  row?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  row?.querySelector('input')?.focus();
+}
+
+// „Neu scannen" (3.6, F-40): die noch nicht gespeicherte Liste verwerfen, zurück
+// in den Scan-Reiter und gleich die Kamera öffnen (in derselben Geste).
+export function rescanReview() {
+  window._reviewItems = [];
+  showScreen('scan-screen');
+  vmTab('scan');
+  document.getElementById('scan-file')?.click();
 }
 
 export function confirmAddVocab() {
-  const toAdd = window._reviewItems.filter(i => i.de.trim() && i.en.trim() && !i.isDuplicate);
+  // Bereits vorhandene Wörter kommen nicht doppelt hinein — auch nicht aus
+  // einer von Hand ergänzten Zeile (die wird erst beim Hinzufügen geprüft).
+  const vorhanden = new Set(window.VOCAB.map(v => v.en.toLowerCase()));
+  const toAdd = window._reviewItems.filter(i => i.de.trim() && i.en.trim() && !i.isDuplicate
+    && !vorhanden.has(i.en.trim().toLowerCase()));
   if (toAdd.length === 0) {
     window.esAlert({ icon: 'ℹ️', title: 'Nichts hinzuzufügen', body: 'Keine neuen Wörter zum Hinzufügen (alle bereits vorhanden oder leer).' });
     return;

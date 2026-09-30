@@ -5025,3 +5025,24 @@ body.schnell-active .p-sammlung:not(.is-offen) .p-sammlung-name{ font-size:16px;
 body.schnell-active .p-sammlung:not(.is-offen) .p-sammlung-meta{ margin-top:0; }
 body.schnell-active .p-sammlung:not(.is-offen) .p-sammlung-pct{ font-size:22px; }
 body.schnell-active .p-sammlung:not(.is-offen) > .p-balken{ height:9px; margin-top:9px; }
+
+/* ══ VOKABELN PRÜFEN 3.6 (F-40 – F-42) ═════════════════════════════════════
+   Kopfzeile der Liste mit „N erkannt" und „Neu scannen", darunter die Zeilen,
+   dann der gestrichelte Knopf für eine leere Zeile (54 + Rahmen). */
+.rv-leiste{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.rv-zaehler{
+  font:900 10px var(--p-font); letter-spacing:.14em; text-transform:uppercase;
+  color:var(--p-text-2); white-space:nowrap;
+}
+.rv-neu-scannen{
+  display:flex; align-items:center; gap:6px; flex:none; cursor:pointer;
+  border:var(--p-rahmen); border-radius:12px; background:var(--p-karte-hell);
+  padding:5px 10px; font:800 10px var(--p-font); color:var(--p-ink); white-space:nowrap;
+}
+#review-screen .review-list{ margin-top:12px; }
+.rv-manuell{
+  width:100%; height:58px; margin-top:14px; cursor:pointer;
+  border:2px dashed var(--p-ink); border-radius:18px; background:var(--p-inaktiv);
+  display:flex; align-items:center; justify-content:center;
+  font:900 13px var(--p-font); color:var(--p-text-akzent);
+}

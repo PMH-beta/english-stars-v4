@@ -462,9 +462,15 @@
     <div class="rv-sub">Erkannte Wörter prüfen, ergänzen oder löschen</div>
   </div>
   <div class="p-blatt">
+    <!-- Kopfzeile der Liste nach 3.6: „N erkannt", rechts „Neu scannen" (F-40, F-42) -->
+    <div class="rv-leiste">
+      <div id="review-count" class="rv-zaehler"></div>
+      <button class="rv-neu-scannen" onclick="rescanReview()"><canvas data-icon="scan" width="14" height="14" style="width:14px;height:14px;image-rendering:pixelated;flex:none"></canvas>Neu scannen</button>
+    </div>
     <div id="review-list" class="review-list"></div>
+    <!-- Neue leere Zeile (F-41) -->
+    <button class="rv-manuell" onclick="addReviewItem()">+ Wort manuell ergänzen</button>
     <button class="p-btn rv-ok" onclick="confirmAddVocab()"><canvas data-icon="check" width="14" height="14" style="width:14px;height:14px;image-rendering:pixelated;flex:none"></canvas>Zur Vokabelliste hinzufügen</button>
-    <div id="review-count" style="text-align:center;font:700 10px var(--p-font);color:var(--p-text-2);margin-top:8px"></div>
   </div>
 </div>
 
