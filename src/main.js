@@ -358,66 +358,121 @@ try { screen.orientation?.lock?.('portrait').catch(() => {}); } catch (e) {}
   }, { passive: true });
 })();
 
-// Wackelpudding-Effekt: jede angetippte Schaltfläche (Buttons, Deck-Karten, alles
-// mit onclick) drückt sich beim Halten ein und federt beim Loslassen nach. Läuft
-// delegiert am document, damit auch alles mitmacht, was später per innerHTML
-// nachgerendert wird. Die Animation steckt in style.css (.es-press/.es-wobble)
-// und fasst nur scale an, nie transform.
-(function wobbleOnTap() {
-  const SEL = 'button, .deck-card, .preset-row, [onclick]';
-  const FULL_MS = 550;              // ab dieser Haltezeit der volle Ausschlag
-  const WOB_MIN = 0.6, WOB_MAX = 1.9;
+// Gedrückt-Zustand (Update 1 „Stil A", Fragmente A.1/A.2): alles Antippbare sinkt
+// beim Drücken ein — harter Schatten links oben nach innen, die Fläche wird leicht
+// dunkler; Rahmen und Größe bleiben gleich. Ersetzt den Wackelpudding-Effekt.
+// Anders als im Entwurf (sofort umschalten) gleitet der Zustand kurz hinein und
+// wieder heraus, damit es wie echtes Eindrücken aussieht (Wunsch des Nutzers) —
+// stufenlos per CSS-Übergang, nicht im 8-fps-Takt. Läuft delegiert am document,
+// damit auch alles mitmacht, was später per innerHTML nachgerendert wird. Das
+// Aussehen steckt in style.css (.es-press/.es-press-weich).
+(function pressOnTap() {
+  const SEL = 'button, a[href], summary, [onclick], [role="button"]';
   const MOVE_TOL = 10;              // ab so vielen px gilt die Geste als Ziehen/Scrollen
-  let pressed = null, pressedAt = 0, startX = 0, startY = 0;
+  const MIN_MS = 110;               // so lange bleibt auch ein ganz kurzer Tipp eingedrückt
+  const AUS_MS = 170;               // Zurückgleiten (Dauer wie .es-press-weich in style.css)
+  const HELL = 'inset 4px 5px 0 rgba(31,31,36,.28)';
+  const DUNKEL = 'inset 3px 4px 0 rgba(0,0,0,.6)';
+  let pressed = null, pressedAt = 0, startX = 0, startY = 0, spaet = 0;
 
-  // Abbruch ohne Nachfedern: beim Scrollen und beim Karten-Ziehen soll das Element
-  // sofort unverformt an Finger/Maus hängen. window.esWobbleCancel ruft decks.js,
-  // wenn der Long-Press-Drag startet (der beginnt ohne Fingerbewegung).
+  // Antippbar ist, was als Knopf gebaut ist — oder wo im CSS der Zeiger-Cursor
+  // beginnt (Kacheln/Karten mit Klick-Listener). Ererbtes cursor:pointer zählt nicht.
+  // Klappkarten drücken über ihren Kopf: zu = die ganze Karte (A.2 „Probetest",
+  // „Farben"), offen = nur der Pfeil (A.2 „Tiere und Natur").
+  const KOPF = '.p-sammlung-kopf, .p-zeilenkarte-kopf, .tp-deck-kopf, .fs-karte > summary';
+  const zeiger = (el) => getComputedStyle(el).cursor === 'pointer';
+  // Knopf ohne eigene Fläche um genau eine Kachel herum (Ausrüstungsfach: Kachel +
+  // Beschriftung): eingedrückt wird die sichtbare Kachel. Reiter ohne Fläche
+  // bleiben selbst das Ziel (A.2: „Kampagne", „Formen").
+  const hatFlaeche = (el) => { const c = getComputedStyle(el); return c.backgroundColor !== 'rgba(0, 0, 0, 0)' || parseFloat(c.borderTopWidth) > 0; };
+  function flaeche(el) {
+    if (!el || hatFlaeche(el)) return el;
+    const k = [...el.children].filter(hatFlaeche);
+    return k.length === 1 ? k[0] : el;
+  }
+  function ziel(start) {
+    for (let el = start; el && el.nodeType === 1 && el !== document.body; el = el.parentElement) {
+      if (el.matches(KOPF)) {
+        const karte = el.parentElement;
+        return karte.classList.contains('is-offen') || karte.open ? el.querySelector('.p-chevron, .fs-pfeil') : karte;
+      }
+      // Ausdrücklich ohne Zeiger (Kampagnen-Knoten, die gerade nicht erreichbar sind).
+      if (el.matches(SEL)) return el.style.cursor === 'default' ? null : flaeche(el);
+      if (zeiger(el) && !(el.parentElement && zeiger(el.parentElement))) {
+        return el.classList.contains('is-offen') ? null : flaeche(el);
+      }
+    }
+    return null;
+  }
+
+  // Farben aus der Fläche ableiten: hell → ×0,94; dunkel (Helligkeit < 60) → #34343C
+  // mit dunklerem Schatten; durchsichtig → Hauch Tinte. Ein vorhandener Schatten
+  // (z. B. Auswahlring) bleibt stehen, der innere kommt dazu.
+  function einfaerben(el) {
+    if (el.classList.contains('es-press-weich')) return;   // gleitet noch zurück: Werte stehen
+    const cs = getComputedStyle(el);
+    const m = (cs.backgroundColor.match(/[\d.]+/g) || []).map(Number);
+    const [r = 0, g = 0, b = 0, a = m.length ? (m[3] ?? 1) : 0] = m;
+    let bg, sh = HELL;
+    if (a === 0) bg = 'rgba(31,31,36,.05)';
+    else if (0.299 * r + 0.587 * g + 0.114 * b < 60) { bg = '#34343C'; sh = DUNKEL; }
+    else bg = `rgba(${Math.round(r * 0.94)},${Math.round(g * 0.94)},${Math.round(b * 0.94)},${a})`;
+    const alt = cs.boxShadow && cs.boxShadow !== 'none' ? cs.boxShadow + ', ' : '';
+    el.style.setProperty('--es-press-bg', bg);
+    el.style.setProperty('--es-press-sh', alt + sh);
+  }
+
+  function aufraeumen(el) {
+    el.classList.remove('es-press', 'es-press-weich');
+    el.style.removeProperty('--es-press-bg');
+    el.style.removeProperty('--es-press-sh');
+  }
+
+  // Abbruch ohne Zurückgleiten: beim Karten-Ziehen soll die Karte sofort ohne
+  // Druckschatten am Finger hängen. window.esPressCancel ruft decks.js, wenn der
+  // Long-Press-Drag startet (der beginnt ohne Fingerbewegung).
   const cancel = () => {
+    clearTimeout(spaet);
     if (!pressed) return;
-    pressed.classList.remove('es-press', 'es-wobble');
-    pressed.style.removeProperty('--wob');
+    aufraeumen(pressed);
     pressed = null;
   };
-  window.esWobbleCancel = cancel;
+  window.esPressCancel = cancel;
 
   const release = () => {
+    clearTimeout(spaet);
     if (!pressed) return;
     const el = pressed;
     pressed = null;
-    // Haltezeit → Stärke: kurzer Tipp federt knapp, langes Drücken lässt es
-    // richtig ausschwingen (Ausschlag und Dauer hängen beide an --wob).
-    const held = Math.min((performance.now() - pressedAt) / FULL_MS, 1);
-    el.style.setProperty('--wob', (WOB_MIN + (WOB_MAX - WOB_MIN) * held).toFixed(2));
-    el.classList.remove('es-press', 'es-wobble');
-    void el.offsetWidth;            // Reflow: feuert auch bei schnellem Doppeltippen
-    el.classList.add('es-wobble');
+    el.classList.remove('es-press');
+    setTimeout(() => { if (el !== pressed && !el.classList.contains('es-press')) aufraeumen(el); }, AUS_MS + 30);
+  };
+  // Loslassen: ein ganz kurzer Tipp bleibt noch bis MIN_MS unten, sonst sähe man
+  // vom Eindrücken nichts.
+  const loslassen = () => {
+    if (!pressed) return;
+    const rest = MIN_MS - (performance.now() - pressedAt);
+    if (rest > 0) { clearTimeout(spaet); spaet = setTimeout(release, rest); } else release();
   };
 
   document.addEventListener('pointerdown', (e) => {
     if (e.button > 0) return;       // nur die Haupttaste
-    const el = e.target.closest?.(SEL);
-    if (!el || el.disabled) return;
+    const el = ziel(e.target);
+    if (!el || el.closest(':disabled, [aria-disabled="true"], [inert]')) return;
     release();                      // ein noch offenes Drücken sauber beenden
+    einfaerben(el);
     pressed = el;
     pressedAt = performance.now();
     startX = e.clientX; startY = e.clientY;
-    el.classList.remove('es-wobble');
-    el.classList.add('es-press');
+    el.classList.add('es-press', 'es-press-weich');
   }, true);
   const OPTS = { capture: true, passive: true };
   window.addEventListener('pointermove', (e) => {
     if (!pressed) return;
-    if (Math.abs(e.clientX - startX) > MOVE_TOL || Math.abs(e.clientY - startY) > MOVE_TOL) cancel();
+    if (Math.abs(e.clientX - startX) > MOVE_TOL || Math.abs(e.clientY - startY) > MOVE_TOL) release();
   }, OPTS);
-  window.addEventListener('pointerup', release, OPTS);
-  window.addEventListener('pointercancel', cancel, OPTS);
-
-  document.addEventListener('animationend', (e) => {
-    if (e.animationName !== 'es-wobble') return;
-    e.target.classList.remove('es-wobble');
-    e.target.style.removeProperty('--wob');
-  }, true);
+  window.addEventListener('pointerup', loslassen, OPTS);
+  window.addEventListener('pointercancel', release, OPTS);
 })();
 
 // Supabase-Verbindung testen (kann später raus)

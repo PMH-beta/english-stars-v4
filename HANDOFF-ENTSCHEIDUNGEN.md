@@ -163,3 +163,22 @@ Avatare dürfen bei einer Migration verloren gehen. Kein Umbau darf `SD.decks`,
 | Bedienung | Menü darunter ist nur Kulisse (`inert`); Zurück-Taste = ein Schritt zurück, im ersten nichts. Musik-Knopf, Versions-Anzeige, Freundes-Zähler und Installieren-Knopf sind während der Tour aus. Übernimmt ein anderer Screen (z. B. abgelaufene Anmeldung), räumt sich die Tour ohne `tourSeen` ab. Der Installier-Hinweis 9.2 wartet bis zum nächsten Menü. | 30.09.2026 |
 | Kleine Handys | die Seite rückt so weit nach, dass das markierte Element frei zwischen Box und Rand steht (Blatt unten während der Tour verlängert); auf 874 px wird nicht gescrollt. Passt es nicht ganz (Schritt 2 auf 667 px), steht sein Anfang direkt unter der Box. | 30.09.2026 |
 | 5.1 nebenbei | beim Abgleich mit 1.13 gefunden: 18 px zwischen Trainingsplatz und Schmiede-Kopf ergänzt, Werte-Kacheln ohne das Grund-`gap` (3 px niedriger), Kachelreihe 12 statt 13 px unter dem Titel. | 30.09.2026 |
+
+## Update 1 (claude_code_update/, 06.10.2026)
+
+Fünf Änderungen laut `claude_code_update/UPDATE-PROMPT.md`: Gedrückt-Zustand,
+Reiter bündig, Kampf (Aufbau, Schrift, Richtig/Falsch), Kampfplätze als PNG,
+Boss-Krone. Es gelten weiter die Regeln oben.
+
+| Nr. | Frage (kurz) | Entscheidung | Phase | Datum |
+| --- | --- | --- | --- | --- |
+| — | Gedrückt-Zustand: sofort (Entwurf) oder mit Bewegung? | **Mit Bewegung (Nutzer):** Der Zustand aus A.1/A.2 gleitet stufenlos hinein (90 ms) und wieder heraus (170 ms), damit es wie echtes Eindrücken aussieht — kein 4-/8-fps-Takt. Bei „Bewegung reduzieren“ springt er wie im Entwurf. Der Wackelpudding beim Antippen ist dafür entfernt. | U1 · 1 | 06.10.2026 |
+
+### Ohne Rückfrage entschieden (Aussehen) — Update 1
+
+| Punkt | Entscheidung | Datum |
+| --- | --- | --- |
+| 1 · Was drückt | Knöpfe, Links, `summary`, alles mit `onclick` und jede Fläche, an der im CSS der Zeiger-Cursor beginnt. Klappkarten über ihren Kopf: zu = die ganze Karte (A.2 „Probetest“, „Farben“), offen = nur der Chevron (A.2 „Tiere und Natur“). Ein Knopf ohne eigene Fläche um genau eine Kachel (Ausrüstungsfach im Profil) drückt die Kachel. Gesperrte Knöpfe und nicht erreichbare Kampagnen-Knoten drücken nicht. | 06.10.2026 |
+| 1 · Kurzer Tipp | bleibt mindestens 110 ms eingedrückt, sonst sähe man vom Eindrücken nichts. Scrollen (> 10 px) lässt los; beim Ziehen einer Sammlung (2.5) verschwindet der Zustand sofort. | 06.10.2026 |
+| 1 · Vorhandene Ringe | Auswahlringe und Farbstreifen (Kampagnen-Knoten, Farbkreise, aktiver Reiter im Editor) bleiben beim Drücken stehen, der innere Schatten kommt dazu. | 06.10.2026 |
+| 1 · Alte Druck-Effekte | entfernt: Tränke im Kampf und Trankplätze schrumpften beim Tippen, der Lautstärke-Knopf wuchs, der Wortlisten-Knopf der Schmiede wurde sandfarben, die Kacheln der Ordnen-Spiele (5.6, 5.9) hatten einen festen Schlagschatten. | 06.10.2026 |

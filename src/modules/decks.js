@@ -397,9 +397,9 @@ function _attachCardListeners(cardEl, deckId) {
 }
 
 function _initDrag(cardEl, deckId, clientY) {
-  // Der Long-Press-Drag startet ohne Fingerbewegung — den Antipp-Effekt (Eindrücken)
-  // deshalb hier aktiv abbrechen, sonst hängt die Karte verformt am Finger.
-  window.esWobbleCancel?.();
+  // Der Long-Press-Drag startet ohne Fingerbewegung — den Gedrückt-Zustand deshalb
+  // hier aktiv abbrechen, sonst hängt die Karte mit Druckschatten am Finger.
+  window.esPressCancel?.();
 
   // Finger-Offset VOR DOM-Änderungen berechnen — sonst verschiebt sich der Offset
   // wenn eine aufgeklappte Karte oberhalb beim Collapse die Position ändert.
