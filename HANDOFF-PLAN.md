@@ -121,6 +121,23 @@ Offen (nicht freigegeben): der alte CSS-Block Regel für Regel (Regeln, die noch
 greifen, aber vermutlich von der p-Schicht überschrieben werden) und tote Stellen
 ohne Redesign-Bezug.
 
+## Update 1 (claude_code_update/, 06./07.10.2026)
+
+Fünf Änderungen aus `claude_code_update/UPDATE-PROMPT.md`, je ein Commit:
+
+| # | Änderung | Stand |
+| --- | --- | --- |
+| 1 | Gedrückt-Zustand für alles Antippbare (A.1/A.2) | **fertig** (`e5aa9cf`) — mit stufenlosem Übergang (Wunsch des Nutzers), Wackelpudding entfernt |
+| 2 | Reiter im Charakter-Editor bündig (B.2) | **fertig** (`199b2cb`) |
+| 3 | Kampf: Aufbau, Schrift, Richtig/Falsch (F.1–F.11, E.1, E.5/E.6) | **gebaut, soweit ohne Frage** (`5550a78` Bühne, `e90828a` Kopf + Panel, `e89b398` Steine) — offen F-63 bis F-67 |
+| 4 | Kampfplätze als feste 2×-Bilder unten mittig (D.1) | **fertig** (`d69f5b1`) |
+| 5 | Boss-Symbol = Krone | **fertig** (`eb59089`) |
+
+Offen bei 3 (wartet auf Antwort, siehe `HANDOFF-ENTSCHEIDUNGEN.md`): Wellen-Kästchen
+im Kopf (F-63), Kästchen in der Aufgabe (F-64), Rückmelde-Streifen (F-65), Angriff
+des Gegners beim Fehlgriff (F-66), Aufbau Richtig/Falsch F.6 vs. E.5/E.6 (F-67).
+Die Kampf-Enden (7.14–7.17) hat das Update nicht neu entworfen — sie bleiben.
+
 ## Was in jeder Phase gilt
 
 - Vor einer Funktionsänderung anhalten und im Format `F-nn` fragen

@@ -84,7 +84,11 @@ Avatare dürfen bei einer Migration verloren gehen. Kein Umbau darf `SD.decks`,
 
 | Nr. | Frage (kurz) | Gebraucht vor |
 | --- | --- | --- |
-| — | keine offenen Fragen (F-61, F-62 am 30.09.2026 beantwortet) | — |
+| F-63 | Kampf-Kopfleiste: Welle als Kästchen (Entwurf: 3, Boss 4) — Wellen sind heute unbegrenzt. Empfehlung B: wie heute als Zahl im neuen Look (so gebaut). | Update 1 · 3 |
+| F-64 | Kästchen rechts in der Aufgabe (4, Boss 6, grün/rot je Antwort). Empfehlung B: nur bei Richtig/Falsch für die Paare der Welle (heute Punkte über dem Paar). | Update 1 · 3 |
+| F-65 | Rückmelde-Streifen unter der Aufgabe (F.2–F.4): „Hund = dog · 6 Schaden“, „cat heißt Katze · 3 Schaden“, „Verpasst · Hund = dog · 4 Schaden“ — zeigt Lösung und Bedeutung. Empfehlung A. Bis dahin bleibt „✓ Richtig · dog“. | Update 1 · 3 |
+| F-66 | Gegner greift bei einem Fehlgriff sichtbar an (F.3, E.6), Schaden erst beim Treffer. Empfehlung B: wie heute (Held zuckt sofort). | Update 1 · 3 |
+| F-67 | Richtig/Falsch: Aufbau F.6 (gebaut) oder E.5/E.6 (anderes Panel, Karte „greift an“ nach jedem Paar). Empfehlung A: F.6 + Rückmelde-Karte aus E.5/E.6, „greift an“ nur nach dem letzten Paar. | Update 1 · 3 |
 
 ## Ohne Rückfrage entschieden (Aussehen) — Phase 7
 
