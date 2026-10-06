@@ -12,8 +12,7 @@
 // prompt (optional): eigener Kopf statt „🇩🇪 de" — für die Verbform-Wellen der 🌀-Knoten.
 
 import { playSfx } from './game.js';
-import { aufgabeKarte, frageDE } from './minigame-karte.js';
-import { meteorHTML } from './pixel-icons.js';
+import { aufgabeKarte, frageDE, steinHTML, flammeHTML, abzeichenHTML, funkenHTML } from './minigame-karte.js';
 import { richtigChip } from './minigame-letterstorm.js';
 
 // Gefallen wird in harten Stufen im gemeinsamen 8-fps-Takt (Handoff-Regel 6:
@@ -24,13 +23,12 @@ export function startMeteors({ host, de, answer, choices, prompt, fallMs, onMiss
   let done = false, timer = null, pausedAt = null;
   let endAt = Date.now() + fallMs;
 
-  // Aufbau wie Fragment 7.7: Aufgabenkarte ohne Zeitbalken (die Zeit ist der
-  // Fall), darunter der Himmel. Die Maske blendet Meteore an den Rändern aus.
+  // Aufbau wie F.1: Aufgabe ohne Zeitzeile (die Zeit ist der Fall), darunter der
+  // Himmel. Die Meteore kommen unter dem Panel hervor und setzen unten auf der
+  // gestrichelten Einschlaglinie auf (F.4).
   host.innerHTML = aufgabeKarte({ art: 'meteore', anweisung: prompt ? 'Fange die Form' : 'Fange die Übersetzung', frage: prompt || frageDE(de) })
     + `<div class="mg-flaeche">
-      <div id="cf-sky" class="mg-feld" style="
-        mask-image:linear-gradient(to bottom, transparent 0%, black 14%, black 82%, transparent 100%);
-        -webkit-mask-image:linear-gradient(to bottom, transparent 0%, black 14%, black 82%, transparent 100%);"></div>
+      <div id="cf-sky" class="mg-feld mg-himmel"><div class="mg-einschlag"></div></div>
     </div>`;
 
   const sky = host.querySelector('#cf-sky');
@@ -38,6 +36,23 @@ export function startMeteors({ host, de, answer, choices, prompt, fallMs, onMiss
   const TOP0 = -80;    // Startpunkt der untersten Stufe, oberhalb des Himmels
   const STEP = 115;    // Höhe einer Versatz-Stufe (größer als ein Meteor hoch ist)
   const GAP  = 8;      // Mindest-Luft je Seite zwischen zwei Meteoren nebeneinander
+  // Aufsetzpunkt: der Stein (46 hoch) liegt mit der Unterkante 6 px unter dem
+  // Feldrand auf der Linie (F.4: Oberkante 40 über der Linie).
+  const AUF = skyH - 40;
+  const _esc = (t) => (window.escHtml ? window.escHtml(String(t)) : String(t));
+  // Zustand am Stein: richtig grün mit Haken und Funken, falsch rot mit Kreuz und
+  // roten Funken (wackelt), verpasst rot mit Kreuz und großem Einschlag (F.2–F.4).
+  function _markiere(btn, art) {
+    btn.classList.add(art === 'richtig' ? 'is-richtig' : art === 'falsch' ? 'is-falsch' : 'is-verpasst', 'ist-oben');
+    const stein = btn.querySelector('.mg-stein');
+    if (!stein) return;
+    stein.insertAdjacentHTML('beforeend', abzeichenHTML(art === 'richtig')
+      + funkenHTML(art === 'falsch' ? 'rot' : 'gold', art === 'richtig' ? 1.1 : art === 'falsch' ? 0.8 : 1.5));
+    const f = stein.querySelector('.mg-funken');
+    if (art === 'verpasst' && f) f.style.top = '100%';
+    if (art === 'falsch') { stein.dataset.a = '2'; stein.dataset.ui = 'wiggle'; }
+    setTimeout(() => f?.remove(), 1000);
+  }
 
   const _shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
@@ -49,7 +64,12 @@ export function startMeteors({ host, de, answer, choices, prompt, fallMs, onMiss
   // Jeder Meteor steht auf der Höhe, die zu „jetzt" gehört — in harten Stufen.
   function _setzen() {
     const t = Math.max(0, Date.now() - startAt);
-    btns.forEach(b => { b.style.top = Math.round(Math.min(skyH + 10, b._top0 + b._v * t)) + 'px'; });
+    btns.forEach(b => {
+      const top = Math.round(Math.min(AUF, b._top0 + b._v * t));
+      b.style.top = top + 'px';
+      // Falsche fallen an der Linie durch (wie bisher unten aus dem Feld).
+      if (!b._answer && top >= AUF) b.style.visibility = 'hidden';
+    });
   }
   function _finish(success) {
     if (done) return;
@@ -57,6 +77,10 @@ export function startMeteors({ host, de, answer, choices, prompt, fallMs, onMiss
     if (timer) clearInterval(timer);
     btns.forEach(b => { b.style.pointerEvents = 'none'; });
     if (success) richtigChip(host, answer);
+    else {
+      const a = btns.find(b => b._answer);
+      if (a && Date.now() >= endAt) { a.style.top = AUF + 'px'; _markiere(a, 'verpasst'); }
+    }
     onResult(success, Math.max(0, endAt - Date.now()));
   }
 
@@ -67,19 +91,19 @@ export function startMeteors({ host, de, answer, choices, prompt, fallMs, onMiss
     btn.className = 'mg-meteor';
     btn.style.top = TOP0 + 'px';
     btn.style.left = `${10 + (lanes[i] + 0.5) / choices.length * 80}%`;
-    // Meteor 3× über dem Wort (Fragment 7.7).
-    btn.innerHTML = meteorHTML(42, 'margin:0 auto') + `<div class="mg-treiber">${word}</div>`;
+    // Brennender Stein (F.1): die Flamme flackert je Meteor versetzt.
+    btn.innerHTML = flammeHTML([0, 14, 26, 7][i % 4]) + steinHTML(_esc(word), 'orange', 'mg-stein--meteor');
     btn.onclick = () => {
       if (done || btn._used) return;
       if (isAnswer) {
         try { playSfx('correct'); } catch (e) {}
-        btn.lastElementChild.classList.add('is-richtig');
+        _markiere(btn, 'richtig');
         _finish(true);
       } else {
         // Falscher Meteor: ist raus und kostet HP — der Rest fällt weiter.
         btn._used = true;
         try { playSfx('wrong'); } catch (e) {}
-        btn.lastElementChild.classList.add('is-falsch');
+        _markiere(btn, 'falsch');
         btn.style.pointerEvents = 'none';
         if (onMiss) onMiss();
       }
@@ -114,15 +138,18 @@ export function startMeteors({ host, de, answer, choices, prompt, fallMs, onMiss
     // bleibt klar unter STEP, damit zwei Stufen sich nie berühren.
     const top0 = TOP0 - perm[levels[i]] * STEP - Math.round(Math.random() * 16);
     const dist = skyH + 10 - top0;
-    // Alle fallen exakt gleich schnell; unterschiedliche Fallzeiten würden den Versatz
-    // während des Fallens wieder zulaufen lassen. Die Fallzeit des RICHTIGEN (durch den
-    // Versatz ggf. länger als fallMs) ist das Zeitlimit der Welle.
+    // Die Fallzeit des RICHTIGEN (durch den Versatz ggf. länger als fallMs) ist das
+    // Zeitlimit der Welle — gerechnet wie bisher bis unter das Feld.
     const dur = Math.round(dist / baseDist * fallMs);
     b._top0 = top0;
-    b._v = dist / dur;   // px pro ms
     b.style.top = top0 + 'px';
     if (b._answer) answerDur = dur;
   });
+  // Alle fallen exakt gleich schnell (sonst liefe der Versatz zu) — so schnell, dass
+  // der richtige genau mit Ablauf der Zeit auf der Linie aufsetzt.
+  const ans = btns.find(b => b._answer);
+  const v = ans ? (AUF - ans._top0) / answerDur : (AUF - TOP0) / fallMs;   // px pro ms
+  btns.forEach(b => { b._v = v; });
   startAt = Date.now() + 60;
   endAt = startAt + answerDur;
 

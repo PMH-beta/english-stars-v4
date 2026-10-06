@@ -13,55 +13,72 @@
 
 import { playSfx } from './game.js';
 import { iconHTML } from './pixel-icons.js';
-import { aufgabeKarte, sekText } from './minigame-karte.js';
+import { aufgabeKarte, sekText, steinHTML } from './minigame-karte.js';
 
 const LOCK_OK_MS = 220;    // kurze Sperre nach richtig — verhindert Doppel-Tipp
 const LOCK_BAD_MS = 700;   // länger nach falsch: man soll das Paar noch sehen
 
-// Aussehen in style.css (Fragment 7.9); eingespritzt wird nur, was die Knöpfe
-// zum Spalten-Knopf macht.
-let _styleDone = false;
-function _ensureStyle() {
-  if (_styleDone) return;
-  _styleDone = true;
-  const st = document.createElement('style');
-  st.textContent = `
-    .tf-btn { cursor:pointer; box-shadow:none; display:flex; flex-direction:column; align-items:center; }
-    .tf-btn .tf-ico { font-size:0; line-height:1; display:flex; }
-  `;
-  document.head.appendChild(st);
+// Wort im Papier-Stein: lange Wörter werden kleiner statt über den Rand zu laufen
+// (wie die Lücken-Kacheln in 5.10) — 28 → 24 → 20 → 16 px.
+function _passend(el) {
+  el.style.fontSize = '';
+  const flaeche = el.closest('.mg-stein-flaeche');
+  for (const px of [24, 20, 16]) {
+    if (!flaeche || flaeche.scrollWidth <= flaeche.clientWidth) return;
+    el.style.fontSize = px + 'px';
+  }
 }
 
 export function startTrueFalse({ host, pairs, timeLimitMs, onMiss, onResult }) {
-  _ensureStyle();
   let done = false, timer = null, pausedAt = null, idx = 0, locked = false;
   let endAt = Date.now() + timeLimitMs;
   const missed = [];   // Index der falsch beurteilten Paare (für die Punkte-Leiste)
 
-  // Aufbau wie Fragment 7.9: Aufgabenkarte, darunter mittig Punkte, Paar, Knöpfe.
+  // Aufbau wie F.6: Aufgabe oben, im Feld das Paar als zwei Papier-Steine mit
+  // pulsierendem „?" dazwischen, darunter Falsch (rot) und Richtig (grün). Die
+  // Punkte für die Paare der Welle bleiben (F-64 offen).
+  const wort = (sprache, id) => `<span class="tf-wort"><span class="tf-wort-sprache">${sprache}</span><span id="${id}" class="tf-wort-text"></span></span>`;
+  const knopf = (icon, text) => `<span class="tf-symbol">${iconHTML(icon, 14)}</span>${text}`;
   host.innerHTML = aufgabeKarte({ art: 'richtig', anweisung: 'Richtig oder falsch?', frage: 'Passt das Paar?', text: true, zeitId: 'tf-bar', sekId: 'tf-secs' })
     + `<div class="mg-flaeche"><div class="tf-flaeche">
       <div id="tf-dots" class="tf-punkte"></div>
-      <div id="tf-card" class="mg-wortkarte">
-        <span id="tf-de" class="mg-wort-de"></span>
-        <span class="mg-wort-strich">—</span>
-        <span id="tf-en" class="mg-wort-en"></span>
+      <i class="tf-luft" style="flex:55 1 0"></i>
+      <div id="tf-card" class="tf-paar">
+        <div data-ui="bob" data-a="1.5">${steinHTML(wort('DE', 'tf-de'), 'papier', 'mg-stein--paar')}</div>
+        <span id="tf-zeichen" class="tf-frage" data-ui="pulse" data-a="6">?</span>
+        <div data-ui="bob" data-a="1.5" data-d="2">${steinHTML(wort('EN', 'tf-en'), 'papier', 'mg-stein--paar')}</div>
       </div>
+      <i class="tf-luft" style="flex:56 1 0"></i>
       <div class="tf-knoepfe">
-        <button id="tf-no" class="tf-btn"><span class="tf-ico">${iconHTML('close', 28)}</span><span class="tf-lbl">falsch</span></button>
-        <button id="tf-yes" class="tf-btn"><span class="tf-ico">${iconHTML('check', 28)}</span><span class="tf-lbl">richtig</span></button>
+        <button id="tf-no" class="tf-btn">${steinHTML(knopf('close', 'Falsch'), 'rot', 'mg-stein--knopf')}</button>
+        <button id="tf-yes" class="tf-btn">${steinHTML(knopf('check', 'Richtig'), 'gruen', 'mg-stein--knopf')}</button>
       </div>
+      <i class="tf-luft" style="flex:90 1 0"></i>
     </div></div>`;
 
   const card = host.querySelector('#tf-card');
   const deEl = host.querySelector('#tf-de');
   const enEl = host.querySelector('#tf-en');
   const dots = host.querySelector('#tf-dots');
+  const zeichen = host.querySelector('#tf-zeichen');
+
+  // Antwort sichtbar machen (E.5/E.6): beide Steine grün bzw. rot, statt „?" ein
+  // Haken bzw. Kreuz. null = zurück zur Frage.
+  function _faerben(ok) {
+    card.classList.toggle('is-richtig', ok === true);
+    card.classList.toggle('is-falsch', ok === false);
+    zeichen.classList.toggle('ist-ok', ok === true);
+    zeichen.classList.toggle('ist-falsch', ok === false);
+    if (ok == null) { zeichen.textContent = '?'; zeichen.dataset.ui = 'pulse'; }
+    else { zeichen.innerHTML = iconHTML(ok ? 'check' : 'close', 14); delete zeichen.dataset.ui; zeichen.style.transform = ''; }
+  }
 
   function _show() {
     const p = pairs[idx];
     deEl.textContent = p.de;
     enEl.textContent = p.en;
+    _passend(deEl);
+    _passend(enEl);
     dots.innerHTML = pairs.map((_, i) =>
       `<span class="tf-dot${missed.includes(i) ? ' miss' : i < idx ? ' done' : i === idx ? ' now' : ''}"></span>`).join('');
   }
@@ -81,7 +98,7 @@ export function startTrueFalse({ host, pairs, timeLimitMs, onMiss, onResult }) {
     setTimeout(() => {
       if (done) return;
       locked = false;
-      card.style.background = '';
+      _faerben(null);
       idx++;
       if (idx >= pairs.length) _finish(true);
       else _show();
@@ -92,13 +109,13 @@ export function startTrueFalse({ host, pairs, timeLimitMs, onMiss, onResult }) {
     if (done || locked) return;
     if (said === pairs[idx].ok) {
       try { playSfx('click'); } catch (e) {}
-      card.style.background = 'var(--p-ok)';
+      _faerben(true);
       _next(LOCK_OK_MS);
       return;
     }
     // Fehlurteil: kostet HP, das Paar bleibt kurz rot stehen — dann geht es weiter.
     try { playSfx('wrong'); } catch (e) {}
-    card.style.background = 'var(--p-falsch)';
+    _faerben(false);
     missed.push(idx);
     if (onMiss) onMiss();
     if (!done) _next(LOCK_BAD_MS);   // onMiss kann tödlich sein → Kampf schon vorbei

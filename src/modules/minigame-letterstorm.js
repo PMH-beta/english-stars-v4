@@ -17,7 +17,7 @@
 
 import { playSfx } from './game.js';
 import { STORM_PENALTY_MS } from './campaign-balance.js';
-import { aufgabeKarte, frageDE, sekText } from './minigame-karte.js';
+import { aufgabeKarte, frageDE, sekText, steinHTML } from './minigame-karte.js';
 import { iconHTML } from './pixel-icons.js';
 
 // Wackeln bei einem falschen Buchstaben (Übersicht 9.7): 8 Bilder im 8-fps-Takt,
@@ -74,12 +74,11 @@ export function ensureStormStyle() {
       50%     { transform: translate(calc(-50% + var(--x2)), calc(-50% + var(--y2))); }
       75%     { transform: translate(calc(-50% + var(--x3)), calc(-50% + var(--y3))); }
     }
-    /* Nur die Mechanik steht hier (Lage, Drift). Das Aussehen von Kachel und
-       Wortleiste kommt aus style.css (Fragment 7.4) — eingespritzte Regeln
-       stünden später im Dokument und überstimmten es sonst. */
+    /* Nur die Mechanik steht hier (Lage, Drift). Das Aussehen von Stein und
+       Wortleiste kommt aus style.css (F.7) — eingespritzte Regeln stünden später
+       im Dokument und überstimmten es sonst. */
     .cf-tile { position:absolute; cursor:pointer; padding:0; z-index:2;
       display:flex; align-items:center; justify-content:center;
-      border:2px solid var(--p-ink); background:var(--p-karte); color:var(--p-ink); font:900 24px var(--p-font);
       animation: cfDrift var(--dur,12s) ease-in-out var(--del,0s) infinite; }
     .cf-tile.cf-hit { visibility:hidden; pointer-events:none; }
     .cf-slot { display:inline-flex; align-items:center; justify-content:center; color:var(--p-ink); }
@@ -166,11 +165,14 @@ export function startLetterstorm({ host, de, en, prompt, timeLimitMs, guards = 0
     onResult(success, Math.max(0, endAt - Date.now()));
   }
 
+  // Neigung der Runensteine wie in F.7/F.8 (−6°, 4°, −3°, −5°, 5°), reihum.
+  const DREH = [-6, 4, -3, -5, 5];
   tappable.forEach((t, k) => {
     const cell = cells[k];
     const btn = document.createElement('button');
     btn.className = 'cf-tile';
-    btn.innerHTML = `<span>${t.ch}</span>`;
+    btn.innerHTML = steinHTML(t.ch, 'lila', 'mg-stein--rune');
+    btn.style.setProperty('--dreh', DREH[k % DREH.length] + 'deg');
     const x = (cell.c + 0.5) / cols * 84 + 8;    // % innerhalb des Felds, mit Rand
     const y = (cell.r + 0.5) / rows * 74 + 10;
     btn.style.left = `calc(${x}% - 31px)`;
@@ -199,7 +201,7 @@ export function startLetterstorm({ host, de, en, prompt, timeLimitMs, guards = 0
         if (onGuardUsed) try { onGuardUsed(); } catch (e) {}
         try { playSfx('click'); } catch (e) {}
       } else {
-        // Falsch (7.5): Kachel rosa, wackelt in 8 harten Stufen.
+        // Falsch (7.5): Stein rot, wackelt in 8 harten Stufen.
         try { playSfx('wrong'); } catch (e) {}
         btn.classList.add('cf-shake');
         wackeln(btn, () => btn.classList.remove('cf-shake'));

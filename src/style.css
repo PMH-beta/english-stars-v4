@@ -2181,21 +2181,6 @@ button.p-chip{ cursor:pointer; }
   border:var(--p-rahmen); border-radius:50%; background:var(--p-inaktiv);
   display:flex; align-items:center; justify-content:center;
 }
-/* Wortkarte (Richtig oder falsch) — die Fläche färbt sich bei der Antwort. */
-.mg-wortkarte{
-  border:var(--p-rahmen); border-radius:var(--p-r-kachel); background:var(--p-karte);
-  padding:14px 20px; box-shadow:none; transition:background .2s;
-  display:flex; align-items:center; justify-content:center; gap:12px; flex-wrap:wrap;
-}
-.mg-wort-de{ font:900 21px var(--p-font); color:var(--p-ink); }
-.mg-wort-strich{ font:800 17px var(--p-font); color:var(--p-text-2); }
-.mg-wort-en{ font:900 21px var(--p-font); color:var(--p-violett-text); }
-/* Treibende Antwortkachel (Echo, Meteore). */
-.mg-treiber{
-  border:var(--p-rahmen); border-radius:var(--p-r-kachel); background:var(--p-karte);
-  color:var(--p-ink); font:900 15px var(--p-font); padding:10px 16px;
-  box-shadow:none; cursor:pointer; white-space:nowrap; z-index:2;
-}
 
 /* ══ RESTE DER ALTEN SCHICHT ═══════════════════════════════════════════════
    Diese Klassen erzeugt weiterhin JS, das noch nicht umgebaut ist (UV-Trainings-
@@ -2626,52 +2611,116 @@ button.p-chip{ cursor:pointer; }
 .cf-slot.cf-dran{ border:2px dashed var(--p-ink); background:#FFF1C4; }
 .cf-slot.cf-filled{ border:var(--p-rahmen); background:var(--p-karte); }
 .cf-slot.cf-ok{ border:var(--p-rahmen); background:var(--p-richtig); }
-.cf-tile{ width:62px; height:62px; border-radius:var(--p-r-chip-gross); transition:none; }
-.cf-tile.cf-shake{ background:var(--p-falsch); }
+/* Buchstaben als lila Runensteine (F.7, F.8); der Knopf selbst ist nur der
+   treibende Halter, jeder Stein steht leicht schräg wie im Fragment. */
+.cf-tile{ width:62px; height:62px; padding:0; border:0; background:none; transition:none; }
+.cf-tile .mg-stein{ transform:rotate(var(--dreh,0deg)); }
 .cf-tile.cf-shake span{ animation:none; }
-/* „Richtig · horse" nach der gelösten Welle (7.6). */
+/* „Richtig · horse" nach der gelösten Welle (7.6) — grün wie jedes Richtig (E.1). */
 .mg-richtig{
   position:absolute; left:0; right:0; bottom:22px; z-index:3; display:flex; justify-content:center; pointer-events:none;
 }
 .mg-richtig > span{
   display:inline-flex; align-items:center; gap:5px; white-space:nowrap;
-  border:var(--p-rahmen); border-radius:11px; background:var(--p-ok);
-  padding:6px 14px; font:900 13px var(--p-font); color:var(--p-ink);
+  border:var(--p-rahmen); border-radius:11px; background:var(--p-richtig);
+  padding:6px 14px; font:900 16px/1.2 var(--p-font); color:var(--p-ink);
 }
 
-/* ── Wort-Meteoriten (7.7, 7.11, 7.13) und Echo-Fang (7.8, 7.12) ── */
+/* ── Pixel-Steine (Update 1, F.1–F.11) ──
+   Tintenrand + Fläche mit gestuften Ecken, Licht oben, Schatten unten, zwei
+   Sprenkel. Farben je Ton; richtig = grün, falsch = rot (E.1). */
+:root{
+  --stein-ecken:polygon(0 12px,4px 12px,4px 4px,12px 4px,12px 0,calc(100% - 12px) 0,calc(100% - 12px) 4px,calc(100% - 4px) 4px,calc(100% - 4px) 12px,100% 12px,100% calc(100% - 12px),calc(100% - 4px) calc(100% - 12px),calc(100% - 4px) calc(100% - 4px),calc(100% - 12px) calc(100% - 4px),calc(100% - 12px) 100%,12px 100%,12px calc(100% - 4px),4px calc(100% - 4px),4px calc(100% - 12px),0 calc(100% - 12px));
+}
+.mg-stein{ position:relative; z-index:1; display:inline-flex; --f:#D9CCFF; --l:#EEE8FF; --s:#B3A0F0; --k:#C4B3F7; }
+.mg-stein--orange{ --f:#FFB98A; --l:#FFDDBF; --s:#EB955F; --k:#E08654; }
+.mg-stein--papier{ --f:#F8F6EC; --l:#FFFFFF; --s:#E3DFCD; --k:#EAE7D6; }
+.mg-stein--gruen, .is-richtig .mg-stein{ --f:#6CCB8F; --l:#A3E3BA; --s:#4EAD73; --k:#4EAD73; }
+.mg-stein--rot, .is-falsch .mg-stein, .is-verpasst .mg-stein, .cf-shake .mg-stein{ --f:#FF7F86; --l:#FFB0B5; --s:#E25F68; --k:#E25F68; }
+.mg-stein-rand{ display:block; flex:1; padding:2px; background:var(--p-ink); clip-path:var(--stein-ecken); }
+.mg-stein-flaeche{
+  position:relative; display:flex; align-items:center; justify-content:center; gap:9px;
+  background:var(--f); clip-path:var(--stein-ecken); box-shadow:inset 0 4px 0 var(--l),inset 0 -4px 0 var(--s);
+  font:900 16px/1.2 var(--p-font); color:var(--p-ink); white-space:nowrap; cursor:pointer;
+}
+.mg-stein-flaeche::before, .mg-stein-flaeche::after{ content:''; position:absolute; width:4px; height:4px; background:var(--k); }
+.mg-stein-flaeche::before{ left:8px; bottom:8px; }
+.mg-stein-flaeche::after{ right:9px; top:9px; }
+.mg-stein--rune .mg-stein-flaeche{ height:58px; min-width:58px; padding:0; font:900 28px/1.1 var(--p-font); }
+.mg-stein--meteor .mg-stein-flaeche{ height:42px; min-width:74px; padding:0 18px; }
+.mg-stein--paar, .mg-stein--knopf{ display:flex; width:100%; }
+.mg-stein--paar .mg-stein-flaeche{ height:92px; min-width:0; padding:0 18px; cursor:default; }
+.mg-stein--knopf .mg-stein-flaeche{ height:62px; min-width:0; padding:0 18px; }
+/* Abzeichen am Stein (F.2, F.3): weißer Kreis mit Haken bzw. Kreuz. */
+.mg-abzeichen{
+  position:absolute; right:-9px; top:-9px; z-index:3; width:24px; height:24px;
+  border:var(--p-rahmen); border-radius:50%; background:var(--p-karte);
+  display:flex; align-items:center; justify-content:center; pointer-events:none;
+}
+/* Funkenstern hinter dem Stein (F.2–F.4: nur die äußeren Pixel schauen hervor). */
+.mg-funken{ position:absolute; left:50%; top:50%; width:0; height:0; z-index:-1; pointer-events:none; }
+.mg-funken > span{ position:absolute; display:block; }
+
+/* ── Wort-Meteoriten (F.1–F.4, F.9, F.11) ──
+   Brennende Steine; das Feld schneidet nur oben (unter dem Panel hervor), unten
+   setzen sie auf der gestrichelten Einschlaglinie auf (F.4). */
+.mg-feld.mg-himmel{ overflow:visible; clip-path:inset(0 -60px -70px -60px); }
+.mg-einschlag{
+  position:absolute; left:0; right:0; bottom:-4px; height:4px; z-index:1; pointer-events:none;
+  background:repeating-linear-gradient(90deg,rgba(255,127,134,.9) 0 10px,transparent 10px 18px);
+}
 .mg-meteor{
   position:absolute; transform:translateX(-50%); z-index:2; padding:0; border:0; background:none; cursor:pointer;
-  display:flex; flex-direction:column; align-items:center;
+  display:inline-flex;
 }
-.mg-treiber{
-  border:var(--p-rahmen); border-radius:var(--p-r-kachel); background:var(--p-karte);
-  padding:9px 15px; font:900 15px var(--p-font); color:var(--p-ink); white-space:nowrap;
-}
-.mg-meteor .mg-treiber{ margin-top:2px; padding:8px 14px; }
-.mg-treiber.is-falsch{ background:var(--p-falsch); opacity:.45; }
-.mg-treiber.is-richtig{ background:var(--p-ok); }
+.mg-meteor.ist-oben{ z-index:4; }
+.mg-flamme{ position:absolute; left:50%; bottom:calc(100% - 10px); width:48px; height:30px; margin-left:-24px; z-index:0; pointer-events:none; }
+.mg-flamme > span{ position:absolute; display:block; }
+.is-richtig .mg-flamme, .is-falsch .mg-flamme, .is-verpasst .mg-flamme{ display:none; }
 
-/* ── Richtig oder falsch (7.9) ── */
-.tf-flaeche{ flex:1; display:flex; flex-direction:column; justify-content:center; gap:20px; padding:0 14px 16px; }
-.tf-punkte{ display:flex; justify-content:center; gap:8px; }
+/* ── Echo-Fang (F.5, F.10): schwebende blaue Blasen mit Mini-Hörbild ── */
+.mg-blase{
+  --f:#BCE3FF; --l:#E6F5FF; --s:#8FCBF2;
+  position:absolute; display:flex; align-items:center; gap:9px; height:46px; padding:0 18px 0 14px;
+  border:var(--p-rahmen); border-radius:23px; background:var(--f); color:var(--p-ink);
+  box-shadow:inset 0 4px 0 var(--l),inset 0 -4px 0 var(--s);
+  font:900 16px/1.2 var(--p-font); white-space:nowrap; cursor:pointer; z-index:2;
+}
+.mg-blase::before{ content:''; position:absolute; left:12px; top:7px; width:4px; height:4px; background:#FFFFFF; }
+.mg-blase::after{ content:''; position:absolute; left:18px; top:7px; width:2px; height:2px; background:#FFFFFF; }
+.mg-blase.is-richtig{ --f:#6CCB8F; --l:#A3E3BA; --s:#4EAD73; }
+.mg-blase.is-falsch{ --f:#FF7F86; --l:#FFB0B5; --s:#E25F68; }
+.mg-blase-balken{ display:flex; align-items:center; gap:2px; }
+.mg-blase-balken > span{ display:block; width:3px; background:var(--p-ink); }
+
+/* ── Richtig oder falsch (F.6) ──
+   Paar als zwei Papier-Steine mit „?" dazwischen, darunter Falsch/Richtig als
+   rote und grüne Steine. Die Luft verteilt sich wie im Fragment 55 : 56 : 90 —
+   bei 874 hoch liegen Paar und Knöpfe genau wie dort, auf kleinen Handys rückt
+   alles zusammen. */
+.tf-flaeche{ position:relative; flex:1; min-height:0; display:flex; flex-direction:column; }
+.tf-luft{ display:block; min-height:4px; }
+.tf-punkte{ position:absolute; left:0; right:0; top:16px; display:flex; justify-content:center; gap:8px; }
 .tf-dot{ width:16px; height:16px; border-radius:50%; border:var(--p-rahmen); background:var(--p-karte); }
-.tf-dot.done{ background:var(--p-ok); }
-.tf-dot.miss{ background:var(--p-falsch); }
+.tf-dot.done{ background:var(--p-richtig); }
+.tf-dot.miss{ background:var(--p-falsch-stark); }
 .tf-dot.now{ background:var(--p-gold); }
-.mg-wortkarte{
-  border:var(--p-rahmen); border-radius:var(--p-r-kachel); background:var(--p-karte-hell);
-  padding:18px 20px; display:flex; align-items:center; justify-content:center; gap:12px; flex-wrap:wrap;
-  transition:none;
+.tf-paar{ flex:none; display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); align-items:center; gap:8px; }
+.tf-frage{
+  width:40px; height:40px; border:var(--p-rahmen); border-radius:50%; background:var(--p-gold);
+  display:flex; align-items:center; justify-content:center; font:900 16px/1.2 var(--p-font); color:var(--p-ink);
 }
-.mg-wort-de, .mg-wort-en{ font:900 22px var(--p-font); }
-.mg-wort-strich{ font:800 17px var(--p-font); color:var(--p-text-2); }
-.tf-knoepfe{ display:flex; justify-content:center; gap:20px; }
-.tf-btn{
-  min-width:144px; padding:10px 14px 12px; gap:4px;
-  border:var(--p-rahmen); border-radius:18px; background:var(--p-karte);
+.tf-frage.ist-ok{ background:var(--p-richtig); }
+.tf-frage.ist-falsch{ background:var(--p-falsch-stark); }
+.tf-wort{ display:flex; flex-direction:column; align-items:center; gap:5px; min-width:0; }
+.tf-wort-sprache{ font:900 10px/1 var(--p-font); color:var(--p-grau); }
+.tf-wort-text{ font:900 28px/1.1 var(--p-font); color:var(--p-ink); }
+.tf-knoepfe{ flex:none; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:10px; }
+.tf-btn{ display:flex; min-width:0; padding:0; border:0; background:none; cursor:pointer; }
+.tf-symbol{
+  width:30px; height:30px; flex:none; border:var(--p-rahmen); border-radius:10px; background:var(--p-karte);
+  display:flex; align-items:center; justify-content:center;
 }
-.tf-btn .tf-lbl{ font:900 12px var(--p-font); letter-spacing:.08em; text-transform:uppercase; color:var(--p-ink); }
 
 /* ── Schutz-Meldung über der Figur (Fragment 6.8, N41) ── */
 .cf-schutz{

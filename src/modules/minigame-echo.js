@@ -15,7 +15,7 @@ import { playSfx } from './game.js';
 import { speakWord } from './speech.js';
 import { ensureStormStyle, setDrift, richtigChip } from './minigame-letterstorm.js';
 import { iconHTML } from './pixel-icons.js';
-import { aufgabeKarte, frageHoeren, sekText } from './minigame-karte.js';
+import { aufgabeKarte, frageHoeren, sekText, blasenBalken, abzeichenHTML } from './minigame-karte.js';
 
 export function startEcho({ host, answer, speakText, choices, verb, timeLimitMs, onMiss, onResult }) {
   ensureStormStyle();   // cfDrift-Keyframes
@@ -60,21 +60,26 @@ export function startEcho({ host, answer, speakText, choices, verb, timeLimitMs,
     const btn = document.createElement('button');
     const x = (cell.c + 0.5) / cols * 76 + 12;
     const y = (cell.r + 0.5) / rows * 74 + 10;
-    btn.className = 'mg-treiber';
-    btn.style.cssText = `position:absolute;left:${x}%;top:${y}%;
+    // Blase wie F.5: blau mit Glanzpunkten und Mini-Hörbild; treibt wie bisher.
+    btn.className = 'mg-blase';
+    btn.style.cssText = `left:${x}%;top:${y}%;
       animation:cfDriftC var(--dur,9s) ease-in-out var(--del,0s) infinite;`;
-    btn.textContent = word;
+    btn.innerHTML = blasenBalken + '<span></span>';
+    btn.lastElementChild.textContent = word;
     btn.onclick = () => {
       if (done || btn._used) return;
       if (word === answer) {
         try { playSfx('correct'); } catch (e) {}
         btn.classList.add('is-richtig');
+        btn.insertAdjacentHTML('beforeend', abzeichenHTML(true));
         _finish(true);
       } else {
-        // Falsches Wort: Chip ist raus und kostet HP — die übrigen treiben weiter.
+        // Falsches Wort: Blase ist raus (rot mit Kreuz) und kostet HP — die
+        // übrigen treiben weiter.
         btn._used = true;
         try { playSfx('wrong'); } catch (e) {}
         btn.classList.add('is-falsch');
+        btn.insertAdjacentHTML('beforeend', abzeichenHTML(false));
         if (onMiss) onMiss();
       }
     };

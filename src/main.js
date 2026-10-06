@@ -384,9 +384,13 @@ try { screen.orientation?.lock?.('portrait').catch(() => {}); } catch (e) {}
   // Knopf ohne eigene Fläche um genau eine Kachel herum (Ausrüstungsfach: Kachel +
   // Beschriftung): eingedrückt wird die sichtbare Kachel. Reiter ohne Fläche
   // bleiben selbst das Ziel (A.2: „Kampagne", „Formen").
+  // Pixel-Steine im Kampf markieren ihre Fläche wie die Fragmente mit data-press.
   const hatFlaeche = (el) => { const c = getComputedStyle(el); return c.backgroundColor !== 'rgba(0, 0, 0, 0)' || parseFloat(c.borderTopWidth) > 0; };
   function flaeche(el) {
-    if (!el || hatFlaeche(el)) return el;
+    if (!el) return el;
+    const dp = el.matches('[data-press]') ? el : el.querySelector('[data-press]');
+    if (dp) return dp;
+    if (hatFlaeche(el)) return el;
     const k = [...el.children].filter(hatFlaeche);
     return k.length === 1 ? k[0] : el;
   }
