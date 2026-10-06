@@ -734,6 +734,12 @@ body.in-game .mode-progress{display:block;}
    position:absolute HINTER Kopfzeile/Aufgabe/Spielfeld, die im normalen
    Fluss darüber liegen (siehe campaign-fight.js _renderOverlay). */
 .cf-scenery{position:absolute;inset:0;overflow:hidden;z-index:1;}
+/* Kampfplatz (Update 1, D.1): fertiges Bild 2560 × 720, fest im Maßstab 2, unten
+   mittig — nie cover/contain, nie Prozent. Breiter oder höher = mehr Landschaft. */
+.cf-kulisse{
+  position:absolute;left:50%;bottom:0;width:5120px;height:1440px;max-width:none;
+  transform:translateX(-50%);image-rendering:pixelated;pointer-events:none;user-select:none;
+}
 /* Boden-Bereich: EIN durchgehendes grünes Feld (kein Bruch zum Himmel-SVG),
    enthält Figuren + Eingabefeld + Leben + Tränke. Ist immer der LETZTE
    Flex-Kind des Overlays — dadurch reicht er bündig bis zum unteren Rand,
@@ -2421,8 +2427,10 @@ button.p-chip{ cursor:pointer; }
   background:var(--p-ink);color:var(--p-gold);font:900 14px var(--p-font);cursor:pointer;
 }
 .rest-buehne{position:relative;z-index:2;flex:none;height:300px}
-.rest-held{position:absolute;left:60px;top:14px;width:108px;height:174px;z-index:3}
-.rest-feuer{position:absolute;left:214px;top:78px;z-index:3}
+/* Figur und Feuer hängen an der Mitte (Update 1: Kampfplatz fest 2× unten mittig) —
+   bei 402 breit genau 60 bzw. 214 px vom linken Rand wie im Fragment 6.7. */
+.rest-held{position:absolute;left:calc(50% - 141px);top:14px;width:108px;height:174px;z-index:3}
+.rest-feuer{position:absolute;left:calc(50% + 13px);top:78px;z-index:3}
 
 /* ══ Kampf-Figuren (Phase 6) ══════════════════════════════════════════════════
    Held, Gegner und Gefährte laufen über SpritePlayer; die alten CSS-Animationen
@@ -2464,7 +2472,9 @@ button.p-chip{ cursor:pointer; }
   display:flex; flex-direction:column;
 }
 /* Unten: Bühne mit Held und Gegner. */
-.cf-buehne{ position:relative; z-index:2; flex:none; height:314px; width:100%; max-width:440px; margin:0 auto; }
+/* Bühne höchstens 402 breit (Entwurfsbreite): Held und Gegner bleiben bei jedem
+   Fenster an derselben Stelle der Kulisse (Update 1: relativ zur unteren Mitte). */
+.cf-buehne{ position:relative; z-index:2; flex:none; height:314px; width:100%; max-width:402px; margin:0 auto; }
 .cf-reihe{
   position:absolute; left:14px; right:14px; top:18px; z-index:3;
   display:flex; justify-content:space-between; align-items:flex-end;

@@ -34,7 +34,7 @@ import { equippedWeapon, equipEffects, equippedGearMap, POTIONS, POTION_TON, pot
 import { frageForm } from './minigame-karte.js';
 import { STAKE_COST } from './campaign.js';   // nur zur Laufzeit gelesen — der Kreis-Import ist unkritisch
 import { pickEnemyKey, enemyName, enemyBattleSVG } from './enemies.js';
-import { arenaSVG, arenaForRound } from './world.js';
+import { arenaTag, arenaForRound } from './world.js';
 import { ensureAvatar } from './avatar.js';
 import { heroCombatSheet, enemyCombatSheet, SpritePlayer, ProjectileLayer } from './pixel-anim.js';
 import { gearFor, createPetPlayer, petKind, petColorHex } from './hero.js';
@@ -333,12 +333,11 @@ function _usePotion(i) {
 
 function _el(id) { return document.getElementById(id); }
 
-// Kampfplatz aus pixel-world-fine.js (ARENAS). Welcher erscheint, haengt an der
-// RUNDE: Wiese, Abend, Kerker, Kristall, Vulkan, Friedhof — die Kampagne wird mit
-// jedem Durchlauf sichtbar tiefer, ohne dass die Kulisse innerhalb eines Laufs
-// springt. Der eigene Pixel-Himmel und die Huegel-Parallax entfallen damit; die
-// Kulisse bringt beides mit.
-function _arenaScene(round) { return arenaSVG(arenaForRound(round)); }
+// Kampfplatz (Update 1: fertiges Bild, fest 2×, unten mittig). Welcher erscheint,
+// haengt an der RUNDE: Wiese, Abend, Kerker, Kristall, Vulkan, Friedhof — die
+// Kampagne wird mit jedem Durchlauf sichtbar tiefer, ohne dass die Kulisse
+// innerhalb eines Laufs springt.
+function _arenaScene(round) { return arenaTag(arenaForRound(round)); }
 
 // Kampf-Szene wie die ursprüngliche Kampagnen-Version: dunkler Violett-Verlauf,
 // Kartenlogik und Sprites bleiben; die Bedienoberflaeche traegt seit dem

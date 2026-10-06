@@ -58,6 +58,11 @@ const PRECACHE = [
   './src/modules/speech.js', './src/modules/startup.js', './src/modules/stats.js',
   './src/modules/storage.js', './src/modules/supabase.js', './src/modules/sync.js',
   './src/modules/ui.js', './src/modules/vocab.js',
+  // Kampfplätze als fertige Bilder (Update 1, zusammen 1,7 MB) — vorher kamen sie
+  // aus pixel-world-fine.js und waren damit immer offline da. Bilder laufen sonst
+  // cache-first im Versions-Cache, der bei jedem Deploy geleert wird.
+  './arena/A_wiese.png', './arena/A_abend.png', './arena/A_kerker.png',
+  './arena/A_kristall.png', './arena/A_vulkan.png', './arena/A_friedhof.png',
 ];
 
 self.addEventListener('install', e => {

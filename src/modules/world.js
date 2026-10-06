@@ -11,7 +11,7 @@
 //     deshalb feste Vielfache, keine width:100%-Streckung.
 
 import {
-  itemSprite, spriteToCanvas, spriteSVG,
+  itemSprite, spriteToCanvas,
   itemPartsCanvasTrimmed, partStates, PART_ANIM, PART_NAMES, FORGE_PANEL,
   ARENAS, CAMPFIRE, CAMPFIRE_FRAMES, CAMPFIRE_FPS,
 } from './pixel-world-fine.js';
@@ -100,12 +100,14 @@ export function arenaForRound(round = 0) {
 }
 
 /**
- * Kampfplatz als SVG-Hintergrund. Füllt die Fläche und schneidet unten nichts
- * ab (`xMidYMax slice`) — bei 402 × 874 (Entwurfsgröße) ist das exakt 2×.
+ * Kampfplatz als fertiges Bild (Update 1, `arena/A_*.png`, 2560 × 720) — nie
+ * skaliert: fest im Maßstab 2, unten mittig (CSS `.cf-kulisse`). Ein breiteres
+ * oder höheres Fenster zeigt einfach mehr Landschaft; am Handy (402 × 874) ist es
+ * genau der bisherige Ausschnitt aus ARENAS (mittlere 201 × 437 unten).
  */
-export function arenaSVG(key) {
-  const sp = ARENAS[key] || ARENAS[ARENA_KEYS[0]];
-  return spriteSVG(sp).replace('<svg ', '<svg preserveAspectRatio="xMidYMax slice" ');
+export function arenaTag(key) {
+  const k = ARENAS[key] ? key : ARENA_KEYS[0];
+  return `<img class="cf-kulisse" src="arena/A_${k}.png" width="5120" height="1440" alt="" draggable="false">`;
 }
 
 // ── Lagerfeuer ──────────────────────────────────────────────────────────────

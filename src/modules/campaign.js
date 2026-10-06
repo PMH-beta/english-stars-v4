@@ -21,7 +21,7 @@ import { iconHTML } from './pixel-icons.js';
 import { HP_MAX, REST_HEAL, BOSS_WIN_TALER } from './campaign-balance.js';
 import { openFight, fightPoolReady, verbsReady, loadPresetSupply } from './campaign-fight.js';
 import { equipEffects, openPotionChoice, POTIONS, POTION_TON, potionStacks } from './campaign-equipment.js';
-import { arenaSVG, campfireTag, CAMPFIRE_FRAMES, CAMPFIRE_FPS } from './world.js';
+import { arenaTag, campfireTag, CAMPFIRE_FRAMES, CAMPFIRE_FPS } from './world.js';
 import { renderAvatarInto } from './avatar.js';
 import { dungeonEnemySVG } from './pixel-enemies-dungeon.js';
 
@@ -269,7 +269,7 @@ function _renderRest(run, before) {
   ov.id = 'camp-rest';
   ov.className = 'rest-ov p-ton-mint';
   ov.innerHTML = `
-    <div class="cf-scenery">${arenaSVG('abend')}</div>
+    <div class="cf-scenery">${arenaTag('abend')}</div>
     <div class="rest-kopf"><span class="rest-titel">${_flackern(iconHTML('campfire', 14))}Rastplatz</span></div>
     <div class="rest-mitte">
       <div class="rest-karte">
