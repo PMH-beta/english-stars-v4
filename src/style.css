@@ -45,6 +45,11 @@
   --p-formen:#FFD6A5; --p-flamme:#FF8A3D;
   --p-stahl:#C3CDD9; --p-stahl-dunkel:#8A97A3;
   --p-holz:#A9703F; --p-holz-dunkel:#6B4423;
+  /* Kampf (Update 1): Richtig ist immer grün mit Haken, falsch immer rot mit Kreuz;
+     dazu die dunkle Statusleiste und die zweite Textfarbe (Grau für Nebensachen). */
+  --p-richtig:#6CCB8F; --p-richtig-kante:#4EAD73;
+  --p-falsch-stark:#FF7F86; --p-falsch-kante:#E25F68;
+  --p-nachtgrau:#3E3E46; --p-grau:#6B6B75; --p-grau-hell:#A9A9B4;
   /* Rahmen — 2px Tinte ist der Normalfall, jede Abweichung trägt Bedeutung */
   --p-rahmen:2px solid #1F1F24;
   --p-rahmen-leer:2px dashed #1F1F24;                 /* leere Ablage, Vondu-Kasten, offener Schmiede-Schritt */
@@ -2472,62 +2477,73 @@ button.p-chip{ cursor:pointer; }
   display:flex; flex-direction:column;
 }
 /* Unten: Bühne mit Held und Gegner. */
-/* Bühne höchstens 402 breit (Entwurfsbreite): Held und Gegner bleiben bei jedem
-   Fenster an derselben Stelle der Kulisse (Update 1: relativ zur unteren Mitte). */
+/* Unten: Bühne mit Held, Gegner und Statusleiste (Update 1, F.1–F.11). Höchstens
+   402 breit (Entwurfsbreite); alle Lagen hängen an der unteren Mitte, damit Held
+   und Gegner bei jedem Fenster an derselben Stelle der Kulisse stehen. Werte aus
+   den Fragmenten bei 402 × 874 — die Bühne sind dort die unteren 314 px. */
 .cf-buehne{ position:relative; z-index:2; flex:none; height:314px; width:100%; max-width:402px; margin:0 auto; }
-.cf-reihe{
-  position:absolute; left:14px; right:14px; top:18px; z-index:3;
-  display:flex; justify-content:space-between; align-items:flex-end;
+.cf-hero{ position:absolute; left:calc(50% - 161px); bottom:126px; width:108px; height:174px; }
+.cf-feind-platz{ position:absolute; left:calc(50% + 36px); bottom:128px; width:144px; height:156px; z-index:3; }
+.cf-feind-platz.boss{ left:calc(50% - 5px); bottom:124px; width:192px; height:204px; }
+/* Statusleiste: dunkel, beide Lebensbalken, Text hell auf dunkel (E.1). */
+.cf-leiste{
+  position:absolute; left:14px; right:14px; bottom:24px; z-index:5;
+  border-radius:20px; background:var(--p-ink); padding:9px 11px 10px;
+  display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr);
 }
-.cf-spalte{ display:flex; flex-direction:column; align-items:center; gap:12px; }
-.cf-feind-platz{ position:relative; width:142px; height:154px; }
-.cf-feind-platz.boss{ width:172px; height:184px; }
-/* Statuskarte: 160 + Polster + Rahmen = 184 breit. */
-.cf-status{
-  width:184px; border:var(--p-rahmen); border-radius:var(--p-r-kachel); background:var(--p-karte);
-  padding:7px 10px 8px; box-shadow:0 3px 0 rgba(31,31,36,.2);
+.cf-leiste-seite{ padding-right:11px; min-width:0; }
+.cf-leiste-seite--feind{ padding:0 0 0 11px; border-left:2px solid var(--p-nachtgrau); }
+.cf-leiste-kopf{ display:flex; justify-content:space-between; align-items:baseline; gap:6px; }
+.cf-leiste-seite--feind .cf-leiste-kopf{ flex-direction:row-reverse; }
+.cf-leiste-name, .cf-leiste-zahl{ font:800 13px/1.3 var(--p-font); color:var(--p-karte); white-space:nowrap; }
+.cf-leiste-name{ min-width:0; overflow:hidden; text-overflow:ellipsis; }
+.cf-leiste-zahl{ flex:none; }
+.cf-leiste-max{ color:var(--p-grau-hell); }
+.cf-leiste-balken{
+  height:14px; margin-top:6px; overflow:hidden; display:flex;
+  border:2px solid var(--p-karte); border-radius:7px; background:var(--p-nachtgrau);
 }
-.cf-status-kopf{ display:flex; justify-content:space-between; align-items:baseline; gap:6px; }
-.cf-status-name{
-  font:900 10px var(--p-font); letter-spacing:.1em; text-transform:uppercase;
-  min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-}
-.cf-status-zahl{ font:900 13px var(--p-font); flex:none; }
-.cf-status-balken{
-  height:14px; margin-top:5px; overflow:hidden;
-  border:var(--p-rahmen); border-radius:6px; background:#F3EFE6;
-}
-.cf-status-balken > i{ display:block; height:100%; background:var(--p-ok); }
-.cf-status-balken--feind > i{ background:var(--p-falsch); }
-.cf-status-fuss{ display:flex; gap:6px; margin-top:7px; align-items:center; }
-.cf-status-platz{ height:39px; }
-.cf-traenke{ display:flex; gap:6px; }
-/* Trank im Kampf: 28 + Rahmen, Anzahl immer sichtbar (7.4). */
-.cf-status .cf-potion{
-  width:32px; height:32px; position:relative; padding:0; flex:none;
-  border:var(--p-rahmen); border-radius:9px;
+.cf-leiste-balken > i{ display:block; height:100%; background:var(--p-richtig); box-shadow:inset 0 3px 0 rgba(255,255,255,.35); }
+.cf-leiste-seite--feind .cf-leiste-balken{ justify-content:flex-end; }
+.cf-leiste-seite--feind .cf-leiste-balken > i{ background:var(--p-falsch-stark); }
+.cf-leiste-fuss{ display:flex; gap:8px; margin-top:8px; align-items:center; }
+.cf-leiste-seite--feind .cf-leiste-fuss{ justify-content:flex-end; }
+.cf-traenke{ display:flex; gap:8px; }
+/* Trank: 30 außen, heller Rand auf der dunklen Leiste, Anzahl immer sichtbar. */
+.cf-leiste .cf-potion{
+  width:30px; height:30px; position:relative; padding:0; flex:none;
+  border:2px solid var(--p-karte); border-radius:9px;
   display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:none;
 }
-.cf-status .cf-potion .potion-n{
-  position:absolute; right:-5px; bottom:-5px; min-width:18px; height:18px; padding:0 2px;
-  border:var(--p-rahmen); border-radius:7px; background:var(--p-gold); color:var(--p-ink);
-  font:900 8px/10px var(--p-font); text-align:center;
+.cf-leiste .cf-potion .potion-n{
+  position:absolute; right:-6px; bottom:-6px; min-width:16px; height:16px; padding:0 2px;
+  border:var(--p-rahmen); border-radius:8px; background:var(--p-gold); color:var(--p-ink);
+  font:900 10px/12px var(--p-font); text-align:center;
 }
-.cf-status .cf-waffe{
-  margin-left:auto; display:inline-flex; align-items:center; gap:4px;
-  border:var(--p-rahmen); border-radius:var(--p-r-chip); background:var(--p-lila);
-  padding:3px 8px; font:900 11px var(--p-font); color:var(--p-ink);
+/* Schaden: Waffe des Helden lila, Angriff des Gegners rosa. */
+.cf-leiste .cf-waffe{
+  margin-left:auto; display:inline-flex; align-items:center; gap:4px; height:28px;
+  border:2px solid var(--p-karte); border-radius:9px; background:var(--p-lila);
+  padding:0 8px; font:800 13px/1.3 var(--p-font); color:var(--p-ink);
 }
-/* Schadenszahl (7.5, 7.6): Chip, steigt 8 Takte lang je 3 px, dann weg. */
+.cf-leiste .cf-waffe--feind{ background:var(--p-rosa); }
+/* Schadenszahl (F.2, F.3, E.6): groß, rot mit Tintenkontur, steigt 12 Takte lang je
+   1,5 px und blendet ab dem 8. aus (data-ui „float"). Heilen und Tränke grün. */
 .cf-dmg{
   position:absolute; z-index:7; transform:translateX(-50%); pointer-events:none; white-space:nowrap;
   display:inline-flex; align-items:center; gap:4px;
-  border:var(--p-rahmen); border-radius:12px; padding:4px 11px;
-  font:900 15px var(--p-font); color:var(--p-ink); text-shadow:none;
-  box-shadow:0 3px 0 rgba(31,31,36,.25);
-  animation:cfPop 1s steps(8,end) forwards;
+  font:900 28px/1.1 var(--p-font); color:var(--p-falsch-stark);
+  text-shadow:2px 0 #1F1F24,-2px 0 #1F1F24,0 2px #1F1F24,0 -2px #1F1F24,2px 2px #1F1F24,-2px -2px #1F1F24,2px -2px #1F1F24,-2px 2px #1F1F24;
+  animation:cfFloat 1.5s linear forwards;
 }
-@keyframes cfPop{ from{ translate:0 0; } to{ translate:0 -24px; } }
+.cf-dmg--text{ font-size:16px; line-height:1.2; }
+@keyframes cfFloat{
+  0%{translate:0 0;opacity:1} 8.33%{translate:0 -1.5px} 16.67%{translate:0 -3px} 25%{translate:0 -4.5px}
+  33.33%{translate:0 -6px} 41.67%{translate:0 -7.5px} 50%{translate:0 -9px} 58.33%{translate:0 -10.5px}
+  66.67%{translate:0 -12px;opacity:.7} 75%{translate:0 -13.5px;opacity:.45} 83.33%{translate:0 -15px;opacity:.2}
+  91.67%,100%{translate:0 -16.5px;opacity:0}
+}
+.cf-dmg{ animation-timing-function:steps(1,end); }
 @media (prefers-reduced-motion:reduce){ .cf-dmg{ animation:none; } }
 
 /* ── Aufgabenkarte (7.4–7.13) ── */
@@ -2621,11 +2637,11 @@ button.p-chip{ cursor:pointer; }
 .cf-schutz{
   position:absolute; left:14px; top:-58px; z-index:9; max-width:280px; pointer-events:none;
   display:flex; align-items:center; gap:10px;
-  border:var(--p-rahmen); border-radius:18px; padding:10px 13px;
-  box-shadow:0 4px 0 rgba(31,31,36,.22); color:var(--p-ink);
+  border:var(--p-rahmen); border-radius:18px; padding:10px 13px; color:var(--p-ink);
 }
-.cf-schutz-titel{ font:900 13px var(--p-font); }
-.cf-schutz-grund{ font:700 10.5px var(--p-font); color:var(--p-text-akzent); }
+/* Schrift im Kampf (E.1): Rückmeldung in der Knopf-Stufe, Grund als Text. */
+.cf-schutz-titel{ font:900 16px/1.2 var(--p-font); }
+.cf-schutz-grund{ font:800 13px/1.3 var(--p-font); color:var(--p-ink); }
 
 /* ── Kampf-Ende (7.15–7.17) und Verlassen (7.14) ── */
 .cf-ende{ flex:1; display:flex; flex-direction:column; justify-content:center; }

@@ -324,7 +324,7 @@ function _usePotion(i) {
     if (key === 'shield') f.shield = true;
     else if (key === 'power') f.power = (f.power || 0) + POTION_POWER;
     else if (key === 'time') f.timeBoost = (f.timeBoost || 0) + POTION_TIME_WAVES;
-    _damagePop('cf-hero', `${iconHTML('potion', 14)}${p.name}`, '#69db7c');
+    _damagePop('cf-hero', `${iconHTML('potion', 14)}${p.name}`, '#69db7c', true);
   }
   try { playSfx('streak'); } catch (e) {}
   save();
@@ -350,10 +350,11 @@ function _renderOverlay() {
   const ov = document.createElement('div');
   ov.id = 'cf-overlay';
   ov.style.cssText = 'position:fixed;inset:0;z-index:8000;background:#bfe6ff;display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;';
-  // Aufbau nach Fragment 7.4: Kulisse als Hintergrund, Kopfleiste, die Mitte
-  // (Aufgabenkarte + Spielfläche, befüllt vom Minispiel), unten die Bühne mit
-  // Held und Gegner und je einer Statuskarte. Tränke und Waffenschaden liegen in
-  // der Karte des Helden.
+  // Aufbau nach den Fragmenten F.1–F.11 (Update 1): Kulisse als Hintergrund,
+  // Kopfleiste, die Mitte (Aufgabe + Spielfeld, befüllt vom Minispiel), unten die
+  // Bühne mit Held und Gegner und der dunklen Statusleiste mit beiden
+  // Lebensbalken. Tränke und Waffenschaden stehen auf der Seite des Helden, der
+  // Schaden des Gegners auf seiner.
   const boss = node.type === 'boss';
   const esc = (s) => (window.escHtml ? window.escHtml(String(s)) : String(s));
   ov.innerHTML = `
@@ -368,31 +369,27 @@ function _renderOverlay() {
     <div id="cf-stage" class="cf-mitte"></div>
     <div class="cf-buehne">
       <canvas class="cf-flug" id="cf-flug"></canvas>
-      <div class="cf-reihe">
-        <div class="cf-spalte">
-          <div class="cf-hero" id="cf-hero"><div class="cf-pet" id="cf-pet"></div></div>
-          <div class="cf-status">
-            <div class="cf-status-kopf">
-              <span class="cf-status-name">${esc(window.SD?.playerName || 'Leben')}</span>
-              <span class="cf-status-zahl"><span id="cf-php">${run.hp}</span>/${run.hpMax}</span>
-            </div>
-            <div class="cf-status-balken"><i id="cf-phpbar" style="width:${run.hp / run.hpMax * 100}%"></i></div>
-            <div class="cf-status-fuss">
-              <div id="cf-potions" class="cf-traenke"></div>
-              <span class="cf-waffe" title="${esc(weapon.name)}">${iconHTML('sword', 14)}${weapon.dmg}</span>
-            </div>
+      <div class="cf-hero" id="cf-hero"><div class="cf-pet" id="cf-pet"></div></div>
+      <div class="cf-feind-platz${boss ? ' boss' : ''}"><div class="cf-enemy${boss ? ' boss' : ''}" id="cf-enemy"></div></div>
+      <div class="cf-leiste">
+        <div class="cf-leiste-seite">
+          <div class="cf-leiste-kopf">
+            <span class="cf-leiste-name">${esc(window.SD?.playerName || 'Leben')}</span>
+            <span class="cf-leiste-zahl"><span id="cf-php">${run.hp}</span><span class="cf-leiste-max">/${run.hpMax}</span></span>
+          </div>
+          <div class="cf-leiste-balken"><i id="cf-phpbar" style="width:${run.hp / run.hpMax * 100}%"></i></div>
+          <div class="cf-leiste-fuss">
+            <div id="cf-potions" class="cf-traenke"></div>
+            <span class="cf-waffe" title="${esc(weapon.name)}">${iconHTML('sword', 14)}${weapon.dmg}</span>
           </div>
         </div>
-        <div class="cf-spalte">
-          <div class="cf-feind-platz${boss ? ' boss' : ''}"><div class="cf-enemy${boss ? ' boss' : ''}" id="cf-enemy"></div></div>
-          <div class="cf-status">
-            <div class="cf-status-kopf">
-              <span class="cf-status-name">${esc(enemyName(enemyKey) || enemy.name)}</span>
-              <span class="cf-status-zahl"><span id="cf-ehp">${f.enemyHp}</span>/${f.enemyHpMax}</span>
-            </div>
-            <div class="cf-status-balken cf-status-balken--feind"><i id="cf-ehpbar" style="width:${f.enemyHp / f.enemyHpMax * 100}%"></i></div>
-            <div class="cf-status-platz"></div>
+        <div class="cf-leiste-seite cf-leiste-seite--feind">
+          <div class="cf-leiste-kopf">
+            <span class="cf-leiste-name">${esc(enemyName(enemyKey) || enemy.name)}</span>
+            <span class="cf-leiste-zahl"><span id="cf-ehp">${f.enemyHp}</span><span class="cf-leiste-max">/${f.enemyHpMax}</span></span>
           </div>
+          <div class="cf-leiste-balken"><i id="cf-ehpbar" style="width:${f.enemyHp / f.enemyHpMax * 100}%"></i></div>
+          <div class="cf-leiste-fuss"><span class="cf-waffe cf-waffe--feind" title="Schaden des Gegners">${iconHTML('sword', 14)}${enemy.dmg}</span></div>
         </div>
       </div>
     </div>`;
@@ -481,23 +478,24 @@ function _setBars() {
   if (pb) pb.style.width = (run.hp / run.hpMax * 100) + '%';
 }
 
-// Schadenszahl als Chip über dem Getroffenen (7.5, 7.6): steigt 8 Takte lang je
-// 3 px und ist dann weg. Die Farbe kommt vom Anlass: Treffer auf den Gegner lila,
-// eigener Schaden rosa, Heilung/Abwehr mint. `html` darf Pixel-Icons enthalten.
-const _POP_TON = { '#c084fc': 'var(--p-lila)', '#ff8787': 'var(--p-falsch)', '#69db7c': 'var(--p-ok)' };
-function _damagePop(overId, html, color) {
+// Schadenszahl über dem Getroffenen (F.2, F.3, E.6): groß, mit Tintenkontur,
+// steigt 12 Takte lang und blendet aus. Schaden ist immer rot (auch der eigene
+// Treffer am Gegner), Heilung und Tränke grün. `html` darf Pixel-Icons enthalten;
+// `text` = Wort statt Zahl (Trank-Name) in der kleineren Knopf-Stufe (E.1).
+const _POP_TON = { '#c084fc': 'var(--p-falsch-stark)', '#ff8787': 'var(--p-falsch-stark)', '#69db7c': 'var(--p-richtig)' };
+function _damagePop(overId, html, color, text = false) {
   const arena = document.querySelector('.cf-buehne');
   const over = _el(overId);
   if (!arena || !over) return;
   const a = arena.getBoundingClientRect(), o = over.getBoundingClientRect();
   const s = document.createElement('span');
-  s.className = 'cf-dmg';
+  s.className = 'cf-dmg' + (text ? ' cf-dmg--text' : '');
   s.innerHTML = html;
-  s.style.background = _POP_TON[color] || 'var(--p-karte)';
+  s.style.color = _POP_TON[color] || 'var(--p-falsch-stark)';
   s.style.left = (o.left - a.left + o.width / 2) + 'px';
-  s.style.top = (o.top - a.top + 4) + 'px';
+  s.style.top = (o.top - a.top - 6) + 'px';
   arena.appendChild(s);
-  setTimeout(() => s.remove(), 1000);
+  setTimeout(() => s.remove(), 1500);
 }
 
 // Schutz-Meldung über der Figur (Fragment 6.8, N41): Karte mit Symbol, Titel und
