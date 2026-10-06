@@ -8,25 +8,28 @@
 // Schnittstelle: startEcho({host, answer, speakText, choices, timeLimitMs, onMiss,
 // onResult}) → {destroy, pause, resume}. choices enthält answer; onResult(success,
 // timeLeftMs) genau einmal, onMiss bei JEDEM falschen Tipp. pause()/resume() frieren die
-// Restzeit exakt ein. prompt (optional): eigener Kopf statt „Welches Wort hörst du?" —
-// für die Verbform-Wellen der 🌀-Knoten.
+// Restzeit exakt ein. verb (optional): Verbform-Welle der 🌀-Knoten — die Frage heißt
+// dann „Welche Form hörst du?" und zeigt das Verb vor dem Hörbild (F.10).
 
 import { playSfx } from './game.js';
 import { speakWord } from './speech.js';
 import { ensureStormStyle, setDrift, richtigChip } from './minigame-letterstorm.js';
 import { iconHTML } from './pixel-icons.js';
-import { aufgabeKarte, sekText } from './minigame-karte.js';
+import { aufgabeKarte, frageHoeren, sekText } from './minigame-karte.js';
 
-export function startEcho({ host, answer, speakText, choices, prompt, timeLimitMs, onMiss, onResult }) {
+export function startEcho({ host, answer, speakText, choices, verb, timeLimitMs, onMiss, onResult }) {
   ensureStormStyle();   // cfDrift-Keyframes
   let done = false, timer = null, pausedAt = null;
   let endAt = Date.now() + timeLimitMs;
 
-  // Aufbau wie Fragment 7.8 (7.12 für Verbformen): Aufgabenkarte mit rundem
-  // Nochmal-Hören-Knopf, darunter die treibenden Wörter. Das Lautsprecher-
-  // Symbol schlägt nur bei der Wortfrage (7.8), bei Verbformen steht es.
-  const hoer = `<button id="cf-replay" class="mg-hoer" title="Nochmal anhören">${iconHTML('speaker', 28)}</button>`;
-  host.innerHTML = aufgabeKarte({ art: 'echo', frage: prompt || 'Welches Wort hörst du?', zeitId: 'cf-echobar', sekId: 'cf-echosecs', rechts: hoer, pochen: !prompt })
+  // Aufbau wie F.5 (F.10 für Verbformen): an der Stelle der Kachel der runde
+  // Hör-Knopf mit zwei Ringen und schlagendem Lautsprecher, als Frage das Hörbild,
+  // darunter die treibenden Wörter.
+  const hoer = `<span class="mg-hoer-platz"><span class="mg-hoer-ring" data-ui="ring" data-a="12" data-c="12"></span>`
+    + `<span class="mg-hoer-ring" data-ui="ring" data-a="12" data-c="12" data-d="6"></span>`
+    + `<button id="cf-replay" class="mg-hoer" title="Nochmal anhören">${iconHTML('speaker', 28).replace('<canvas ', '<canvas data-ui="beat" data-c="8" data-a="2" ')}</button></span>`;
+  host.innerHTML = aufgabeKarte({ art: 'echo', anweisung: verb ? 'Welche Form hörst du?' : 'Welches Wort hörst du?',
+    frage: frageHoeren(verb || ''), kachel: hoer, zeitId: 'cf-echobar', sekId: 'cf-echosecs' })
     + `<div class="mg-flaeche"><div id="cf-echofield" class="mg-feld mg-echo"></div></div>`;
 
   const speak = () => { try { speakWord(speakText || answer); } catch (e) {} };

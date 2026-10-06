@@ -39,7 +39,7 @@ export function startTrueFalse({ host, pairs, timeLimitMs, onMiss, onResult }) {
   const missed = [];   // Index der falsch beurteilten Paare (für die Punkte-Leiste)
 
   // Aufbau wie Fragment 7.9: Aufgabenkarte, darunter mittig Punkte, Paar, Knöpfe.
-  host.innerHTML = aufgabeKarte({ art: 'richtig', frage: 'Passt das Paar?', zeitId: 'tf-bar', sekId: 'tf-secs' })
+  host.innerHTML = aufgabeKarte({ art: 'richtig', anweisung: 'Richtig oder falsch?', frage: 'Passt das Paar?', text: true, zeitId: 'tf-bar', sekId: 'tf-secs' })
     + `<div class="mg-flaeche"><div class="tf-flaeche">
       <div id="tf-dots" class="tf-punkte"></div>
       <div id="tf-card" class="mg-wortkarte">

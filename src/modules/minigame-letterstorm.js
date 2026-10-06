@@ -121,12 +121,12 @@ export function startLetterstorm({ host, de, en, prompt, timeLimitMs, guards = 0
     ? '<span style="width:12px;"></span>'
     : `<span class="cf-slot" data-i="${i}"></span>`).join('');
 
-  // Aufbau wie Fragment 7.4: Aufgabenkarte, darunter Wortleiste und Spielfeld.
-  host.innerHTML = aufgabeKarte({ art: 'sturm', frage: prompt || frageDE(de), zeitId: 'cf-timebar', sekId: 'cf-secs' })
-    + `<div class="mg-flaeche">
-      <div id="cf-slots" class="mg-slots">${slotHtml}</div>
-      <div id="cf-field" class="mg-feld"></div>
-    </div>`;
+  // Aufbau wie F.7/F.8: die Wortleiste liegt im Panel zwischen Frage und Zeit,
+  // darunter das Spielfeld mit den Buchstaben.
+  host.innerHTML = aufgabeKarte({ art: 'sturm', anweisung: prompt ? 'Bilde die Form' : 'Schreibe auf Englisch',
+    frage: prompt || frageDE(de), zeitId: 'cf-timebar', sekId: 'cf-secs',
+    mitte: `<div id="cf-slots" class="mg-slots">${slotHtml}</div>` })
+    + `<div class="mg-flaeche"><div id="cf-field" class="mg-feld"></div></div>`;
 
   // Tiles auf gemischtem Gitter platzieren (kein Anfangs-Überlappen), dann driften.
   const field = host.querySelector('#cf-field');
@@ -146,6 +146,11 @@ export function startLetterstorm({ host, de, en, prompt, timeLimitMs, guards = 0
 
   let nextIdx = 0;   // nächster erwarteter Index in chars (Leerzeichen überspringen)
   const advance = () => { nextIdx++; while (nextIdx < chars.length && chars[nextIdx] === ' ') nextIdx++; };
+  // Das Feld, das als Nächstes dran ist, steht hell-gold mit Tintenstrich (F.7).
+  const markDran = () => {
+    host.querySelectorAll('.cf-slot.cf-dran').forEach(s => s.classList.remove('cf-dran'));
+    host.querySelector(`.cf-slot[data-i="${nextIdx}"]`)?.classList.add('cf-dran');
+  };
   let gefuellt = 0;  // Zahl der getroffenen Buchstaben (Versatz fürs Wippen)
 
   function _finish(success) {
@@ -155,7 +160,7 @@ export function startLetterstorm({ host, de, en, prompt, timeLimitMs, guards = 0
     if (success) {
       // Gelöst (7.6): die ganze Leiste wird mint und steht still, darunter
       // „Richtig · Wort".
-      host.querySelectorAll('.cf-slot').forEach(s => { s.classList.add('cf-ok'); delete s.dataset.ui; s.style.transform = ''; });
+      host.querySelectorAll('.cf-slot').forEach(s => { s.classList.remove('cf-dran'); s.classList.add('cf-ok'); delete s.dataset.ui; s.style.transform = ''; });
       richtigChip(host, target);
     }
     onResult(success, Math.max(0, endAt - Date.now()));
@@ -184,6 +189,7 @@ export function startLetterstorm({ host, de, en, prompt, timeLimitMs, guards = 0
           slot.dataset.a = '1.5'; slot.dataset.d = String((gefuellt++ * 3) % 12); slot.dataset.ui = 'bob';
         }
         advance();
+        markDran();
         try { playSfx('click'); } catch (e) {}
         if (nextIdx >= chars.length) _finish(true);
       } else if (guards > 0) {
@@ -199,12 +205,13 @@ export function startLetterstorm({ host, de, en, prompt, timeLimitMs, guards = 0
         wackeln(btn, () => btn.classList.remove('cf-shake'));
         endAt -= STORM_PENALTY_MS;
         const bar = host.querySelector('#cf-timebar');
-        if (bar) { bar.style.background = 'var(--p-falsch)'; setTimeout(() => { bar.style.background = ''; }, 350); }
+        if (bar) { bar.style.background = 'var(--p-falsch-stark)'; setTimeout(() => { bar.style.background = ''; }, 350); }
         if (onMiss) onMiss();
       }
     };
     field.appendChild(btn);
   });
+  markDran();
 
   function _tick() {
     const remain = endAt - Date.now();

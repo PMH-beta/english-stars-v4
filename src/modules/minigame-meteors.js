@@ -26,7 +26,7 @@ export function startMeteors({ host, de, answer, choices, prompt, fallMs, onMiss
 
   // Aufbau wie Fragment 7.7: Aufgabenkarte ohne Zeitbalken (die Zeit ist der
   // Fall), darunter der Himmel. Die Maske blendet Meteore an den Rändern aus.
-  host.innerHTML = aufgabeKarte({ art: 'meteore', frage: prompt || frageDE(de) })
+  host.innerHTML = aufgabeKarte({ art: 'meteore', anweisung: prompt ? 'Fange die Form' : 'Fange die Übersetzung', frage: prompt || frageDE(de) })
     + `<div class="mg-flaeche">
       <div id="cf-sky" class="mg-feld" style="
         mask-image:linear-gradient(to bottom, transparent 0%, black 14%, black 82%, transparent 100%);

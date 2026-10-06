@@ -2455,28 +2455,36 @@ button.p-chip{ cursor:pointer; }
    Spielfläche, unten die Bühne mit Held und Gegner und je einer Statuskarte.
    Außenmaße wie überall: Fragmentwert + Rahmen (die Referenz rechnet ohne
    box-sizing). Diese Regeln stehen zuletzt und gelten vor den älteren. */
-.cf-kopf{ z-index:6; padding:calc(10px + env(safe-area-inset-top,0px)) 14px 0; }
-.cf-rund{ width:42px; height:42px; }
+/* Kopfleiste (Update 1, F.1–F.11): runder Knopf, daneben eine dunkle Leiste mit
+   der Kachel der Kampfart, dem Namen und rechts der Welle. Schrift im Kampf nur
+   in vier Stufen (E.1), keine Großbuchstaben, kein Sperrsatz. */
+.cf-kopf{ z-index:6; gap:8px; padding:calc(10px + env(safe-area-inset-top,0px)) 14px 0; width:100%; max-width:402px; margin:0 auto; }
+.cf-rund{ width:40px; height:40px; }
 .cf-kopfleiste{
-  flex:1; display:flex; align-items:center; justify-content:space-between; gap:10px;
-  border:var(--p-rahmen); border-radius:22px; background:var(--p-karte); padding:8px 8px 8px 12px;
+  flex:1; min-width:0; height:40px; display:flex; align-items:center; gap:9px;
+  border:0; border-radius:14px; background:var(--p-ink); padding:0 12px 0 6px;
+}
+.cf-titel-kachel{
+  width:28px; height:28px; flex:none; border-radius:9px;
+  display:flex; align-items:center; justify-content:center;
 }
 .cf-titel{
-  display:inline-flex; align-items:center; gap:8px;
-  font:900 13px var(--p-font); letter-spacing:.18em; text-transform:uppercase; color:var(--p-ink);
+  min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  font:800 13px/1.3 var(--p-font); letter-spacing:0; text-transform:none; color:var(--p-karte);
 }
+/* Welle: wie heute als Zahl (F-63 offen), im Ton der Leiste. */
 .cf-welle{
-  display:inline-flex; align-items:center; gap:5px; white-space:nowrap;
-  border:var(--p-rahmen); border-radius:11px; background:var(--p-gold);
-  padding:3px 10px; font:900 11px var(--p-font); color:var(--p-ink);
+  margin-left:auto; flex:none; display:inline-flex; align-items:center; gap:5px; white-space:nowrap;
+  font:800 13px/1.3 var(--p-font); color:var(--p-grau-hell);
 }
-/* Mitte: Aufgabenkarte oben, darunter die Spielfläche bis zur Bühne. */
+.cf-welle b{ font-weight:800; color:var(--p-karte); }
+/* Mitte: Aufgabe oben, darunter die Spielfläche bis an die Bühne (F.1–F.11:
+   12 px unter der Kopfleiste, 402 breit wie die Bühne). */
 .cf-mitte{
   position:relative; z-index:5; flex:1; min-height:0;
-  width:100%; max-width:440px; margin:0 auto; padding:14px 14px 6px;
+  width:100%; max-width:402px; margin:0 auto; padding:12px 14px 0;
   display:flex; flex-direction:column;
 }
-/* Unten: Bühne mit Held und Gegner. */
 /* Unten: Bühne mit Held, Gegner und Statusleiste (Update 1, F.1–F.11). Höchstens
    402 breit (Entwurfsbreite); alle Lagen hängen an der unteren Mitte, damit Held
    und Gegner bei jedem Fenster an derselben Stelle der Kulisse stehen. Werte aus
@@ -2546,46 +2554,78 @@ button.p-chip{ cursor:pointer; }
 .cf-dmg{ animation-timing-function:steps(1,end); }
 @media (prefers-reduced-motion:reduce){ .cf-dmg{ animation:none; } }
 
-/* ── Aufgabenkarte (7.4–7.13) ── */
+/* ── Aufgabe (Update 1, F.1–F.11) ──
+   Ein Panel oben: Kachel 46 außen, Anweisung grau (800/13), Frage groß (900/28),
+   bei Bedarf ein Mittelteil (Wortleiste) und unten die Zeitzeile. Kein Schatten. */
 .mg-aufgabe{
-  position:relative; z-index:2; flex:none; overflow:hidden;
-  border:var(--p-rahmen); border-radius:var(--p-r-karte); background:var(--p-karte);
-  box-shadow:0 4px 0 rgba(31,31,36,.18);
+  position:relative; z-index:6; flex:none; overflow:hidden;
+  border:var(--p-rahmen); border-radius:22px; background:var(--p-karte); box-shadow:none;
 }
-.mg-aufgabe-zeile{ display:flex; align-items:center; gap:11px; padding:10px 12px; }
+.mg-aufgabe-zeile{ display:flex; align-items:center; gap:11px; padding:10px 12px 10px 10px; }
 .mg-aufgabe-kachel{
-  width:44px; height:44px; flex:none;
-  border:var(--p-rahmen); border-radius:13px;
+  width:46px; height:46px; flex:none;
+  border:var(--p-rahmen); border-radius:14px;
   display:flex; align-items:center; justify-content:center;
 }
-.mg-aufgabe-art{ font:800 9px var(--p-font); letter-spacing:.12em; text-transform:uppercase; color:var(--p-text-2); }
-.mg-aufgabe-frage{ font:900 22px/1.15 var(--p-font); margin-top:1px; color:var(--p-ink); }
-.mg-aufgabe-sek{ font:900 13px var(--p-font); flex:none; color:var(--p-ink); }
-.mg-de{ display:inline-flex; align-items:baseline; gap:7px; }
-.mg-de > span{ font:900 10px var(--p-font); letter-spacing:.12em; color:var(--p-text-akzent); }
-.mg-form{ border:var(--p-rahmen); border-radius:9px; padding:0 7px; font:900 15px var(--p-font); }
-.mg-form--past{ background:var(--p-blau); }
-.mg-form--pp{ background:var(--p-gold); }
-/* Zeitbalken an der Unterkante: 8 + Rahmen oben. */
-.mg-aufgabe-spur{ height:10px; border-top:var(--p-rahmen); background:var(--p-inaktiv); }
-.mg-aufgabe-fuell{ height:100%; width:100%; background:var(--p-gold); border-right:var(--p-rahmen); }
-/* Nochmal hören (Echo, 7.8): 42 + Rahmen. */
-.mg-aufgabe .mg-hoer{
-  width:46px; height:46px; border:var(--p-rahmen); border-radius:50%; background:var(--p-karte-hell);
+.mg-aufgabe-text{ flex:1; min-width:0; display:flex; flex-direction:column; gap:3px; }
+.mg-aufgabe-art{ font:800 13px/1.3 var(--p-font); letter-spacing:0; text-transform:none; color:var(--p-grau); }
+.mg-aufgabe-frage{
+  display:flex; align-items:center; gap:8px; min-height:30px; margin:0;
+  font:900 28px/1.1 var(--p-font); color:var(--p-ink);
 }
-/* Spielfläche unter der Karte. */
+.mg-aufgabe-frage--text{ font:900 16px/1.2 var(--p-font); }
+.mg-de{ display:inline-flex; align-items:center; gap:8px; }
+.mg-de > span{ font:900 10px/1 var(--p-font); letter-spacing:0; color:var(--p-grau); }
+.mg-wort{ font:900 28px/1.1 var(--p-font); color:var(--p-ink); }
+/* Form als Chip (F.8, F.9): beide Formen flieder. */
+.mg-form{
+  display:inline-flex; align-items:center; height:26px; padding:0 9px;
+  border:var(--p-rahmen); border-radius:9px; background:var(--p-lila);
+  font:800 13px/1.3 var(--p-font); color:var(--p-ink); white-space:nowrap;
+}
+/* Hörbild (F.5, F.10): Balken 5 breit, laufen im Takt. */
+.mg-hoerbild{ display:flex; align-items:center; gap:3px; height:28px; }
+.mg-hoerbild > span{ width:5px; display:block; }
+/* Mittelteil (Wortleiste des Sturms, F.7). */
+.mg-aufgabe-mitte{ border-top:var(--p-rahmen); background:var(--p-chip-leer); padding:10px 8px; }
+/* Zeitzeile: Sanduhr, Sekunden, Balken gold gestreift (F.5–F.8). */
+.mg-zeit{
+  display:flex; align-items:center; gap:7px; padding:6px 12px 7px;
+  border-top:var(--p-rahmen); background:var(--p-inaktiv);
+}
+.mg-zeit-sek{ min-width:24px; font:800 13px/1.3 var(--p-font); color:var(--p-ink); white-space:nowrap; }
+.mg-zeit-spur{
+  flex:1; height:12px; overflow:hidden;
+  border:var(--p-rahmen); border-radius:6px; background:var(--p-karte);
+}
+.mg-zeit-fuell{
+  height:100%; width:100%; border-right:var(--p-rahmen);
+  background:repeating-linear-gradient(90deg,#FFD66B 0 10px,#F2BE3C 10px 12px);
+}
+/* Hör-Knopf an der Stelle der Kachel (F.5, F.10): rosa Kreis mit zwei Ringen. */
+.mg-hoer-platz{ position:relative; width:46px; height:46px; flex:none; }
+.mg-hoer-ring{ position:absolute; inset:0; border:2px solid var(--p-rosa); border-radius:50%; pointer-events:none; }
+.mg-aufgabe .mg-hoer{
+  position:absolute; inset:0; width:46px; height:46px; padding:0; cursor:pointer;
+  border:var(--p-rahmen); border-radius:50%; background:var(--p-rosa);
+  display:flex; align-items:center; justify-content:center;
+}
+/* Spielfläche unter der Aufgabe, bis zur Bühne. */
 .mg-flaeche{ position:relative; flex:1; min-height:170px; display:flex; flex-direction:column; }
 .mg-flaeche > .mg-feld{ position:relative; flex:1; min-height:0; overflow:hidden; }
 
 /* ── Buchstabensturm (7.4–7.6, 7.10) ── */
-.mg-slots{ display:flex; justify-content:center; gap:7px; flex-wrap:wrap; padding:14px 0 0; }
+/* Wortleiste im Panel (F.7): Felder 42 × 48, groß beschriftet; das nächste Feld
+   hell-gold mit Tintenstrich, die übrigen blass gestrichelt. Gelöst = grün. */
+.mg-slots{ display:flex; justify-content:center; gap:6px; flex-wrap:wrap; padding:0; }
 .cf-slot{
-  min-width:42px; height:50px; padding:0 5px;
-  border:2px dashed var(--p-ink); border-radius:var(--p-r-slot); background:rgba(248,246,236,.5);
-  font:900 20px var(--p-font); transition:none;
+  min-width:42px; height:48px; padding:0 3px;
+  border:2px dashed rgba(31,31,36,.4); border-radius:12px; background:rgba(248,246,236,.55);
+  font:900 28px/1.1 var(--p-font); transition:none;
 }
+.cf-slot.cf-dran{ border:2px dashed var(--p-ink); background:#FFF1C4; }
 .cf-slot.cf-filled{ border:var(--p-rahmen); background:var(--p-karte); }
-.cf-slot.cf-ok{ border:var(--p-rahmen); background:var(--p-ok); }
+.cf-slot.cf-ok{ border:var(--p-rahmen); background:var(--p-richtig); }
 .cf-tile{ width:62px; height:62px; border-radius:var(--p-r-chip-gross); transition:none; }
 .cf-tile.cf-shake{ background:var(--p-falsch); }
 .cf-tile.cf-shake span{ animation:none; }

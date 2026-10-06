@@ -31,7 +31,7 @@ import { startEcho } from './minigame-echo.js';
 import { iconHTML } from './pixel-icons.js';
 import { startTrueFalse } from './minigame-truefalse.js';
 import { equippedWeapon, equipEffects, equippedGearMap, POTIONS, POTION_TON, potionStacks } from './campaign-equipment.js';
-import { frageForm } from './minigame-karte.js';
+import { frageForm, setKnotenKachel } from './minigame-karte.js';
 import { STAKE_COST } from './campaign.js';   // nur zur Laufzeit gelesen — der Kreis-Import ist unkritisch
 import { pickEnemyKey, enemyName, enemyBattleSVG } from './enemies.js';
 import { arenaTag, arenaForRound } from './world.js';
@@ -45,13 +45,23 @@ import { uvFormPracticed } from './irregular-game.js';
 import { getPresetCategories } from './vocab.js';
 import { markDirty } from './sync.js';
 
-// Titel in der Kopfleiste: Pixel-Icon + Wort (Fragmente 7.4, 7.10, 7.13).
+// Titel in der Kopfleiste: Kachel in der Farbe der Knotenart + Wort (F.1, F.8, F.11).
 const _TITLE = {
-  fight:     ['sword', 'Übung'],
-  irregular: ['orb', 'Unregelmäßige'],
-  boss:      ['bossCrest', 'Boss'],
+  fight:     ['sword', 'Übung', 'var(--p-lila)'],
+  irregular: ['orb', 'Unregelmäßige', 'var(--p-blau)'],
+  boss:      ['bossCrest', 'Boss', 'var(--p-falsch-stark)'],
 };
-const _titelHTML = (typ) => { const [ic, wort] = _TITLE[typ] || _TITLE.fight; return iconHTML(ic, 14) + wort; };
+const _titelHTML = (typ) => {
+  const [ic, wort, ton] = _TITLE[typ] || _TITLE.fight;
+  return `<span class="cf-titel-kachel" style="background:${ton}">${iconHTML(ic, 14)}</span><span class="cf-titel">${wort}</span>`;
+};
+// Eigene Kachel der Aufgabe bei Unregelmäßigen und Boss (F.8, F.9, F.11); die
+// normale Übung zeigt die Kachel der Kampfart.
+const _AUFGABE_KACHEL = {
+  irregular: { icon: 'orb', ton: 'var(--p-lila)' },
+  boss:      { icon: 'bossCrest', ton: 'var(--p-falsch-stark)' },
+};
+const _welleHTML = (n) => `Welle <b>${n}</b>`;
 
 // Waffen-/Ausrüstungslogik lebt in campaign-equipment.js (equippedWeapon,
 // equipEffects) — der Kampf liest sie nur.
@@ -360,10 +370,10 @@ function _renderOverlay() {
   ov.innerHTML = `
     <div class="cf-scenery">${_arenaScene(_ctx.round)}</div>
     <div class="cf-kopf">
-      <button id="cf-flee" class="cf-rund" title="Kampf verlassen (Fortschritt + Einsatz weg)">${iconHTML('close', 28)}</button>
+      <button id="cf-flee" class="cf-rund" title="Kampf verlassen (Fortschritt + Einsatz weg)">${iconHTML('close', 14)}</button>
       <div class="cf-kopfleiste">
-        <span class="cf-titel">${_titelHTML(node.type)}</span>
-        <span id="cf-wave" class="cf-welle">Welle ${f.wave}</span>
+        ${_titelHTML(node.type)}
+        <span id="cf-wave" class="cf-welle">${_welleHTML(f.wave)}</span>
       </div>
     </div>
     <div id="cf-stage" class="cf-mitte"></div>
@@ -761,7 +771,8 @@ function _startWave() {
   }
 
   const w = _el('cf-wave');
-  if (w) w.textContent = 'Welle ' + run.fight.wave;
+  if (w) w.innerHTML = _welleHTML(run.fight.wave);
+  setKnotenKachel(_AUFGABE_KACHEL[node.type] || null);
   const host = _el('cf-stage');
   _ctx.waveForm = null;
   _ctx.cfItem = null;    // Wort dieser Welle — bekommt in _onWave seinen _cf-Eintrag
@@ -792,7 +803,7 @@ function _startWave() {
     _ctx.cfSuf = CF_SUF + (which === 'pp' ? '_pp' : '_past');
     const raw = which === 'past' ? v.past : v.pp;   // mit /-Alternativen (Tippen erlaubt beide)
     const label = which === 'past' ? 'Simple Past' : 'Past Participle';
-    const head = frageForm(v.en, which);   // „go → [Simple Past]?" (7.10, 7.11)
+    const head = frageForm(v.en, which);   // „go → [Simple Past]" (F.8, F.9)
     if (type === 'verbmeteors') {
       const choices = _shuffle([_displayEn(raw), ..._verbDistractors(v, which, METEOR_COUNT - 1)]);
       _ctx.mg = startMeteors({ host, de: v.de, answer: _displayEn(raw), choices, prompt: head, fallMs: METEOR_FALL_MS + tBonus, onMiss: _onMiss, onResult: _onWave });
@@ -801,7 +812,7 @@ function _startWave() {
       // welche Form dieses Verbs; die Auswahl sind lauter Verbformen.
       const choices = _shuffle([_displayEn(raw), ..._verbDistractors(v, which, ECHO_CHOICES - 1)]);
       _ctx.mg = startEcho({ host, answer: _displayEn(raw), speakText: _displayEn(raw), choices,
-        prompt: `${window.escHtml ? window.escHtml(v.en) : v.en} → welche Form hörst du?`, timeLimitMs: ECHO_TIME_MS + tBonus, onMiss: _onMiss, onResult: _onWave });
+        verb: v.en, timeLimitMs: ECHO_TIME_MS + tBonus, onMiss: _onMiss, onResult: _onWave });
     } else {
       _ctx.mg = startLetterstorm({
         host, de: v.de, en: raw, prompt: head,
