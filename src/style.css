@@ -4087,8 +4087,11 @@ body.schnell-active .p-sammlung:not(.is-offen) > .p-balken{ height:9px; margin-t
 .ce-kein-pet-platz{ display:block; width:96px; height:26px; border:2px dashed rgba(31,31,36,.45); border-radius:50%; }
 
 #character-screen .p-blatt{ padding-top:14px; display:flex; flex-direction:column; }
+/* Reiter bündig (Update 1, B.2): die Reiter laufen von Kante zu Kante, die Tafel
+   darunter ist oben eckig — so schneidet keine Rundung in den ersten und letzten
+   Reiter. Gilt für den ganzen Editor (8.4–8.10 und den ersten Start 1.9/1.10). */
 .ce-reiter{
-  display:flex; align-items:flex-end; gap:4px; padding:0 8px;
+  display:flex; align-items:flex-end; gap:4px; padding:0;
   position:relative; z-index:1; margin-bottom:-2px;
 }
 .ce-reiter-tab{
@@ -4100,7 +4103,7 @@ body.schnell-active .p-sammlung:not(.is-offen) > .p-balken{ height:9px; margin-t
   height:52px; padding-top:5px; background:var(--p-karte-hell); border-bottom-color:var(--p-karte-hell);
   box-shadow:inset 0 5px 0 var(--p-ton,var(--p-rosa));
 }
-.ce-tafel{ border:var(--p-rahmen); border-radius:18px; background:var(--p-karte-hell); padding:12px 8px; }
+.ce-tafel{ border:var(--p-rahmen); border-radius:0 0 18px 18px; background:var(--p-karte-hell); padding:12px 8px; }
 .ce-tafel-kopf{ display:flex; align-items:center; gap:8px; padding:0 4px; }
 .ce-tafel-text{ flex:1; min-width:0; }
 .ce-tafel-kat{
