@@ -24,8 +24,7 @@
 // auf das nächste Vielfache ein und meldet es in der Konsole. Drehungen nur in
 // 90°-Schritten — image-rendering:pixelated rettet keinen Zwischenwinkel.
 // Ein Icon hat eine abweichende Box (ICON_BOX): grip ist schmal und hoch. Der
-// Vergrößerungsfaktor bleibt derselbe. bossCrest steht wie in den Fragmenten
-// (7.13, 7.16) in 14 × 14 — die Referenz beschneidet dort die Kontur oben und unten.
+// Vergrößerungsfaktor bleibt derselbe.
 //
 // Einsatz im Markup (die App rendert per innerHTML):
 //   `<div class="zeile">${iconHTML('coin', 28)}<span>12</span></div>`
@@ -84,11 +83,11 @@ export const ICONS = {
     '...........','K.........K','K.........K','KKKK...KKKK'] },
   grip:{ noOutline:true, rows:[
     'KK.KK','.....','KK.KK','.....','KK.KK','.....','KK.KK'] },
-  bossCrest:{ rows:[
-    '..A.........A..','..AA.......AA..','..AAA.....AAA..','..AAAA...AAAA..',
-    '..AAAAA.AAAAA..','..AAAAAAAAAAA..','..AAAAAAAAAAA..','..AKAAAKAAAKA..',
-    '..AAAAAAAAAAA..','...AAAAAAAAA...','....AAAAAAA....','...RRRRRRRRR...',
-    '..RRRRRRRRRRR..','..RRKRRKRRKRR..','..RRRRRRRRRRR..','...RRRRRRRRR...'] },
+  // Update 1 (claude_code_update/icons/bossCrest.png): goldene Krone wie auf der
+  // Kampagnenkarte statt des Totenkopfs, Kontur in der Maske.
+  bossCrest:{ noOutline:true, rows:[
+    '.K....K....K.','KYK..KYK..KYK','KAK..KAK..KAK','KAAK.KAK.KAAK','KAAAKAAAKAAAK','KAAAAAAAAAAAK','KARAAALAAARAK',
+    'KAAAAAAAAAAAK','KOOOOOOOOOOOK','KKKKKKKKKKKKK'] },
   crownBig:{ noOutline:true, rows:[
     '.K....K....K.','KYK..KYK..KYK','KAK..KAK..KAK','KAAK.KAK.KAAK','KAAAKAAAKAAAK','KAAAAAAAAAAAK','KARAAALAAARAK',
     'KAAAAAAAAAAAK','KOOOOOOOOOOOK','KKKKKKKKKKKKK'] },
