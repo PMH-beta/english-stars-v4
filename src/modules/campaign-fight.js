@@ -592,8 +592,12 @@ function _onMiss() {
   _ctx.waveMiss = true;
   run.hp = Math.max(0, run.hp - STORM_MISS_DMG);
   _setBars();
-  _ctx.players?.hero?.play('hurt');
-  _ctx.players?.pet?.play('hurt');
+  // Greift der Held gerade an (Richtig/Falsch), zuckt er nicht — das bräche den
+  // Angriff samt Treffer ab. Zahl und Splitter kommen trotzdem.
+  if (!_ctx.angriffe?.length) {
+    _ctx.players?.hero?.play('hurt');
+    _ctx.players?.pet?.play('hurt');
+  }
   _impactBurst('cf-hero', '#ff8787');
   _damagePop('cf-hero', '−' + STORM_MISS_DMG, '#ff8787');
   save();
@@ -779,6 +783,8 @@ function _startWave() {
   _ctx.cfItem = null;    // Wort dieser Welle — bekommt in _onWave seinen _cf-Eintrag
   _ctx.cfSuf = null;
   _ctx.waveMiss = false; // Fehlgriff in dieser Welle? (siehe _onMiss)
+  _ctx.angriffe = [];    // Teilangriffe bei Richtig/Falsch (siehe _tfTreffer)
+  _ctx.nachAngriffen = null;
 
   // Ausrüstungs-Effekte: 🧤/🪄 Zeitbonus auf jedes Minispiel (Meteoriten fallen
   // langsamer), ⏳ Zeittrank für begrenzte Wellen, 🐾 Gefährte fängt Fehlgriffe
@@ -841,7 +847,8 @@ function _startWave() {
       const wrong = oks[i] ? null : _distractors(pool.filter((p) => p.de !== it.de), right, 1)[0];
       return { de: it.de, en: wrong || right, ok: oks[i] || !wrong };
     });
-    _ctx.mg = startTrueFalse({ host, pairs, timeLimitMs: TF_TIME_MS + tBonus, onMiss: _onMiss, onResult: _onWave });
+    _ctx.mg = startTrueFalse({ host, pairs, timeLimitMs: TF_TIME_MS + tBonus, onMiss: _onMiss,
+      onRight: () => _tfTreffer(pairs.length), onResult: _onWave });
   } else if (type === 'meteors') {
     const item = _ctx.cfItem = _pickItem(stock);
     const answer = _displayEn(item.en);
@@ -858,8 +865,64 @@ function _startWave() {
   }
 }
 
+// Schaden des Helden: Waffe + Formen-Bonus (Stahl=past / Gold=pp) + Typ-Vorteil
+// (Speer vs Boss, Axt vs Elite, Hammer verdoppelt Welle 1) + 💪 Krafttrank;
+// 🧿 Talisman: ×1.5 an 🌀-Knoten. teile > 1 = Teilangriff bei Richtig/Falsch: der
+// volle Schaden geteilt und aufgerundet (keine halben Punkte). Alle Zusatz-Effekte
+// stehen als Pixel-Icons in der Schadenszahl über dem Gegner.
+function _heroDmg(teile = 1) {
+  const { run, node, weapon, eff } = _ctx;
+  const f = run.fight;
+  const bonus = _ctx.waveForm && weapon.which === _ctx.waveForm ? FORM_BONUS : 0;
+  let dmg = weapon.dmg + bonus + (f.power || 0);
+  if (weapon.type === 'speer' && node.type === 'boss') dmg += PERK_SPEER_BOSS;
+  if (weapon.type === 'axt' && node.type === 'irregular') dmg += PERK_AXT_ELITE;
+  if (weapon.type === 'bogen' && node.type === 'fight') dmg += PERK_BOGEN_FIGHT;
+  const hammer = weapon.type === 'hammer' && f.wave === 1;
+  if (hammer) dmg *= PERK_HAMMER_MULT;
+  const tali = node.type === 'irregular' && eff.talisman;
+  if (tali) dmg = Math.round(dmg * TALISMAN_MULT);
+  if (teile > 1) dmg = Math.ceil(dmg / teile);
+  return { dmg, html: '−' + dmg + (bonus ? iconHTML('star', 14) : '') + (hammer ? iconHTML('hammer', 14) : '') + (tali ? iconHTML('orb', 14) : '') };
+}
+
+// Richtig/Falsch (F-66): jedes richtig beurteilte Paar ist ein eigener, kleinerer
+// Angriff — alle Paare richtig ergeben den vollen. Die Angriffe laufen nacheinander:
+// play() bricht eine laufende Animation ab, und mit ihr ginge der Treffer verloren.
+// Ausgewertet wird die Welle erst, wenn alle durch sind (_onWave).
+function _tfTreffer(teile) {
+  const ctx = _ctx;
+  if (!ctx) return;
+  ctx.angriffe.push(() => {
+    if (_ctx !== ctx || ctx.vorbei) return;
+    const f = ctx.run.fight;
+    const { dmg, html } = _heroDmg(teile);
+    _strike('hero', html, '#c084fc',
+      () => {
+        f.enemyHp = Math.max(0, f.enemyHp - dmg);
+        _setBars();
+        try { playSfx('correct'); } catch (e) {}
+        ctx.save();
+      },
+      () => {
+        if (_ctx !== ctx || ctx.vorbei) return;
+        if (f.enemyHp <= 0) {   // Gegner fällt mitten in der Welle → sofort Sieg
+          if (ctx.mg) ctx.mg.destroy();
+          ctx.run.fight = null; ctx.save(); _endScreen(true);
+          return;
+        }
+        ctx.angriffe.shift();
+        if (ctx.angriffe.length) ctx.angriffe[0]();
+        else if (ctx.nachAngriffen) { const w = ctx.nachAngriffen; ctx.nachAngriffen = null; w(); }
+      });
+  });
+  if (ctx.angriffe.length === 1) ctx.angriffe[0]();
+}
+
 function _onWave(success) {
   if (!_ctx) return;
+  // Laufen noch Teilangriffe (Richtig/Falsch), erst danach auswerten.
+  if (_ctx.angriffe?.length) { _ctx.nachAngriffen = () => _onWave(success); return; }
   const { run, node, enemy, weapon, eff, save } = _ctx;
   const f = run.fight;
   if (!f) return;
@@ -869,30 +932,17 @@ function _onWave(success) {
   // als gelernt durchgewinkt, seit ein Fehler die Welle nicht mehr beendet.
   _record(_ctx.cfItem, success && !_ctx.waveMiss, _ctx.cfSuf);
   let wurf;   // Ausweich-Wurf, siehe unten
-  // Richtig/Falsch: der Held greift nur an, wenn ALLE Paare richtig beurteilt sind
-  // (F-66). Jedes Fehlurteil hat schon über _onMiss Leben gekostet — die Welle ist
-  // damit durch, ohne Angriff, und die nächste beginnt.
-  if (success && _ctx.waveMiss && _ctx.waveType === 'truefalse') {
+  // Richtig/Falsch: der Held hat schon je richtigem Paar angegriffen (_tfTreffer),
+  // Fehlurteile haben über _onMiss Leben gekostet — am Ende kommt kein weiterer
+  // Angriff, die nächste Welle beginnt.
+  if (success && _ctx.waveType === 'truefalse') {
     f.wave++; save();
     setTimeout(() => { if (_ctx) _startWave(); }, 300);
     return;
   }
   if (success) {
-    // Schaden: Waffe + Formen-Bonus (Stahl=past / Gold=pp) + Typ-Vorteil
-    // (Speer vs Boss, Axt vs Elite, Hammer verdoppelt Welle 1) + 💪 Krafttrank;
-    // 🧿 Talisman: ×1.5 an 🌀-Knoten.
-    const bonus = _ctx.waveForm && weapon.which === _ctx.waveForm ? FORM_BONUS : 0;
-    let dmg = weapon.dmg + bonus + (f.power || 0);
-    if (weapon.type === 'speer' && node.type === 'boss') dmg += PERK_SPEER_BOSS;
-    if (weapon.type === 'axt' && node.type === 'irregular') dmg += PERK_AXT_ELITE;
-    if (weapon.type === 'bogen' && node.type === 'fight') dmg += PERK_BOGEN_FIGHT;
-    const hammer = weapon.type === 'hammer' && f.wave === 1;
-    if (hammer) dmg *= PERK_HAMMER_MULT;
-    const tali = node.type === 'irregular' && eff.talisman;
-    if (tali) dmg = Math.round(dmg * TALISMAN_MULT);
-    // Alle Zusatz-Effekte (Formen-Bonus/Hammer/Talisman) direkt in die Schadenszahl,
-    // die über dem Gegner aufsteigt — als Pixel-Icons statt Emoji.
-    _strike('hero', '−' + dmg + (bonus ? iconHTML('star', 14) : '') + (hammer ? iconHTML('hammer', 14) : '') + (tali ? iconHTML('orb', 14) : ''), '#c084fc',
+    const { dmg, html } = _heroDmg();
+    _strike('hero', html, '#c084fc',
       () => {
         f.enemyHp = Math.max(0, f.enemyHp - dmg);
         _setBars();
@@ -966,6 +1016,8 @@ function _confettiBurst() {
 
 function _endScreen(victory) {
   const { node, players } = _ctx;
+  _ctx.vorbei = true;   // wartende Teilangriffe (Richtig/Falsch) verfallen
+  _el('cf-hero')?.classList.remove('vorn');
   const boss = node.type === 'boss';
   const bossWin = victory && boss;
   const stage = _el('cf-stage');

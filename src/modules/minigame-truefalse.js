@@ -3,13 +3,14 @@
 // Wortpaare nacheinander beurteilen: deutsches Wort und eine englische Übersetzung
 // nebeneinander — passt sie (✅ richtig) oder nicht (❌ falsch)? Ein Fehlurteil beendet
 // die Welle NICHT: es kostet HP (onMiss), danach kommt das nächste Paar. Alle Paare
-// durch = Welle fertig (angreifen darf der Held aber nur ohne Fehlurteil, siehe
+// durch = Welle fertig (der Held greift schon je richtigem Paar an, siehe
 // campaign-fight.js); verloren ist sie nur, wenn die Zeit ausgeht. Die Zeit läuft
 // über die GANZE Welle, nicht je Paar — Tempo ist Teil der Aufgabe.
 //
-// Schnittstelle: startTrueFalse({host, pairs, timeLimitMs, onMiss, onResult}) → {destroy,
-// pause, resume}. pairs = [{de, en, ok}] in Spielreihenfolge (ok = das Paar stimmt);
-// onResult(success, timeLeftMs) wird genau einmal gerufen, onMiss bei JEDEM Fehlurteil.
+// Schnittstelle: startTrueFalse({host, pairs, timeLimitMs, onMiss, onRight, onResult}) →
+// {destroy, pause, resume}. pairs = [{de, en, ok}] in Spielreihenfolge (ok = das Paar
+// stimmt); onResult(success, timeLeftMs) wird genau einmal gerufen, onMiss bei JEDEM
+// Fehlurteil, onRight bei jedem richtigen.
 // pause()/resume() frieren die Restzeit exakt ein.
 
 import { playSfx } from './game.js';
@@ -30,7 +31,7 @@ function _passend(el) {
   }
 }
 
-export function startTrueFalse({ host, pairs, timeLimitMs, onMiss, onResult }) {
+export function startTrueFalse({ host, pairs, timeLimitMs, onMiss, onRight, onResult }) {
   let done = false, timer = null, pausedAt = null, idx = 0, locked = false;
   let endAt = Date.now() + timeLimitMs;
   const urteil = [];   // je Paar true/false, sobald beurteilt (für die Kästchen)
@@ -120,6 +121,7 @@ export function startTrueFalse({ host, pairs, timeLimitMs, onMiss, onResult }) {
       urteil[idx] = true;
       _kaestchen();
       _faerben(true);
+      if (onRight) onRight();
       _next(LOCK_OK_MS);
       return;
     }
