@@ -34,8 +34,7 @@ export function startMeteors({ host, de, answer, choices, prompt, fallMs, onMiss
 
   const sky = host.querySelector('#cf-sky');
   const skyH = Math.max(190, sky.clientHeight || 300);
-  const TOP0 = -80;    // Startpunkt der untersten Stufe, oberhalb des Himmels
-  const STEP = 115;    // Höhe einer Versatz-Stufe (größer als ein Meteor hoch ist)
+  const TOP0 = -56;    // Start knapp über dem Himmel: Stein und Flamme gerade verdeckt
   const GAP  = 8;      // Mindest-Luft je Seite zwischen zwei Meteoren nebeneinander
   // Aufsetzpunkt: der Stein (46 hoch) liegt mit der Unterkante 6 px unter dem
   // Feldrand auf der Linie (F.4: Oberkante 40 über der Linie).
@@ -123,43 +122,31 @@ export function startMeteors({ host, de, answer, choices, prompt, fallMs, onMiss
     if (himmelW >= 2 * halb) b.style.left = Math.round(Math.min(himmelW - halb, Math.max(halb, mitte))) + 'px';
   });
 
-  // Überlappung auflösen: ein langes Wort ist breiter als seine Bahn, nebeneinander auf
-  // gleicher Höhe verdecken sich die Meteore dann gegenseitig. Deshalb hier die ECHTEN
-  // Chip-Breiten messen (die Buttons hängen schon im DOM) und nur die Meteore, die sich
-  // wirklich schneiden, eine Stufe höher starten lassen — kurze Wörter passen nebenein-
-  // ander und bleiben auf einer Höhe. Damit daraus kein lesbares Muster wird, ist die
-  // Prüfreihenfolge zufällig und die belegten Stufen werden am Ende durchgetauscht:
-  // welcher Meteor oben ansetzt, hängt so weder an der Bahn noch an der Antwort.
-  const levels = new Array(btns.length).fill(0);
-  const taken = [];   // taken[stufe] = schon belegte x-Bereiche auf dieser Stufe
+  // Versatz (wie vor dem Update, jetzt immer): jeder Meteor startet zufällig ein Stück
+  // höher, bis knapp die Hälfte der Himmelshöhe — gerechnet am Feld, damit es auf
+  // kleinen Bildschirmen genauso wirkt wie auf großen. Zwei Meteore, die sich
+  // waagerecht schneiden (lange Wörter), halten senkrecht mindestens ABSTAND; die
+  // Prüfreihenfolge ist zufällig, damit kein Muster entsteht.
+  const STREU = Math.round(skyH * 0.45);
+  const ABSTAND = 70;   // Stein 46 + Flamme + Luft
+  const breite = btns.map(b => ({ l: b.offsetLeft - b.offsetWidth / 2 - GAP, r: b.offsetLeft + b.offsetWidth / 2 + GAP }));
+  const start = btns.map(() => null);
   _shuffle(btns.map((b, i) => i)).forEach(i => {
-    const r = btns[i].getBoundingClientRect();
-    const box = { l: r.left - GAP, r: r.right + GAP };
-    let lv = 0;
-    while ((taken[lv] || []).some(o => box.l < o.r && box.r > o.l)) lv++;
-    (taken[lv] = taken[lv] || []).push(box);
-    levels[i] = lv;
+    const nah = start.filter((y, j) => y != null && breite[i].l < breite[j].r && breite[i].r > breite[j].l);
+    let y = null;
+    for (let k = 0; k < 24 && y == null; k++) {
+      const t = TOP0 - Math.round(Math.random() * STREU);
+      if (nah.every(o => Math.abs(o - t) >= ABSTAND)) y = t;
+    }
+    start[i] = y != null ? y : Math.min(...nah) - ABSTAND;
   });
-  const perm = _shuffle(taken.map((_, k) => k));   // Kollisionsfreiheit hängt nur daran,
-                                                   // WER sich eine Stufe teilt — nicht an deren Höhe
-  const baseDist = skyH + 10 - TOP0;
-  let answerDur = fallMs;
-  btns.forEach((b, i) => {
-    // Streuung obendrauf, damit die Meteore nicht auf exakt zwei Höhen einrasten; sie
-    // bleibt klar unter STEP, damit zwei Stufen sich nie berühren.
-    const top0 = TOP0 - perm[levels[i]] * STEP - Math.round(Math.random() * 16);
-    const dist = skyH + 10 - top0;
-    // Die Fallzeit des RICHTIGEN (durch den Versatz ggf. länger als fallMs) ist das
-    // Zeitlimit der Welle — gerechnet wie bisher bis unter das Feld.
-    const dur = Math.round(dist / baseDist * fallMs);
-    b._top0 = top0;
-    b.style.top = top0 + 'px';
-    if (b._answer) answerDur = dur;
-  });
-  // Alle fallen exakt gleich schnell (sonst liefe der Versatz zu) — so schnell, dass
-  // der richtige genau mit Ablauf der Zeit auf der Linie aufsetzt.
+  btns.forEach((b, i) => { b._top0 = start[i]; b.style.top = start[i] + 'px'; });
+  // Alle fallen gleich schnell (sonst liefe der Versatz zu) — so schnell, dass der
+  // richtige genau nach fallMs auf der Linie aufsetzt. Die Zeit der Welle hängt so
+  // nicht mehr davon ab, wie weit oben er zufällig startet.
   const ans = btns.find(b => b._answer);
-  const v = ans ? (AUF - ans._top0) / answerDur : (AUF - TOP0) / fallMs;   // px pro ms
+  const answerDur = fallMs;
+  const v = (AUF - (ans ? ans._top0 : TOP0)) / fallMs;   // px pro ms
   btns.forEach(b => { b._v = v; });
   startAt = Date.now() + 60;
   endAt = startAt + answerDur;
