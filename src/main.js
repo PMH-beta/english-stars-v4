@@ -376,11 +376,13 @@ try { screen.orientation?.lock?.('portrait').catch(() => {}); } catch (e) {}
   const HELL = 'inset 5px 6px 0 rgba(31,31,36,.34)';
   const DUNKEL = 'inset 4px 5px 0 rgba(0,0,0,.66)';
   let pressed = null, pressedAt = 0, startX = 0, startY = 0, spaet = 0;
+  let letzter = null;               // { quelle, at } des letzten Drückens (für die Verzögerung)
 
   // Antippbar ist, was als Knopf gebaut ist — oder wo im CSS der Zeiger-Cursor
   // beginnt (Kacheln/Karten mit Klick-Listener). Ererbtes cursor:pointer zählt nicht.
-  // Klappkarten drücken über ihren Kopf: zu = die ganze Karte (A.2 „Probetest",
-  // „Farben"), offen = nur der Pfeil (A.2 „Tiere und Natur").
+  // Klappkarten drücken über ihren Kopf immer als ganze Karte — zu wie A.2
+  // („Probetest", „Farben"), seit 08.10.2026 auch offen (Wunsch des Nutzers; A.2
+  // zeigte offen nur den Pfeil, „Tiere und Natur").
   const KOPF = '.p-sammlung-kopf, .p-zeilenkarte-kopf, .tp-deck-kopf, .fs-karte > summary';
   const zeiger = (el) => getComputedStyle(el).cursor === 'pointer';
   // Knopf ohne eigene Fläche um genau eine Kachel herum (Ausrüstungsfach: Kachel +
@@ -398,10 +400,7 @@ try { screen.orientation?.lock?.('portrait').catch(() => {}); } catch (e) {}
   }
   function ziel(start) {
     for (let el = start; el && el.nodeType === 1 && el !== document.body; el = el.parentElement) {
-      if (el.matches(KOPF)) {
-        const karte = el.parentElement;
-        return karte.classList.contains('is-offen') || karte.open ? el.querySelector('.p-chevron, .fs-pfeil') : karte;
-      }
+      if (el.matches(KOPF)) return el.parentElement;
       // Ausdrücklich ohne Zeiger (Kampagnen-Knoten, die gerade nicht erreichbar sind).
       if (el.matches(SEL)) return el.style.cursor === 'default' ? null : flaeche(el);
       if (zeiger(el) && !(el.parentElement && zeiger(el.parentElement))) {
@@ -477,14 +476,45 @@ try { screen.orientation?.lock?.('portrait').catch(() => {}); } catch (e) {}
 
   document.addEventListener('pointerdown', (e) => {
     if (e.button > 0) return;       // nur die Haupttaste
+    letzter = null;                 // ein Tipp auf etwas nicht Drückbares verzögert nichts
     const el = ziel(e.target);
     if (!el || el.closest(':disabled, [aria-disabled="true"], [inert]')) return;
     release();                      // ein noch offenes Drücken sauber beenden
     einfaerben(el);
     pressed = el;
     pressedAt = performance.now();
+    letzter = { quelle: e.target, at: pressedAt };
     startX = e.clientX; startY = e.clientY;
     el.classList.add('es-press', 'es-press-weich');
+  }, true);
+
+  // Aktion erst nach dem Drücken (08.10.2026, F-69 A): Ein Tipp öffnet sonst oft
+  // sofort einen anderen Screen oder zeichnet die Liste neu — der gedrückte Knopf
+  // ist weg, bevor man ihn einsinken sieht. Deshalb kommt der Klick erst, wenn der
+  // Knopf ganz unten war und ein Stück zurückgeglitten ist (NACH_MS). Ausnahmen:
+  // Kampf und Übungs-Screen (Tempo), Formularfelder, und alles, wofür der Browser
+  // einen direkten Tipp verlangt (Musik, Installieren, Kamera/Datei; Mikrofon und
+  // Vorlesen liegen im Übungs-Screen). data-sofort nimmt weitere Knöpfe aus.
+  const NACH_MS = 120;
+  const SOFORT = '#cf-overlay, #game-screen, input, select, textarea, label, [data-sofort], '
+    + '[onclick*="toggleMusic"], [onclick*="pwaInstall"], [onclick*="scan-file"], .p-ih-btn--ok';
+  const restZeit = () => (letzter && performance.now() - letzter.at < 1500)
+    ? Math.max(0, letzter.at + MIN_MS + NACH_MS - performance.now()) : 0;
+  // Für Gesten ohne click-Event (Deck-Karten reagieren auf touchend).
+  window.esNachDruck = (fn) => { const w = restZeit(); if (w > 0) setTimeout(fn, w); else fn(); };
+  document.addEventListener('click', (e) => {
+    if (!e.isTrusted || !letzter) return;
+    const t = e.target;
+    if (!(t === letzter.quelle || t.contains(letzter.quelle) || letzter.quelle.contains(t))) return;
+    if (t.closest(SOFORT)) return;
+    const w = restZeit();
+    if (w <= 0) return;
+    e.stopPropagation();
+    e.preventDefault();
+    const { clientX, clientY } = e;
+    setTimeout(() => {
+      if (t.isConnected) t.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window, detail: 1, clientX, clientY }));
+    }, w);
   }, true);
   const OPTS = { capture: true, passive: true };
   window.addEventListener('pointermove', (e) => {

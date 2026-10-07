@@ -382,9 +382,13 @@ function _attachCardListeners(cardEl, deckId) {
   function onEnd() {
     clearTimeout(longPressTimer); longPressTimer = null;
     // Sound am echten Auslöser: das Auf-/Zuklappen läuft über touch/mouse-Gesten,
-    // nicht über ein click-Event (touchend preventDefault unterdrückt das click),
-    // daher feuert der zentrale Click-Sound-Handler hier nie selbst.
-    if (!tapBlocked) { try { window.playSfx && window.playSfx('click'); } catch(e) {} _handleTap(deckId); }
+    // nicht über ein click-Event (touchend preventDefault unterdrückt das click).
+    // Umklappen erst nach dem Gedrückt-Zustand (esNachDruck, main.js), sonst ist die
+    // Karte neu gezeichnet, bevor man sie einsinken sieht.
+    if (!tapBlocked) {
+      try { window.playSfx && window.playSfx('click'); } catch(e) {}
+      if (window.esNachDruck) window.esNachDruck(() => _handleTap(deckId)); else _handleTap(deckId);
+    }
   }
 
   header.addEventListener('touchstart', onStart, { passive: true });
