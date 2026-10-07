@@ -84,11 +84,7 @@ Avatare dürfen bei einer Migration verloren gehen. Kein Umbau darf `SD.decks`,
 
 | Nr. | Frage (kurz) | Gebraucht vor |
 | --- | --- | --- |
-| F-63 | Kampf-Kopfleiste: Welle als Kästchen (Entwurf: 3, Boss 4) — Wellen sind heute unbegrenzt. Empfehlung B: wie heute als Zahl im neuen Look (so gebaut). | Update 1 · 3 |
-| F-64 | Kästchen rechts in der Aufgabe (4, Boss 6, grün/rot je Antwort). Empfehlung B: nur bei Richtig/Falsch für die Paare der Welle (heute Punkte über dem Paar). | Update 1 · 3 |
-| F-65 | Rückmelde-Streifen unter der Aufgabe (F.2–F.4): „Hund = dog · 6 Schaden“, „cat heißt Katze · 3 Schaden“, „Verpasst · Hund = dog · 4 Schaden“ — zeigt Lösung und Bedeutung. Empfehlung A. Bis dahin bleibt „✓ Richtig · dog“. | Update 1 · 3 |
-| F-66 | Gegner greift bei einem Fehlgriff sichtbar an (F.3, E.6), Schaden erst beim Treffer. Empfehlung B: wie heute (Held zuckt sofort). | Update 1 · 3 |
-| F-67 | Richtig/Falsch: Aufbau F.6 (gebaut) oder E.5/E.6 (anderes Panel, Karte „greift an“ nach jedem Paar). Empfehlung A: F.6 + Rückmelde-Karte aus E.5/E.6, „greift an“ nur nach dem letzten Paar. | Update 1 · 3 |
+| F-68 | Richtig/Falsch: Zeit läuft ab — wie viel Schaden für die offenen Paare? Heute ein Gegnertreffer (`enemy.dmg`), abfangbar durch Schild/Helm/Ausweichen. Empfehlung A: je offenes Paar 6 (wie ein Fehlurteil), als ein Angriff des Gegners, Schutz wirkt wie heute. Bis dahin wie heute. | Update 1 · 3 |
 
 ## Ohne Rückfrage entschieden (Aussehen) — Phase 7
 
@@ -177,6 +173,11 @@ Boss-Krone. Es gelten weiter die Regeln oben.
 | Nr. | Frage (kurz) | Entscheidung | Phase | Datum |
 | --- | --- | --- | --- | --- |
 | — | Gedrückt-Zustand: sofort (Entwurf) oder mit Bewegung? | **Mit Bewegung (Nutzer):** Der Zustand aus A.1/A.2 gleitet stufenlos hinein (90 ms) und wieder heraus (170 ms), damit es wie echtes Eindrücken aussieht — kein 4-/8-fps-Takt. Bei „Bewegung reduzieren“ springt er wie im Entwurf. Der Wackelpudding beim Antippen ist dafür entfernt. | U1 · 1 | 06.10.2026 |
+| F-63 | Kopfleiste: Welle als Kästchen? | **B, aber ohne Welle:** rechts als Zahl der Stand im Lauf, „Reihe 5 / 13“ (wie in der Lauf-Karte der Statistik) — ändert sich im Kampf nicht. Der Wellenzähler läuft intern weiter (Hammer-Vorteil in Welle 1). | U1 · 3 | 07.10.2026 |
+| F-64 | Kästchen in der Aufgabe | **B:** nur bei Richtig/Falsch, ein Kästchen je Paar (3), grün richtig / rot falsch / Papier offen, färbt sofort beim Antippen; die Punkte über dem Paar entfallen. Dazu (Nutzer): die Frage steht nur einmal da — „Richtig oder falsch?“ als Frage, „Passt das Paar?“ fällt weg; Richtig und Falsch **untereinander** (Richtig oben), damit man nicht die Seite des Knopfs mit dem Wort darüber verbindet. | U1 · 3 | 07.10.2026 |
+| F-65 | Rückmelde-Streifen mit Lösung | **Nein:** keine Korrektur, keine Lösung. Nur kurz sichtbar richtig/falsch (Steine grün/rot mit Haken/Kreuz, wie gebaut). Falsch kostet Leben für diese eine Antwort (wie heute); Zeitablauf kostet für alle offenen → Höhe offen in F-68. | U1 · 3 | 07.10.2026 |
+| F-66 | Gegner greift beim Fehlgriff sichtbar an? | **B — wie heute** (Held zuckt sofort). Dazu (Nutzer): bei Richtig/Falsch greift der Held **nur an, wenn alle 3 Paare richtig** sind; sonst ist die Welle ohne Angriff durch und die nächste kommt. 3 Paare je Welle wie heute (`TF_PAIRS`), nicht 4 wie im Entwurf. | U1 · 3 | 07.10.2026 |
+| F-67 | Richtig/Falsch F.6 oder E.5/E.6 | **F.6** mit den Änderungen aus F-64; keine Rückmelde-Karte, kein „greift an“ (F-65). | U1 · 3 | 07.10.2026 |
 
 ### Ohne Rückfrage entschieden (Aussehen) — Update 1
 
@@ -194,7 +195,7 @@ Boss-Krone. Es gelten weiter die Regeln oben.
 | 3 · Bühne | nach F.1–F.11: dunkle Statusleiste (374 breit, 24 px über dem Rand) mit beiden Lebensbalken statt der zwei Statuskarten; Held `Mitte − 161`/unten 126, Gegner `Mitte + 36`/unten 128, Boss `Mitte − 5`/unten 124 — vermessen deckungsgleich mit F.7. Rechts der Schaden des Gegners (`enemy.dmg`, gibt es schon) im rosa Chip, links Tränke und Waffenschaden wie bisher. | 06.10.2026 |
 | 3 · Schadenszahl | groß (900/28) mit Tintenkontur, steigt 12 Takte je 1,5 px und blendet ab dem 8. aus (F.2/F.3, `float`). Schaden immer rot — auch der eigene Treffer am Gegner (vorher lila) —, Heilung und Tränke grün; Trank-Namen in der Knopf-Stufe (16 px). | 06.10.2026 |
 | 3 · Schutz-Meldung | ohne festen Schatten, Schrift nach E.1 (Titel 900/16, Grund 800/13). | 06.10.2026 |
-| 3 · Kopfleiste | nach F.1–F.11: runder Knopf 40, dunkle Leiste mit Kachel der Knotenart (Übung flieder/Schwert, Unregelmäßige blau/Kugel, Boss rot/Krone) und Namen ohne Versalien. Welle bis F-63 wie heute als Zahl („Welle“ grau, Zahl hell). | 06.10.2026 |
+| 3 · Kopfleiste | nach F.1–F.11: runder Knopf 40, dunkle Leiste mit Kachel der Knotenart (Übung flieder/Schwert, Unregelmäßige blau/Kugel, Boss rot/Krone) und Namen ohne Versalien. Rechts seit F-63 „Reihe N / 13“ („Reihe“ grau, Zahl hell). | 06.10.2026 |
 | 3 · Aufgabe | ein Panel nach F.1–F.11: Kachel 46 (Sturm pfirsich/Stift, Meteoriten pfirsich/Zielscheibe, Richtig/Falsch blau/Zielscheibe, Unregelmäßige flieder/Kugel, Boss rot/Krone; Echo: runder rosa Hör-Knopf mit Ringen an ihrer Stelle), Anweisung grau („Schreibe auf Englisch“, „Fange die Übersetzung“, „Welches Wort hörst du?“, „Richtig oder falsch?“; bei Verbformen „Bilde die Form“, „Fange die Form“, „Welche Form hörst du?“), Frage 900/28, Formen als Flieder-Chip mit Pixelpfeil, Echo als Hörbild. Wortleiste des Sturms im Panel, Zeitzeile unten (Sanduhr, Sekunden, gold gestreifter Balken). Vermessen deckungsgleich mit F.7. Sekundenfeld mindestens 24 breit statt fest (sonst läge „23 s“ oder „pausiert“ über dem Balken). | 06.10.2026 |
 | 3 · Wortleiste | Felder 42 × 48, das nächste Feld hell-gold mit Tintenstrich (F.7), gelöst grün. | 06.10.2026 |
 | 3 · Steine | alles Antippbare im Spielfeld als Pixel-Stein aus den Fragmenten (gestufte Ecken, Tintenrand, Licht/Schatten, Sprenkel): Buchstaben lila und leicht schräg (−6°, 4°, −3°, −5°, 5° reihum), Meteoriten orange mit Pixel-Flamme und Glut, Echo blaue Blasen mit Mini-Hörbild, Richtig/Falsch: Paar als Papier-Steine mit pulsierendem „?“, Knöpfe Falsch rot / Richtig grün. Treiben und Fallen wie bisher (Spielmechanik). Gedrückt drückt die Steinfläche (`data-press` wie in den Fragmenten). | 06.10.2026 |

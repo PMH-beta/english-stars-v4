@@ -61,7 +61,9 @@ const _AUFGABE_KACHEL = {
   irregular: { icon: 'orb', ton: 'var(--p-lila)' },
   boss:      { icon: 'bossCrest', ton: 'var(--p-falsch-stark)' },
 };
-const _welleHTML = (n) => `Welle <b>${n}</b>`;
+// Rechts in der Kopfleiste (F-63): wo man im Lauf steht und wie lang er ist —
+// „Reihe 5 / 13" wie in der Lauf-Karte der Statistik. Ändert sich im Kampf nicht.
+const _laufHTML = (run, node) => `Reihe <b>${node.row + 1}</b> / ${run.map?.rows || 13}`;
 
 // Waffen-/Ausrüstungslogik lebt in campaign-equipment.js (equippedWeapon,
 // equipEffects) — der Kampf liest sie nur.
@@ -373,7 +375,7 @@ function _renderOverlay() {
       <button id="cf-flee" class="cf-rund" title="Kampf verlassen (Fortschritt + Einsatz weg)">${iconHTML('close', 14)}</button>
       <div class="cf-kopfleiste">
         ${_titelHTML(node.type)}
-        <span id="cf-wave" class="cf-welle">${_welleHTML(f.wave)}</span>
+        <span class="cf-welle">${_laufHTML(run, node)}</span>
       </div>
     </div>
     <div id="cf-stage" class="cf-mitte"></div>
@@ -770,11 +772,10 @@ function _startWave() {
     type = types[Math.floor(Math.random() * types.length)];
   }
 
-  const w = _el('cf-wave');
-  if (w) w.innerHTML = _welleHTML(run.fight.wave);
   setKnotenKachel(_AUFGABE_KACHEL[node.type] || null);
   const host = _el('cf-stage');
   _ctx.waveForm = null;
+  _ctx.waveType = type;
   _ctx.cfItem = null;    // Wort dieser Welle — bekommt in _onWave seinen _cf-Eintrag
   _ctx.cfSuf = null;
   _ctx.waveMiss = false; // Fehlgriff in dieser Welle? (siehe _onMiss)
@@ -868,6 +869,14 @@ function _onWave(success) {
   // als gelernt durchgewinkt, seit ein Fehler die Welle nicht mehr beendet.
   _record(_ctx.cfItem, success && !_ctx.waveMiss, _ctx.cfSuf);
   let wurf;   // Ausweich-Wurf, siehe unten
+  // Richtig/Falsch: der Held greift nur an, wenn ALLE Paare richtig beurteilt sind
+  // (F-66). Jedes Fehlurteil hat schon über _onMiss Leben gekostet — die Welle ist
+  // damit durch, ohne Angriff, und die nächste beginnt.
+  if (success && _ctx.waveMiss && _ctx.waveType === 'truefalse') {
+    f.wave++; save();
+    setTimeout(() => { if (_ctx) _startWave(); }, 300);
+    return;
+  }
   if (success) {
     // Schaden: Waffe + Formen-Bonus (Stahl=past / Gold=pp) + Typ-Vorteil
     // (Speer vs Boss, Axt vs Elite, Hammer verdoppelt Welle 1) + 💪 Krafttrank;

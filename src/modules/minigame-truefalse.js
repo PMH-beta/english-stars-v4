@@ -3,7 +3,8 @@
 // Wortpaare nacheinander beurteilen: deutsches Wort und eine englische Übersetzung
 // nebeneinander — passt sie (✅ richtig) oder nicht (❌ falsch)? Ein Fehlurteil beendet
 // die Welle NICHT: es kostet HP (onMiss), danach kommt das nächste Paar. Alle Paare
-// durch = Welle gewonnen; verloren ist sie nur, wenn die Zeit ausgeht. Die Zeit läuft
+// durch = Welle fertig (angreifen darf der Held aber nur ohne Fehlurteil, siehe
+// campaign-fight.js); verloren ist sie nur, wenn die Zeit ausgeht. Die Zeit läuft
 // über die GANZE Welle, nicht je Paar — Tempo ist Teil der Aufgabe.
 //
 // Schnittstelle: startTrueFalse({host, pairs, timeLimitMs, onMiss, onResult}) → {destroy,
@@ -32,16 +33,18 @@ function _passend(el) {
 export function startTrueFalse({ host, pairs, timeLimitMs, onMiss, onResult }) {
   let done = false, timer = null, pausedAt = null, idx = 0, locked = false;
   let endAt = Date.now() + timeLimitMs;
-  const missed = [];   // Index der falsch beurteilten Paare (für die Punkte-Leiste)
+  const urteil = [];   // je Paar true/false, sobald beurteilt (für die Kästchen)
 
-  // Aufbau wie F.6: Aufgabe oben, im Feld das Paar als zwei Papier-Steine mit
-  // pulsierendem „?" dazwischen, darunter Falsch (rot) und Richtig (grün). Die
-  // Punkte für die Paare der Welle bleiben (F-64 offen).
+  // Aufbau wie F.6: Aufgabe oben mit einem Kästchen je Paar der Welle (F-64),
+  // im Feld das Paar als zwei Papier-Steine mit pulsierendem „?" dazwischen,
+  // darunter Richtig (grün) und Falsch (rot) untereinander — nebeneinander
+  // verbindet man sonst die Seite des Knopfs mit dem Wort darüber. Die Frage
+  // steht nur einmal da („Passt das Paar?" fällt weg, sagt dasselbe).
   const wort = (sprache, id) => `<span class="tf-wort"><span class="tf-wort-sprache">${sprache}</span><span id="${id}" class="tf-wort-text"></span></span>`;
   const knopf = (icon, text) => `<span class="tf-symbol">${iconHTML(icon, 14)}</span>${text}`;
-  host.innerHTML = aufgabeKarte({ art: 'richtig', anweisung: 'Richtig oder falsch?', frage: 'Passt das Paar?', text: true, zeitId: 'tf-bar', sekId: 'tf-secs' })
+  host.innerHTML = aufgabeKarte({ art: 'richtig', anweisung: '', frage: 'Richtig oder falsch?', text: true,
+    rechts: '<span id="tf-dots" class="tf-kaestchen"></span>', zeitId: 'tf-bar', sekId: 'tf-secs' })
     + `<div class="mg-flaeche"><div class="tf-flaeche">
-      <div id="tf-dots" class="tf-punkte"></div>
       <i class="tf-luft" style="flex:55 1 0"></i>
       <div id="tf-card" class="tf-paar">
         <div data-ui="bob" data-a="1.5">${steinHTML(wort('DE', 'tf-de'), 'papier', 'mg-stein--paar')}</div>
@@ -50,8 +53,8 @@ export function startTrueFalse({ host, pairs, timeLimitMs, onMiss, onResult }) {
       </div>
       <i class="tf-luft" style="flex:56 1 0"></i>
       <div class="tf-knoepfe">
-        <button id="tf-no" class="tf-btn">${steinHTML(knopf('close', 'Falsch'), 'rot', 'mg-stein--knopf')}</button>
         <button id="tf-yes" class="tf-btn">${steinHTML(knopf('check', 'Richtig'), 'gruen', 'mg-stein--knopf')}</button>
+        <button id="tf-no" class="tf-btn">${steinHTML(knopf('close', 'Falsch'), 'rot', 'mg-stein--knopf')}</button>
       </div>
       <i class="tf-luft" style="flex:90 1 0"></i>
     </div></div>`;
@@ -79,8 +82,13 @@ export function startTrueFalse({ host, pairs, timeLimitMs, onMiss, onResult }) {
     enEl.textContent = p.en;
     _passend(deEl);
     _passend(enEl);
+    _kaestchen();
+  }
+
+  // Kästchen je Paar (F.6): grün = richtig beurteilt, rot = falsch, Papier = offen.
+  function _kaestchen() {
     dots.innerHTML = pairs.map((_, i) =>
-      `<span class="tf-dot${missed.includes(i) ? ' miss' : i < idx ? ' done' : i === idx ? ' now' : ''}"></span>`).join('');
+      `<span class="tf-k${urteil[i] === false ? ' miss' : urteil[i] ? ' done' : ''}"></span>`).join('');
   }
 
   function _finish(success) {
@@ -109,6 +117,8 @@ export function startTrueFalse({ host, pairs, timeLimitMs, onMiss, onResult }) {
     if (done || locked) return;
     if (said === pairs[idx].ok) {
       try { playSfx('click'); } catch (e) {}
+      urteil[idx] = true;
+      _kaestchen();
       _faerben(true);
       _next(LOCK_OK_MS);
       return;
@@ -116,7 +126,8 @@ export function startTrueFalse({ host, pairs, timeLimitMs, onMiss, onResult }) {
     // Fehlurteil: kostet HP, das Paar bleibt kurz rot stehen — dann geht es weiter.
     try { playSfx('wrong'); } catch (e) {}
     _faerben(false);
-    missed.push(idx);
+    urteil[idx] = false;
+    _kaestchen();
     if (onMiss) onMiss();
     if (!done) _next(LOCK_BAD_MS);   // onMiss kann tödlich sein → Kampf schon vorbei
   }

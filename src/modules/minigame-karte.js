@@ -52,19 +52,21 @@ export const frageHoeren = (en = '') => (en ? `<span class="mg-wort">${_esc(en)}
  * @param {boolean} [o.text]     Frage ist ein Satz („Passt das Paar?") — Knopf-Stufe statt groß
  * @param {string} [o.kachel]    eigenes Markup an der Stelle der Kachel (Echo: Hör-Knopf)
  * @param {string} [o.mitte]     Mittelteil unter der Frage (Wortleiste des Sturms)
+ * @param {string} [o.rechts]    Markup rechts in der Zeile (Kästchen bei Richtig/Falsch, F.6)
  * @param {string} [o.zeitId]    ID der Balkenfüllung — ohne: keine Zeitzeile (Meteoriten)
  * @param {string} [o.sekId]     ID der Sekundenanzeige
  */
-export function aufgabeKarte({ art, anweisung, frage, text = false, kachel = '', mitte = '', zeitId = null, sekId = null }) {
+export function aufgabeKarte({ art, anweisung, frage, text = false, kachel = '', mitte = '', rechts = '', zeitId = null, sekId = null }) {
   const a = _knotenKachel || ART[art] || ART.sturm;
   const bild = kachel || `<span class="mg-aufgabe-kachel" style="background:${a.ton}">${iconHTML(a.icon, 28)}</span>`;
   return `<div class="mg-aufgabe">
     <div class="mg-aufgabe-zeile">
       ${bild}
       <div class="mg-aufgabe-text">
-        <span class="mg-aufgabe-art">${anweisung}</span>
+        ${anweisung ? `<span class="mg-aufgabe-art">${anweisung}</span>` : ''}
         <span class="mg-aufgabe-frage${text ? ' mg-aufgabe-frage--text' : ''}">${frage}</span>
       </div>
+      ${rechts}
     </div>
     ${mitte ? `<div class="mg-aufgabe-mitte">${mitte}</div>` : ''}
     ${zeitId ? `<div class="mg-zeit">${iconHTML('hourglass', 14)}<span class="mg-zeit-sek" id="${sekId}"></span>`
