@@ -1,6 +1,6 @@
 // src/modules/ui.js
 import { persist, freshData, clearStorage } from './storage.js';
-import { effectivePct, isStatMastered, statKeyFor } from './stats.js';
+import { effectivePct, statKeyFor, wortScore } from './stats.js';
 import { syncMirrorFromActiveDeck, deckProgress, presetProgressPct, renderDecks, renderModeSubBy, migrateStatKeys, migrateDeckModes, deckMode, activeDeckIdForMode, createDeck, deleteDeck, tourAufgeklappt } from './decks.js';
 import { getPresetCategories } from './vocab.js';
 import { releaseMicStream, stopVisualizer, voskStop, speakWord } from './speech.js';
@@ -1994,7 +1994,7 @@ const _fsReihe = (m, n) => Array.from({ length: n }, (_, i) => i < m);
 function _vocabWordRows(words, ws, presetId) {
   const zeilen = words.map((v) => ({
     en: v.en,
-    an: ['_mc', '_sp', '_pr'].map((suf) => isStatMastered(ws[statKeyFor(v.de, v.en, suf, presetId)])),
+    an: ['_mc', '_sp', '_pr'].map((suf) => wortScore(ws, v, suf, presetId).mastered),
   }));
   return _fsWortListe(zeilen, 'mint', ['Wählen', 'Schreiben', 'Sprechen']);
 }
@@ -2063,12 +2063,9 @@ function _customWordsBlock(decks) {
     for (const v of words) {
       let allDone = true;
       for (const suffix of ['_mc', '_sp', '_pr']) {
-        const s = ws[statKeyFor(v.de, v.en, suffix)];
-        if (!isStatMastered(s)) allDone = false;
-        if (!s || !s.asked) continue;
-        const asked = s.asked, pct = effectivePct(s);
-        if (Math.floor(asked) >= 3 && pct >= 0.9) totalScore += 1;
-        else if (asked >= 1) totalScore += Math.max(0, (pct - 0.5) * 2) * Math.min(asked / 3, 1) * 0.85;
+        const w = wortScore(ws, v, suffix);
+        if (!w.mastered) allDone = false;
+        totalScore += w.score;
       }
       if (allDone) done++;
     }

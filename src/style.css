@@ -3429,6 +3429,8 @@ button.p-chip{ cursor:pointer; }
   font:900 22px var(--p-font); color:var(--p-ink);
 }
 .gap-kachel.is-luecke{ border-style:dashed; background:var(--p-feld); }
+/* Zwischen zwei Wörtern (Rechtschreibung „ice cream"): feste Lücke statt Kachel. */
+.gap-luft, .order-luft{ flex:0 0 12px; }
 /* Die Lücke ist selbst das Eingabefeld (08.10.2026): Buchstabe direkt im Wort. */
 .gap-eingabe{ padding:0; text-align:center; text-transform:lowercase; caret-color:var(--p-ink); }
 .gap-eingabe:focus{ outline:2px solid var(--p-ink); outline-offset:2px; }

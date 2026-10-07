@@ -5,7 +5,7 @@ import { persist } from './storage.js';
 import { markDirty } from './sync.js';
 import { commitDirty } from './dialog.js';
 import { supabase } from './supabase.js';
-import { effectivePct, statKeyFor } from './stats.js';
+import { effectivePct, statKeyFor, wortScore, spellingStand, SP_TEILE } from './stats.js';
 import { MAX_PRESET_CATEGORIES } from './config.js';
 import { iconHTML } from './pixel-icons.js';
 import { ensureTesseract } from './lazyload.js';
@@ -231,12 +231,24 @@ const _STAND_TON = { 'ws-green': 'var(--p-ok)', 'ws-yellow': 'var(--p-gold)', 'w
 function _wordTablesHtml(deck) {
   const vocab = deck.vocab || [];
   const presetWs = window.SD?.globalPresetStats?.wordStats || {};
+  // Rechtschreibung (F-71): Stand = geschaffte Aufgaben „n/3", R / F über alle drei.
+  function spStat(ws, v) {
+    const sum = { asked: 0, correct: 0, wrong: 0 };
+    for (const suf of SP_TEILE) {
+      const s = ws[statKeyFor(v.de, v.en, suf, v._presetId || null)];
+      if (s) { sum.asked += s.asked || 0; sum.correct += s.correct || 0; sum.wrong += s.wrong || 0; }
+    }
+    const stand = spellingStand(ws, v, v._presetId || null);
+    const cls = stand.fertig ? 'ws-green' : stand.geschafft ? 'ws-yellow' : sum.asked ? 'ws-red' : 'ws-gray';
+    return { s: sum.asked || stand.fertig ? sum : null, st: { cls, label: stand.geschafft + '/3' } };
+  }
   function makeTable(suf, icon, title) {
     const rows = vocab.map(v => {
       const ws = v._presetId ? presetWs : deck.wordStats;
-      const s = ws[statKeyFor(v.de, v.en, suf, v._presetId || null)];
-      const st = wordStatus(s, 3);
-      const gefragt = !!(s && s.asked);
+      const sp = suf === '_sp' ? spStat(ws, v) : null;
+      const s = sp ? sp.s : ws[statKeyFor(v.de, v.en, suf, v._presetId || null)];
+      const st = sp ? sp.st : wordStatus(s, 3);
+      const gefragt = !!(s && (s.asked || sp));
       // Im Entwurf ist nur der grüne Chip ein inline-flex (Zeile 3 px höher).
       const stand = !gefragt
         ? '<span class="vm-st-leer">–</span>'
@@ -336,6 +348,7 @@ function _wortStand(deck, v) {
   const ws = v._presetId ? presetWs : deck.wordStats;
   let summe = 0;
   for (const suffix of ['_mc', '_sp', '_pr']) {
+    if (suffix === '_sp') { summe += wortScore(ws, v, '_sp', v._presetId || null).score; continue; }
     const st = ws[statKeyFor(v.de, v.en, suffix, v._presetId || null)];
     if (st && st.asked) summe += effectivePct(st);
   }
@@ -719,15 +732,7 @@ function _presetProgress(cat, isActive = false) {
   const ws = window.SD?.globalPresetStats?.wordStats || {};
   let totalScore = 0;
   for (const suf of ['_mc', '_sp', '_pr']) {
-    let score = 0;
-    for (const v of words) {
-      const s = ws[statKeyFor(v.de, v.en, suf, v._presetId)];
-      if (!s || !s.asked) continue;
-      const asked = s.asked, pct = effectivePct(s);
-      if (Math.floor(asked) >= 3 && pct >= 0.9) score += 1;
-      else if (asked >= 1) score += Math.max(0, (pct - 0.5) * 2) * Math.min(asked / 3, 1) * 0.85;
-    }
-    totalScore += score;
+    for (const v of words) totalScore += wortScore(ws, v, suf, v._presetId).score;
   }
   const pct = words.length > 0 ? Math.min(100, Math.round((totalScore / 3 / words.length) * 100)) : 0;
   return { pct };
@@ -741,15 +746,7 @@ function _claimedBarPct(cat) {
   const ws = window.SD?.globalPresetStats?.wordStats || {};
   let totalScore = 0;
   for (const suf of ['_mc', '_sp', '_pr']) {
-    let score = 0;
-    for (const v of words) {
-      const s = ws[statKeyFor(v.de, v.en, suf, cat.id)];
-      if (!s || !s.asked) continue;
-      const asked = s.asked, pct = effectivePct(s);
-      if (Math.floor(asked) >= 3 && pct >= 0.9) score += 1;
-      else if (asked >= 1) score += Math.max(0, (pct - 0.5) * 2) * Math.min(asked / 3, 1) * 0.85;
-    }
-    totalScore += score;
+    for (const v of words) totalScore += wortScore(ws, v, suf, cat.id).score;
   }
   return words.length > 0 ? Math.min(100, Math.round((totalScore / 3 / words.length) * 100)) : 0;
 }

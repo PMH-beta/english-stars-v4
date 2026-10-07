@@ -1,6 +1,6 @@
 // src/modules/game.js
 import { QPERROUND, EXAM_QUESTIONS, calcGrade, gradeText, UV_LVL } from './config.js';
-import { effectivePct, isMastered, statKeyFor, getVocabStat } from './stats.js';
+import { effectivePct, isMastered, statKeyFor, getVocabStat, SP_TEILE, spWort, spKurz, spellingStand, wortScore } from './stats.js';
 import { activeDeck, syncMirrorFromActiveDeck } from './decks.js';
 import { showScreen, showMenu, hideFeedback, showFeedback } from './ui.js';
 import { ensureMicStream, releaseMicStream, voskStop, stopVisualizer, speakWord, speakWordOnce, startVoskRecognition, startRecording, _shouldUseVosk, warmAudio, warmIosMic, micZustand, gehoert } from './speech.js';
@@ -78,6 +78,42 @@ function bVocabType(item) {
   return {type:'type',badge:'spelling',statKey:statKeyFor(item.de, item.en, '_sp', item._presetId||null),_presetId:item._presetId||null,
     question:`✏️ Schreibe auf Englisch:\n🇩🇪 ${item.de}`,de:item.de,instr:'Schreibe auf Englisch',hint:'',answer:item.en};
 }
+// Rechtschreibung (F-71–F-75): drei Aufgaben je Wort — Buchstabe einsetzen,
+// Buchstaben sortieren, Wort schreiben. Gezogen wird zufällig, gleich oft, unter
+// den Aufgaben, die beim Wort noch offen sind; ist das Wort abgeschlossen, unter
+// allen (kurze Wörter: nur Schreiben). Leerzeichen bleiben fest an ihrem Platz.
+function bVocabGap(item) {
+  const g=_gapLetter(spWort(item.en));
+  return {type:'type',badge:'spelling',gap:true,gapWord:g.word,gapIdx:g.idx,hint:'',speak:g.word,
+    statKey:statKeyFor(item.de, item.en, '_sp_lu', item._presetId||null),_presetId:item._presetId||null,
+    de:item.de,instr:'Welcher Buchstabe fehlt?',answer:g.letter};
+}
+function bVocabOrder(item) {
+  const w=spWort(item.en);
+  const letters=w.replace(/\s+/g,'').split('');
+  // Nach welchem Feld eine Lücke zwischen zwei Wörtern steht.
+  const luecken=[]; let n=0;
+  for(const ch of w){ if(/\s/.test(ch)){ if(n && luecken[luecken.length-1]!==n-1) luecken.push(n-1); } else n++; }
+  return {type:'order',orderKind:'letters',badge:'spelling',
+    statKey:statKeyFor(item.de, item.en, '_sp_so', item._presetId||null),_presetId:item._presetId||null,
+    de:item.de,instr:'Leg die Buchstaben in die richtige Reihenfolge',
+    slotLabels:letters.map(()=>''),solution:letters,tiles:_scramble(letters),luecken,answer:w};
+}
+function bVocabSpelling(item) {
+  const ws=item._presetId ? window.SD?.globalPresetStats?.wordStats : window.SD?.wordStats;
+  const stand=spellingStand(ws, item, item._presetId||null);
+  const teile=spKurz(item.en) ? ['_sp'] : (stand.fertig ? SP_TEILE : stand.offen);
+  const t=teile[Math.floor(Math.random()*teile.length)];
+  const q=t==='_sp_lu' ? bVocabGap(item) : t==='_sp_so' ? bVocabOrder(item) : bVocabType(item);
+  q._spFertig=stand.fertig;   // abgeschlossene Wörter fallen wie gemeisterte aus der Runde
+  return q;
+}
+// Gewicht für die Wortauswahl: abgeschlossen = selten, sonst wie ein neues Wort.
+const _spGewicht=v=>{
+  const ws=v._presetId ? window.SD?.globalPresetStats?.wordStats : window.SD?.wordStats;
+  return spellingStand(ws, v, v._presetId||null).fertig ? {asked:3,correct:3} : undefined;
+};
+
 function bVocabPronounce(item) {
   return {type:'pronounce',badge:'pronounce',statKey:statKeyFor(item.de, item.en, '_pr', item._presetId||null),_presetId:item._presetId||null,
     question:`🎙️ Sprich auf Englisch:\n🇩🇪 ${item.de}`,de:item.de,hint:'',answer:item.en};
@@ -411,24 +447,27 @@ export function buildPool(m) {
     weightedPickUnique(vocab, v=>getVocabStat(v,'_mc'), limit).forEach(v=>qs.push(bVocabMC(v)));
   }
   if(m==='spelling'){
-    weightedPickUnique(vocab, v=>getVocabStat(v,'_sp'), limit).forEach(v=>qs.push(bVocabType(v)));
+    // Probetest prüft weiter nur das Schreiben (F-75), sonst die drei Aufgaben.
+    if(window.isExamMode) weightedPickUnique(vocab, v=>getVocabStat(v,'_sp'), limit).forEach(v=>qs.push(bVocabType(v)));
+    else weightedPickUnique(vocab, _spGewicht, limit).forEach(v=>qs.push(bVocabSpelling(v)));
   }
   if(m==='pronounce'){
     weightedPickUnique(vocab, v=>getVocabStat(v,'_pr'), limit).forEach(v=>qs.push(bVocabPronounce(v)));
   }
   if(m==='mixed_vocab'){
     if(window.isSchnellModus&&!window.isExamMode){
-      vocab.forEach(v=>{qs.push(bVocabMC(v));qs.push(bVocabType(v));qs.push(bVocabPronounce(v));});
+      vocab.forEach(v=>{qs.push(bVocabMC(v));qs.push(bVocabSpelling(v));qs.push(bVocabPronounce(v));});
     } else {
       const n1=Math.round(examLimit/3), n2=Math.round(examLimit/3), n3=examLimit-n1-n2;
       weightedPickUnique(vocab, v=>getVocabStat(v,'_mc'), n1).forEach(v=>qs.push(bVocabMC(v)));
-      weightedPickUnique(vocab, v=>getVocabStat(v,'_sp'), n2).forEach(v=>qs.push(bVocabType(v)));
+      if(window.isExamMode) weightedPickUnique(vocab, v=>getVocabStat(v,'_sp'), n2).forEach(v=>qs.push(bVocabType(v)));
+      else weightedPickUnique(vocab, _spGewicht, n2).forEach(v=>qs.push(bVocabSpelling(v)));
       weightedPickUnique(vocab, v=>getVocabStat(v,'_pr'), n3).forEach(v=>qs.push(bVocabPronounce(v)));
     }
   }
   }
   if(window._skipMasteryFilter||window.isExamMode) return shuffle(qs).slice(0, limit);
-  const filtered=qs.filter(q=>!isMastered(q));
+  const filtered=qs.filter(q=>q._spFertig!==undefined ? !q._spFertig : !isMastered(q));
   if(filtered.length===0) return qs.slice(0, limit);
   return shuffle(filtered).slice(0, limit);
 }
@@ -710,6 +749,7 @@ function renderQuestion(q) {
           ? `<input class="gap-kachel is-luecke gap-eingabe" id="type-input" type="text" maxlength="1"
               autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Fehlender Buchstabe"
               oninput="if(this.value.trim())submitType()">`
+          : /\s/.test(w[k]) ? `<span class="gap-luft"></span>`
           : `<span class="gap-kachel">${window.escHtml(w[k])}</span>`;
       }
       if(cells) html+=`<div class="gap-reihe">${cells}</div>`;
@@ -742,7 +782,10 @@ function renderQuestion(q) {
     html+=`<div class="p-fragekarte">${head}${frage}`;
     const isL=q.orderKind==='letters';
     html+=`<div class="order-slots${isL?' letters':''}" id="order-slots">`;
-    q.slotLabels.forEach((lab,i)=>{ html+=`<div class="order-slot" data-slot="${i}">${lab?`<span class="slot-label">${lab}</span>`:''}</div>`; });
+    q.slotLabels.forEach((lab,i)=>{
+      html+=`<div class="order-slot" data-slot="${i}">${lab?`<span class="slot-label">${lab}</span>`:''}</div>`;
+      if(q.luecken?.includes(i)) html+=`<span class="order-luft"></span>`;   // zwischen zwei Wörtern
+    });
     html+=`</div>`;
     html+=`<div class="order-tray${isL?' letters':''}" id="order-tray">`;
     q.tiles.forEach(t=>{ html+=`<div class="order-tile" data-val="${t}">${t}</div>`; });
@@ -1304,14 +1347,8 @@ function progressForCurrentMode() {
   function pf(suffix) {
     let score=0, mastered=0;
     window.VOCAB.forEach(v=>{
-      const s=(v._presetId ? presetWs : deckWs)[statKeyFor(v.de,v.en,suffix,v._presetId||null)];
-      if(!s||!s.asked) return;
-      const asked=s.asked, pct=effectivePct(s);
-      if(Math.floor(asked)>=3 && pct>=0.9){ score+=1; mastered+=1; }
-      else if(asked>=1){
-        const conf=Math.min(asked/3,1);
-        score+=Math.max(0,(pct-0.5)*2)*conf*0.85;
-      }
+      const w=wortScore(v._presetId ? presetWs : deckWs, v, suffix, v._presetId||null);
+      score+=w.score; if(w.mastered) mastered+=1;
     });
     return {score,mastered,total:window.VOCAB.length};
   }

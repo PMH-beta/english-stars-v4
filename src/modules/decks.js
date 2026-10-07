@@ -1,5 +1,5 @@
 // src/modules/decks.js
-import { effectivePct, statKeyFor } from './stats.js';
+import { effectivePct, statKeyFor, wortScore } from './stats.js';
 import { markDirty, deleteCloudDeck, deleteCloudWordStats, deleteCloudPresetStats, saveDeck } from './sync.js';
 import { commitDirty } from './dialog.js';
 import { iconHTML } from './pixel-icons.js';
@@ -123,18 +123,14 @@ export function renameDeck(deckId, newName) {
 // ────────────────────────────────────────────────
 export function deckProgress(deck) {
   const presetWs = window.SD?.globalPresetStats?.wordStats || {};
+  // Je Wort über wortScore (stats.js) — Rechtschreibung zählt dort ihre drei
+  // Aufgaben (F-74), die anderen Arten wie bisher.
   function pf(suffix) {
     let score = 0, mastered = 0;
     deck.vocab.forEach(v => {
-      const ws = v._presetId ? presetWs : deck.wordStats;
-      const s = ws[statKeyFor(v.de, v.en, suffix, v._presetId || null)];
-      if (!s || !s.asked) return;
-      const asked = s.asked, pct = effectivePct(s);
-      if (Math.floor(asked) >= 3 && pct >= 0.9) { score += 1; mastered += 1; }
-      else if (asked >= 1) {
-        const conf = Math.min(asked / 3, 1);
-        score += Math.max(0, (pct - 0.5) * 2) * conf * 0.85;
-      }
+      const w = wortScore(v._presetId ? presetWs : deck.wordStats, v, suffix, v._presetId || null);
+      score += w.score;
+      if (w.mastered) mastered += 1;
     });
     return {score, mastered, total: deck.vocab.length};
   }
@@ -158,15 +154,7 @@ export function presetProgressPct(deck, presetId) {
   if (!words.length) return 0;
   let totalScore = 0;
   for (const suffix of ['_mc', '_sp', '_pr']) {
-    let score = 0;
-    for (const v of words) {
-      const s = presetWs[statKeyFor(v.de, v.en, suffix, presetId)];
-      if (!s || !s.asked) continue;
-      const asked = s.asked, pct = effectivePct(s);
-      if (Math.floor(asked) >= 3 && pct >= 0.9) score += 1;
-      else if (asked >= 1) score += Math.max(0, (pct - 0.5) * 2) * Math.min(asked / 3, 1) * 0.85;
-    }
-    totalScore += score;
+    for (const v of words) totalScore += wortScore(presetWs, v, suffix, presetId).score;
   }
   return Math.min(100, Math.round((totalScore / 3 / words.length) * 100));
 }
@@ -565,7 +553,7 @@ export function resetDeckProgress(id) {
     };
     deck.lastExam = null;
     if (isPreset && deck.presetCategories?.length) {
-      const SUFFIXES = ['_mc', '_sp', '_pr'];
+      const SUFFIXES = ['_mc', '_sp', '_pr', '_sp_lu', '_sp_so'];   // mit den Rechtschreib-Teilen (F-71)
       const statKeys = [];
       for (const v of deck.vocab) {
         if (!v._presetId) continue;
@@ -610,7 +598,7 @@ export function confirmDeleteDeck(id) {
   window.esConfirm({ icon: '🗑️', danger: true, title: 'Sammlung löschen?', body: bodyText, ok: 'Löschen', cancel: 'Abbrechen' }).then(async (ok) => {
     if (!ok) return;
     if (isPreset) {
-      const SUFFIXES = ['_mc', '_sp', '_pr'];
+      const SUFFIXES = ['_mc', '_sp', '_pr', '_sp_lu', '_sp_so'];   // mit den Rechtschreib-Teilen (F-71)
       const statKeys = [];
       for (const v of cur.vocab) {
         if (!v._presetId) continue;
@@ -689,7 +677,7 @@ export function vmEditWord(idx) {
     // Im Draft existiert noch keine wordStats — dann nur de/en setzen.
     const ws = deck.wordStats;
     if (ws) {
-      for (const suf of ['_mc', '_sp', '_pr']) {
+      for (const suf of ['_mc', '_sp', '_pr', '_sp_lu', '_sp_so']) {
         const oldKey = statKeyFor(oldDe, oldEn, suf);
         const newKey = statKeyFor(de, en, suf);
         if (oldKey === newKey) continue;

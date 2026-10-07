@@ -92,7 +92,7 @@ export function verbsReady() { return _verbPool().length > 0; }
 // Ein Filter: nur Wörter, die im normalen Deck-Üben schon CF_SEEN_MIN-mal dran waren.
 // Der Deck-Stand wird NICHT eingefroren — wer mitten im Lauf neue Wörter anlegt und
 // zweimal übt, hat sie ab der nächsten Welle im Kampf dabei.
-const _MODE_SUF = ['_mc', '_sp', '_pr'];
+const _MODE_SUF = ['_mc', '_sp', '_pr', '_sp_lu', '_sp_so'];   // mit den Rechtschreib-Teilen (F-71)
 function _seenEnough(item) {
   const store = item._presetId ? window.SD?.globalPresetStats?.wordStats : item._deck?.wordStats;
   if (!store) return false;
