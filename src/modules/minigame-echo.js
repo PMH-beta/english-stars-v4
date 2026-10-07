@@ -46,25 +46,18 @@ export function startEcho({ host, answer, speakText, choices, verb, timeLimitMs,
   }
 
   // Wort-Chips auf gemischtem Gitter platzieren, dann driften (wie Buchstabensturm).
+  // Grenze fürs Überlappen (08.10.2026): zwei Blasen dürfen sich auch beim Treiben
+  // höchstens zu 20 % verdecken. Erst werden alle Blasen gebaut und gemessen
+  // (lange Wörter Schrift 16 → 13), dann entscheidet die breiteste: passt sie
+  // zweimal nebeneinander, zwei Spalten, sonst eine. Treiben nur so weit, wie die
+  // Grenze erlaubt.
   const field = host.querySelector('#cf-echofield');
-  const cols = 2;
-  const rows = Math.ceil(choices.length / cols);
-  const cells = [];
-  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) cells.push({ r, c });
-  for (let i = cells.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [cells[i], cells[j]] = [cells[j], cells[i]]; }
-
-  const cellW = field.clientWidth * 0.76 / cols;
-  const cellH = field.clientHeight * 0.74 / rows;
-
-  choices.forEach((word, k) => {
-    const cell = cells[k];
+  const feldB = field.clientWidth * 0.76, feldH = field.clientHeight * 0.74;
+  const blasen = choices.map((word) => {
     const btn = document.createElement('button');
-    const x = (cell.c + 0.5) / cols * 76 + 12;
-    const y = (cell.r + 0.5) / rows * 74 + 10;
     // Blase wie F.5: blau mit Glanzpunkten und Mini-Hörbild; treibt wie bisher.
     btn.className = 'mg-blase';
-    btn.style.cssText = `left:${x}%;top:${y}%;
-      animation:cfDriftC var(--dur,9s) ease-in-out var(--del,0s) infinite;`;
+    btn.style.animation = 'cfDriftC var(--dur,9s) ease-in-out var(--del,0s) infinite';
     btn.innerHTML = blasenBalken + '<span></span>';
     btn.lastElementChild.textContent = word;
     btn.onclick = () => {
@@ -85,20 +78,35 @@ export function startEcho({ host, answer, speakText, choices, verb, timeLimitMs,
       }
     };
     field.appendChild(btn);
-    // Lange Wörter: Schrift 16 → 13, bis die Blase in ihre Spalte passt, und die
-    // Mitte so weit nach innen, dass die Blase ganz im Feld liegt.
     const wortEl = btn.lastElementChild;
-    passend(wortEl, field.clientWidth / cols - 8 - (btn.offsetWidth - wortEl.offsetWidth), [13]);
-    // Drift so weit, wie in der Zelle wirklich Platz ist — dafür muss der Chip schon im
-    // DOM hängen (offsetWidth). Kurze Wörter schweben dadurch weit, lange Wort-Chips
-    // weniger, sonst schieben sie sich übereinander und sind nicht mehr lesbar.
-    const driftX = Math.max(10, Math.min(40, (cellW - btn.offsetWidth) / 2 - 4));
+    passend(wortEl, feldB / 2 - 8 - (btn.offsetWidth - wortEl.offsetWidth), [13]);
+    return btn;
+  });
+
+  const MIN_DRIFT = 6;
+  const maxB = Math.max(...blasen.map((b) => b.offsetWidth));
+  const cols = 0.8 * maxB + 2 * MIN_DRIFT <= feldB / 2 ? 2 : 1;
+  const rows = Math.ceil(choices.length / cols);
+  const cells = [];
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) cells.push({ r, c });
+  for (let i = cells.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [cells[i], cells[j]] = [cells[j], cells[i]]; }
+  const cellW = feldB / cols;
+  const cellH = feldH / rows;
+
+  blasen.forEach((btn, k) => {
+    const cell = cells[k];
+    const x = (cell.c + 0.5) / cols * 76 + 12;
+    const y = (cell.r + 0.5) / rows * 74 + 10;
+    const driftX = Math.max(0, Math.min(40, (cellW - 0.8 * maxB) / 2));
+    const driftY = Math.max(0, Math.min(34, (cellH - 0.8 * btn.offsetHeight) / 2));
+    // Mitte so weit nach innen, dass die Blase auch beim Treiben ganz im Feld liegt.
     const halb = btn.offsetWidth / 2 + driftX;
-    if (field.clientWidth >= 2 * halb) {
-      btn.style.left = Math.round(Math.min(field.clientWidth - halb, Math.max(halb, x / 100 * field.clientWidth))) + 'px';
-    }
-    setDrift(btn, driftX,
-      Math.max(10, Math.min(34, (cellH - btn.offsetHeight) / 2 - 4)), 7, 12);
+    const mitte = field.clientWidth >= 2 * halb
+      ? Math.min(field.clientWidth - halb, Math.max(halb, x / 100 * field.clientWidth))
+      : field.clientWidth / 2;
+    btn.style.left = Math.round(mitte) + 'px';
+    btn.style.top = y + '%';
+    setDrift(btn, driftX, driftY, 7, 12);
   });
 
   function _tick() {

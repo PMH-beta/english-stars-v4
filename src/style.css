@@ -2621,7 +2621,7 @@ button.p-chip{ cursor:pointer; }
 .cf-slot.cf-ok{ border:var(--p-rahmen); background:var(--p-richtig); }
 /* Buchstaben als lila Runensteine (F.7, F.8); der Knopf selbst ist nur der
    treibende Halter, jeder Stein steht leicht schräg wie im Fragment. */
-.cf-tile{ width:62px; height:62px; padding:0; border:0; background:none; transition:none; }
+.cf-tile{ width:var(--rune,62px); height:var(--rune,62px); padding:0; border:0; background:none; transition:none; }
 .cf-tile .mg-stein{ transform:rotate(var(--dreh,0deg)); }
 .cf-tile.cf-shake span{ animation:none; }
 /* „Richtig · horse" nach der gelösten Welle (7.6) — grün wie jedes Richtig (E.1). */
@@ -2654,7 +2654,8 @@ button.p-chip{ cursor:pointer; }
 .mg-stein-flaeche::before, .mg-stein-flaeche::after{ content:''; position:absolute; width:4px; height:4px; background:var(--k); }
 .mg-stein-flaeche::before{ left:8px; bottom:8px; }
 .mg-stein-flaeche::after{ right:9px; top:9px; }
-.mg-stein--rune .mg-stein-flaeche{ height:58px; min-width:58px; padding:0; font:900 28px/1.1 var(--p-font); }
+/* Größe kommt bei vielen Buchstaben vom Buchstabensturm (--rune, Überlapp-Grenze). */
+.mg-stein--rune .mg-stein-flaeche{ height:calc(var(--rune,62px) - 4px); min-width:calc(var(--rune,62px) - 4px); padding:0; font:900 var(--rune-schrift,28px)/1.1 var(--p-font); }
 .mg-stein--meteor .mg-stein-flaeche{ height:42px; min-width:74px; padding:0 18px; }
 .mg-stein--paar, .mg-stein--knopf{ display:flex; width:100%; }
 .mg-stein--paar .mg-stein-flaeche{ height:92px; min-width:0; padding:0 18px; cursor:default; }
@@ -2700,6 +2701,13 @@ button.p-chip{ cursor:pointer; }
 .mg-blase.is-falsch{ --f:#FF7F86; --l:#FFB0B5; --s:#E25F68; }
 .mg-blase-balken{ display:flex; align-items:center; gap:2px; }
 .mg-blase-balken > span{ display:block; width:3px; background:var(--p-ink); }
+
+/* Kampf: Bewegungen der Spielsteine laufen flüssig im Takt des Bildschirms
+   (Wunsch des Nutzers, 08.10.2026) — ui-anim.js setzt weiter seine Stufen, der
+   Browser blendet dazwischen über. Nur Hin-und-her-Bewegungen; Figuren (Canvas),
+   Flammen und Sprünge (Drehen, Endlos-Fallen) bleiben gestuft. */
+#cf-overlay [data-ui="bob"], #cf-overlay [data-ui="pulse"], #cf-overlay [data-ui="wiggle"],
+#cf-overlay [data-ui="beat"], #cf-overlay [data-ui="shake"]{ transition:transform 125ms linear; }
 
 /* ── Richtig oder falsch (F.6) ──
    Paar als zwei Papier-Steine mit „?" dazwischen, darunter Falsch/Richtig als

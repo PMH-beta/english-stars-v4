@@ -15,9 +15,9 @@ import { playSfx } from './game.js';
 import { aufgabeKarte, frageDE, steinHTML, flammeHTML, abzeichenHTML, funkenHTML, passeAufgabe, passend } from './minigame-karte.js';
 import { richtigChip } from './minigame-letterstorm.js';
 
-// Gefallen wird in harten Stufen im gemeinsamen 8-fps-Takt (Handoff-Regel 6:
-// keine CSS-Übergänge auf Sprites). Die Fallzeit selbst ist unverändert.
-const TAKT = 125;
+// Gefallen wird im Takt des Bildschirms (requestAnimationFrame), nicht mehr in
+// 8-fps-Stufen: die Wörter sollen sich im Fallen gut lesen lassen (Wunsch des
+// Nutzers, 08.10.2026). Die Fallzeit selbst ist unverändert.
 
 export function startMeteors({ host, de, answer, choices, prompt, fallMs, onMiss, onResult }) {
   let done = false, timer = null, pausedAt = null;
@@ -61,11 +61,11 @@ export function startMeteors({ host, de, answer, choices, prompt, fallMs, onMiss
 
   const btns = [];
   let startAt = 0;   // Beginn des Falls; Pausen schieben ihn nach hinten
-  // Jeder Meteor steht auf der Höhe, die zu „jetzt" gehört — in harten Stufen.
+  // Jeder Meteor steht auf der Höhe, die zu „jetzt" gehört.
   function _setzen() {
     const t = Math.max(0, Date.now() - startAt);
     btns.forEach(b => {
-      const top = Math.round(Math.min(AUF, b._top0 + b._v * t));
+      const top = Math.min(AUF, b._top0 + b._v * t);
       b.style.top = top + 'px';
       // Falsche fallen an der Linie durch (wie bisher unten aus dem Feld).
       if (!b._answer && top >= AUF) b.style.visibility = 'hidden';
@@ -74,7 +74,7 @@ export function startMeteors({ host, de, answer, choices, prompt, fallMs, onMiss
   function _finish(success) {
     if (done) return;
     done = true;
-    if (timer) clearInterval(timer);
+    _halt();
     btns.forEach(b => { b.style.pointerEvents = 'none'; });
     if (success) richtigChip(host, answer);
     else {
@@ -159,14 +159,16 @@ export function startMeteors({ host, de, answer, choices, prompt, fallMs, onMiss
       _finish(false);
     }
   }
-  timer = setInterval(_tick, TAKT);
+  function _lauf() { timer = requestAnimationFrame(() => { timer = null; if (done) return; _tick(); if (!done) _lauf(); }); }
+  function _halt() { if (timer) cancelAnimationFrame(timer); timer = null; }
+  _lauf();
 
   return {
-    destroy() { done = true; if (timer) clearInterval(timer); },
+    destroy() { done = true; _halt(); },
     pause() {
       if (done || pausedAt) return;
       pausedAt = Date.now();
-      if (timer) { clearInterval(timer); timer = null; }
+      _halt();
       btns.forEach(b => { b.style.pointerEvents = 'none'; });
     },
     resume() {
@@ -175,7 +177,7 @@ export function startMeteors({ host, de, answer, choices, prompt, fallMs, onMiss
       startAt += d; endAt += d;
       pausedAt = null;
       btns.forEach(b => { b.style.pointerEvents = b._used ? 'none' : ''; });   // schon verglühte bleiben tot
-      timer = setInterval(_tick, TAKT);
+      _lauf();
     },
   };
 }

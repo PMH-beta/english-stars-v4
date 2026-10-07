@@ -145,20 +145,33 @@ export function startLetterstorm({ host, de, en, prompt, timeLimitMs, guards = 0
   }
 
   // Tiles auf gemischtem Gitter platzieren (kein Anfangs-Überlappen), dann driften.
+  // Grenze fürs Überlappen (08.10.2026): zwei Nachbarn dürfen sich auch beim
+  // Schweben höchstens zu 20 % eines Steins verdecken, sonst trifft man daneben.
+  // Daraus folgen Spaltenzahl, Steingröße (62 → 52 → 44, Schrift 28/24/20) und
+  // wie weit ein Stein schweben darf: Abstand der Mitten ≥ 0,8 × Stein + 2 × Drift.
   const field = host.querySelector('#cf-field');
-  const cols = Math.min(5, Math.max(3, Math.ceil(Math.sqrt(tappable.length))));
-  const rows = Math.max(1, Math.ceil(tappable.length / cols));
+  const feldB = field.clientWidth * 0.84, feldH = field.clientHeight * 0.74;
+  const n = tappable.length;
+  let cols = 3;
+  for (let c = 3; c <= 6; c++) {   // Raster mit den größten Zellen (kleinere Seite zählt)
+    const zelle = (k) => Math.min(feldB / k, feldH / Math.ceil(n / k));
+    if (zelle(c) > zelle(cols)) cols = c;
+  }
+  const rows = Math.max(1, Math.ceil(n / cols));
   const cells = [];
   for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) cells.push({ r, c });
   for (let i = cells.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [cells[i], cells[j]] = [cells[j], cells[i]]; }
 
-  // Drift-Radius an die Gitterdichte koppeln: bei engem Gitter (langes Wort) kleiner,
-  // damit sich Kacheln nicht dauerhaft verdecken. Die +8 lassen leichtes Überlappen zu,
-  // die Untergrenze sorgt dafür, dass auch im engsten Gitter sichtbar Bewegung bleibt.
-  const cellW = field.clientWidth * 0.84 / cols;
-  const cellH = field.clientHeight * 0.74 / rows;
-  const driftX = Math.max(16, Math.min(30, (cellW - 62) / 2 + 8));
-  const driftY = Math.max(14, Math.min(26, (cellH - 62) / 2 + 8));
+  const cellW = feldB / cols;
+  const cellH = feldH / rows;
+  const MIN_DRIFT = 6;
+  const stein = [62, 52, 44].find((g) => 0.8 * g + 2 * MIN_DRIFT <= Math.min(cellW, cellH)) || 44;
+  if (stein < 62) {
+    field.style.setProperty('--rune', stein + 'px');
+    field.style.setProperty('--rune-schrift', (stein >= 52 ? 24 : 20) + 'px');
+  }
+  const driftX = Math.max(0, Math.min(30, (cellW - 0.8 * stein) / 2));
+  const driftY = Math.max(0, Math.min(26, (cellH - 0.8 * stein) / 2));
 
   let nextIdx = 0;   // nächster erwarteter Index in chars (Leerzeichen überspringen)
   const advance = () => { nextIdx++; while (nextIdx < chars.length && chars[nextIdx] === ' ') nextIdx++; };
@@ -192,8 +205,8 @@ export function startLetterstorm({ host, de, en, prompt, timeLimitMs, guards = 0
     btn.style.setProperty('--dreh', DREH[k % DREH.length] + 'deg');
     const x = (cell.c + 0.5) / cols * 84 + 8;    // % innerhalb des Felds, mit Rand
     const y = (cell.r + 0.5) / rows * 74 + 10;
-    btn.style.left = `calc(${x}% - 31px)`;
-    btn.style.top = `calc(${y}% - 31px)`;
+    btn.style.left = `calc(${x}% - ${stein / 2}px)`;
+    btn.style.top = `calc(${y}% - ${stein / 2}px)`;
     setDrift(btn, driftX, driftY);
     btn.onclick = () => {
       if (done || btn.classList.contains('cf-hit')) return;
