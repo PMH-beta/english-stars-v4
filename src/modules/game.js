@@ -701,17 +701,18 @@ function renderQuestion(q) {
     html+=`<div class="p-fragekarte">${head}${frage}`;
     if(q.gap){
       // Lücke wie 5.10: das Wort als Buchstaben-Kacheln, die fehlende Stelle
-      // gestrichelt, darunter ein Feld für den einen Buchstaben.
+      // gestrichelt. Getippt wird direkt in die Lücke (Wunsch des Nutzers,
+      // 08.10.2026): der Buchstabe steht so im Wort, und weil es nur EIN Buchstabe
+      // ist, wird gleich geprüft — ohne Feld darunter und ohne „Prüfen".
       const w=q.gapWord||''; let cells='';
       for(let k=0;k<w.length;k++){
         cells += (k===q.gapIdx)
-          ? `<span class="gap-kachel is-luecke"></span>`
+          ? `<input class="gap-kachel is-luecke gap-eingabe" id="type-input" type="text" maxlength="1"
+              autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Fehlender Buchstabe"
+              oninput="if(this.value.trim())submitType()">`
           : `<span class="gap-kachel">${window.escHtml(w[k])}</span>`;
       }
       if(cells) html+=`<div class="gap-reihe">${cells}</div>`;
-      html+=`<input class="gap-feld" id="type-input" type="text" maxlength="1" placeholder="_"
-          autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
-          onkeydown="if(event.key==='Enter')submitType()">`;
     } else {
       html+=`<div class="type-input-wrap">
         <input class="type-input" id="type-input" type="text" placeholder="${q.ph||'Englisch tippen…'}"
@@ -720,7 +721,8 @@ function renderQuestion(q) {
       </div>`;
     }
     // Formen (5.6–5.10): Prüfen in Gold, Haken vorn. Vokabeln (4.6): Haken hinten.
-    html+=window.isUV
+    // Die Lücke prüft sich selbst (siehe oben), sie hat keinen Knopf.
+    html+=q.gap ? `</div>` : window.isUV
       ? `<button class="submit-btn uv-pruefen" onclick="submitType()">${iconHTML('check',14)}Prüfen</button></div>`
       : `<button class="submit-btn" onclick="submitType()">Prüfen${iconHTML('check',14)}</button></div>`;
   } else if(q.type==='pronounce'){

@@ -434,22 +434,26 @@ try { screen.orientation?.lock?.('portrait').catch(() => {}); } catch (e) {}
   // eigene Hülle, Inline-Kinder werden für die Dauer des Drückens inline-block
   // (sonst greift scale nicht). Frei schwebende Teile im Kampf schrumpfen als
   // Ganzes, Pixel-Steine samt Kante (style.css, :has).
-  // Faktor und Versatz je Teil: es schrumpft zur rechten unteren Ecke hin (der
-  // Schatten fällt von links oben), also um die halbe Schrumpfung nach rechts unten
-  // verschoben — die rechte und die untere Kante bleiben stehen.
-  function setze(k) {
-    const w = k.offsetWidth, h = k.offsetHeight;
-    const s = Math.max(0.9, Math.min(0.985, 1 - 8 / Math.max(w, h, 1)));
+  // Faktor und Versatz: Der Inhalt schrumpft als EINE Gruppe zur rechten unteren
+  // Ecke hin (der Schatten fällt von links oben). Ein gemeinsamer Faktor aus der
+  // Größe des ganzen Inhalts; jedes Teil rückt um seinen Abstand zu dieser Ecke
+  // mal (1 − Faktor) nach rechts unten — Icon und Text wandern so zusammen.
+  const faktor = (w, h) => Math.max(0.9, Math.min(0.985, 1 - 8 / Math.max(w, h, 1)));
+  function setze(k, s, dx, dy) {
     k.style.setProperty('--es-press-scale', s.toFixed(3));
-    k.style.setProperty('--es-press-dx', ((1 - s) * w / 2).toFixed(1) + 'px');
-    k.style.setProperty('--es-press-dy', ((1 - s) * h / 2).toFixed(1) + 'px');
+    k.style.setProperty('--es-press-dx', dx.toFixed(1) + 'px');
+    k.style.setProperty('--es-press-dy', dy.toFixed(1) + 'px');
   }
   const loesche = (k) => ['--es-press-scale', '--es-press-dx', '--es-press-dy'].forEach((v) => k.style.removeProperty(v));
   function groesse(el) {
-    setze(el);
     const frei = !el.matches('[data-press]') && !!el.closest('#cf-overlay');
     el.classList.toggle('es-press-ganz', frei);
-    if (frei || el.matches('[data-press]')) return;
+    if (el.matches('[data-press]')) return;
+    if (frei) {   // ganzes Teil: schrumpft zu seiner eigenen rechten unteren Ecke
+      const w = el.offsetWidth, h = el.offsetHeight, f = faktor(w, h);
+      setze(el, f, (1 - f) * w / 2, (1 - f) * h / 2);
+      return;
+    }
     for (const n of [...el.childNodes]) {
       if (n.nodeType !== 3 || !n.textContent.trim()) continue;
       const h = document.createElement('span');
@@ -457,9 +461,18 @@ try { screen.orientation?.lock?.('portrait').catch(() => {}); } catch (e) {}
       n.replaceWith(h);
       h.appendChild(n);
     }
+    const kinder = [];
     for (const k of el.children) {
       if (getComputedStyle(k).display === 'inline') k.classList.add('es-press-inline');
-      setze(k);   // jedes Innenteil sinkt gleich tief ein
+      const r = k.getBoundingClientRect();
+      if (r.width || r.height) kinder.push([k, r]);
+    }
+    if (!kinder.length) return;
+    const L = Math.min(...kinder.map(([, r]) => r.left)), T = Math.min(...kinder.map(([, r]) => r.top));
+    const R = Math.max(...kinder.map(([, r]) => r.right)), B = Math.max(...kinder.map(([, r]) => r.bottom));
+    const f = faktor(R - L, B - T);
+    for (const [k, r] of kinder) {
+      setze(k, f, (R - (r.left + r.width / 2)) * (1 - f), (B - (r.top + r.height / 2)) * (1 - f));
     }
   }
 

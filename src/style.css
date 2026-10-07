@@ -3429,6 +3429,11 @@ button.p-chip{ cursor:pointer; }
   font:900 22px var(--p-font); color:var(--p-ink);
 }
 .gap-kachel.is-luecke{ border-style:dashed; background:var(--p-feld); }
+/* Die Lücke ist selbst das Eingabefeld (08.10.2026): Buchstabe direkt im Wort. */
+.gap-eingabe{ padding:0; text-align:center; text-transform:lowercase; caret-color:var(--p-ink); }
+.gap-eingabe:focus{ outline:2px solid var(--p-ink); outline-offset:2px; }
+.gap-eingabe.correct{ border-style:solid; background:var(--p-ok); }
+.gap-eingabe.wrong{ border-style:solid; background:var(--p-falsch); }
 .gap-feld{
   display:block; width:124px; height:60px; margin:20px auto 0; padding:0;
   border:var(--p-rahmen); border-radius:18px; background:var(--p-feld);
