@@ -937,10 +937,14 @@ body.in-game .mode-progress{display:block;}
    (Rahmen bleibt), frei schwebende Teile im Kampf als Ganzes (.es-press-ganz). */
 .es-press-txt{ display:inline-block; }
 .es-press-inline{ display:inline-block !important; }
-.es-press:not(.es-press-ganz) > *, .es-press.es-press-ganz,
-.mg-stein:has(> .mg-stein-rand > .es-press){ scale:var(--es-press-scale,.96); }
-.es-press-weich{ transition:background-color .26s ease-out, box-shadow .26s ease-out, scale .26s ease-out !important; }
-.es-press-weich > *, .mg-stein:has(> .mg-stein-rand > .es-press-weich){ transition:scale .26s ease-out !important; }
+/* Schrumpfen zur rechten unteren Ecke (der Schatten fällt von links oben):
+   translate gleicht die Schrumpfung aus (--es-press-dx/-dy aus main.js). */
+.es-press:not(.es-press-ganz) > *, .es-press.es-press-ganz{
+  scale:var(--es-press-scale,.96); translate:var(--es-press-dx,0) var(--es-press-dy,0);
+}
+.mg-stein:has(> .mg-stein-rand > .es-press){ scale:.96; translate:2px 2px; }
+.es-press-weich{ transition:background-color .26s ease-out, box-shadow .26s ease-out, scale .26s ease-out, translate .26s ease-out !important; }
+.es-press-weich > *, .mg-stein:has(> .mg-stein-rand > .es-press-weich){ transition:scale .26s ease-out, translate .26s ease-out !important; }
 .es-press.es-press-weich, .es-press.es-press-weich > *,
 .mg-stein:has(> .mg-stein-rand > .es-press.es-press-weich){ transition-duration:.07s !important; }
 @media(prefers-reduced-motion:reduce){

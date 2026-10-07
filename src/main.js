@@ -434,9 +434,19 @@ try { screen.orientation?.lock?.('portrait').catch(() => {}); } catch (e) {}
   // eigene Hülle, Inline-Kinder werden für die Dauer des Drückens inline-block
   // (sonst greift scale nicht). Frei schwebende Teile im Kampf schrumpfen als
   // Ganzes, Pixel-Steine samt Kante (style.css, :has).
-  const faktor = (k) => Math.max(0.9, Math.min(0.985, 1 - 8 / Math.max(k.offsetWidth, k.offsetHeight, 1))).toFixed(3);
+  // Faktor und Versatz je Teil: es schrumpft zur rechten unteren Ecke hin (der
+  // Schatten fällt von links oben), also um die halbe Schrumpfung nach rechts unten
+  // verschoben — die rechte und die untere Kante bleiben stehen.
+  function setze(k) {
+    const w = k.offsetWidth, h = k.offsetHeight;
+    const s = Math.max(0.9, Math.min(0.985, 1 - 8 / Math.max(w, h, 1)));
+    k.style.setProperty('--es-press-scale', s.toFixed(3));
+    k.style.setProperty('--es-press-dx', ((1 - s) * w / 2).toFixed(1) + 'px');
+    k.style.setProperty('--es-press-dy', ((1 - s) * h / 2).toFixed(1) + 'px');
+  }
+  const loesche = (k) => ['--es-press-scale', '--es-press-dx', '--es-press-dy'].forEach((v) => k.style.removeProperty(v));
   function groesse(el) {
-    el.style.setProperty('--es-press-scale', faktor(el));
+    setze(el);
     const frei = !el.matches('[data-press]') && !!el.closest('#cf-overlay');
     el.classList.toggle('es-press-ganz', frei);
     if (frei || el.matches('[data-press]')) return;
@@ -449,16 +459,16 @@ try { screen.orientation?.lock?.('portrait').catch(() => {}); } catch (e) {}
     }
     for (const k of el.children) {
       if (getComputedStyle(k).display === 'inline') k.classList.add('es-press-inline');
-      k.style.setProperty('--es-press-scale', faktor(k));   // jedes Innenteil sinkt gleich tief ein
+      setze(k);   // jedes Innenteil sinkt gleich tief ein
     }
   }
 
   function aufraeumen(el) {
     el.classList.remove('es-press', 'es-press-weich', 'es-press-ganz');
-    for (const k of el.children) { k.classList.remove('es-press-inline'); k.style.removeProperty('--es-press-scale'); }
+    for (const k of el.children) { k.classList.remove('es-press-inline'); loesche(k); }
     el.style.removeProperty('--es-press-bg');
     el.style.removeProperty('--es-press-sh');
-    el.style.removeProperty('--es-press-scale');
+    loesche(el);
   }
 
   // Abbruch ohne Zurückgleiten: beim Karten-Ziehen soll die Karte sofort ohne
