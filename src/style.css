@@ -78,6 +78,7 @@ html{ scrollbar-width:none; }
 html::-webkit-scrollbar, body::-webkit-scrollbar{ width:0; height:0; display:none; }
 html,body{
   touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;   /* kein blaues Antipp-Leuchten (Android) */
   -webkit-touch-callout:none;
   -webkit-user-select:none;
   -ms-user-select:none;
@@ -930,9 +931,12 @@ body.in-game .mode-progress{display:block;}
   background-color:var(--es-press-bg) !important;
   box-shadow:var(--es-press-sh) !important;
 }
-/* Inhalt sinkt mit ein (08.10.2026): Kinder bzw. das ganze Element werden um
-   rund 4 px je Seite kleiner (--es-press-scale aus main.js); eigene Eigenschaft
-   scale, damit vorhandene transform-Animationen weiterlaufen. */
+/* Inhalt sinkt mit ein (08.10.2026): um rund 4 px je Seite kleiner
+   (--es-press-scale aus main.js); eigene Eigenschaft scale, damit vorhandene
+   transform-Animationen weiterlaufen. In der Bedienung schrumpfen nur die Kinder
+   (Rahmen bleibt), frei schwebende Teile im Kampf als Ganzes (.es-press-ganz). */
+.es-press-txt{ display:inline-block; }
+.es-press-inline{ display:inline-block !important; }
 .es-press:not(.es-press-ganz) > *, .es-press.es-press-ganz,
 .mg-stein:has(> .mg-stein-rand > .es-press){ scale:var(--es-press-scale,.96); }
 .es-press-weich{ transition:background-color .26s ease-out, box-shadow .26s ease-out, scale .26s ease-out !important; }

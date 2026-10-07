@@ -425,23 +425,37 @@ try { screen.orientation?.lock?.('portrait').catch(() => {}); } catch (e) {}
     const alt = cs.boxShadow && cs.boxShadow !== 'none' ? cs.boxShadow + ', ' : '';
     el.style.setProperty('--es-press-bg', bg);
     el.style.setProperty('--es-press-sh', alt + sh);
-    groesse(el, cs);
+    groesse(el);
   }
 
   // Der Inhalt sinkt mit ein: er wird um rund 4 px je Seite kleiner — bei kleinen
-  // und großen Knöpfen gleich tief. In Flex-/Grid-Knöpfen schrumpfen die Kinder
-  // (Rahmen bleibt), sonst — Text direkt im Knopf — das ganze Element. Pixel-Steine
-  // im Kampf schrumpfen samt Kante (style.css, :has).
-  function groesse(el, cs) {
-    const s = Math.max(0.9, Math.min(0.985, 1 - 8 / Math.max(el.offsetWidth, el.offsetHeight, 1)));
-    el.style.setProperty('--es-press-scale', s.toFixed(3));
-    const text = [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim());
-    const ganz = !el.matches('[data-press]') && (text || !/flex|grid/.test(cs.display));
-    el.classList.toggle('es-press-ganz', ganz);
+  // und großen Knöpfen gleich tief. In der Bedienung bleibt der Rahmen stehen und
+  // nur der Inhalt schrumpft (08.10.2026): Text direkt im Knopf bekommt dafür eine
+  // eigene Hülle, Inline-Kinder werden für die Dauer des Drückens inline-block
+  // (sonst greift scale nicht). Frei schwebende Teile im Kampf schrumpfen als
+  // Ganzes, Pixel-Steine samt Kante (style.css, :has).
+  const faktor = (k) => Math.max(0.9, Math.min(0.985, 1 - 8 / Math.max(k.offsetWidth, k.offsetHeight, 1))).toFixed(3);
+  function groesse(el) {
+    el.style.setProperty('--es-press-scale', faktor(el));
+    const frei = !el.matches('[data-press]') && !!el.closest('#cf-overlay');
+    el.classList.toggle('es-press-ganz', frei);
+    if (frei || el.matches('[data-press]')) return;
+    for (const n of [...el.childNodes]) {
+      if (n.nodeType !== 3 || !n.textContent.trim()) continue;
+      const h = document.createElement('span');
+      h.className = 'es-press-txt';
+      n.replaceWith(h);
+      h.appendChild(n);
+    }
+    for (const k of el.children) {
+      if (getComputedStyle(k).display === 'inline') k.classList.add('es-press-inline');
+      k.style.setProperty('--es-press-scale', faktor(k));   // jedes Innenteil sinkt gleich tief ein
+    }
   }
 
   function aufraeumen(el) {
     el.classList.remove('es-press', 'es-press-weich', 'es-press-ganz');
+    for (const k of el.children) { k.classList.remove('es-press-inline'); k.style.removeProperty('--es-press-scale'); }
     el.style.removeProperty('--es-press-bg');
     el.style.removeProperty('--es-press-sh');
     el.style.removeProperty('--es-press-scale');
