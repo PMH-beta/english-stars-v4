@@ -345,6 +345,33 @@ function _usePotion(i) {
 
 function _el(id) { return document.getElementById(id); }
 
+// Kleine Bildschirme: unter 360 × 640 wird der ganze Kampf verkleinert, als wäre der
+// Bildschirm 360 × 640 groß (darunter passen Kopf, Aufgabe, Spielfeld und Bühne nicht
+// mehr übereinander). Der Faktor rastet so ein, dass ein Bildpunkt der Figuren und
+// des Kampfplatzes (2 CSS-px) auf ganze Geräte-Pixel fällt — die Pixel-Art bleibt
+// scharf. --cf-h = Höhe, mit der das Layout rechnet (Richtig/Falsch, style.css).
+const _MIN_W = 360, _MIN_H = 640;
+let _zoom = 1;
+function _passeGroesse() {
+  const ov = _el('cf-overlay');
+  if (!ov) return;
+  const w = window.innerWidth, h = window.innerHeight;
+  const max = Math.min(1, w / _MIN_W, h / _MIN_H);
+  _zoom = 1;
+  if (max < 1) {
+    const dpr = window.devicePixelRatio || 1;
+    const n = Math.floor(2 * dpr * max);
+    _zoom = n >= 1 ? n / (2 * dpr) : max;
+  }
+  const klein = _zoom < 1;
+  ov.style.inset = klein ? '0 auto auto 0' : '0';
+  ov.style.width = klein ? (w / _zoom) + 'px' : '';
+  ov.style.height = klein ? (h / _zoom) + 'px' : '';
+  ov.style.transform = klein ? `scale(${_zoom})` : '';
+  ov.style.transformOrigin = '0 0';
+  ov.style.setProperty('--cf-h', (h / _zoom) + 'px');
+}
+
 // Kampfplatz (Update 1: fertiges Bild, fest 2×, unten mittig). Welcher erscheint,
 // haengt an der RUNDE: Wiese, Abend, Kerker, Kristall, Vulkan, Friedhof — die
 // Kampagne wird mit jedem Durchlauf sichtbar tiefer, ohne dass die Kulisse
@@ -406,6 +433,8 @@ function _renderOverlay() {
       </div>
     </div>`;
   document.body.appendChild(ov);
+  _passeGroesse();
+  window.addEventListener('resize', _passeGroesse);
   // Erst jetzt zeichnen: renderAvatarInto misst den Container, um die Figur
   // ganzzahlig zu skalieren (Handoff-Regel 6). Vor dem Einhaengen hat .cf-hero
   // noch keine Groesse.
@@ -468,6 +497,13 @@ function _buildPlayers() {
   }
   _ctx.players = { hero, feind, pet };
   if (flug) { try { _ctx.layer = new ProjectileLayer(flug, { scale: hs }); } catch (e) { _ctx.layer = null; } }
+  // Ist der Kampf verkleinert (_passeGroesse), misst toLocal am Bildschirm um _zoom zu
+  // klein — Abstand hier zurückrechnen, sonst landet der Pfeil neben dem Ziel.
+  const layer = _ctx.layer;
+  if (layer) layer.toLocal = (player, pt) => {
+    const a = player.cv.getBoundingClientRect(), b = layer.cv.getBoundingClientRect(), s = layer.scale;
+    return { x: (a.left - b.left) / _zoom / s + pt.x * player.scale / s, y: (a.top - b.top) / _zoom / s + pt.y * player.scale / s };
+  };
 }
 
 function _destroyPlayers() {
@@ -504,8 +540,8 @@ function _damagePop(overId, html, color, text = false) {
   s.className = 'cf-dmg' + (text ? ' cf-dmg--text' : '');
   s.innerHTML = html;
   s.style.color = _POP_TON[color] || 'var(--p-falsch-stark)';
-  s.style.left = (o.left - a.left + o.width / 2) + 'px';
-  s.style.top = (o.top - a.top - 6) + 'px';
+  s.style.left = ((o.left - a.left + o.width / 2) / _zoom) + 'px';
+  s.style.top = ((o.top - a.top) / _zoom - 6) + 'px';
   arena.appendChild(s);
   setTimeout(() => s.remove(), 1500);
 }
@@ -531,7 +567,7 @@ function _impactBurst(overId, color) {
   const over = _el(overId);
   if (!arena || !over) return;
   const a = arena.getBoundingClientRect(), o = over.getBoundingClientRect();
-  const cx = o.left - a.left + o.width / 2, cy = o.top - a.top + o.height * 0.45;
+  const cx = (o.left - a.left + o.width / 2) / _zoom, cy = (o.top - a.top + o.height * 0.45) / _zoom;
   for (let i = 0; i < 7; i++) {
     const ang = (Math.PI * 2 * i) / 7 + Math.random() * 0.5;
     const dist = 16 + Math.random() * 18;
@@ -1038,7 +1074,8 @@ function _confettiBurst() {
   const wrap = document.createElement('div');
   wrap.className = 'cf-konfetti';
   const farben = ['#FFBBC1', '#BCE3FF', '#C9B8FF', '#B7E3C2', '#FFD6A5', '#FFD66B'];
-  const w = window.innerWidth || 402, h = window.innerHeight || 874;
+  const ov = _el('cf-overlay');
+  const w = (ov && ov.clientWidth) || 402, h = (ov && ov.clientHeight) || 874;
   let html = '';
   for (let i = 0; i < 18; i++) {
     const x = Math.round(Math.random() * (w - 16)), y = Math.round(Math.random() * h);
@@ -1120,4 +1157,8 @@ function _close(result) {
   if (onEnd) onEnd(result);
 }
 
-function _removeOverlay() { const ov = _el('cf-overlay'); if (ov) ov.remove(); }
+function _removeOverlay() {
+  window.removeEventListener('resize', _passeGroesse);
+  const ov = _el('cf-overlay');
+  if (ov) ov.remove();
+}
