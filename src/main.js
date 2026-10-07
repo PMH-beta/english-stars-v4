@@ -369,10 +369,12 @@ try { screen.orientation?.lock?.('portrait').catch(() => {}); } catch (e) {}
 (function pressOnTap() {
   const SEL = 'button, a[href], summary, [onclick], [role="button"]';
   const MOVE_TOL = 10;              // ab so vielen px gilt die Geste als Ziehen/Scrollen
-  const MIN_MS = 110;               // so lange bleibt auch ein ganz kurzer Tipp eingedrückt
-  const AUS_MS = 170;               // Zurückgleiten (Dauer wie .es-press-weich in style.css)
-  const HELL = 'inset 4px 5px 0 rgba(31,31,36,.28)';
-  const DUNKEL = 'inset 3px 4px 0 rgba(0,0,0,.6)';
+  const MIN_MS = 180;               // so lange bleibt auch ein ganz kurzer Tipp eingedrückt
+  const AUS_MS = 260;               // Zurückgleiten (Dauer wie .es-press-weich in style.css)
+  // Seit 08.10.2026 deutlicher (Wunsch des Nutzers: am Handy sah man nichts):
+  // tieferer Schatten, Fläche ×0,9, und der Inhalt wird kleiner (siehe groesse).
+  const HELL = 'inset 5px 6px 0 rgba(31,31,36,.34)';
+  const DUNKEL = 'inset 4px 5px 0 rgba(0,0,0,.66)';
   let pressed = null, pressedAt = 0, startX = 0, startY = 0, spaet = 0;
 
   // Antippbar ist, was als Knopf gebaut ist — oder wo im CSS der Zeiger-Cursor
@@ -420,16 +422,30 @@ try { screen.orientation?.lock?.('portrait').catch(() => {}); } catch (e) {}
     let bg, sh = HELL;
     if (a === 0) bg = 'rgba(31,31,36,.05)';
     else if (0.299 * r + 0.587 * g + 0.114 * b < 60) { bg = '#34343C'; sh = DUNKEL; }
-    else bg = `rgba(${Math.round(r * 0.94)},${Math.round(g * 0.94)},${Math.round(b * 0.94)},${a})`;
+    else bg = `rgba(${Math.round(r * 0.9)},${Math.round(g * 0.9)},${Math.round(b * 0.9)},${a})`;
     const alt = cs.boxShadow && cs.boxShadow !== 'none' ? cs.boxShadow + ', ' : '';
     el.style.setProperty('--es-press-bg', bg);
     el.style.setProperty('--es-press-sh', alt + sh);
+    groesse(el, cs);
+  }
+
+  // Der Inhalt sinkt mit ein: er wird um rund 4 px je Seite kleiner — bei kleinen
+  // und großen Knöpfen gleich tief. In Flex-/Grid-Knöpfen schrumpfen die Kinder
+  // (Rahmen bleibt), sonst — Text direkt im Knopf — das ganze Element. Pixel-Steine
+  // im Kampf schrumpfen samt Kante (style.css, :has).
+  function groesse(el, cs) {
+    const s = Math.max(0.9, Math.min(0.985, 1 - 8 / Math.max(el.offsetWidth, el.offsetHeight, 1)));
+    el.style.setProperty('--es-press-scale', s.toFixed(3));
+    const text = [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim());
+    const ganz = !el.matches('[data-press]') && (text || !/flex|grid/.test(cs.display));
+    el.classList.toggle('es-press-ganz', ganz);
   }
 
   function aufraeumen(el) {
-    el.classList.remove('es-press', 'es-press-weich');
+    el.classList.remove('es-press', 'es-press-weich', 'es-press-ganz');
     el.style.removeProperty('--es-press-bg');
     el.style.removeProperty('--es-press-sh');
+    el.style.removeProperty('--es-press-scale');
   }
 
   // Abbruch ohne Zurückgleiten: beim Karten-Ziehen soll die Karte sofort ohne

@@ -930,10 +930,18 @@ body.in-game .mode-progress{display:block;}
   background-color:var(--es-press-bg) !important;
   box-shadow:var(--es-press-sh) !important;
 }
-.es-press-weich{ transition:background-color .17s ease-out, box-shadow .17s ease-out !important; }
-.es-press.es-press-weich{ transition-duration:.09s !important; }
+/* Inhalt sinkt mit ein (08.10.2026): Kinder bzw. das ganze Element werden um
+   rund 4 px je Seite kleiner (--es-press-scale aus main.js); eigene Eigenschaft
+   scale, damit vorhandene transform-Animationen weiterlaufen. */
+.es-press:not(.es-press-ganz) > *, .es-press.es-press-ganz,
+.mg-stein:has(> .mg-stein-rand > .es-press){ scale:var(--es-press-scale,.96); }
+.es-press-weich{ transition:background-color .26s ease-out, box-shadow .26s ease-out, scale .26s ease-out !important; }
+.es-press-weich > *, .mg-stein:has(> .mg-stein-rand > .es-press-weich){ transition:scale .26s ease-out !important; }
+.es-press.es-press-weich, .es-press.es-press-weich > *,
+.mg-stein:has(> .mg-stein-rand > .es-press.es-press-weich){ transition-duration:.07s !important; }
 @media(prefers-reduced-motion:reduce){
-  .es-press-weich, .es-press.es-press-weich{ transition:none !important; }
+  .es-press-weich, .es-press.es-press-weich, .es-press-weich > *,
+  .mg-stein:has(> .mg-stein-rand > .es-press-weich){ transition:none !important; }
 }
 
 /* ── Responsive-Feinschliff ── */

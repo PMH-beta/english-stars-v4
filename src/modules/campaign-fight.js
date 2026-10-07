@@ -1099,16 +1099,23 @@ function _endScreen(victory) {
   // Sieg und Niederlage kommen aus dem Modul (7.15/7.16 bzw. 7.17):
   // play('win') laeuft in Schleife, play('die') geht von selbst in 'ko' ueber -
   // nicht selbst zurueck auf 'idle' schalten (Handoff-Regel 6).
-  if (victory) {
-    players?.feind?.play('die');
-    players?.hero?.play('win');
-    players?.pet?.play('win');
-    if (bossWin) _confettiBurst();
-  } else {
-    players?.hero?.play('die');
-    players?.pet?.play('die');
-    players?.feind?.play('win');
-  }
+  // Erst im nächsten Durchlauf: das Kampf-Ende kommt meist aus dem onEnd des letzten
+  // Schlags, und direkt danach schaltet SpritePlayer den Angreifer selbst zurück auf
+  // 'idle' — das überschrieb bisher den Jubel des Helden (Sieg) bzw. des Gegners
+  // (Niederlage). Der Gefährte hat einen eigenen Player und jubelte deshalb als Einziger.
+  const figuren = () => {
+    if (victory) {
+      players?.feind?.play('die');
+      players?.hero?.play('win');
+      players?.pet?.play('win');
+    } else {
+      players?.hero?.play('die');
+      players?.pet?.play('die');
+      players?.feind?.play('win');
+    }
+  };
+  setTimeout(figuren, 0);
+  if (bossWin) _confettiBurst();
   // Karten wie Fragment 7.15 (Gegner besiegt), 7.16 (Boss besiegt) und 7.17
   // (Lauf vorbei). Wirkung der Knöpfe unverändert.
   const esc = (s) => (window.escHtml ? window.escHtml(String(s)) : String(s));
