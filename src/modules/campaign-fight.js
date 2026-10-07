@@ -345,12 +345,12 @@ function _usePotion(i) {
 
 function _el(id) { return document.getElementById(id); }
 
-// Kleine Bildschirme: unter 360 × 640 wird der ganze Kampf verkleinert, als wäre der
-// Bildschirm 360 × 640 groß (darunter passen Kopf, Aufgabe, Spielfeld und Bühne nicht
-// mehr übereinander). Der Faktor rastet so ein, dass ein Bildpunkt der Figuren und
+// Kleine Bildschirme: unter 390 × 780 wird der ganze Kampf verkleinert, als wäre der
+// Bildschirm mindestens 390 × 780 groß — darunter wird es für Bühne (Boss bis
+// Mitte + 187 px), Spielfeld und lange Wörter eng. Der Faktor rastet so ein, dass ein Bildpunkt der Figuren und
 // des Kampfplatzes (2 CSS-px) auf ganze Geräte-Pixel fällt — die Pixel-Art bleibt
 // scharf. --cf-h = Höhe, mit der das Layout rechnet (Richtig/Falsch, style.css).
-const _MIN_W = 360, _MIN_H = 640;
+const _MIN_W = 390, _MIN_H = 780;
 let _zoom = 1;
 function _passeGroesse() {
   const ov = _el('cf-overlay');

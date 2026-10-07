@@ -17,7 +17,7 @@
 
 import { playSfx } from './game.js';
 import { STORM_PENALTY_MS } from './campaign-balance.js';
-import { aufgabeKarte, frageDE, sekText, steinHTML } from './minigame-karte.js';
+import { aufgabeKarte, frageDE, sekText, steinHTML, passeAufgabe, innenBreite } from './minigame-karte.js';
 import { iconHTML } from './pixel-icons.js';
 
 // Wackeln bei einem falschen Buchstaben (Übersicht 9.7): 8 Bilder im 8-fps-Takt,
@@ -116,9 +116,16 @@ export function startLetterstorm({ host, de, en, prompt, timeLimitMs, guards = 0
 
   // Leerzeichen (Mehrwort-Antworten) sind in der Leiste vorgegeben — kein Tile.
   const tappable = chars.map((ch, i) => ({ ch, i })).filter(x => x.ch !== ' ');
-  const slotHtml = chars.map((ch, i) => ch === ' '
-    ? '<span style="width:12px;"></span>'
-    : `<span class="cf-slot" data-i="${i}"></span>`).join('');
+  // Wortleiste: jedes Wort als eigene Gruppe — umgebrochen wird nur zwischen den
+  // Wörtern, nie mitten im Wort.
+  const woerter = target.split(' ');
+  let pos = 0;
+  const slotHtml = woerter.map((w) => {
+    const html = '<span class="mg-slot-wort">'
+      + w.split('').map((_, k) => `<span class="cf-slot" data-i="${pos + k}"></span>`).join('') + '</span>';
+    pos += w.length + 1;
+    return html;
+  }).join('');
 
   // Aufbau wie F.7/F.8: die Wortleiste liegt im Panel zwischen Frage und Zeit,
   // darunter das Spielfeld mit den Buchstaben.
@@ -126,6 +133,16 @@ export function startLetterstorm({ host, de, en, prompt, timeLimitMs, guards = 0
     frage: prompt || frageDE(de), zeitId: 'cf-timebar', sekId: 'cf-secs',
     mitte: `<div id="cf-slots" class="mg-slots">${slotHtml}</div>` })
     + `<div class="mg-flaeche"><div id="cf-field" class="mg-feld"></div></div>`;
+  passeAufgabe(host);
+  // Lange Wörter: die Felder werden schmaler (42 → höchstens 16 px), bis das längste
+  // Wort in eine Zeile der Leiste passt; die Schrift folgt in den Stufen 28/20/16.
+  const leiste = host.querySelector('#cf-slots');
+  const laengstes = Math.max(...woerter.map((w) => w.length));
+  const feldW = Math.max(16, Math.min(42, Math.floor((innenBreite(leiste) - (laengstes - 1) * 6) / laengstes)));
+  if (leiste && feldW < 42) {
+    leiste.style.setProperty('--slot', feldW + 'px');
+    leiste.style.setProperty('--slot-schrift', (feldW >= 34 ? 28 : feldW >= 26 ? 20 : 16) + 'px');
+  }
 
   // Tiles auf gemischtem Gitter platzieren (kein Anfangs-Überlappen), dann driften.
   const field = host.querySelector('#cf-field');

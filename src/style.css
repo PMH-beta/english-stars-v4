@@ -2562,6 +2562,10 @@ button.p-chip{ cursor:pointer; }
 .mg-de{ display:inline-flex; align-items:center; gap:8px; }
 .mg-de > span{ font:900 10px/1 var(--p-font); letter-spacing:0; color:var(--p-grau); }
 .mg-wort{ font:900 28px/1.1 var(--p-font); color:var(--p-ink); }
+/* Lange Fragen: eine Zeile, die Schrift verkleinert passeAufgabe (minigame-karte.js);
+   das Wort folgt der Größe der Frage. */
+.mg-aufgabe-frage.mg-eine-zeile{ white-space:nowrap; }
+.mg-aufgabe-frage .mg-wort{ font-size:inherit; }
 /* Form als Chip (F.8, F.9): beide Formen flieder. */
 .mg-form{
   display:inline-flex; align-items:center; height:26px; padding:0 9px;
@@ -2602,11 +2606,15 @@ button.p-chip{ cursor:pointer; }
 /* ── Buchstabensturm (7.4–7.6, 7.10) ── */
 /* Wortleiste im Panel (F.7): Felder 42 × 48, groß beschriftet; das nächste Feld
    hell-gold mit Tintenstrich, die übrigen blass gestrichelt. Gelöst = grün. */
-.mg-slots{ display:flex; justify-content:center; gap:6px; flex-wrap:wrap; padding:0; }
+.mg-slots{ display:flex; justify-content:center; gap:6px 12px; flex-wrap:wrap; padding:0; }
+/* Ein Wort = eine Gruppe, umgebrochen wird nur zwischen Wörtern. Lange Wörter
+   machen die Felder schmaler (--slot, gesetzt vom Buchstabensturm), Höhe und
+   Schrift ziehen mit; ohne --slot gelten die 42 × 48 aus F.7. */
+.mg-slot-wort{ display:flex; gap:6px; }
 .cf-slot{
-  min-width:42px; height:48px; padding:0 3px;
-  border:2px dashed rgba(31,31,36,.4); border-radius:12px; background:rgba(248,246,236,.55);
-  font:900 28px/1.1 var(--p-font); transition:none;
+  min-width:var(--slot,42px); height:calc(var(--slot,42px) * 8 / 7); padding:0 calc(var(--slot,42px) / 14);
+  border:2px dashed rgba(31,31,36,.4); border-radius:calc(var(--slot,42px) * 2 / 7); background:rgba(248,246,236,.55);
+  font:900 var(--slot-schrift,28px)/1.1 var(--p-font); transition:none;
 }
 .cf-slot.cf-dran{ border:2px dashed var(--p-ink); background:#FFF1C4; }
 .cf-slot.cf-filled{ border:var(--p-rahmen); background:var(--p-karte); }
@@ -2716,6 +2724,14 @@ button.p-chip{ cursor:pointer; }
 .tf-wort{ display:flex; flex-direction:column; align-items:center; gap:5px; min-width:0; }
 .tf-wort-sprache{ font:900 10px/1 var(--p-font); color:var(--p-grau); }
 .tf-wort-text{ font:900 28px/1.1 var(--p-font); color:var(--p-ink); }
+/* Die Steine bleiben je halb so breit wie das Paar, auch bei langen Wörtern (die
+   Schrift passt sich an, minigame-truefalse.js). Letzter Ausweg: Umbruch in 20 px
+   mit Silbentrennung. */
+.tf-paar > div, .tf-paar .mg-stein, .tf-paar .mg-stein-rand, .tf-wort{ min-width:0; }
+.tf-wort-text.tf-umbruch{
+  font-size:20px; white-space:normal; text-align:center; max-width:100%;
+  -webkit-hyphens:auto; hyphens:auto; overflow-wrap:anywhere;
+}
 /* Richtig und Falsch untereinander (F-64): nebeneinander verbände man die Seite
    des Knopfs mit dem Wort darüber. */
 .tf-knoepfe{ flex:none; display:grid; grid-template-columns:minmax(0,1fr); gap:10px; }

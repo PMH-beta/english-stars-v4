@@ -12,7 +12,7 @@
 // prompt (optional): eigener Kopf statt „🇩🇪 de" — für die Verbform-Wellen der 🌀-Knoten.
 
 import { playSfx } from './game.js';
-import { aufgabeKarte, frageDE, steinHTML, flammeHTML, abzeichenHTML, funkenHTML } from './minigame-karte.js';
+import { aufgabeKarte, frageDE, steinHTML, flammeHTML, abzeichenHTML, funkenHTML, passeAufgabe, passend } from './minigame-karte.js';
 import { richtigChip } from './minigame-letterstorm.js';
 
 // Gefallen wird in harten Stufen im gemeinsamen 8-fps-Takt (Handoff-Regel 6:
@@ -30,6 +30,7 @@ export function startMeteors({ host, de, answer, choices, prompt, fallMs, onMiss
     + `<div class="mg-flaeche">
       <div id="cf-sky" class="mg-feld mg-himmel"><div class="mg-einschlag"></div></div>
     </div>`;
+  passeAufgabe(host);
 
   const sky = host.querySelector('#cf-sky');
   const skyH = Math.max(190, sky.clientHeight || 300);
@@ -110,6 +111,16 @@ export function startMeteors({ host, de, answer, choices, prompt, fallMs, onMiss
     };
     sky.appendChild(btn);
     btns.push(btn);
+  });
+
+  // Lange Wörter: ein Stein ist höchstens halb so breit wie der Himmel (Schrift
+  // 16 → 13) und liegt immer ganz im Feld — die Mitte rückt dafür nach innen.
+  const himmelW = sky.clientWidth;
+  btns.forEach(b => {
+    passend(b.querySelector('.mg-stein-flaeche'), himmelW / 2, [13]);
+    const halb = b.offsetWidth / 2;
+    const mitte = parseFloat(b.style.left) / 100 * himmelW;
+    if (himmelW >= 2 * halb) b.style.left = Math.round(Math.min(himmelW - halb, Math.max(halb, mitte))) + 'px';
   });
 
   // Überlappung auflösen: ein langes Wort ist breiter als seine Bahn, nebeneinander auf

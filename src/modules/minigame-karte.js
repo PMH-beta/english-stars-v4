@@ -74,6 +74,47 @@ export function aufgabeKarte({ art, anweisung, frage, text = false, kachel = '',
   </div>`;
 }
 
+// ── Lange Wörter ───────────────────────────────────────────────────────────
+// Ein Wort bricht nie um: es wird stufenweise kleiner, bis es in `frei` px passt
+// (wie die Lücken-Kacheln in 5.10). `el` steht auf nowrap; gemessen wird seine
+// Inhaltsbreite (scrollWidth), die auch dann stimmt, wenn es schon übersteht.
+/**
+ * @param {HTMLElement} el
+ * @param {number} frei      verfügbare Breite in px
+ * @param {number[]} stufen  kleinere Schriftgrößen der Reihe nach, z. B. [24, 20, 16]
+ * @returns {boolean} passt es (spätestens in der letzten Stufe)?
+ */
+export function passend(el, frei, stufen) {
+  if (!el) return true;
+  el.style.fontSize = '';
+  for (const px of stufen) {
+    if (el.scrollWidth <= frei) return true;
+    el.style.fontSize = px + 'px';
+  }
+  return el.scrollWidth <= frei;
+}
+
+/** Inhaltsbreite eines Kastens ohne seine Innenabstände. */
+export function innenBreite(box) {
+  if (!box) return 0;
+  const cs = getComputedStyle(box);
+  return box.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+}
+
+/**
+ * Frage im Aufgaben-Panel auf eine Zeile bringen (28 → 24 → 20 → 16, Sätze 16 → 13).
+ * Passt sie selbst dann nicht, darf sie als letzter Ausweg umbrechen. Jedes
+ * Minispiel ruft das direkt nach dem Aufbau des Panels.
+ */
+export function passeAufgabe(host) {
+  const frage = host.querySelector('.mg-aufgabe-frage');
+  const box = host.querySelector('.mg-aufgabe-text');
+  if (!frage || !box) return;
+  frage.classList.add('mg-eine-zeile');
+  const satz = frage.classList.contains('mg-aufgabe-frage--text');
+  if (!passend(frage, innenBreite(box), satz ? [13] : [24, 20, 16])) frage.classList.remove('mg-eine-zeile');
+}
+
 /** Restzeit wie im Entwurf: „6 s". */
 export const sekText = (ms) => Math.max(0, Math.ceil(ms / 1000)) + ' s';
 

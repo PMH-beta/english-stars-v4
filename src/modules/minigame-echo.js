@@ -15,7 +15,7 @@ import { playSfx } from './game.js';
 import { speakWord } from './speech.js';
 import { ensureStormStyle, setDrift, richtigChip } from './minigame-letterstorm.js';
 import { iconHTML } from './pixel-icons.js';
-import { aufgabeKarte, frageHoeren, sekText, blasenBalken, abzeichenHTML } from './minigame-karte.js';
+import { aufgabeKarte, frageHoeren, sekText, blasenBalken, abzeichenHTML, passeAufgabe, passend } from './minigame-karte.js';
 
 export function startEcho({ host, answer, speakText, choices, verb, timeLimitMs, onMiss, onResult }) {
   ensureStormStyle();   // cfDrift-Keyframes
@@ -31,6 +31,7 @@ export function startEcho({ host, answer, speakText, choices, verb, timeLimitMs,
   host.innerHTML = aufgabeKarte({ art: 'echo', anweisung: verb ? 'Welche Form hörst du?' : 'Welches Wort hörst du?',
     frage: frageHoeren(verb || ''), kachel: hoer, zeitId: 'cf-echobar', sekId: 'cf-echosecs' })
     + `<div class="mg-flaeche"><div id="cf-echofield" class="mg-feld mg-echo"></div></div>`;
+  passeAufgabe(host);
 
   const speak = () => { try { speakWord(speakText || answer); } catch (e) {} };
   host.querySelector('#cf-replay').onclick = speak;
@@ -84,11 +85,19 @@ export function startEcho({ host, answer, speakText, choices, verb, timeLimitMs,
       }
     };
     field.appendChild(btn);
+    // Lange Wörter: Schrift 16 → 13, bis die Blase in ihre Spalte passt, und die
+    // Mitte so weit nach innen, dass die Blase ganz im Feld liegt.
+    const wortEl = btn.lastElementChild;
+    passend(wortEl, field.clientWidth / cols - 8 - (btn.offsetWidth - wortEl.offsetWidth), [13]);
     // Drift so weit, wie in der Zelle wirklich Platz ist — dafür muss der Chip schon im
     // DOM hängen (offsetWidth). Kurze Wörter schweben dadurch weit, lange Wort-Chips
     // weniger, sonst schieben sie sich übereinander und sind nicht mehr lesbar.
-    setDrift(btn,
-      Math.max(10, Math.min(40, (cellW - btn.offsetWidth) / 2 - 4)),
+    const driftX = Math.max(10, Math.min(40, (cellW - btn.offsetWidth) / 2 - 4));
+    const halb = btn.offsetWidth / 2 + driftX;
+    if (field.clientWidth >= 2 * halb) {
+      btn.style.left = Math.round(Math.min(field.clientWidth - halb, Math.max(halb, x / 100 * field.clientWidth))) + 'px';
+    }
+    setDrift(btn, driftX,
       Math.max(10, Math.min(34, (cellH - btn.offsetHeight) / 2 - 4)), 7, 12);
   });
 

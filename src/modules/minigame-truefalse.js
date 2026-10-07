@@ -15,20 +15,22 @@
 
 import { playSfx } from './game.js';
 import { iconHTML } from './pixel-icons.js';
-import { aufgabeKarte, sekText, steinHTML } from './minigame-karte.js';
+import { aufgabeKarte, sekText, steinHTML, passend, innenBreite } from './minigame-karte.js';
 
 const LOCK_OK_MS = 220;    // kurze Sperre nach richtig — verhindert Doppel-Tipp
 const LOCK_BAD_MS = 700;   // länger nach falsch: man soll das Paar noch sehen
 
 // Wort im Papier-Stein: lange Wörter werden kleiner statt über den Rand zu laufen
-// (wie die Lücken-Kacheln in 5.10) — 28 → 24 → 20 → 16 px.
-function _passend(el) {
-  el.style.fontSize = '';
-  const flaeche = el.closest('.mg-stein-flaeche');
-  for (const px of [24, 20, 16]) {
-    if (!flaeche || flaeche.scrollWidth <= flaeche.clientWidth) return;
-    el.style.fontSize = px + 'px';
-  }
+// (wie die Lücken-Kacheln in 5.10) — 28 → 24 → 20 → 16 px. Platz hat ein Stein die
+// halbe Breite des Paares ohne das „?" in der Mitte; gemessen wird am Paar, weil
+// der Stein selbst mit dem Wort mitwachsen würde. Reicht selbst 16 nicht, bricht
+// das Wort als letzter Ausweg in 20 px um — mit Silbentrennung der Sprache.
+function _passend(el, paar, mitte) {
+  el.classList.remove('tf-umbruch');
+  const stein = el.closest('.mg-stein-flaeche');
+  const innen = stein ? stein.offsetWidth - innenBreite(stein) : 0;
+  const frei = (paar.clientWidth - mitte.offsetWidth - 16) / 2 - innen - 4;
+  if (!passend(el, frei, [24, 20, 16])) { el.style.fontSize = ''; el.classList.add('tf-umbruch'); }
 }
 
 export function startTrueFalse({ host, pairs, timeLimitMs, onMiss, onRight, onResult }) {
@@ -41,7 +43,7 @@ export function startTrueFalse({ host, pairs, timeLimitMs, onMiss, onRight, onRe
   // darunter Richtig (grün) und Falsch (rot) untereinander — nebeneinander
   // verbindet man sonst die Seite des Knopfs mit dem Wort darüber. Die Frage
   // steht nur einmal da („Passt das Paar?" fällt weg, sagt dasselbe).
-  const wort = (sprache, id) => `<span class="tf-wort"><span class="tf-wort-sprache">${sprache}</span><span id="${id}" class="tf-wort-text"></span></span>`;
+  const wort = (sprache, id) => `<span class="tf-wort"><span class="tf-wort-sprache">${sprache}</span><span id="${id}" class="tf-wort-text" lang="${sprache.toLowerCase()}"></span></span>`;
   const knopf = (icon, text) => `<span class="tf-symbol">${iconHTML(icon, 14)}</span>${text}`;
   host.innerHTML = aufgabeKarte({ art: 'richtig', anweisung: '', frage: 'Richtig oder falsch?', text: true,
     rechts: '<span id="tf-dots" class="tf-kaestchen"></span>', zeitId: 'tf-bar', sekId: 'tf-secs' })
@@ -81,8 +83,8 @@ export function startTrueFalse({ host, pairs, timeLimitMs, onMiss, onRight, onRe
     const p = pairs[idx];
     deEl.textContent = p.de;
     enEl.textContent = p.en;
-    _passend(deEl);
-    _passend(enEl);
+    _passend(deEl, card, zeichen);
+    _passend(enEl, card, zeichen);
     _kaestchen();
   }
 
