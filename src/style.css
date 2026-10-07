@@ -2719,6 +2719,19 @@ button.p-chip{ cursor:pointer; }
 /* Richtig und Falsch untereinander (F-64): nebeneinander verbände man die Seite
    des Knopfs mit dem Wort darüber. */
 .tf-knoepfe{ flex:none; display:grid; grid-template-columns:minmax(0,1fr); gap:10px; }
+/* Kleine Handys: untereinander brauchen die Knöpfe mehr Höhe. Über dem Spielfeld
+   liegen fest rund 477 px (Kopf, Aufgabe, Bühne), der Rest teilt sich in
+   Paar : Knopf = 1,5 : 1. Ab etwa 730 px Höhe gelten die Maße aus F.6 (Paar 92,
+   Knopf 62), darunter schrumpfen beide bis Paar 50 / Knopf 40 — so bleibt bis
+   640 px Höhe alles über der Bühne. */
+.tf-flaeche{ --tf-knopf:clamp(40px, calc((100vh - 507px) / 3.5), 62px); }
+@supports (height:100dvh){ .tf-flaeche{ --tf-knopf:clamp(40px, calc((100dvh - 507px) / 3.5), 62px); } }
+.tf-flaeche .mg-stein--knopf .mg-stein-flaeche{ height:var(--tf-knopf); }
+.tf-flaeche .mg-stein--paar .mg-stein-flaeche{ height:clamp(50px, calc(var(--tf-knopf) * 1.5), 92px); }
+@media (max-height:729px){
+  .tf-knoepfe{ gap:8px; }
+  .tf-luft{ min-height:2px; }
+}
 .tf-btn{ display:flex; min-width:0; padding:0; border:0; background:none; cursor:pointer; }
 .tf-symbol{
   width:30px; height:30px; flex:none; border:var(--p-rahmen); border-radius:10px; background:var(--p-karte);

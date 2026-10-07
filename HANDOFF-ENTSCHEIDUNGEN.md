@@ -84,7 +84,7 @@ Avatare dürfen bei einer Migration verloren gehen. Kein Umbau darf `SD.decks`,
 
 | Nr. | Frage (kurz) | Gebraucht vor |
 | --- | --- | --- |
-| F-68 | Richtig/Falsch: Zeit läuft ab — wie viel Schaden für die offenen Paare? Heute ein Gegnertreffer (`enemy.dmg`), abfangbar durch Schild/Helm/Ausweichen. Empfehlung A: je offenes Paar 6 (wie ein Fehlurteil), als ein Angriff des Gegners, Schutz wirkt wie heute. Bis dahin wie heute. | Update 1 · 3 |
+| — | derzeit keine | — |
 
 ## Ohne Rückfrage entschieden (Aussehen) — Phase 7
 
@@ -178,6 +178,7 @@ Boss-Krone. Es gelten weiter die Regeln oben.
 | F-65 | Rückmelde-Streifen mit Lösung | **Nein:** keine Korrektur, keine Lösung. Nur kurz sichtbar richtig/falsch (Steine grün/rot mit Haken/Kreuz, wie gebaut). Falsch kostet Leben für diese eine Antwort (wie heute); Zeitablauf kostet für alle offenen → Höhe offen in F-68. | U1 · 3 | 07.10.2026 |
 | F-66 | Gegner greift beim Fehlgriff sichtbar an? | **B — wie heute** (Held zuckt sofort). Dazu (Nutzer, zweite Antwort): bei Richtig/Falsch ist **jedes richtige Paar ein eigener, kleinerer Angriff** des Helden — voller Schaden geteilt durch die Paare, aufgerundet (keine halben Punkte); alle 3 richtig ergeben so den vollen Angriff. **Kein Extra-Angriff am Ende der Welle.** Fällt der Gegner mitten in der Welle, ist sofort Sieg. Die Teilangriffe laufen nacheinander; während eines Angriffs zuckt der Held bei einem Fehlurteil nicht (Schaden, Zahl und Splitter kommen trotzdem). 3 Paare je Welle wie heute (`TF_PAIRS`), nicht 4 wie im Entwurf. | U1 · 3 | 07.10.2026 |
 | F-67 | Richtig/Falsch F.6 oder E.5/E.6 | **F.6** mit den Änderungen aus F-64; keine Rückmelde-Karte, kein „greift an“ (F-65). | U1 · 3 | 07.10.2026 |
+| F-68 | Schaden des Gegners bei Richtig/Falsch | **Spiegelbild zum Helden (Nutzer):** der Gegner schlägt sichtbar für jedes falsche Paar zu und bei Zeitablauf für jedes offene; ein Schlag = Gegnerschaden geteilt durch die Paare, aufgerundet (Wortgeist 9 → 3) — alle Paare falsch oder offen ergeben genau einen vollen Gegnerangriff. Ersetzt bei Richtig/Falsch die festen 6 je Fehlurteil und den einen Treffer bei Zeitablauf. Schutz wie heute: falsche Paare fängt nichts ab (wie Fehlgriffe), bei Zeitablauf wirken Schild/Ausweichen/Helm einmal auf alle offenen zusammen (wie bisher auf die verlorene Welle). Schläge von Held und Gegner laufen nacheinander. | U1 · 3 | 07.10.2026 |
 
 ### Ohne Rückfrage entschieden (Aussehen) — Update 1
 
@@ -203,3 +204,4 @@ Boss-Krone. Es gelten weiter die Regeln oben.
 | 3 · Meteoriten-Fall | Zeitlimit unverändert (gleiche Rechnung wie bisher); alle fallen gleich schnell, und zwar so, dass der richtige genau mit Ablauf der Zeit auf der Einschlaglinie aufsetzt (vorher fiel er unten aus dem Feld). Falsche verschwinden an der Linie wie bisher am Feldrand. Die Meteore kommen unter dem Panel hervor (statt eingeblendet). | 06.10.2026 |
 | 3 · Lange Wörter | im Richtig/Falsch-Stein wird das Wort kleiner statt überzulaufen (28 → 24 → 20 → 16 px), wie die Lücken-Kacheln in 5.10 — Vorschlag, im Entwurf nicht gezeigt. | 06.10.2026 |
 | 3 · Richtig/Falsch-Luft | Paar und Knöpfe verteilen die freie Höhe wie F.6 (55 : 56 : 90); bei 874 hoch ohne Statusleiste rutschen sie dadurch 8 bzw. 16 px tiefer als im Fragment (dort 29 px Statusleiste), auf kleinen Handys rückt alles zusammen. Die Punkte der Paare bleiben über dem Paar (F-64 offen). | 06.10.2026 |
+| 3 · Richtig/Falsch kleine Handys | Auf Wunsch so, dass es auf jedem Gerät passt: Knopf- und Paarhöhe wachsen mit der Bildschirmhöhe (Knopf = (Höhe − 507) / 3,5, Paar = 1,5 × Knopf), gedeckelt auf F.6 (62/92) und mindestens 40/50; unter 730 px Abstand 8 statt 10 und weniger Luft. Ab 730 px wie F.6. Vermessen: 667 frei, 640 reicht 3 px in den Himmel, nie an den Helden. | 07.10.2026 |

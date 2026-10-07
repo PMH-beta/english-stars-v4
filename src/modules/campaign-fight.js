@@ -592,12 +592,8 @@ function _onMiss() {
   _ctx.waveMiss = true;
   run.hp = Math.max(0, run.hp - STORM_MISS_DMG);
   _setBars();
-  // Greift der Held gerade an (Richtig/Falsch), zuckt er nicht — das bräche den
-  // Angriff samt Treffer ab. Zahl und Splitter kommen trotzdem.
-  if (!_ctx.angriffe?.length) {
-    _ctx.players?.hero?.play('hurt');
-    _ctx.players?.pet?.play('hurt');
-  }
+  _ctx.players?.hero?.play('hurt');
+  _ctx.players?.pet?.play('hurt');
   _impactBurst('cf-hero', '#ff8787');
   _damagePop('cf-hero', '−' + STORM_MISS_DMG, '#ff8787');
   save();
@@ -847,8 +843,9 @@ function _startWave() {
       const wrong = oks[i] ? null : _distractors(pool.filter((p) => p.de !== it.de), right, 1)[0];
       return { de: it.de, en: wrong || right, ok: oks[i] || !wrong };
     });
-    _ctx.mg = startTrueFalse({ host, pairs, timeLimitMs: TF_TIME_MS + tBonus, onMiss: _onMiss,
-      onRight: () => _tfTreffer(pairs.length), onResult: _onWave });
+    _ctx.tfPaare = pairs.length;
+    _ctx.mg = startTrueFalse({ host, pairs, timeLimitMs: TF_TIME_MS + tBonus,
+      onMiss: () => _tfSchlag(pairs.length), onRight: () => _tfTreffer(pairs.length), onResult: _onWave });
   } else if (type === 'meteors') {
     const item = _ctx.cfItem = _pickItem(stock);
     const answer = _displayEn(item.en);
@@ -886,14 +883,26 @@ function _heroDmg(teile = 1) {
   return { dmg, html: '−' + dmg + (bonus ? iconHTML('star', 14) : '') + (hammer ? iconHTML('hammer', 14) : '') + (tali ? iconHTML('orb', 14) : '') };
 }
 
-// Richtig/Falsch (F-66): jedes richtig beurteilte Paar ist ein eigener, kleinerer
-// Angriff — alle Paare richtig ergeben den vollen. Die Angriffe laufen nacheinander:
-// play() bricht eine laufende Animation ab, und mit ihr ginge der Treffer verloren.
-// Ausgewertet wird die Welle erst, wenn alle durch sind (_onWave).
+// Richtig/Falsch (F-66, F-68): jedes Paar ist ein eigener, kleinerer Schlag — der
+// Held für jedes richtige, der Gegner für jedes falsche und bei Zeitablauf für jedes
+// offene. Ein Schlag = voller Schaden geteilt durch die Paare, aufgerundet; alle
+// Paare zusammen ergeben so genau einen vollen Angriff. Die Schläge laufen
+// nacheinander: play() bricht eine laufende Animation ab, und mit ihr ginge der
+// Treffer verloren. Ausgewertet wird die Welle erst, wenn alle durch sind (_onWave).
+function _einreihen(ctx, schlag) {
+  ctx.angriffe.push(schlag);
+  if (ctx.angriffe.length === 1) schlag();
+}
+function _naechsterSchlag(ctx) {
+  ctx.angriffe.shift();
+  if (ctx.angriffe.length) ctx.angriffe[0]();
+  else if (ctx.nachAngriffen) { const w = ctx.nachAngriffen; ctx.nachAngriffen = null; w(); }
+}
+
 function _tfTreffer(teile) {
   const ctx = _ctx;
   if (!ctx) return;
-  ctx.angriffe.push(() => {
+  _einreihen(ctx, () => {
     if (_ctx !== ctx || ctx.vorbei) return;
     const f = ctx.run.fight;
     const { dmg, html } = _heroDmg(teile);
@@ -911,18 +920,41 @@ function _tfTreffer(teile) {
           ctx.run.fight = null; ctx.save(); _endScreen(true);
           return;
         }
-        ctx.angriffe.shift();
-        if (ctx.angriffe.length) ctx.angriffe[0]();
-        else if (ctx.nachAngriffen) { const w = ctx.nachAngriffen; ctx.nachAngriffen = null; w(); }
+        _naechsterSchlag(ctx);
       });
   });
-  if (ctx.angriffe.length === 1) ctx.angriffe[0]();
 }
 
-function _onWave(success) {
+// Schlag des Gegners für ein falsches oder offenes Paar. Wie beim Fehlgriff in
+// den anderen Spielen schützt hier nichts; Schild, Ausweichen und Helm wirken wie
+// heute nur auf die verlorene Welle (Zeitablauf, siehe _onWave).
+function _tfSchlag(teile) {
+  const ctx = _ctx;
+  if (!ctx) return;
+  ctx.waveMiss = true;
+  _einreihen(ctx, () => {
+    if (_ctx !== ctx || ctx.vorbei) return;
+    const dmg = Math.ceil(ctx.enemy.dmg / teile);
+    _strike('enemy', '−' + dmg, '#ff8787',
+      () => {
+        ctx.run.hp = Math.max(0, ctx.run.hp - dmg);
+        _setBars();
+        try { playSfx('wrong'); } catch (e) {}
+        ctx.save();
+      },
+      () => {
+        if (_ctx !== ctx || ctx.vorbei) return;
+        if (ctx.run.hp <= 0) { if (ctx.mg) ctx.mg.destroy(); _endScreen(false); return; }
+        _naechsterSchlag(ctx);
+      });
+  });
+}
+
+// offen = bei Richtig/Falsch die Paare, die beim Zeitablauf noch nicht beurteilt waren.
+function _onWave(success, _rest, offen = 0) {
   if (!_ctx) return;
-  // Laufen noch Teilangriffe (Richtig/Falsch), erst danach auswerten.
-  if (_ctx.angriffe?.length) { _ctx.nachAngriffen = () => _onWave(success); return; }
+  // Laufen noch Schläge (Richtig/Falsch), erst danach auswerten.
+  if (_ctx.angriffe?.length) { _ctx.nachAngriffen = () => _onWave(success, _rest, offen); return; }
   const { run, node, enemy, weapon, eff, save } = _ctx;
   const f = run.fight;
   if (!f) return;
@@ -932,10 +964,10 @@ function _onWave(success) {
   // als gelernt durchgewinkt, seit ein Fehler die Welle nicht mehr beendet.
   _record(_ctx.cfItem, success && !_ctx.waveMiss, _ctx.cfSuf);
   let wurf;   // Ausweich-Wurf, siehe unten
-  // Richtig/Falsch: der Held hat schon je richtigem Paar angegriffen (_tfTreffer),
-  // Fehlurteile haben über _onMiss Leben gekostet — am Ende kommt kein weiterer
-  // Angriff, die nächste Welle beginnt.
-  if (success && _ctx.waveType === 'truefalse') {
+  // Richtig/Falsch: Held und Gegner haben schon je Paar zugeschlagen (_tfTreffer,
+  // _tfSchlag) — am Ende kommt kein weiterer Angriff, die nächste Welle beginnt.
+  // Lief die Zeit erst nach dem letzten Urteil ab, ist nichts mehr offen.
+  if (_ctx.waveType === 'truefalse' && (success || !offen)) {
     f.wave++; save();
     setTimeout(() => { if (_ctx) _startWave(); }, 300);
     return;
@@ -974,6 +1006,11 @@ function _onWave(success) {
     f.headUsed = (f.headUsed || 0) + 1;
     _schutzMeldung('helm', 'Helm blockt!', 'Kein Schaden', 'var(--p-stahl)');
     try { playSfx('click'); } catch (e) {}
+  } else if (_ctx.waveType === 'truefalse') {
+    // Zeit abgelaufen: der Gegner schlägt für jedes offene Paar einmal zu.
+    _ctx.nachAngriffen = () => { f.wave++; save(); setTimeout(() => { if (_ctx) _startWave(); }, 300); };
+    for (let i = 0; i < offen; i++) _tfSchlag(_ctx.tfPaare);
+    return;
   } else {
     _strike('enemy', '−' + enemy.dmg, '#ff8787',
       () => {

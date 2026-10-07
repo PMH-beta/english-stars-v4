@@ -129,13 +129,11 @@ Fünf Änderungen aus `claude_code_update/UPDATE-PROMPT.md`, je ein Commit:
 | --- | --- | --- |
 | 1 | Gedrückt-Zustand für alles Antippbare (A.1/A.2) | **fertig** (`e5aa9cf`) — mit stufenlosem Übergang (Wunsch des Nutzers), Wackelpudding entfernt |
 | 2 | Reiter im Charakter-Editor bündig (B.2) | **fertig** (`199b2cb`) |
-| 3 | Kampf: Aufbau, Schrift, Richtig/Falsch (F.1–F.11, E.1, E.5/E.6) | **gebaut** (`5550a78` Bühne, `e90828a` Kopf + Panel, `e89b398` Steine, F-63–F-67 umgesetzt) — offen F-68 (Schaden bei Zeitablauf) und kleine Handys |
+| 3 | Kampf: Aufbau, Schrift, Richtig/Falsch (F.1–F.11, E.1, E.5/E.6) | **gebaut** (`5550a78` Bühne, `e90828a` Kopf + Panel, `e89b398` Steine, F-63–F-68 umgesetzt, kleine Handys angepasst) |
 | 4 | Kampfplätze als feste 2×-Bilder unten mittig (D.1) | **fertig** (`d69f5b1`) |
 | 5 | Boss-Symbol = Krone | **fertig** (`eb59089`) |
 
-F-63 bis F-67 beantwortet (07.10.) und gebaut. Offen bei 3: F-68 (Schaden für offene
-Paare bei Zeitablauf) und Richtig/Falsch auf kleinen Handys (667 px hoch: Falsch-Knopf
-ragt 57 px in die Bühne, Vorschlag steht aus).
+F-63 bis F-68 beantwortet (07.10.) und gebaut, Richtig/Falsch passt bis 640 px Höhe.
 Die Kampf-Enden (7.14–7.17) hat das Update nicht neu entworfen — sie bleiben.
 
 ## Was in jeder Phase gilt
