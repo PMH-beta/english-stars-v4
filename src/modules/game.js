@@ -76,25 +76,36 @@ function bVocabMC(item) {
 }
 function bVocabType(item) {
   return {type:'type',badge:'spelling',statKey:statKeyFor(item.de, item.en, '_sp', item._presetId||null),_presetId:item._presetId||null,
-    question:`✏️ Schreibe auf Englisch:\n🇩🇪 ${item.de}`,de:item.de,instr:'Schreibe auf Englisch',hint:'',answer:item.en};
+    question:`✏️ Schreibe auf Englisch:\n🇩🇪 ${item.de}`,de:item.de,instr:'Schreibe auf Englisch',hint:'',
+    vorsatz:_spTo(spWort(item.en)).vor,answer:item.en};
 }
+// „to" vor Verben steht fest vor dem Wort (Wunsch des Nutzers, 08.10.2026): es
+// wird nicht getippt (mitgetippt zählt es trotzdem), nicht sortiert und ist nie
+// die Lücke. vor = „to" wie geschrieben, rest = was das Kind schreibt.
+function _spTo(w){
+  const m=/^(to)\s+(?=\S)/i.exec(w);
+  return m ? {vor:m[1], rest:w.slice(m[0].length)} : {vor:'', rest:w};
+}
+// Vergleich beim Tippen: steht „to" schon davor, zählt die Antwort mit und ohne.
+const spOhneTo=q=>s=>q&&q.vorsatz ? s.replace(/^to\s+/i,'') : s;
 // Rechtschreibung (F-71–F-75): drei Aufgaben je Wort — Buchstabe einsetzen,
 // Buchstaben sortieren, Wort schreiben. Gezogen wird zufällig, gleich oft, unter
 // den Aufgaben, die beim Wort noch offen sind; ist das Wort abgeschlossen, unter
 // allen (kurze Wörter: nur Schreiben). Leerzeichen bleiben fest an ihrem Platz.
 function bVocabGap(item) {
-  const g=_gapLetter(spWort(item.en));
-  return {type:'type',badge:'spelling',gap:true,gapWord:g.word,gapIdx:g.idx,hint:'',speak:g.word,
+  const w=spWort(item.en), {vor,rest}=_spTo(w);
+  const g=_gapLetter(rest);
+  return {type:'type',badge:'spelling',gap:true,gapWord:g.word,gapIdx:g.idx,vorsatz:vor,hint:'',speak:w,
     statKey:statKeyFor(item.de, item.en, '_sp_lu', item._presetId||null),_presetId:item._presetId||null,
     de:item.de,instr:'Welcher Buchstabe fehlt?',answer:g.letter};
 }
 function bVocabOrder(item) {
-  const w=spWort(item.en);
-  const letters=w.replace(/\s+/g,'').split('');
+  const w=spWort(item.en), {vor,rest}=_spTo(w);
+  const letters=rest.replace(/\s+/g,'').split('');
   // Nach welchem Feld eine Lücke zwischen zwei Wörtern steht.
   const luecken=[]; let n=0;
-  for(const ch of w){ if(/\s/.test(ch)){ if(n && luecken[luecken.length-1]!==n-1) luecken.push(n-1); } else n++; }
-  return {type:'order',orderKind:'letters',badge:'spelling',
+  for(const ch of rest){ if(/\s/.test(ch)){ if(n && luecken[luecken.length-1]!==n-1) luecken.push(n-1); } else n++; }
+  return {type:'order',orderKind:'letters',badge:'spelling',vorsatz:vor,
     statKey:statKeyFor(item.de, item.en, '_sp_so', item._presetId||null),_presetId:item._presetId||null,
     de:item.de,instr:'Leg die Buchstaben in die richtige Reihenfolge',
     slotLabels:letters.map(()=>''),solution:letters,tiles:_scramble(letters),luecken,answer:w};
@@ -738,6 +749,8 @@ function renderQuestion(q) {
   } else if(q.type==='type'){
     // Bei „type" liegen Eingabe und Pruefen-Knopf MIT in der Fragekarte.
     html+=`<div class="p-fragekarte">${head}${frage}`;
+    // „to" vor Verben steht klein vor Lücke, Eingabe und Ablage (08.10.2026).
+    const vor=q.vorsatz ? `<span class="sp-vorsatz">${window.escHtml(q.vorsatz)}</span>` : '';
     if(q.gap){
       // Lücke wie 5.10: das Wort als Buchstaben-Kacheln, die fehlende Stelle
       // gestrichelt. Getippt wird direkt in die Lücke (Wunsch des Nutzers,
@@ -752,9 +765,9 @@ function renderQuestion(q) {
           : /\s/.test(w[k]) ? `<span class="gap-luft"></span>`
           : `<span class="gap-kachel">${window.escHtml(w[k])}</span>`;
       }
-      if(cells) html+=`<div class="gap-reihe">${cells}</div>`;
+      if(cells) html+=`<div class="gap-reihe">${vor}${cells}</div>`;
     } else {
-      html+=`<div class="type-input-wrap">
+      html+=`<div class="type-input-wrap${vor?' mit-vorsatz':''}">${vor}
         <input class="type-input" id="type-input" type="text" placeholder="${q.ph||'Englisch tippen…'}"
           autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
           onkeydown="if(event.key==='Enter')submitType()">
@@ -782,6 +795,7 @@ function renderQuestion(q) {
     html+=`<div class="p-fragekarte">${head}${frage}`;
     const isL=q.orderKind==='letters';
     html+=`<div class="order-slots${isL?' letters':''}" id="order-slots">`;
+    if(q.vorsatz) html+=`<span class="sp-vorsatz">${window.escHtml(q.vorsatz)}</span>`;
     q.slotLabels.forEach((lab,i)=>{
       html+=`<div class="order-slot" data-slot="${i}">${lab?`<span class="slot-label">${lab}</span>`:''}</div>`;
       if(q.luecken?.includes(i)) html+=`<span class="order-luft"></span>`;   // zwischen zwei Wörtern
@@ -955,8 +969,9 @@ export function submitType() {
   const inp=document.getElementById('type-input');if(!inp)return;
   const val=inp.value.trim();if(!val)return;
   window.answered=true;inp.disabled=true;
-  const corrects=window.currentQ.answer.split('/').map(x=>x.trim().toLowerCase());
-  const ok=corrects.includes(val.toLowerCase());
+  const ohneTo=spOhneTo(window.currentQ);
+  const corrects=window.currentQ.answer.split('/').map(x=>ohneTo(x.trim().toLowerCase()));
+  const ok=corrects.includes(ohneTo(val.toLowerCase()));
   inp.classList.add(ok?'correct':'wrong');
   // Wackeln wie die falsche Kachel in 4.3 (8 Takte, dann Ruhe).
   if(!ok){ inp.dataset.c='24'; inp.dataset.d='20'; inp.dataset.ui='shake'; }
@@ -1228,8 +1243,9 @@ function handleWrong() {
     let close=false;
     if(window.currentQ&&window.currentQ.type==='type'){
       const inp=document.getElementById('type-input');
-      const val=inp?(inp.value||'').toLowerCase().trim():'';
-      const target=(window.currentQ.answer.split('/')[0]||'').toLowerCase().trim();
+      const ohneTo=spOhneTo(window.currentQ);
+      const val=ohneTo(inp?(inp.value||'').toLowerCase().trim():'');
+      const target=ohneTo((window.currentQ.answer.split('/')[0]||'').toLowerCase().trim());
       if(val&&target){
         const m=val.length,n=target.length;
         if(m&&n){

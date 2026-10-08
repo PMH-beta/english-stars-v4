@@ -3425,6 +3425,11 @@ button.p-chip{ cursor:pointer; }
 .gap-kachel.is-luecke{ border-style:dashed; background:var(--p-feld); }
 /* Zwischen zwei Wörtern (Rechtschreibung „ice cream"): feste Lücke statt Kachel. */
 .gap-luft, .order-luft{ flex:0 0 12px; }
+/* „to" vor Verben (Rechtschreibung, Wunsch des Nutzers 08.10.2026): steht fest
+   und klein vor Lücke, Ablage und Eingabe — wie das Kürzel „DE" vor der Frage. */
+.sp-vorsatz{ flex:none; align-self:center; font:800 14px var(--p-font); color:var(--p-text-2); }
+.type-input-wrap.mit-vorsatz{ display:flex; align-items:center; gap:10px; }
+.type-input-wrap.mit-vorsatz .type-input{ flex:1; min-width:0; }
 /* Die Lücke ist selbst das Eingabefeld (08.10.2026): Buchstabe direkt im Wort. */
 .gap-eingabe{ padding:0; text-align:center; text-transform:lowercase; caret-color:var(--p-ink); }
 .gap-eingabe:focus{ outline:2px solid var(--p-ink); outline-offset:2px; }

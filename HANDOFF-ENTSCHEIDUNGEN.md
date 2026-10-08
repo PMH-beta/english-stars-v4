@@ -84,7 +84,8 @@ Avatare dürfen bei einer Migration verloren gehen. Kein Umbau darf `SD.decks`,
 
 | Nr. | Frage (kurz) | Gebraucht vor |
 | --- | --- | --- |
-| — | derzeit keine | — |
+| F-76 | Rechtschreibung: Verben mit zwei Buchstaben nach „to“ (to be, to go, to do) nur Schreiben wie kurze Wörter (F-71)? | Rechtschreibung |
+| F-77 | Rechtschreibung: welcher Buchstabe fehlt — immer der erste Vokal (heute) oder zufällig? | Rechtschreibung |
 
 ## Ohne Rückfrage entschieden (Aussehen) — Phase 7
 
@@ -186,6 +187,7 @@ Boss-Krone. Es gelten weiter die Regeln oben.
 | F-73 | Rechtschreibung: alter Stand | **A:** Was nach der alten Regel (`_sp` gemeistert) fertig war, gilt als abgeschlossen — niemand verliert Prozente oder Taler (beim Lesen ausgewertet, nichts umgeschrieben). | Vokabeln | 08.10.2026 |
 | F-74 | Rechtschreibung: Prozente und Taler | **A:** Jede geschaffte Aufgabe zählt ein Drittel des Wortes; Taler, wenn alle Wörter abgeschlossen sind. Eine Rechnung für alle Stellen: `wortScore`/`spellingStand` in stats.js (Decks, Vorlagen-Balken, Endbildschirm, Statistik, Wortlisten). Wortliste „Rechtschreibung“: Stand „n/3“, R / F über alle drei Aufgaben. | Vokabeln | 08.10.2026 |
 | F-75 | Rechtschreibung: wo gilt die Mischung? | **A:** überall außer im Probetest (`mixed_vocab` = Probetest, fragt weiter nur Wort schreiben). | Vokabeln | 08.10.2026 |
+| — | Rechtschreibung: „to“ bei Verben | **Nutzer:** „to“ steht fest und klein vor dem Wort (Stil wie das Kürzel „DE“), nicht als Eingabe — beim Einsetzen vor den Kacheln (die Lücke fällt nie mehr auf das „o“), beim Sortieren vor den Ablagefeldern (t/o liegen nicht mehr im Vorrat), beim Schreiben vor dem Eingabefeld; gilt damit auch im Probetest. Getippt wird nur das Verb, mitgetipptes „to“ zählt trotzdem als richtig. Erkannt wird „to“ + Leerzeichen am Anfang der ersten Form. Lernstand-Schlüssel unverändert. Offen: F-76 (zweibuchstabige Verben), F-77 (welcher Buchstabe fehlt). | Vokabeln | 08.10.2026 |
 
 ### Ohne Rückfrage entschieden (Aussehen) — Update 1
 
