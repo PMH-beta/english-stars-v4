@@ -550,7 +550,12 @@ try { screen.orientation?.lock?.('portrait').catch(() => {}); } catch (e) {}
     e.preventDefault();
     const { clientX, clientY } = e;
     setTimeout(() => {
-      if (t.isConnected) t.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window, detail: 1, clientX, clientY }));
+      if (!t.isConnected) return;
+      // Der Klickton kam schon beim echten Klick (index.html); der nachgereichte
+      // löst nur die Aktion aus — sonst klang jeder verzögerte Knopf doppelt.
+      const nach = new MouseEvent('click', { bubbles: true, cancelable: true, view: window, detail: 1, clientX, clientY });
+      nach.esNachDruck = true;
+      t.dispatchEvent(nach);
     }, w);
   }, true);
   const OPTS = { capture: true, passive: true };
