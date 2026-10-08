@@ -94,10 +94,13 @@ const spOhneTo=q=>s=>q&&q.vorsatz ? s.replace(/^to\s+/i,'') : s;
 // allen (kurze Wörter: nur Schreiben). Leerzeichen bleiben fest an ihrem Platz.
 function bVocabGap(item) {
   const w=spWort(item.en), {vor,rest}=_spTo(w);
-  const g=_gapLetter(rest);
-  return {type:'type',badge:'spelling',gap:true,gapWord:g.word,gapIdx:g.idx,vorsatz:vor,hint:'',speak:w,
+  // Jedes Mal ein zufälliger Buchstabe (F-77), nicht immer der erste Vokal —
+  // nie ein Leerzeichen, Bindestrich oder Apostroph.
+  const stellen=rest.split('').map((ch,i)=>/\p{L}/u.test(ch)?i:-1).filter(i=>i>=0);
+  const idx=stellen.length ? stellen[Math.floor(Math.random()*stellen.length)] : 0;
+  return {type:'type',badge:'spelling',gap:true,gapWord:rest,gapIdx:idx,vorsatz:vor,hint:'',speak:w,
     statKey:statKeyFor(item.de, item.en, '_sp_lu', item._presetId||null),_presetId:item._presetId||null,
-    de:item.de,instr:'Welcher Buchstabe fehlt?',answer:g.letter};
+    de:item.de,instr:'Welcher Buchstabe fehlt?',answer:rest[idx]||''};
 }
 function bVocabOrder(item) {
   const w=spWort(item.en), {vor,rest}=_spTo(w);
@@ -756,16 +759,17 @@ function renderQuestion(q) {
       // gestrichelt. Getippt wird direkt in die Lücke (Wunsch des Nutzers,
       // 08.10.2026): der Buchstabe steht so im Wort, und weil es nur EIN Buchstabe
       // ist, wird gleich geprüft — ohne Feld darunter und ohne „Prüfen".
-      const w=q.gapWord||''; let cells='';
+      // Ein Wort = eine Gruppe: umgebrochen wird nur zwischen Wörtern (_passeFelder).
+      const w=q.gapWord||''; let cells=`<span class="sp-wortgruppe">${vor}`;
       for(let k=0;k<w.length;k++){
         cells += (k===q.gapIdx)
           ? `<input class="gap-kachel is-luecke gap-eingabe" id="type-input" type="text" maxlength="1"
               autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Fehlender Buchstabe"
               oninput="if(this.value.trim())submitType()">`
-          : /\s/.test(w[k]) ? `<span class="gap-luft"></span>`
+          : /\s/.test(w[k]) ? (/\s/.test(w[k-1]) ? '' : `</span><span class="sp-wortgruppe">`)
           : `<span class="gap-kachel">${window.escHtml(w[k])}</span>`;
       }
-      if(cells) html+=`<div class="gap-reihe">${vor}${cells}</div>`;
+      if(w) html+=`<div class="gap-reihe">${cells}</span></div>`;
     } else {
       html+=`<div class="type-input-wrap${vor?' mit-vorsatz':''}">${vor}
         <input class="type-input" id="type-input" type="text" placeholder="${q.ph||'Englisch tippen…'}"
@@ -795,12 +799,13 @@ function renderQuestion(q) {
     html+=`<div class="p-fragekarte">${head}${frage}`;
     const isL=q.orderKind==='letters';
     html+=`<div class="order-slots${isL?' letters':''}" id="order-slots">`;
-    if(q.vorsatz) html+=`<span class="sp-vorsatz">${window.escHtml(q.vorsatz)}</span>`;
+    // Buchstaben: ein Wort = eine Gruppe, umgebrochen wird nur zwischen Wörtern (_passeFelder).
+    if(isL) html+=`<span class="sp-wortgruppe">`+(q.vorsatz ? `<span class="sp-vorsatz">${window.escHtml(q.vorsatz)}</span>` : '');
     q.slotLabels.forEach((lab,i)=>{
       html+=`<div class="order-slot" data-slot="${i}">${lab?`<span class="slot-label">${lab}</span>`:''}</div>`;
-      if(q.luecken?.includes(i)) html+=`<span class="order-luft"></span>`;   // zwischen zwei Wörtern
+      if(isL && q.luecken?.includes(i)) html+=`</span><span class="sp-wortgruppe">`;   // nächstes Wort
     });
-    html+=`</div>`;
+    html+=isL ? `</span></div>` : `</div>`;
     html+=`<div class="order-tray${isL?' letters':''}" id="order-tray">`;
     q.tiles.forEach(t=>{ html+=`<div class="order-tile" data-val="${t}">${t}</div>`; });
     html+=`</div>`;
@@ -817,6 +822,33 @@ function renderQuestion(q) {
   if(q.type==='pronounce') gehoert(document.getElementById('pronounce-result'), '—', 'wort');
   if(q.type==='type') setTimeout(()=>document.getElementById('type-input')?.focus(),120);
   if(q.type==='order') initOrderDnD();
+  if(q.gap || q.orderKind==='letters') _passeFelder(card);
+}
+
+// Lange Wörter (Vorschlag vom 08.10.2026, Vorbild Wortleiste des Buchstabensturms):
+// die Felder werden schmaler (50 → höchstens 16 px), bis das längste Wort in eine
+// Zeile passt; Höhe, Ecken und Schrift ziehen mit (style.css, --fw/--fs). Mehr als
+// 6 Steine im Vorrat liegen in höchstens 2 Reihen, jeder aber mindestens 44 px breit.
+function _passeFelder(card){
+  const reihe=card.querySelector('.gap-reihe, #order-slots.letters');
+  const breite=reihe?.clientWidth||0;
+  if(!breite) return;
+  let fw=50;
+  for(const g of reihe.querySelectorAll('.sp-wortgruppe')){
+    const n=g.querySelectorAll('.gap-kachel, .order-slot').length; if(!n) continue;
+    const vor=g.querySelector('.sp-vorsatz');
+    fw=Math.min(fw, Math.floor((breite-(vor ? vor.offsetWidth+8 : 0)-(n-1)*8)/n));
+  }
+  fw=Math.max(16, fw);
+  if(fw<50){
+    reihe.style.setProperty('--fw', fw+'px');
+    reihe.style.setProperty('--fs', (fw>=38 ? 22 : fw>=26 ? 18 : 16)+'px');
+  }
+  const vorrat=card.querySelector('#order-tray.letters'), n=vorrat?.children.length||0;
+  if(n>6){
+    const proReihe=Math.ceil(n/2);
+    vorrat.style.setProperty('--tw', Math.max(44, Math.min(86, Math.floor((vorrat.clientWidth-(proReihe-1)*10)/proReihe)))+'px');
+  }
 }
 
 // Pointer-basiertes Drag&Drop (touch + Maus): Kacheln aus dem Tray in geordnete
