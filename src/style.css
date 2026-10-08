@@ -2717,13 +2717,7 @@ button.p-chip{ cursor:pointer; }
 .mg-blase.is-falsch{ --f:#FF7F86; --l:#FFB0B5; --s:#E25F68; }
 .mg-blase-balken{ display:flex; align-items:center; gap:2px; }
 .mg-blase-balken > span{ display:block; width:3px; background:var(--p-ink); }
-
-/* Kampf: Bewegungen der Spielsteine laufen flüssig im Takt des Bildschirms
-   (Wunsch des Nutzers, 08.10.2026) — ui-anim.js setzt weiter seine Stufen, der
-   Browser blendet dazwischen über. Nur Hin-und-her-Bewegungen; Figuren (Canvas),
-   Flammen und Sprünge (Drehen, Endlos-Fallen) bleiben gestuft. */
-#cf-overlay [data-ui="bob"], #cf-overlay [data-ui="pulse"], #cf-overlay [data-ui="wiggle"],
-#cf-overlay [data-ui="beat"], #cf-overlay [data-ui="shake"]{ transition:transform 125ms linear; }
+/* Flüssige Bewegungen der Spielsteine: siehe „UI-Animationen weich" am Ende. */
 
 /* ── Richtig oder falsch (F.6) ──
    Paar als zwei Papier-Steine mit „?" dazwischen, darunter Falsch/Richtig als
@@ -4491,4 +4485,25 @@ body.tour-aktiv #menu-screen{ pointer-events:none; }
   height:48px; flex:none; padding:0 14px; cursor:pointer;
   border:var(--p-rahmen); border-radius:14px; background:var(--p-karte-hell);
   display:flex; align-items:center; font:800 12px var(--p-font); color:var(--p-ink);
+}
+
+/* ── UI-Animationen weich statt in Stufen ──
+   Wunsch des Nutzers (08.10.2026), erst im Kampf, jetzt überall: ui-anim.js
+   setzt weiter seine Stufen im 8-fps-Takt, der Browser blendet dazwischen über,
+   so lange wie eine Stufe steht (4-fps-Arten 250 ms, 8-fps-Arten 125 ms) — die
+   Bewegung läuft so ohne Halt durch. Gestuft bleiben Bilderfolgen (Figuren,
+   Atmen, Flammen-Wechsel, Funkeln), Flackern, Drehungen, Zahlen und Text.
+   Fängt eine Animation von vorn an (Ring, Balken, Scan-Linie, Konfetti), setzt
+   ui-takt.js den Sprung ohne Übergang. :root hebt die Regeln über Knöpfe mit
+   transition:none. Bei „Bewegung reduzieren" bleibt alles wie bisher. */
+@media (prefers-reduced-motion: no-preference){
+  :root [data-ui="bob"], :root [data-ui="pulse"], :root [data-ui="wiggle"]{ transition:transform 250ms linear; }
+  :root [data-ui="beat"], :root [data-ui="shake"], :root [data-ui="pop"], :root [data-ui="flip"],
+  :root [data-ui="scan"], :root [data-ui="confetti"] > span{ transition:transform 125ms linear; }
+  :root [data-ui="halo"]{ transition:box-shadow 250ms linear; }
+  :root [data-ui="fill"]{ transition:width 250ms linear; }
+  :root [data-ui="ring"]{ transition:transform 250ms linear, opacity 250ms linear; }
+  :root [data-ui="bars"] > span, #mic-balken > span{ transition:height 125ms linear; }
+  /* Mikrofon-Ringe am echten Pegel (speech.js, F-21): neuer Wert alle 125 ms. */
+  .mic-ring:not([data-ui]){ transition:transform 125ms linear, opacity 125ms linear; }
 }

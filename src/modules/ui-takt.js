@@ -1,8 +1,10 @@
 // src/modules/ui-takt.js
 // Gemeinsamer 8-fps-Takt (125 ms) für die UI-Animationen des Pastell-Handoffs.
 // Alles mit data-ui="…" (Flamme, Punkte, Wackeln, Wippen …) bewegt sich darüber
-// in harten Stufen. ui-anim.js selbst bleibt unverändert (Regel 5) — hier steht
-// nur die Anbindung: Icon-Engine für "swap", der Takt, der Sofort-Start.
+// in Stufen; Bewegungen blendet style.css seit 08.10.2026 weich über (Wunsch des
+// Nutzers), Bilderfolgen bleiben gestuft. ui-anim.js selbst bleibt unverändert
+// (Regel 5) — hier steht nur die Anbindung: Icon-Engine für "swap", der Takt,
+// der Sofort-Start, Sprünge ohne Übergang.
 //
 // Sofort-Start: Der Animator sucht seine Elemente nur alle 16 Takte (2 s) neu.
 // Was zur Laufzeit dazukommt (Dialog, gehaltene Karte, neu gezeichnete Liste),
@@ -30,13 +32,38 @@ function _sofort(root) {
   _neu.set(root, { ui: createUiAnimator({ icon, idleFrames, root }), bis: _t + 17 });
 }
 
+// Weich überblendet (style.css, „UI-Animationen weich") liefe eine Animation, die
+// von vorn anfängt, sichtbar rückwärts: der Ring schrumpft, der Balken leert sich,
+// Scan-Linie und Konfetti fahren hoch. Solche Sprünge übernimmt der Takt ohne
+// Übergang.
+const SPRUNG = '[data-ui="ring"], [data-ui="fill"], [data-ui="scan"], [data-ui="confetti"] > span';
+const _y = (el) => { const m = /translateY\((-?[\d.]+)px\)/.exec(el.style.transform); return m ? +m[1] : null; };
+function _merke() {
+  return [...document.querySelectorAll(SPRUNG)].map((el) => [el, el.style.opacity, parseFloat(el.style.width), _y(el)]);
+}
+function _ohneUebergang(vorher) {
+  for (const [el, op, w, y] of vorher) {
+    const k = el.dataset.ui;
+    const sprung = k === 'ring' ? (op === '' || op === '0') && el.style.opacity !== '0'
+      : k === 'fill' ? parseFloat(el.style.width) < w
+      : y === null || _y(el) < y;
+    if (!sprung) continue;
+    const alt = el.style.transition;
+    el.style.transition = 'none';
+    void el.offsetWidth;   // Sprung übernehmen, bevor der Übergang wieder gilt
+    el.style.transition = alt;
+  }
+}
+
 function _tick() {
   const t = _t++;
+  const vorher = _merke();
   _haupt.tick(t);
   for (const [root, e] of _neu) {
     if (!root.isConnected || t >= e.bis) { _neu.delete(root); continue; }
     e.ui.tick(t);
   }
+  _ohneUebergang(vorher);
 }
 
 export function startUiTakt() {

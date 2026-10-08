@@ -419,6 +419,9 @@ function _initDrag(cardEl, deckId, clientY) {
   });
   cardEl.dataset.a = '1';
   cardEl.dataset.ui = 'wiggle';
+  // Die Pose sitzt sofort, danach wackelt die Karte weich (style.css, „UI-Animationen weich").
+  void cardEl.offsetWidth;
+  cardEl.style.transition = '';
   _dragState = { deckId, el: cardEl, ph, offsetY };
   document.body.style.userSelect = 'none';
   document.body.style.webkitUserSelect = 'none';
