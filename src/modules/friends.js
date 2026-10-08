@@ -56,13 +56,15 @@ const _symbolKnopf = (icon, onclick, title) =>
 const _MARKE_ANGEFRAGT = `<span class="fr-marke">${iconHTML('hourglass', 14).replace('<canvas ', '<canvas data-ui="turn180" data-c="16" ')}Angefragt</span>`;
 const _MARKE_FREUNDE = `<span class="fr-marke fr-marke--mint">${iconHTML('check', 14)}Freunde</span>`;
 
-// Zeile: Brustbild, Name (unterstrichen, wo er den Fortschritt oeffnet),
-// darunter optional der Stand („hat dich angefragt“), rechts Knopf oder Marke.
+// Zeile: Brustbild, Name, darunter optional der Stand („hat dich angefragt“),
+// rechts Knopf oder Marke. Bei Freunden öffnet die ganze Zeile den Fortschritt
+// und sinkt als Ganzes ein (Wunsch des Nutzers, 08.10.2026 — vorher nur Bild und
+// unterstrichener Name); die Knöpfe rechts bleiben eigene Knöpfe.
 function _person(prefix, id, name, rightHtml, clickable, sub = '') {
-  const klick = clickable ? ` onclick="openFriendStats('${id}')"` : '';
-  return `<div class="fr-zeile">
-    <div class="fr-bild"${klick}><div id="${prefix}-av-${id}" class="fr-bust"></div></div>
-    <div class="fr-text"><div class="fr-name${clickable ? ' is-link' : ''}"${klick}>${esc(name)}</div>${sub ? `<div class="fr-sub">${sub}</div>` : ''}</div>
+  const klick = clickable ? ` onclick="if(!event.target.closest('button'))openFriendStats('${id}')"` : '';
+  return `<div class="fr-zeile${clickable ? ' is-link' : ''}"${klick}>
+    <div class="fr-bild"><div id="${prefix}-av-${id}" class="fr-bust"></div></div>
+    <div class="fr-text"><div class="fr-name">${esc(name)}</div>${sub ? `<div class="fr-sub">${sub}</div>` : ''}</div>
     ${rightHtml}
   </div>`;
 }

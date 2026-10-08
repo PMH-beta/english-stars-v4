@@ -484,11 +484,40 @@ try { screen.orientation?.lock?.('portrait').catch(() => {}); } catch (e) {}
     loesche(el);
   }
 
+  // Finger beim Scrollen (08.10.2026, Wunsch des Nutzers: beim Scrollen sanken die
+  // Knöpfe ein, über die der Finger fuhr): Wo die Seite scrollen kann, sinkt ein
+  // Knopf erst ein, wenn der Finger WARTE_MS lang nicht scrollt — wie bei Android
+  // und iOS. Ein schneller Tipp sinkt beim Loslassen ein und bleibt MIN_MS unten;
+  // wann die Aktion kommt (F-69), ändert sich dadurch nicht. Beginnt das Scrollen
+  // (pointercancel), verschwindet der Zustand sofort statt zurückzugleiten.
+  const WARTE_MS = 120;
+  let kandidat = null, warte = 0;
+  function kannScrollen(el) {
+    for (let p = el; p && p !== document.body && p !== document.documentElement; p = p.parentElement) {
+      const c = getComputedStyle(p);
+      if ((/auto|scroll/.test(c.overflowY) && p.scrollHeight > p.clientHeight + 1)
+        || (/auto|scroll/.test(c.overflowX) && p.scrollWidth > p.clientWidth + 1)) return true;
+      if (c.position === 'fixed') return false;   // Overlay: die Seite dahinter zählt nicht
+    }
+    const d = document.scrollingElement || document.documentElement;
+    return d.scrollHeight > d.clientHeight + 1;
+  }
+  function druecke(el) {
+    clearTimeout(warte);
+    kandidat = null;
+    einfaerben(el);
+    pressed = el;
+    pressedAt = performance.now();
+    el.classList.add('es-press', 'es-press-weich');
+  }
+
   // Abbruch ohne Zurückgleiten: beim Karten-Ziehen soll die Karte sofort ohne
   // Druckschatten am Finger hängen. window.esPressCancel ruft decks.js, wenn der
   // Long-Press-Drag startet (der beginnt ohne Fingerbewegung).
   const cancel = () => {
     clearTimeout(spaet);
+    clearTimeout(warte);
+    kandidat = null;
     if (!pressed) return;
     aufraeumen(pressed);
     pressed = null;
@@ -506,6 +535,7 @@ try { screen.orientation?.lock?.('portrait').catch(() => {}); } catch (e) {}
   // Loslassen: ein ganz kurzer Tipp bleibt noch bis MIN_MS unten, sonst sähe man
   // vom Eindrücken nichts.
   const loslassen = () => {
+    if (kandidat) druecke(kandidat);   // schneller Tipp: jetzt einsinken
     if (!pressed) return;
     const rest = MIN_MS - (performance.now() - pressedAt);
     if (rest > 0) { clearTimeout(spaet); spaet = setTimeout(release, rest); } else release();
@@ -514,15 +544,15 @@ try { screen.orientation?.lock?.('portrait').catch(() => {}); } catch (e) {}
   document.addEventListener('pointerdown', (e) => {
     if (e.button > 0) return;       // nur die Haupttaste
     letzter = null;                 // ein Tipp auf etwas nicht Drückbares verzögert nichts
+    clearTimeout(warte);
+    kandidat = null;
     const el = ziel(e.target);
     if (!el || el.closest(':disabled, [aria-disabled="true"], [inert]')) return;
     release();                      // ein noch offenes Drücken sauber beenden
-    einfaerben(el);
-    pressed = el;
-    pressedAt = performance.now();
-    letzter = { quelle: e.target, at: pressedAt };
+    letzter = { quelle: e.target, at: performance.now() };
     startX = e.clientX; startY = e.clientY;
-    el.classList.add('es-press', 'es-press-weich');
+    if (e.pointerType === 'mouse' || !kannScrollen(el)) druecke(el);
+    else { kandidat = el; warte = setTimeout(() => druecke(el), WARTE_MS); }
   }, true);
 
   // Aktion erst nach dem Drücken (08.10.2026, F-69 A): Ein Tipp öffnet sonst oft
@@ -560,11 +590,13 @@ try { screen.orientation?.lock?.('portrait').catch(() => {}); } catch (e) {}
   }, true);
   const OPTS = { capture: true, passive: true };
   window.addEventListener('pointermove', (e) => {
-    if (!pressed) return;
-    if (Math.abs(e.clientX - startX) > MOVE_TOL || Math.abs(e.clientY - startY) > MOVE_TOL) release();
+    if (!pressed && !kandidat) return;
+    if (Math.abs(e.clientX - startX) > MOVE_TOL || Math.abs(e.clientY - startY) > MOVE_TOL) {
+      if (kandidat) { clearTimeout(warte); kandidat = null; } else release();
+    }
   }, OPTS);
   window.addEventListener('pointerup', loslassen, OPTS);
-  window.addEventListener('pointercancel', release, OPTS);
+  window.addEventListener('pointercancel', cancel, OPTS);
 })();
 
 // Supabase-Verbindung testen (kann später raus)

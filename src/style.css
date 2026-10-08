@@ -3953,13 +3953,12 @@ body.p-app .music-vol-btn{ bottom:calc(88px + env(safe-area-inset-bottom,0px)); 
   border:var(--p-rahmen); border-radius:14px; background:var(--p-inaktiv);
   display:flex; align-items:flex-end; justify-content:center;
 }
-.fr-bild[onclick]{ cursor:pointer; }
+/* Freunde: die ganze Zeile ist der Knopf, der Name ohne Unterstrich (Wunsch des
+   Nutzers, 08.10.2026). */
+.fr-zeile.is-link{ cursor:pointer; }
 .fr-bust{ width:32px; height:32px; }
 .fr-text{ flex:1; min-width:0; }
 .fr-name{ font:900 13px var(--p-font); overflow-wrap:anywhere; }
-.fr-name.is-link{
-  cursor:pointer; text-decoration:underline; text-decoration-thickness:2px; text-underline-offset:3px;
-}
 .fr-sub{ font:700 10.5px var(--p-font); color:var(--p-text-2); }
 .fr-knopf{
   flex:none; cursor:pointer; padding:6px 11px;
