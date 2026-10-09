@@ -42,14 +42,19 @@
 </head>
 <body>
 
-<div id="init-overlay" style="position:fixed;inset:0;z-index:9999;background:#C9B8FF;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Nunito',system-ui,sans-serif;">
-  <img src="vondu-logo.svg" alt="" width="112" height="107" style="display:block">
+<!-- Vondu steht vom ersten Bild an fest in der Bildschirmmitte, gleich gross
+     (.p-start-logo) — hier, im Ladescreen danach, mit Knopf und mit Ladebalken.
+     Wortmarke und alles darunter haengen an ihm (.p-start-unten). -->
+<div id="init-overlay" style="position:fixed;inset:0;z-index:9999;background:#C9B8FF;">
+  <img class="p-start-logo" src="vondu-logo.svg" alt="" width="112" height="107">
+  <div class="p-start-unten"><img src="vondu-wordmark.svg" alt="" width="176" height="32" style="display:block;max-width:100%"></div>
 </div>
 
 <!-- ═══ LOADING SCREEN ═══ -->
 <div id="loading-screen" class="p-screen p-ton-lila" style="display:none">
-  <div class="p-buehne p-buehne--mitte">
-    <img src="vondu-logo.svg" alt="Vondu" width="112" height="107" style="display:block;flex:none">
+  <div class="p-buehne">
+    <img class="p-start-logo" src="vondu-logo.svg" alt="Vondu" width="112" height="107">
+    <div class="p-start-unten">
     <img src="vondu-wordmark.svg" alt="VONDU" width="176" height="32" style="display:block;max-width:100%">
     <!-- Balken + Prozent sind bis zum Tippen des Start-Buttons ausgeblendet
          (startup.js) — sie gehoeren zum Ladevorgang und erscheinen erst mit ihm. -->
@@ -60,6 +65,7 @@
     <div id="loading-status" class="p-ladetext">Lade App…</div>
     <div id="loading-hint" class="p-ladetext"></div>
     <button id="loading-start-btn" class="p-btn" style="display:none;width:calc(100% + 4px);flex:none;background:var(--p-gold);font-size:15px;gap:10px">Los geht's!<canvas data-icon="starInk" width="14" height="14" style="width:14px;height:14px;image-rendering:pixelated;flex:none"></canvas></button>
+    </div>
   </div>
   <div class="p-version" id="loading-version"></div>
 </div>
@@ -223,8 +229,10 @@
     </div>
 
     <!-- Drei Tabs. Jeder traegt seinen eigenen Grundton; der aktive faerbt den
-         ganzen Screen (ui.js, _renderModeToggle). -->
+         ganzen Screen (ui.js, _renderModeToggle). Die farbige Flaeche des aktiven
+         Tabs ist ein eigener Schieber, der beim Wechsel hinuebergleitet. -->
     <div id="mode-toggle" class="p-tabs" style="margin-top:14px">
+      <span class="p-tabs-schieber" aria-hidden="true"></span>
       <button id="mode-btn-campaign" class="p-tab p-ton-amber" onclick="setActiveMode('campaign')">Kampagne</button>
       <button id="mode-btn-free" class="p-tab p-ton-mint is-aktiv" onclick="setActiveMode('free')">Vokabeln</button>
       <button id="mode-btn-student" class="p-tab p-ton-lila" onclick="setActiveMode('student')">Formen</button>

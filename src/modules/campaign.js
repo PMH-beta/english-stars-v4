@@ -742,6 +742,7 @@ function _renderCampaignNow(host) {
   }
   host.innerHTML = _mapHtml(c.run);
   _drawEdges(c.run);
+  _kopfEinpassen(host);
   // Kein Sprung nach unten beim Tab-Wechsel (Wunsch des Nutzers 09.10.2026) — nach
   // unten zu den Startpunkten geht es nur beim Start eines Laufs (startCampaignRun).
 }
@@ -869,6 +870,14 @@ function _mapHtml(run) {
       ${nodesHtml}
     </div>
   </div>`;
+}
+
+// „Runde · Run-Länge“ bleibt eine Zeile, damit die Kopfkarte so hoch bleibt wie
+// Probetest und Trainingsplatz (Wunsch des Nutzers 10.10.2026): auf schmalen
+// Handys wird die Schrift in halben Pixeln kleiner, bis sie passt (höchstens auf 9).
+function _kopfEinpassen(host) {
+  const z = host.querySelector('.camp-kopf-runde');
+  for (let fs = 12; z && fs > 9 && z.scrollWidth > z.clientWidth;) z.style.fontSize = (fs -= 0.5) + 'px';
 }
 
 function _drawEdges(run) {

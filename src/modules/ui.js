@@ -327,6 +327,9 @@ function _renderModeToggle(mode) {
     const btn = document.getElementById('mode-btn-' + m);
     if (btn) btn.classList.toggle('is-aktiv', m === mode);
   });
+  // Schieber unter den Tabs: gleitet zum Platz des aktiven Tabs (style.css).
+  const leiste = document.getElementById('mode-toggle');
+  if (leiste) leiste.style.setProperty('--i', [...leiste.querySelectorAll('.p-tab')].findIndex(b => b.id === 'mode-btn-' + mode));
   // Der Grundton des ganzen Screens folgt dem aktiven Tab — Kampagne Amber,
   // Vokabeln Mint, Formen Flieder. Der aktive Tab erbt ihn ueber --p-ton.
   setGrundton(MENU_TON[mode] || 'mint', document.getElementById('menu-screen'));

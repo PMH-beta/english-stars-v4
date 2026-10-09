@@ -1154,6 +1154,23 @@ body.p-app{
   background:var(--p-ton,var(--p-mint)); border:var(--p-rahmen);
   font-weight:900; color:var(--p-ink);
 }
+/* Hauptmenü (Wunsch des Nutzers 10.10.2026): die farbige Fläche springt nicht,
+   sie gleitet nach dem Drücken zum neuen Tab und nimmt dabei dessen Ton an. Sie
+   ist ein eigener Schieber unter den Tabs (--i = Platz des aktiven Tabs, ui.js).
+   Alle drei Tabs sind dafür gleich gebaut — 42 hoch mit unsichtbarem Rahmen —,
+   sonst wären sie je nach aktivem Tab 112 oder 116 breit und Text und Fläche
+   rückten bei jedem Wechsel um 2 px. */
+#mode-toggle{ position:relative; }
+#mode-toggle .p-tab{ position:relative; z-index:1; height:42px; border:2px solid transparent; }
+#mode-toggle .p-tab.is-aktiv{ background:none; border-color:transparent; }
+.p-tabs-schieber{
+  position:absolute; z-index:0; left:4px; top:4px; height:42px; width:calc((100% - 16px) / 3);
+  border:var(--p-rahmen); border-radius:var(--p-r-kachel); background:var(--p-ton,var(--p-mint));
+  transform:translateX(calc(var(--i, 1) * (100% + 4px)));
+  transition:transform .42s cubic-bezier(.5,0,.25,1), background-color .42s;
+  pointer-events:none;
+}
+@media (prefers-reduced-motion:reduce){ .p-tabs-schieber{ transition:none; } }
 
 /* ── Spielerbanner ───────────────────────────────────────────────────────── */
 /* Spielerbanner nach Fragment 2.3: eine Karte mit Kontur, darin links das
@@ -1253,9 +1270,19 @@ body.p-app{
 /* Start, Registrieren, Passwort-Kette und Namenseingabe tragen kein Blatt,
    sondern eine einzelne Karte auf dem Grundton. */
 .p-buehne{ flex:1; display:flex; flex-direction:column; padding:20px 4% 0; }
-/* Startbildschirm: alles mittig, ohne Karte. */
-.p-buehne--mitte{
-  align-items:center; justify-content:center; gap:20px; padding:0 10%; text-align:center;
+/* Startbildschirm: Vondu steht vom ersten Bild an fest in der Bildschirmmitte
+   und bleibt gleich groß (Wunsch des Nutzers 10.10.2026: das Logo sprang beim
+   Laden viermal — erst mittig, dann mit Wortmarke, mit Knopf und mit Balken
+   jeweils höher, weil 1.1 die ganze Gruppe mittig stellt). Wortmarke, Knopf und
+   Balken hängen 20 px darunter; dasselbe Maß hat #init-overlay in index.html.
+   Ganze Pixel als Versatz, damit das Logo in beiden Ebenen exakt gleich liegt. */
+.p-start-logo{
+  position:fixed; left:50%; top:50%; width:112px; height:107px; margin:-54px 0 0 -56px; display:block;
+}
+.p-start-unten{
+  position:fixed; left:0; right:0; top:calc(50% + 73px); max-width:768px; margin:0 auto;
+  display:flex; flex-direction:column; align-items:center; gap:20px;
+  padding:0 min(10vw, 77px); text-align:center;
 }
 
 .p-dialogkarte{
@@ -1411,19 +1438,26 @@ body.p-app .music-vol-btn{
 
 /* Zeilenkarte mit Symbolkachel links — Probetest, Trainingsplatz. Zu sind beide
    80 hoch wie der Kopf der Kampagne (Wunsch des Nutzers 09.10.2026: beim
-   Tab-Wechsel springt nichts) — der Probetest hatte 13 Polster und 44er Kachel. */
+   Tab-Wechsel springt nichts) — der Probetest hatte 13 Polster und 44er Kachel.
+   Seit 10.10.2026 (Wunsch des Nutzers: „hundertprozentig gleich") sind beide auch
+   sonst deckungsgleich und wie der Kampagnen-Kopf: Ecken 24 und Kartenfläche wie
+   die Sammlungen, Kachel 48 und Titel 16 wie der Trainingsplatz (5.1). */
 .p-zeilenkarte{
-  border:var(--p-rahmen); border-radius:var(--p-r-karte); background:var(--p-karte); padding:14px;
+  border:var(--p-rahmen); border-radius:var(--p-r-dialog); background:var(--p-karte); padding:14px;
 }
 .p-zeilenkarte-kopf{ display:flex; align-items:center; gap:11px; min-height:48px; }
-/* Außenmaße: Fragment 40 + 2 × 2 Rahmen (die Referenz rechnet ohne box-sizing). */
+/* Außenmaße: Fragment 44 + 2 × 2 Rahmen (die Referenz rechnet ohne box-sizing). */
 .p-symbolkachel{
-  width:44px; height:44px; flex:none;
-  border:var(--p-rahmen); border-radius:var(--p-r-chip-gross); background:var(--p-ton,var(--p-lila));
+  width:48px; height:48px; flex:none;
+  border:var(--p-rahmen); border-radius:15px; background:var(--p-ton,var(--p-lila));
   display:flex; align-items:center; justify-content:center;
 }
-.p-zeilentitel{ font:900 14px var(--p-font); }
+.p-zeilentitel{ font:900 16px var(--p-font); }
 .p-zeilensub{ font:700 11px var(--p-font); color:var(--p-text-2); }
+/* Feste Zeilenhöhen: bricht die Unterzeile auf schmalen Handys um, passen Titel
+   und zwei Zeilen (21 + 1 + 2 × 13) noch neben die 48er Kachel — die Karte bleibt 80. */
+.p-zeilenkarte-kopf .p-zeilentitel{ line-height:21px; }
+.p-zeilenkarte-kopf .p-zeilensub{ margin-top:1px; line-height:13px; }
 
 /* ── Probetest aufgeklappt (Fragment 2.6) ─────────────────────────────────── */
 /* Außenmaße wie überall: Fragmentwert + 2 × 2 Rahmen (Start 50 → 54, Löschen 32 → 36). */
@@ -1772,8 +1806,11 @@ button.p-chip{ cursor:pointer; }
 /* Kopfkarte des Laufs (6.1). Seit 09.10.2026 so hoch wie Probetest und
    Trainingsplatz (80), damit beim Tab-Wechsel nichts springt (Wunsch des
    Nutzers): Runde und Leben links, Tränkeplätze rechts, ohne „Aufgeben". */
-.camp-kopf{ display:flex; align-items:center; gap:12px; min-height:80px; padding:14px; border-radius:22px; }
+.camp-kopf{ display:flex; align-items:center; gap:12px; min-height:80px; padding:14px; border-radius:var(--p-r-dialog); }   /* Ecken wie Probetest und Trainingsplatz */
 .camp-kopf-runde{ font:900 12px var(--p-font); letter-spacing:.06em; text-transform:uppercase; color:var(--p-text-3); }
+/* Immer eine Zeile, damit die Karte 80 hoch bleibt — campaign.js verkleinert die
+   Schrift auf schmalen Handys, bis sie passt (_kopfEinpassen). */
+.camp-kopf-runde{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .camp-kopf-leben{ display:flex; align-items:center; gap:8px; margin-top:8px; }
 .camp-kopf-leben > span{ font:800 9px var(--p-font); letter-spacing:.1em; text-transform:uppercase; color:var(--p-text-2); }
 .camp-kopf-leben > .p-balken{ flex:1; min-width:0; }
@@ -3295,10 +3332,7 @@ button.p-chip{ cursor:pointer; }
    Außen die einklappbare Karte aus 5.1 (Frage F-50), innen die Deck-Karte aus
    5.3 mit den drei Disziplinen; Anlage-Dialog 5.4, Befüllen 5.12, Statistik
    5.5. Außenmaße = Fragmentwert + Rahmen. */
-.p-zeilenkarte.tp-platz{ border-radius:24px; background:var(--p-karte-hell); padding:14px; }
-.tp-platz .p-symbolkachel{ width:48px; height:48px; border-radius:15px; }
-.tp-platz .p-zeilentitel{ font-size:16px; }
-.tp-platz .p-zeilensub{ margin-top:1px; }
+/* Karte, Kachel und Titel wie der Probetest (.p-zeilenkarte, seit 10.10.2026 gleich). */
 .tp-neu{
   display:flex; align-items:center; justify-content:center; width:100%; height:54px; margin-top:12px;
   border:var(--p-rahmen); border-radius:17px; background:var(--p-lila);
