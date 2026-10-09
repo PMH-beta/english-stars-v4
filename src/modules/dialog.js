@@ -203,10 +203,10 @@ export function esPrompt2(opts) {
 }
 
 // ────────────────────────────────────────────────
-//  SPEICHER-INDIKATOR (dezenter Balken oben) + withSaving
+//  SPEICHER-INDIKATOR (drei Punkte oben rechts) + withSaving
 // ────────────────────────────────────────────────
-// Leichtgewichtig: kein Vollbild-Overlay, nur ein kleiner Pill-Balken oben mit
-// Spinner. Im Timeout-/Fehlerfall wird daraus ein deutlicherer Toast
+// Leichtgewichtig: kein Vollbild-Overlay, nur drei kleine Punkte oben rechts mit
+// Wippen. Im Timeout-/Fehlerfall kommt ein deutlicherer Toast
 // ("Im Hintergrund gespeichert"). Speichervorgänge sind klein → kurz sichtbar.
 
 let _savingEl = null;
@@ -226,13 +226,15 @@ function esSavingShow(label) {
     _savingEl.className = 'p-band';
     (document.body || document.documentElement).appendChild(_savingEl);
   }
-  // Pille wie 9.4: drei wippende Punkte, „Speichern" und laufende Pünktchen.
+  // Seit 09.10.2026 (Wunsch des Nutzers, statt der Pille 9.4): nur drei kleine
+  // wippende Punkte ganz oben rechts — man sieht, dass gespeichert wird, ohne dass
+  // es stört. Der Text steht nur noch für Screenreader da.
+  _savingEl.setAttribute('role', 'status');
+  _savingEl.setAttribute('aria-label', (label || 'Speichern…').replace(/[.…]+$/, ''));
   _savingEl.innerHTML = '<span class="p-band-punkte">'
-    + '<span data-ui="bob" data-a="2" data-d="0"></span>'
-    + '<span data-ui="bob" data-a="2" data-d="2" style="opacity:.5"></span>'
-    + '<span data-ui="bob" data-a="2" data-d="4" style="opacity:.25"></span></span>'
-    + '<span></span><span class="p-dots" data-ui="dots">…</span>';
-  _savingEl.children[1].textContent = (label || 'Speichern…').replace(/[.…]+$/, '');
+    + '<span data-ui="bob" data-a="1" data-d="0"></span>'
+    + '<span data-ui="bob" data-a="1" data-d="2"></span>'
+    + '<span data-ui="bob" data-a="1" data-d="4"></span></span>';
   void _savingEl.offsetWidth;
   _savingEl.style.opacity = '1';
 }

@@ -18,7 +18,7 @@ import { persist } from './storage.js';
 import { markDirty } from './sync.js';
 import { commitDirty } from './dialog.js';
 import { iconHTML } from './pixel-icons.js';
-import { HP_MAX, REST_HEAL, BOSS_WIN_TALER, scaledEnemy, VERB_TIER_START, VERB_TIER_PER_ROUND, VERB_OWN_SHARE_START, VERB_OWN_SHARE_PER_ROUND, VERB_OWN_SHARE_MIN } from './campaign-balance.js';
+import { HP_MAX, REST_HEAL, BOSS_WIN_TALER, scaledEnemy, ROUND_SCALE, ROUND_SCALE_HP, VERB_TIER_START, VERB_TIER_PER_ROUND, VERB_OWN_SHARE_START, VERB_OWN_SHARE_PER_ROUND, VERB_OWN_SHARE_MIN } from './campaign-balance.js';
 import { openFight, fightPoolReady, verbsReady, loadPresetSupply } from './campaign-fight.js';
 import { equipEffects, openPotionChoice, POTIONS, POTION_TON, potionStacks } from './campaign-equipment.js';
 import { arenaTag, campfireTag, CAMPFIRE_FRAMES, CAMPFIRE_FPS } from './world.js';
@@ -569,44 +569,126 @@ function _vorschauHtml() {
 }
 
 // Neue Runde nach dem Boss (F-82, Wunsch des Nutzers 09.10.2026): Popup über der
-// Kampagnen-Übersicht — wie stark die Gegner jetzt werden (alt → neu), Zeit gleich
+// Kampagnen-Übersicht — wie viel stärker die Gegner jetzt werden, Zeit gleich
 // (F-83), Verben schwerer — und „Runde N starten“; danach unten am ersten Punkt.
 // Einmal je Runde und Sitzung; wer es schließt, startet über den Startkasten.
+// Die Prozente zählen ab Runde 1 (Leben +8 %, Schaden +15 % je Runde, siehe
+// campaign-balance.js); die Leisten laden sich nacheinander auf (_rundeLaden).
 let _rundePopupFuer = null;
+const _pz = (v) => `+${Math.round(v)}&nbsp;%`;
 function _rundePopup(host) {
   const c = _camp();
   if (c.run || !c.freeStart || !c.round || _rundePopupFuer === c.round) return;
   if (!host.offsetParent || document.querySelector('.p-runde-grund')) return;   // Tab nicht sichtbar
   _rundePopupFuer = c.round;
   const neu = c.round, alt = neu - 1, nr = neu + 1;
-  const zeile = (icon, name, typ) => {
-    const a = scaledEnemy(typ, alt), b = scaledEnemy(typ, neu);
-    return `<tr><th><span class="p-runde-name">${iconHTML(icon, 14)}${name}</span></th><td>${a.hp} → <b>${b.hp}</b></td><td>${a.dmg} → <b>${b.dmg}</b></td></tr>`;
+  // Gemeinsamer Maßstab für alle Leisten: voll = Schaden-Plus zwei Runden weiter —
+  // es bleibt immer Luft nach oben, und das neue Stück ist gut zu sehen.
+  const voll = Math.max(ROUND_SCALE, ROUND_SCALE_HP) * (neu + 2);
+  const zeile = (art, satz, farbe, neuFarbe) => {
+    const a = satz * alt / voll * 100, b = satz * neu / voll * 100;
+    return `<div class="p-runde-zeile" data-laden data-a="${a}" data-b="${b}" data-von="${satz * alt * 100}" data-bis="${satz * neu * 100}" data-farbe="${neuFarbe}">
+        <span class="p-runde-art">${art}</span>
+        <div class="p-runde-spur"><div class="p-runde-balken"><i class="neu" style="width:${a}%;background:${neuFarbe}"></i><i style="width:${a}%;background:${farbe}"></i></div><span class="p-runde-funken"></span></div>
+        <b class="p-runde-pz">${_pz(satz * alt * 100)}</b>
+      </div>`;
+  };
+  const gruppe = (icon, name, typ) => {
+    const b = scaledEnemy(typ, neu);
+    return `<div class="p-runde-gruppe">
+        <div class="p-runde-kopf"><span class="p-runde-name">${iconHTML(icon, 14)}${name}</span><span class="p-runde-werte">${b.hp} Leben · ${b.dmg} Schaden</span></div>
+        ${zeile('Leben', ROUND_SCALE_HP, 'var(--p-rosa)', 'var(--p-falsch-stark)')}
+        ${zeile('Schaden', ROUND_SCALE, 'var(--p-pfirsich)', 'var(--p-flamme)')}
+      </div>`;
   };
   // Verben: schwerer, solange die Stufen-Glocke steigt oder der Anteil eigener Verben sinkt.
   const stufe = (r) => Math.min(5, VERB_TIER_START + VERB_TIER_PER_ROUND * r);
   const eigen = (r) => Math.max(VERB_OWN_SHARE_MIN, VERB_OWN_SHARE_START - VERB_OWN_SHARE_PER_ROUND * r);
+  const schwerer = stufe(neu) > stufe(alt) || eigen(neu) < eigen(alt);
   const verben = verbsReady()
-    ? `<tr><th><span class="p-runde-name">${iconHTML('portal', 14)}Verben</span></th><td colspan="2"><b>${stufe(neu) > stufe(alt) || eigen(neu) < eigen(alt) ? 'schwerer' : 'gleich'}</b></td></tr>`
+    ? `<div class="p-runde-gruppe p-runde-einzeln" data-laden data-pop>
+        <span class="p-runde-name">${iconHTML('portal', 14)}Verben</span>
+        <b class="p-runde-pz p-runde-chip" style="background:${schwerer ? 'var(--p-gold)' : 'var(--p-inaktiv)'}">${schwerer ? 'schwerer' : 'gleich'}</b>
+      </div>`
     : '';
   const d = document.createElement('div');
   d.className = 'p-dlg-grund p-runde-grund';
   d.innerHTML = `<div class="p-dlg-karte">
       <div class="p-dlg-emblem" style="background:var(--p-gold)">${iconHTML('crownBig', 28, { style: 'position:relative;left:1px' })}</div>
       <div class="p-dlg-titel">Runde ${nr}</div>
-      <div class="p-kicker p-runde-kicker">So stark sind die Gegner</div>
-      <table class="p-runde-tabelle">
-        <thead><tr><th></th><th>Leben</th><th>Schaden</th></tr></thead>
-        <tbody>
-          ${zeile('sword', 'Gegner', 'fight')}${zeile('crown', 'Boss', 'boss')}
-          <tr><th><span class="p-runde-name">${iconHTML('hourglass', 14)}Zeit</span></th><td colspan="2"><b>gleich</b></td></tr>
-          ${verben}
-        </tbody>
-      </table>
-      <div class="p-dlg-knoepfe"><button class="p-dlg-btn p-dlg-btn--ok" data-start>Runde ${nr} starten · gratis</button></div>
+      <div class="p-runde-unter">So viel stärker als in Runde 1</div>
+      <div class="p-runde-liste">
+        ${gruppe('sword', 'Gegner', 'fight')}${gruppe('crown', 'Boss', 'boss')}
+        <div class="p-runde-gruppe p-runde-einzeln" data-laden data-glanz>
+          <span class="p-runde-name">${iconHTML('hourglass', 14)}Zeit</span>
+          <div class="p-runde-spur"><div class="p-runde-balken"><i style="width:100%;background:var(--p-mint)"></i></div></div>
+          <b class="p-runde-pz">gleich</b>
+        </div>
+        ${verben}
+      </div>
+      <div class="p-dlg-knoepfe"><button class="p-dlg-btn p-dlg-btn--ok" data-start>Runde ${nr} starten</button></div>
     </div>`;
   d.querySelector('[data-start]').addEventListener('click', () => { d.remove(); startCampaignRun(); });
   document.body.appendChild(d);
+  _rundeLaden(d);
+}
+
+// Leisten laden sich nacheinander auf: das neue Stück wächst, die Zahl zählt mit, an
+// der Kante sprühen Pixel-Funken, am Ende springt die Zahl kurz auf. Die Zeit-Leiste
+// bleibt voll und bekommt nur einen Glanz, Verben nur das Aufspringen. Bei
+// „Bewegung reduzieren“ steht alles sofort da.
+function _rundeLaden(d) {
+  const zeilen = [...d.querySelectorAll('[data-laden]')];
+  const fertig = (z) => {
+    const neu = z.querySelector('.neu');
+    if (neu) { neu.style.width = z.dataset.b + '%'; z.querySelector('.p-runde-pz').innerHTML = _pz(+z.dataset.bis); }
+  };
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) { zeilen.forEach(fertig); return; }
+  const DAUER = 700, ABSTAND = 420, START = 450;
+  zeilen.forEach((z, i) => setTimeout(() => {
+    if (!z.isConnected) return;
+    const pz = z.querySelector('.p-runde-pz');
+    const auf = () => { pz.classList.remove('is-auf'); void pz.offsetWidth; pz.classList.add('is-auf'); };
+    if (!z.querySelector('.neu')) {
+      if ('glanz' in z.dataset) z.querySelector('.p-runde-balken').classList.add('is-glanz');
+      auf();
+      return;
+    }
+    const a = +z.dataset.a, b = +z.dataset.b, von = +z.dataset.von, bis = +z.dataset.bis;
+    const neu = z.querySelector('.neu'), funken = z.querySelector('.p-runde-funken');
+    const t0 = performance.now();
+    let zuletzt = 0;
+    const bild = (jetzt) => {
+      if (!z.isConnected) return;
+      const t = Math.min(1, (jetzt - t0) / DAUER), e = 1 - Math.pow(1 - t, 3);
+      const x = a + (b - a) * e;
+      neu.style.width = x + '%';
+      pz.innerHTML = _pz(von + (bis - von) * e);
+      if (t < 1) {
+        if (jetzt - zuletzt > 45) { zuletzt = jetzt; _funken(funken, x, 2, z.dataset.farbe, 0); }
+        requestAnimationFrame(bild);
+      } else {
+        _funken(funken, b, 9, z.dataset.farbe, 1);
+        auf();
+      }
+    };
+    requestAnimationFrame(bild);
+  }, START + i * ABSTAND));
+}
+
+// Pixel-Funken (4 × 4, eckig) an der Stelle x (% der Leiste): fliegen nach oben weg
+// und verlöschen; beim Abschluss (weit = 1) streuen sie weiter.
+function _funken(host, x, n, farbe, weit) {
+  for (let i = 0; i < n; i++) {
+    const f = document.createElement('i');
+    f.className = 'p-runde-funke';
+    f.style.left = x + '%';
+    f.style.background = Math.random() < 0.5 ? farbe : 'var(--p-gold)';
+    f.style.setProperty('--dx', Math.round((Math.random() - 0.5) * (weit ? 34 : 12)) + 'px');
+    f.style.setProperty('--dy', -Math.round(8 + Math.random() * (weit ? 18 : 12)) + 'px');
+    f.addEventListener('animationend', () => f.remove());
+    host.appendChild(f);
+  }
 }
 
 export function renderCampaign() {

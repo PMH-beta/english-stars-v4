@@ -60,15 +60,18 @@ function _bildFarbe(img, x, y) {
   }
   return _bildPunkte.get(k);
 }
-// Farbe am oberen Rand: Grundton des Body, darüber jede feste Ebene, die oben in
-// der Mitte liegt, mit ihrer Deckkraft gemischt (von unten nach oben) — beim Kampf
-// samt Kampfplatz.
+// Farbe am oberen Rand: Grundton des Body, darüber der Screen (er kann beim
+// Screen-Wechsel einen Moment anders sein als der Body), darüber jede feste Ebene,
+// die oben in der Mitte liegt, mit ihrer Deckkraft gemischt (von unten nach oben) —
+// beim Kampf samt Kampfplatz.
 function _obenFarbe() {
   const x = window.innerWidth / 2;
   let [r, g, b] = _rgba(getComputedStyle(document.body).backgroundColor);
   const misch = ([er, eg, eb], a) => { r += (er - r) * a; g += (eg - g) * a; b += (eb - b) * a; };
-  const ebenen = document.elementsFromPoint(x, 1)
-    .filter((e) => getComputedStyle(e).position === 'fixed').reverse();
+  const stapel = document.elementsFromPoint(x, 1);
+  const screen = stapel.find((e) => e.classList.contains('p-screen'));
+  if (screen) { const f = _rgba(getComputedStyle(screen).backgroundColor); if (f[3] > 0) misch(f, f[3]); }
+  const ebenen = stapel.filter((e) => getComputedStyle(e).position === 'fixed').reverse();
   for (const e of ebenen) {
     const f = _rgba(getComputedStyle(e).backgroundColor);
     const a = f[3] * _deckkraft(e);
@@ -108,6 +111,21 @@ function setThemeColor(hex) {
 // ton: einer aus GRUNDTOENE. el: das .p-screen-Element des Screens (optional).
 export function setGrundton(ton, el) {
   if (!GRUNDTOENE.includes(ton)) { console.warn('[screen-shell] unbekannter Grundton "' + ton + '"'); return; }
+  // Ganzer Screen-Wechsel (z. B. ins Profil): der neue Screen ist noch versteckt und
+  // käme sonst hart im neuen Ton, während Body und Statusleiste noch blenden — oben
+  // stand dann eine Kante (Wunsch des Nutzers 09.10.2026). Er beginnt deshalb im
+  // bisherigen Ton und blendet mit. Bei „Bewegung reduzieren“ bleibt es ein harter Schnitt.
+  const vorher = document.body.classList.contains('p-app') ? getComputedStyle(document.body).backgroundColor : '';
+  if (vorher && el?.classList.contains('p-screen') && getComputedStyle(el).display === 'none'
+      && !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+    el.style.transition = 'none';
+    el.style.backgroundColor = vorher;
+    requestAnimationFrame(() => {
+      void getComputedStyle(el).backgroundColor;   // Startfarbe festhalten, dann blenden
+      el.style.transition = '';
+      el.style.backgroundColor = '';
+    });
+  }
   for (const ziel of [document.body, el]) {
     if (!ziel) continue;
     GRUNDTOENE.forEach(t => ziel.classList.remove('p-ton-' + t));

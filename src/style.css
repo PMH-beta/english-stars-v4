@@ -1784,20 +1784,43 @@ button.p-chip{ cursor:pointer; }
    „UI-Animationen weich“ (Wunsch des Nutzers 09.10.2026, nur auf der Karte). */
 :root .p-knoten-krone[data-ui]{ transition:none; }
 
-/* Neue Runde nach dem Boss (F-82): Tabelle alt → neu im Kartenstil. */
-.p-runde-kicker{ border:0; padding:0; margin-top:16px; text-align:left; }
-.p-runde-tabelle{
-  width:100%; margin-top:8px; border-collapse:separate; border-spacing:0;
+/* Neue Runde nach dem Boss (F-82): Leisten, die sich aufladen (Wunsch des Nutzers
+   09.10.2026) — alter Stand blass, das neue Stück kräftig, dazu Pixel-Funken. */
+.p-runde-unter{ margin-top:4px; font:800 11.5px var(--p-font); color:var(--p-text-2); }
+.p-runde-liste{
+  margin-top:14px; padding:2px 12px; text-align:left;
   border:var(--p-rahmen); border-radius:var(--p-r-chip-gross); background:var(--p-karte-hell);
-  font:800 12px var(--p-font); color:var(--p-ink); text-align:left;
 }
-.p-runde-tabelle th, .p-runde-tabelle td{ padding:9px 10px; }
-.p-runde-tabelle thead th{
-  padding-bottom:3px; font:900 9.5px var(--p-font); letter-spacing:.1em; text-transform:uppercase; color:var(--p-text-2);
+.p-runde-gruppe{ padding:10px 0; }
+.p-runde-gruppe + .p-runde-gruppe{ border-top:var(--p-haarlinie); }
+.p-runde-kopf{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:4px; }
+.p-runde-name{ display:inline-flex; align-items:center; gap:7px; font:900 12px var(--p-font); color:var(--p-ink); white-space:nowrap; }
+.p-runde-werte{ font:800 10px var(--p-font); color:var(--p-text-2); white-space:nowrap; }
+.p-runde-zeile, .p-runde-einzeln{ display:grid; grid-template-columns:62px 1fr 52px; align-items:center; gap:8px; }
+.p-runde-zeile{ height:24px; }
+.p-runde-einzeln{ min-height:24px; }
+.p-runde-einzeln > .p-runde-chip{ grid-column:2 / 4; justify-self:start; }
+.p-runde-art{ font:800 9.5px var(--p-font); letter-spacing:.1em; text-transform:uppercase; color:var(--p-text-2); }
+.p-runde-spur{ position:relative; }
+.p-runde-balken{ position:relative; height:12px; border-radius:var(--p-r-balken); overflow:hidden; background:var(--p-spur); }
+.p-runde-balken > i{ position:absolute; top:0; bottom:0; left:0; }
+.p-runde-pz{ justify-self:end; font:900 13px var(--p-font); color:var(--p-ink); white-space:nowrap; font-variant-numeric:tabular-nums; }
+.p-runde-chip{ padding:3px 10px; border:var(--p-rahmen); border-radius:var(--p-r-chip); font-size:11px; }
+.p-runde-pz.is-auf{ animation:p-runde-auf .32s ease-out; }
+@keyframes p-runde-auf{ 0%{ scale:1; } 40%{ scale:1.22; } 100%{ scale:1; } }
+/* Glanz über der vollen Zeit-Leiste: ein heller Streifen läuft einmal durch. */
+.p-runde-balken.is-glanz::after{
+  content:""; position:absolute; top:0; bottom:0; left:-40%; width:40%;
+  background:linear-gradient(90deg, transparent, rgba(255,255,255,.75), transparent);
+  animation:p-runde-glanz .7s ease-out forwards;
 }
-.p-runde-tabelle tbody tr + tr > *{ border-top:var(--p-haarlinie); }
-.p-runde-name{ display:inline-flex; align-items:center; gap:7px; font-weight:900; }
-.p-runde-tabelle b{ font-weight:900; }
+@keyframes p-runde-glanz{ to{ left:100%; } }
+.p-runde-funken{ position:absolute; inset:0; pointer-events:none; }
+.p-runde-funke{
+  position:absolute; top:4px; width:4px; height:4px; margin-left:-2px;
+  animation:p-runde-funke .55s ease-out forwards;
+}
+@keyframes p-runde-funke{ from{ translate:0 0; opacity:1; } to{ translate:var(--dx) var(--dy); opacity:0; } }
 
 /* Tränkeplätze: belegte tragen Kontur, freie bleiben gestrichelt (28 + Rahmen). */
 .camp-slot{
@@ -3593,11 +3616,14 @@ body.p-app .music-btn-global{
 body.p-app .music-btn-global.on{ background:var(--p-lila); box-shadow:none; animation:none; }
 body.p-app .music-btn-global:hover, body.p-app .music-btn-global:active{ transform:none; }
 body.p-app .music-vol-btn{ bottom:calc(88px + env(safe-area-inset-bottom,0px)); }
-/* Speichern (9.4): Papier-Pille mit drei wippenden Punkten. */
+/* Speichern: statt der Papier-Pille (9.4) nur drei kleine wippende Punkte ganz oben
+   rechts im Grundton (Wunsch des Nutzers 09.10.2026). */
 #es-saving-bar.p-band{
-  top:calc(52px + env(safe-area-inset-top,0px)); gap:9px; padding:7px 16px;
-  border-radius:999px; background:var(--p-karte); color:var(--p-ink); font:800 12px var(--p-font);
+  top:calc(1px + env(safe-area-inset-top,0px)); right:12px; left:auto; transform:none;
+  padding:2px 0; border:0; border-radius:0; background:none;
 }
+#es-saving-bar .p-band-punkte{ gap:3px; }
+#es-saving-bar .p-band-punkte > span{ width:4px; height:4px; background:var(--p-ink); opacity:.55; }
 .p-band-punkte{ display:flex; gap:4px; }
 .p-band-punkte > span{ width:6px; height:6px; border-radius:50%; background:var(--p-ink); }
 /* Hinweis unten (9.4): Wolke + Text auf hellem Papier. */
@@ -3618,6 +3644,9 @@ body.p-app .music-vol-btn{ bottom:calc(88px + env(safe-area-inset-bottom,0px)); 
   font:900 13px var(--p-font); color:var(--p-ink);
   pointer-events:none; opacity:0; transition:opacity .2s;
 }
+/* „Zum Schließen erneut zurück“ unten statt oben (Wunsch des Nutzers 09.10.2026),
+   an derselben Stelle wie der Hinweis unten (9.4). */
+#_es-exit-toast.p-toast{ top:auto; bottom:calc(30px + env(safe-area-inset-bottom,0px)); }
 /* Ziehen zum Neuladen (9.6): Balken oben, darunter Symbol + Text. */
 #ptr-bar{
   position:fixed; top:env(safe-area-inset-top,0px); left:0; right:0; transform:none;
