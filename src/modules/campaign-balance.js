@@ -9,21 +9,24 @@ export const HP_MAX = 60;
 export const BOSS_WIN_TALER = 1;
 
 // Gegner je Knotentyp. Wellen sind UNBEGRENZT — der Kampf endet erst bei Gegner-HP 0
-// (Sieg) oder Spieler-HP 0 (Tod). hp steuert also die Kampflänge (18 HP ≈ 2–3 gewonnene
-// Wellen je nach Waffe), dmg = Spieler-HP-Verlust pro verlorener Welle.
+// (Sieg) oder Spieler-HP 0 (Tod). hp steuert also die Kampflänge, dmg = Spieler-HP-
+// Verlust pro verlorener Welle. Seit 09.10.2026 (F-79) 30 % weniger Leben (vorher
+// 22/36/58): mit der Faust 4/7/11 gewonnene Wellen in Runde 1 statt 6/9/15.
 export const ENEMY = {
-  fight:     { hp: 22, dmg: 9, icon: '👾', name: 'Wortgeist' },
-  irregular: { hp: 36, dmg: 11, icon: '🌀', name: 'Gestaltwandler' },   // Phase 2
-  boss:      { hp: 58, dmg: 16, icon: '🐉', name: 'Boss' },
+  fight:     { hp: 15, dmg: 9, icon: '👾', name: 'Wortgeist' },
+  irregular: { hp: 25, dmg: 11, icon: '🌀', name: 'Gestaltwandler' },   // Phase 2
+  boss:      { hp: 41, dmg: 16, icon: '🐉', name: 'Boss' },
 };
 
 // Schwierigkeit steigt mit jeder abgeschlossenen Runde (= Boss-Siege bisher, round=0
-// in der allerersten Runde): +15 % HP/Schaden pro Runde.
+// in der allerersten Runde): +15 % Schaden, aber nur +8 % Leben pro Runde (F-79) —
+// spätere Runden werden gefährlicher, die Kämpfe aber kaum länger.
 export const ROUND_SCALE = 0.15;
+export const ROUND_SCALE_HP = 0.08;
 export function scaledEnemy(type, round) {
   const base = ENEMY[type] || ENEMY.fight;
-  const mult = 1 + ROUND_SCALE * Math.max(0, round || 0);
-  return { ...base, hp: Math.round(base.hp * mult), dmg: Math.round(base.dmg * mult) };
+  const r = Math.max(0, round || 0);
+  return { ...base, hp: Math.round(base.hp * (1 + ROUND_SCALE_HP * r)), dmg: Math.round(base.dmg * (1 + ROUND_SCALE * r)) };
 }
 
 // Waffenschaden pro gewonnener Welle: ohne Schmiede-Waffe kämpft die Faust;
@@ -62,8 +65,9 @@ export const ECHO_CHOICES = 5;             // 1 richtig + 4 falsch
 
 // Stimmt das? (Minispiel): mehrere Wortpaare hintereinander beurteilen. Ein Fehl-
 // urteil beendet die Welle sofort — die Zeit gilt für ALLE Paare zusammen.
+// 22 s seit 09.10.2026 (F-81, vorher 17 s — man musste sich zu sehr beeilen).
 export const TF_PAIRS = 3;
-export const TF_TIME_MS = 17000;
+export const TF_TIME_MS = 22000;
 
 // ── Wortauswahl im Kampf: Vorrat mit fester Grundzahl ──
 // Der Kampf führt einen EIGENEN Lernstand je Wort (Stat-Suffix _cf) — getrennt von

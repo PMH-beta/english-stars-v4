@@ -277,7 +277,7 @@ function _shuffle(a) {
 // ── Kampf-Lifecycle ──────────────────────────────────────────────────────────
 let _ctx = null;   // { run, node, enemy, weapon, save, onEnd, mg, round }
 
-// onEnd(result): 'victory' | 'death' (auch bei bewusstem „Kampf verlassen") | null
+// onEnd(result): 'victory' | 'death' | 'retreat' (X-Knopf: einen Punkt zurück, F-78) | null
 // (interner Nicht-Fall, z. B. Wortpool beim Laden leer). stat(key) zählt einen
 // Kampagnen-Statistikwert hoch (die Zähler selbst liegen in campaign.js).
 export function openFight({ run, node, save, onEnd, round, stat }) {
@@ -399,7 +399,7 @@ function _renderOverlay() {
   ov.innerHTML = `
     <div class="cf-scenery">${_arenaScene(_ctx.round)}</div>
     <div class="cf-kopf">
-      <button id="cf-flee" class="cf-rund" title="Kampf verlassen (Fortschritt + Einsatz weg)">${iconHTML('close', 14)}</button>
+      <button id="cf-flee" class="cf-rund" title="Zurückgehen (einen Punkt zurück)">${iconHTML('close', 14)}</button>
       <div class="cf-kopfleiste">
         ${_titelHTML(node.type)}
         <span class="cf-welle">${_laufHTML(run, node)}</span>
@@ -440,22 +440,26 @@ function _renderOverlay() {
   // noch keine Groesse.
   _buildPlayers();
   _el('cf-flee').onclick = () => {
-    // Verlassen zählt wie Tod (verhindert Welle-neu-würfeln durch Fliehen+Fortsetzen) —
-    // deshalb vorher fragen, mit demselben Blur-Hintergrund-Dialog wie „Aufgeben". Welle
-    // pausiert währenddessen (Minispiel-Timer liefe sonst im Hintergrund weiter). Der
-    // sichere Weg (Weiterkämpfen) ist der hervorgehobene ok-Button, nicht Verlassen.
+    // Zurückgehen (F-78, Wunsch des Nutzers 09.10.2026; vorher zählte Verlassen wie
+    // eine Niederlage): einen Punkt zurück, dort wartet ein normaler Kampf — die
+    // Folgen regelt campaign.js (onEnd 'retreat'). Vorher fragen; die Welle pausiert
+    // währenddessen, der Hintergrund ist unscharf (style.css). Der sichere Weg
+    // (Weiterkämpfen) ist der hervorgehobene Knopf.
     if (_ctx?.mg?.pause) _ctx.mg.pause();
-    const leave = () => _close('death');
-    // Dialog wie Fragment 7.14: Totenkopf auf Sand, Text ohne Vondu-Kasten,
-    // „Verlassen" hell, „Weiterkämpfen" als sicherer, hervorgehobener Knopf.
+    const leave = () => _close('retreat');
+    const amStart = !(_ctx?.run.visited || []).some((id) => id !== _ctx.node.id);
+    // Dialog wie Fragment 7.14 (Text ohne Vondu-Kasten), Emblem Zurück-Pfeil statt
+    // Totenkopf — man verliert ja nicht mehr.
     const d = document.createElement('div');
     d.className = 'p-dlg-grund cf-weg-grund';
     d.innerHTML = `<div class="p-dlg-karte cf-weg-karte">
-        <div class="cf-ende-emblem" style="background:var(--p-inaktiv)">${iconHTML('skull', 42)}</div>
-        <div class="cf-weg-titel">Kampf verlassen?</div>
-        <div class="cf-weg-text">Dein Fortschritt in diesem Kampf und dein Einsatz sind weg — du fängst wieder bei Runde 1 an, genau wie bei einer Niederlage.</div>
+        <div class="cf-ende-emblem" style="background:var(--p-inaktiv)">${iconHTML('back', 42)}</div>
+        <div class="cf-weg-titel">Zurückgehen?</div>
+        <div class="cf-weg-text">${amStart
+          ? 'Du gehst zurück zum Start und wählst deinen Startpunkt neu. Deine Leben bleiben, wie sie sind.'
+          : 'Du gehst einen Punkt zurück. Dort wartet ein neuer Kampf — deine Leben bleiben, wie sie sind.'}</div>
         <div class="cf-weg-knoepfe">
-          <button class="cf-weg-btn" data-weg="1">Verlassen</button>
+          <button class="cf-weg-btn" data-weg="1">Zurückgehen</button>
           <button class="cf-weg-btn cf-weg-btn--bleib" data-weg="0">Weiterkämpfen</button>
         </div>
       </div>`;

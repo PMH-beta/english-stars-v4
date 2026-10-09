@@ -1409,11 +1409,13 @@ body.p-app .music-vol-btn{
    Der Grundton folgt dem aktiven Tab: Kampagne Amber, Vokabeln Mint, Formen
    Flieder. _renderModeToggle() in ui.js setzt ihn, der aktive Tab erbt ihn. */
 
-/* Zeilenkarte mit Symbolkachel links — Probetest, Trainingsplatz. */
+/* Zeilenkarte mit Symbolkachel links — Probetest, Trainingsplatz. Zu sind beide
+   80 hoch wie der Kopf der Kampagne (Wunsch des Nutzers 09.10.2026: beim
+   Tab-Wechsel springt nichts) — der Probetest hatte 13 Polster und 44er Kachel. */
 .p-zeilenkarte{
-  border:var(--p-rahmen); border-radius:var(--p-r-karte); background:var(--p-karte); padding:13px;
+  border:var(--p-rahmen); border-radius:var(--p-r-karte); background:var(--p-karte); padding:14px;
 }
-.p-zeilenkarte-kopf{ display:flex; align-items:center; gap:11px; }
+.p-zeilenkarte-kopf{ display:flex; align-items:center; gap:11px; min-height:48px; }
 /* Außenmaße: Fragment 40 + 2 × 2 Rahmen (die Referenz rechnet ohne box-sizing). */
 .p-symbolkachel{
   width:44px; height:44px; flex:none;
@@ -1767,14 +1769,17 @@ button.p-chip{ cursor:pointer; }
 .p-trank-blase-name{ font:900 13px var(--p-font); }
 .p-trank-blase-text{ font:700 11px var(--p-font); color:var(--p-text-akzent); }
 
-/* Legende unter „Pfad wählen": zwei Strichproben. */
-.p-pfad-probe{ display:inline-block; width:22px; height:4px; }
-.p-pfad-probe--offen{
-  background:repeating-linear-gradient(90deg,#1F1F24 0 5px,transparent 5px 9px);
-}
-.p-pfad-probe--spaeter{
-  background:repeating-linear-gradient(90deg,#9B968A 0 4px,transparent 4px 10px);
-}
+/* Kopfkarte des Laufs (6.1). Seit 09.10.2026 so hoch wie Probetest und
+   Trainingsplatz (80), damit beim Tab-Wechsel nichts springt (Wunsch des
+   Nutzers): Runde und Leben links, Tränkeplätze rechts, ohne „Aufgeben". */
+.camp-kopf{ display:flex; align-items:center; gap:12px; min-height:80px; padding:14px; border-radius:22px; }
+.camp-kopf-runde{ font:900 12px var(--p-font); letter-spacing:.06em; text-transform:uppercase; color:var(--p-text-3); }
+.camp-kopf-leben{ display:flex; align-items:center; gap:8px; margin-top:8px; }
+.camp-kopf-leben > span{ font:800 9px var(--p-font); letter-spacing:.1em; text-transform:uppercase; color:var(--p-text-2); }
+.camp-kopf-leben > .p-balken{ flex:1; min-width:0; }
+.camp-kopf-leben > b{ font:900 13px var(--p-font); }
+/* Boss-Krone mittig: im 14er-Raster ist sie nur 13 breit (halbes Raster = 2 px). */
+.p-knoten-krone{ position:relative; left:2px; }
 
 /* Tränkeplätze: belegte tragen Kontur, freie bleiben gestrichelt (28 + Rahmen). */
 .camp-slot{
@@ -2816,7 +2821,8 @@ button.p-chip{ cursor:pointer; }
   border:var(--p-rahmen); border-radius:18px; background:var(--p-ink); color:var(--p-gold);
   display:flex; align-items:center; justify-content:center; font:900 14px var(--p-font); cursor:pointer;
 }
-.p-dlg-grund.cf-weg-grund{ padding:18px; background:rgba(31,31,36,.45); }
+/* Pause im Kampf: der Kampf dahinter unscharf (Wunsch des Nutzers 09.10.2026). */
+.p-dlg-grund.cf-weg-grund{ padding:18px; background:rgba(31,31,36,.45); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px); }
 .p-dlg-karte.cf-weg-karte{ max-width:366px; background:var(--p-karte-hell); padding:22px 18px 18px; }
 .cf-weg-titel{ font:900 22px var(--p-font); text-align:center; margin-top:14px; }
 .cf-weg-text{ font:700 12.5px/1.55 var(--p-font); color:var(--p-text-akzent); text-align:center; margin-top:8px; }

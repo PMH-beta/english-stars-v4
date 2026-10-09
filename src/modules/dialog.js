@@ -22,6 +22,8 @@ const DLG_ICON = {
   '❤️': 'potion', '✨': 'star', '🎉': 'star', '🏆': 'trophy',
   '🐾': 'paw', '🗑️': 'trash', '🔑': 'key', '🔒': 'lock',
   '📚': 'book', '📦': 'book', '🎯': 'target', '🪙': 'coin', '👑': 'crown',
+  // 09.10.2026 (Nutzer sah noch Emoji in Popups): die übrigen Aufrufer-Emoji.
+  '🏠': 'back', '🔄': 'refresh', '📭': 'book', '📡': 'signal', '🤔': 'bulb', '⏱': 'hourglass',
 };
 
 // Grundgerüst: Backdrop + Karte mit optionalem Icon, Titel, Fließtext. Gibt die

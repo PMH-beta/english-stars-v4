@@ -66,7 +66,7 @@ function _runDepth(run) {
 
 // Lauf-Länge = Tiefe ALLER Karten des laufenden Aufstiegs zusammen: ein Boss-Sieg
 // beendet nur die Karte, der Lauf geht in der nächsten Runde weiter (freeStart) —
-// erst Tod oder Aufgeben beendet ihn. c.runLen sammelt die abgeschlossenen Karten,
+// erst der Tod beendet ihn. c.runLen sammelt die abgeschlossenen Karten,
 // die aktuelle kommt über _runDepth dazu.
 function _runLength(c) { return (c.runLen || 0) + _runDepth(c.run); }
 // Karte zu Ende: Rekord festhalten (längster Lauf + wie viele Bosse dabei fielen) und
@@ -94,7 +94,7 @@ function _camp() {
   if (typeof SD.campaign.talerSpent !== 'number') SD.campaign.talerSpent = 0;
   if (typeof SD.campaign.bossWins !== 'number') SD.campaign.bossWins = 0;
   // Runde = Schwierigkeitsstufe des LAUFENDEN Aufstiegs (Slay-the-Spire-Ascension):
-  // +1 pro Boss-Sieg, bei Niederlage/Aufgeben zurück auf 0. bossWins bleibt davon
+  // +1 pro Boss-Sieg, bei Niederlage zurück auf 0. bossWins bleibt davon
   // unberührt (Lebenszähler fürs Profil). Altstände erben ihre bisherige Stufe.
   if (typeof SD.campaign.round !== 'number') SD.campaign.round = SD.campaign.bossWins || 0;
   if (typeof SD.campaign.freeStart !== 'boolean') SD.campaign.freeStart = false;
@@ -371,6 +371,7 @@ function _typeForRow(r, hasVerbs) {
 
 // ── Run-Lifecycle ──
 function _isReachable(run, node) {
+  if (run.zurueck) return node.id === run.zurueck;   // nach dem Zurückgehen (F-78)
   if (run.pos == null) return node.row === 0;
   const cur = run.map.nodes[run.pos];
   return !!cur && cur.next.includes(node.id);
@@ -387,7 +388,7 @@ export function startCampaignRun() {
   // dastehen — auch mitten im Lauf neu angelegte Wörter rutschen nach, sobald sie
   // im Üben zweimal dran waren (Filter in campaign-fight.js).
   // Unverbrauchte Tränke aus einem Boss-Sieg wandern in die neue Runde mit
-  // (siehe _startFight/onEnd) — bei Tod/Aufgeben gibt es kein carryPotions, dann 0.
+  // (siehe _startFight/onEnd) — beim Tod gibt es kein carryPotions, dann 0.
   c.run = { map: generateMap(), pos: null, visited: [], hp: hpMax, hpMax, potions: c.carryPotions || [] };
   c.carryPotions = null;
   _saveCampaign();
@@ -406,9 +407,10 @@ export function campaignNode(id) {
   if (run.fight) { resumeCampaignFight(); return; }   // offener Kampf geht vor
   const node = run.map.nodes[id];
   if (!node || !_isReachable(run, node)) return;
+  run.zurueck = null;
   c.stats.bestRow = Math.max(c.stats.bestRow, node.row + 1);
   if (node.type === 'fight' || node.type === 'boss' || node.type === 'irregular') {
-    if (!fightPoolReady()) { window.esToast?.('📭 Keine Vokabeln in deinen Decks — der Kampf braucht Wörter'); return; }
+    if (!fightPoolReady()) { window.esToast?.('Keine Vokabeln in deinen Decks — der Kampf braucht Wörter'); return; }
     run.pos = id;
     if (!run.visited.includes(id)) run.visited.push(id);
     _saveCampaign();
@@ -439,7 +441,7 @@ export function campaignNode(id) {
         run.potions.push(key);
         _saveCampaign();
         renderCampaign();   // sonst zeigt die Kopfzeile den neuen Trank erst beim nächsten Klick
-        window.esToast?.(`${POTIONS[key].icon} ${POTIONS[key].name} eingesteckt!`);
+        window.esToast?.(`${POTIONS[key].name} eingesteckt!`);
       },
     });
     return;
@@ -448,9 +450,25 @@ export function campaignNode(id) {
   renderCampaign();
 }
 
-// Kampf am Knoten öffnen. onEnd regelt die Run-Folgen: Boss-Sieg oder Tod (auch durch
-// bewusstes „Kampf verlassen" — campaign-fight.js fragt vorher extra nach) beendet den
-// Run; null ist nur der interne Nicht-Fall (z. B. Wortpool beim Laden leer).
+// Zurückgehen im Kampf (F-78, Wunsch des Nutzers 09.10.2026; vorher zählte das
+// Verlassen wie eine Niederlage): einen Punkt zurück. Der vorige Punkt des Wegs wird
+// ein normaler Kampf und ist als einziger antippbar (run.zurueck) — wer zurückgeht,
+// muss wieder kämpfen, zum Heilen lohnt es sich nicht. Die Leben bleiben, der Gegner,
+// vor dem man ging, ist beim nächsten Mal wieder voll. Am ersten Punkt geht es zurück
+// zum Start (Startpunkt frei wählbar). run.visited ist der Weg in Reihenfolge.
+function _zurueck(run) {
+  const weg = run.visited.filter((id) => id !== run.pos);
+  const ziel = weg.length ? weg[weg.length - 1] : null;
+  run.fight = null;
+  run.visited = weg;
+  run.pos = weg.length > 1 ? weg[weg.length - 2] : null;
+  run.zurueck = ziel;
+  if (ziel) run.map.nodes[ziel].type = 'fight';
+}
+
+// Kampf am Knoten öffnen. onEnd regelt die Run-Folgen: Boss-Sieg oder Tod beendet den
+// Run, 'retreat' geht einen Punkt zurück (_zurueck); null ist nur der interne
+// Nicht-Fall (z. B. Wortpool beim Laden leer).
 function _startFight(node) {
   const c = _camp();
   openFight({
@@ -460,6 +478,7 @@ function _startFight(node) {
     round: campRound(),
     stat: (key) => { if (CAMP_STAT_KEYS.includes(key)) c.stats[key]++; },
     onEnd: (result) => {
+      if (result === 'retreat') { _zurueck(c.run); _saveCampaign(); renderCampaign(); return; }
       const bossWin = result === 'victory' && node.type === 'boss';
       if (bossWin) {
         c.bossWins = (c.bossWins || 0) + 1;
@@ -496,21 +515,6 @@ export function resumeCampaignFight() {
   const node = c.run.map.nodes[f.nodeId];
   if (!node) { c.run.fight = null; _saveCampaign(); renderCampaign(); return; }
   _startFight(node);
-}
-
-export function campaignGiveUp() {
-  const c = _camp();
-  if (!c.run) return;
-  // Aufgeben beendet den Lauf ohne Boss-Sieg → zählt wie gescheitert, sonst
-  // verschwänden aufgegebene Läufe spurlos aus der Statistik.
-  const finish = () => { c.stats.runsLost++; _finishMap(c, false); c.round = 0; c.run = null; _saveCampaign(); renderCampaign(); };
-  if (window.esConfirm) {
-    window.esConfirm({
-      icon: '🏳️', title: 'Aufgeben?',
-      body: 'Dein Einsatz (2 🪙) ist schon gesetzt und kommt nicht zurück — und du fängst wieder bei Runde 1 an.',
-      ok: 'Aufgeben', cancel: 'Weiter', danger: true,
-    }).then(ok => { if (ok) finish(); });
-  } else finish();
 }
 
 // Mini-Infoblase für einen Trank auf der Karte (Icon antippen). Nochmal auf dasselbe
@@ -678,7 +682,9 @@ function _mapHtml(run) {
     const blass = !(reachable || visited || isCur || isBoss);
     let icon = iconHTML(meta.icon, isBoss ? 56 : 28);
     if (n.type === 'rest') icon = _flackern(icon, n.row % 4);
-    if (isBoss) icon = icon.replace('<canvas ', '<canvas data-ui="bob" data-a="2" ');
+    // Die Krone ist im 14er-Raster nur 13 breit und säße 2 px zu weit links
+    // (Wunsch des Nutzers: mittig) — verschoben, Pixeldaten unverändert.
+    if (isBoss) icon = icon.replace('<canvas ', '<canvas class="p-knoten-krone" data-ui="bob" data-a="2" ');
     if (blass) icon = `<span class="p-knoten-blass">${icon}</span>`;
     // Goldring wächst im Takt (data-ui="halo"), jeder offene Punkt 2 Takte versetzt.
     const halo = offen ? ` data-ui="halo" data-d="${isBoss ? 0 : 2 * ++offenN}"` : '';
@@ -691,11 +697,6 @@ function _mapHtml(run) {
   let header;
   {   // Kopfkarte des laufenden Laufs (Fragment 6.1)
     const hpPct = Math.max(0, Math.round(run.hp / run.hpMax * 100));
-    const statusText = run.fight
-      ? 'Ein Kampf wartet auf dich — tippe einen Punkt an'
-      : run.pos == null
-        ? 'Wähle unten deinen Startpunkt'
-        : 'Wähle den nächsten Knoten';
     // Mitgeführte Tränke über der Lebensanzeige (spielbar sind sie erst im Kampf — hier
     // nur Anzeige; Antippen zeigt Name+Wirkung als kleine Sprechblase daneben).
     // Gleiche Tränke liegen auf EINEM Platz mit kleiner Anzahl in der Ecke; mindestens
@@ -704,7 +705,7 @@ function _mapHtml(run) {
       `<button onclick="campPotionInfo(this,'${s.key}')" class="camp-slot" style="background:${POTION_TON[s.key] || 'var(--p-karte)'}">${iconHTML('potion', 14)}${
         s.count > 1 ? `<span class="potion-n">${s.count}</span>` : ''}</button>`);
     while (slots.length < 3) slots.push('<div class="camp-slot empty"></div>');
-    const potionsHtml = `<div style="display:flex;gap:6px;">${slots.join('')}</div>`;
+    const potionsHtml = `<div style="display:flex;gap:6px;flex:none">${slots.join('')}</div>`;
     // Runde = Stufe des laufenden Aufstiegs (1. Boss-Sieg schließt Runde 1 ab, danach läuft
     // Runde 2 usw.; eine Niederlage setzt zurück auf Runde 1);
     // Run-Länge = wie weit dieser Aufstieg insgesamt gekommen ist (alle Karten zusammen,
@@ -713,40 +714,23 @@ function _mapHtml(run) {
     // Fortschritt-Seite („Längster Run").
     const c = _camp();
     const roundNum = (c.round || 0) + 1;
-    // Kopfkarte: Runde und Run-Laenge links, Traenkeplaetze rechts, darunter
-    // Lebensbalken und Aufgeben.
+    // Kopfkarte (Wunsch des Nutzers 09.10.2026): so hoch wie Probetest und
+    // Trainingsplatz, damit beim Tab-Wechsel nichts springt — Runde und Leben links,
+    // Tränkeplätze rechts. „Aufgeben" und die Hinweiszeile darunter sind weg.
     header = `
-  <div class="p-karte" style="border-radius:22px;padding:14px">
-    <div class="p-reihe" style="justify-content:space-between">
-      <div style="font:900 12px var(--p-font);letter-spacing:.06em;text-transform:uppercase;color:var(--p-text-3)">Runde ${roundNum} · Run-Länge ${_runLength(c)}</div>
-      ${potionsHtml}
+  <div class="p-karte camp-kopf">
+    <div class="p-wachs">
+      <div class="camp-kopf-runde">Runde ${roundNum} · Run-Länge ${_runLength(c)}</div>
+      <div class="camp-kopf-leben"><span>Leben</span><div class="p-balken"><i style="width:${hpPct}%"></i></div><b>${run.hp}/${run.hpMax}</b></div>
     </div>
-    <div class="p-reihe" style="gap:10px;margin-top:12px">
-      <div class="p-wachs">
-        <div style="display:flex;justify-content:space-between;align-items:baseline">
-          <span style="font:800 9px var(--p-font);letter-spacing:.1em;text-transform:uppercase;color:var(--p-text-2)">Leben</span>
-          <span style="font:900 13px var(--p-font)">${run.hp}/${run.hpMax}</span>
-        </div>
-        <div class="p-balken" style="margin-top:5px"><i style="width:${hpPct}%"></i></div>
-      </div>
-      <button onclick="campaignGiveUp()" class="p-chip" style="border-radius:14px;padding:7px 11px;background:var(--p-falsch);flex:none">Aufgeben</button>
-    </div>
-  </div>
-  <div style="text-align:center;font:700 11px var(--p-font);color:var(--p-text-2);margin-top:12px">${statusText}</div>`;
+    ${potionsHtml}
+  </div>`;
   }
-  // Die Karte liegt in einer eigenen Karte mit Legende — welcher Pfad jetzt offen
-  // ist und welcher spaeter kommt, ist sonst nicht zu unterscheiden.
-  const legende = `
-    <div class="p-reihe" style="justify-content:space-between;margin-bottom:12px">
-      <div class="p-kicker" style="border:0;padding:0">Pfad wählen</div>
-      <div class="p-reihe" style="gap:7px;font:800 10px var(--p-font);color:var(--p-text-2)">
-        <span class="p-pfad-probe p-pfad-probe--offen"></span>offen
-        <span class="p-pfad-probe p-pfad-probe--spaeter" style="margin-left:5px"></span>später
-      </div>
-    </div>`;
+  // Die Karte liegt in einer eigenen Karte; die Legende „offen / später" ist weg
+  // (Wunsch des Nutzers 09.10.2026) — offene Punkte leuchten ohnehin golden.
   return `${header}
   <div class="p-karte" style="border-radius:24px;padding:15px 13px;margin-top:12px">
-    ${legende}
+    <div class="p-kicker" style="border:0;padding:0;margin-bottom:12px">Pfad wählen</div>
     <div id="camp-map" style="position:relative;width:100%;height:${_MAP_H}px;">
       <svg id="camp-edges" style="position:absolute;inset:0;width:100%;height:100%;z-index:1;" viewBox="0 0 100 ${_MAP_H}" preserveAspectRatio="none"></svg>
       ${nodesHtml}
@@ -772,7 +756,9 @@ function _drawEdges(run) {
       // Offen = gegangen oder von hier aus erreichbar: kraeftige Tinte. Alles
       // Weitere liegt blass dahinter. Pfade laufen HINTER den Knoten (z-index).
       const done = run.visited.includes(id) && run.visited.includes(bid);
-      const offen = done || run.pos === id || (run.pos == null && a.row === 0);
+      const offen = done || (run.zurueck
+        ? id === run.pos && bid === run.zurueck
+        : run.pos === id || (run.pos == null && a.row === 0));
       lines += `<line x1="${pa.x}" y1="${pa.y}" x2="${pb.x}" y2="${pb.y}" stroke="${offen ? '#1F1F24' : '#9B968A'}" stroke-width="4" stroke-dasharray="${offen ? '5 4' : '4 6'}" stroke-linecap="butt" vector-effect="non-scaling-stroke"/>`;
     }
   }

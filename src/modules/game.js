@@ -1589,7 +1589,7 @@ function showEnd() {
     const comp = window.isUV && window._uvStar && window._uvStar.unlocksCompanion;
     setTimeout(()=>{
       const msg = comp
-        ? { icon:'🐾', title:'Gefährte freigespielt!', body:'Alle 5 Teile geschafft! Dein Gefährte wartet jetzt im Profil unter 🧰 Ausrüstung.', ok:'Super!' }
+        ? { icon:'🐾', title:'Gefährte freigespielt!', body:'Alle 5 Teile geschafft! Dein Gefährte wartet jetzt im Profil unter Ausrüstung.', ok:'Super!' }
         : { icon:'🏆', title:'100% erreicht!', body:'Du hast den Modus "'+(mp.title||window.mode)+'" gemeistert!', ok:'Weiter' };
       window.esAlert(msg).then(()=>showMenu());
     }, 400);

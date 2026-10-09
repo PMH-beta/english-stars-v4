@@ -123,11 +123,12 @@ export function startMeteors({ host, de, answer, choices, prompt, fallMs, onMiss
   });
 
   // Versatz (wie vor dem Update, jetzt immer): jeder Meteor startet zufällig ein Stück
-  // höher, bis knapp die Hälfte der Himmelshöhe — gerechnet am Feld, damit es auf
-  // kleinen Bildschirmen genauso wirkt wie auf großen. Zwei Meteore, die sich
+  // höher, bis ein Fünftel der Himmelshöhe (F-80, 09.10.2026: vorher 45 % — der
+  // letzte kam erst, als der erste schon fast unten war) — gerechnet am Feld, damit es
+  // auf kleinen Bildschirmen genauso wirkt wie auf großen. Zwei Meteore, die sich
   // waagerecht schneiden (lange Wörter), halten senkrecht mindestens ABSTAND; die
   // Prüfreihenfolge ist zufällig, damit kein Muster entsteht.
-  const STREU = Math.round(skyH * 0.45);
+  const STREU = Math.round(skyH * 0.20);
   const ABSTAND = 70;   // Stein 46 + Flamme + Luft
   const breite = btns.map(b => ({ l: b.offsetLeft - b.offsetWidth / 2 - GAP, r: b.offsetLeft + b.offsetWidth / 2 + GAP }));
   const start = btns.map(() => null);
