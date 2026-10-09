@@ -371,7 +371,6 @@ function _typeForRow(r, hasVerbs) {
 
 // ── Run-Lifecycle ──
 function _isReachable(run, node) {
-  if (run.zurueck) return node.id === run.zurueck;   // nach dem Zurückgehen (F-78)
   if (run.pos == null) return node.row === 0;
   const cur = run.map.nodes[run.pos];
   return !!cur && cur.next.includes(node.id);
@@ -409,7 +408,6 @@ export function campaignNode(id) {
   if (run.fight) { resumeCampaignFight(); return; }   // offener Kampf geht vor
   const node = run.map.nodes[id];
   if (!node || !_isReachable(run, node)) return;
-  run.zurueck = null;
   c.stats.bestRow = Math.max(c.stats.bestRow, node.row + 1);
   if (node.type === 'fight' || node.type === 'boss' || node.type === 'irregular') {
     if (!fightPoolReady()) { window.esToast?.('Keine Vokabeln in deinen Decks — der Kampf braucht Wörter'); return; }
@@ -452,20 +450,17 @@ export function campaignNode(id) {
   renderCampaign();
 }
 
-// Zurückgehen im Kampf (F-78, Wunsch des Nutzers 09.10.2026; vorher zählte das
-// Verlassen wie eine Niederlage): einen Punkt zurück. Der vorige Punkt des Wegs wird
-// ein normaler Kampf und ist als einziger antippbar (run.zurueck) — wer zurückgeht,
-// muss wieder kämpfen, zum Heilen lohnt es sich nicht. Die Leben bleiben, der Gegner,
-// vor dem man ging, ist beim nächsten Mal wieder voll. Am ersten Punkt geht es zurück
-// zum Start (Startpunkt frei wählbar). run.visited ist der Weg in Reihenfolge.
-function _zurueck(run) {
-  const weg = run.visited.filter((id) => id !== run.pos);
-  const ziel = weg.length ? weg[weg.length - 1] : null;
-  run.fight = null;
-  run.visited = weg;
-  run.pos = weg.length > 1 ? weg[weg.length - 2] : null;
-  run.zurueck = ziel;
-  if (ziel) run.map.nodes[ziel].type = 'fight';
+// Zurückgehen im Kampf (F-78 neu gefasst, F-84/F-85, Wunsch des Nutzers 09.10.2026):
+// alles von vorn — neue Karte, Runde 1 (Gegner wie zu Beginn), volle Leben,
+// Lauf-Länge 0. Der Einsatz bleibt (der neue Lauf startet gleich gratis), die Tränke
+// wandern mit, als verlorener Lauf zählt es nicht. Zum Heilen lohnt es sich so nie.
+function _vonVorn(c) {
+  _finishMap(c, false);
+  c.round = 0;
+  c.carryPotions = c.run.potions || [];
+  c.run = null;
+  c.freeStart = true;
+  startCampaignRun();
 }
 
 // Boss-Sieg verbuchen: Runde +1 (nächste ist schwerer), Belohnung (wie Einsatz, nur
@@ -485,7 +480,7 @@ function _bossSieg(c) {
 }
 
 // Kampf am Knoten öffnen. onEnd regelt die Run-Folgen: Boss-Sieg oder Tod beendet den
-// Run, 'retreat' geht einen Punkt zurück (_zurueck); null ist nur der interne
+// Run, 'retreat' fängt von vorn an (_vonVorn); null ist nur der interne
 // Nicht-Fall (z. B. Wortpool beim Laden leer).
 function _startFight(node) {
   const c = _camp();
@@ -496,7 +491,7 @@ function _startFight(node) {
     round: campRound(),
     stat: (key) => { if (CAMP_STAT_KEYS.includes(key)) c.stats[key]++; },
     onEnd: (result) => {
-      if (result === 'retreat') { _zurueck(c.run); _saveCampaign(); renderCampaign(); return; }
+      if (result === 'retreat') { if (c.run) _vonVorn(c); else renderCampaign(); return; }
       // Schon verbucht (_renderCampaignNow hat den Boss-Sieg nachgeholt): nur zeichnen.
       if (!c.run) { renderCampaign(); return; }
       if (result === 'victory' && node.type === 'boss') _bossSieg(c);
@@ -812,9 +807,7 @@ function _drawEdges(run) {
       // Offen = gegangen oder von hier aus erreichbar: kraeftige Tinte. Alles
       // Weitere liegt blass dahinter. Pfade laufen HINTER den Knoten (z-index).
       const done = run.visited.includes(id) && run.visited.includes(bid);
-      const offen = done || (run.zurueck
-        ? id === run.pos && bid === run.zurueck
-        : run.pos === id || (run.pos == null && a.row === 0));
+      const offen = done || run.pos === id || (run.pos == null && a.row === 0);
       lines += `<line x1="${pa.x}" y1="${pa.y}" x2="${pb.x}" y2="${pb.y}" stroke="${offen ? '#1F1F24' : '#9B968A'}" stroke-width="4" stroke-dasharray="${offen ? '5 4' : '4 6'}" stroke-linecap="butt" vector-effect="non-scaling-stroke"/>`;
     }
   }

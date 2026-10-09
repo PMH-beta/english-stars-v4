@@ -277,7 +277,7 @@ function _shuffle(a) {
 // ── Kampf-Lifecycle ──────────────────────────────────────────────────────────
 let _ctx = null;   // { run, node, enemy, weapon, save, onEnd, mg, round }
 
-// onEnd(result): 'victory' | 'death' | 'retreat' (X-Knopf: einen Punkt zurück, F-78) | null
+// onEnd(result): 'victory' | 'death' | 'retreat' (X-Knopf: alles von vorn, F-78/F-84) | null
 // (interner Nicht-Fall, z. B. Wortpool beim Laden leer). stat(key) zählt einen
 // Kampagnen-Statistikwert hoch (die Zähler selbst liegen in campaign.js).
 export function openFight({ run, node, save, onEnd, round, stat }) {
@@ -399,7 +399,7 @@ function _renderOverlay() {
   ov.innerHTML = `
     <div class="cf-scenery">${_arenaScene(_ctx.round)}</div>
     <div class="cf-kopf">
-      <button id="cf-flee" class="cf-rund" title="Zurückgehen (einen Punkt zurück)">${iconHTML('close', 14)}</button>
+      <button id="cf-flee" class="cf-rund" title="Zurückgehen (von vorne beginnen)">${iconHTML('close', 14)}</button>
       <div class="cf-kopfleiste">
         ${_titelHTML(node.type)}
         <span class="cf-welle">${_laufHTML(run, node)}</span>
@@ -440,24 +440,20 @@ function _renderOverlay() {
   // noch keine Groesse.
   _buildPlayers();
   _el('cf-flee').onclick = () => {
-    // Zurückgehen (F-78, Wunsch des Nutzers 09.10.2026; vorher zählte Verlassen wie
-    // eine Niederlage): einen Punkt zurück, dort wartet ein normaler Kampf — die
-    // Folgen regelt campaign.js (onEnd 'retreat'). Vorher fragen; die Welle pausiert
-    // währenddessen, der Hintergrund ist unscharf (style.css). Der sichere Weg
-    // (Weiterkämpfen) ist der hervorgehobene Knopf.
+    // Zurückgehen (F-78/F-84/F-85, Wunsch des Nutzers 09.10.2026): alles von vorn,
+    // Taler und Tränke bleiben — die Folgen regelt campaign.js (onEnd 'retreat').
+    // Vorher fragen; die Welle pausiert währenddessen, der Hintergrund ist unscharf
+    // (style.css). Der sichere Weg (Weiterkämpfen) ist der hervorgehobene Knopf.
     if (_ctx?.mg?.pause) _ctx.mg.pause();
     const leave = () => _close('retreat');
-    const amStart = !(_ctx?.run.visited || []).some((id) => id !== _ctx.node.id);
     // Dialog wie Fragment 7.14 (Text ohne Vondu-Kasten), Emblem Zurück-Pfeil statt
-    // Totenkopf — man verliert ja nicht mehr.
+    // Totenkopf — Taler verliert man nicht.
     const d = document.createElement('div');
     d.className = 'p-dlg-grund cf-weg-grund';
     d.innerHTML = `<div class="p-dlg-karte cf-weg-karte">
         <div class="cf-ende-emblem" style="background:var(--p-inaktiv)">${iconHTML('back', 42)}</div>
         <div class="cf-weg-titel">Zurückgehen?</div>
-        <div class="cf-weg-text">${amStart
-          ? 'Du gehst zurück zum Start und wählst deinen Startpunkt neu. Deine Leben bleiben, wie sie sind.'
-          : 'Du gehst einen Punkt zurück. Dort wartet ein neuer Kampf — deine Leben bleiben, wie sie sind.'}</div>
+        <div class="cf-weg-text">Dann fängst du ganz von vorne an: neue Karte, Runde 1. Deine Taler und Tränke behältst du.</div>
         <div class="cf-weg-knoepfe">
           <button class="cf-weg-btn" data-weg="1">Zurückgehen</button>
           <button class="cf-weg-btn cf-weg-btn--bleib" data-weg="0">Weiterkämpfen</button>
