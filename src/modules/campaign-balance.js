@@ -11,10 +11,12 @@ export const BOSS_WIN_TALER = 1;
 // Gegner je Knotentyp. Wellen sind UNBEGRENZT — der Kampf endet erst bei Gegner-HP 0
 // (Sieg) oder Spieler-HP 0 (Tod). hp steuert also die Kampflänge, dmg = Spieler-HP-
 // Verlust pro verlorener Welle. Seit 09.10.2026 (F-79) 30 % weniger Leben (vorher
-// 22/36/58): mit der Faust 4/7/11 gewonnene Wellen in Runde 1 statt 6/9/15.
+// 22/36/58): mit der Faust 4/7/11 gewonnene Wellen in Runde 1 statt 6/9/15. Die
+// Unregelmäßigen (Spirale) sind seitdem so stark wie normale Gegner — stärker ist
+// nur der Boss (Wunsch des Nutzers, vorher 25/11).
 export const ENEMY = {
   fight:     { hp: 15, dmg: 9, icon: '👾', name: 'Wortgeist' },
-  irregular: { hp: 25, dmg: 11, icon: '🌀', name: 'Gestaltwandler' },   // Phase 2
+  irregular: { hp: 15, dmg: 9, icon: '🌀', name: 'Gestaltwandler' },   // Phase 2
   boss:      { hp: 41, dmg: 16, icon: '🐉', name: 'Boss' },
 };
 

@@ -463,13 +463,23 @@ function _renderOverlay() {
           <button class="cf-weg-btn cf-weg-btn--bleib" data-weg="0">Weiterkämpfen</button>
         </div>
       </div>`;
+    let entschieden = false;
     d.addEventListener('click', (e) => {
       const b = e.target.closest('[data-weg]');
       if (!b) return;
+      entschieden = true;
       d.remove();
       if (b.dataset.weg === '1') leave();
       else if (_ctx?.mg?.resume) _ctx.mg.resume();
     });
+    // Schließt der Zurück-Knopf (Android) den Dialog, geht der Kampf weiter — sonst
+    // bliebe die Welle für immer „pausiert“.
+    const beob = new MutationObserver(() => {
+      if (d.isConnected) return;
+      beob.disconnect();
+      if (!entschieden && _ctx?.mg?.resume) _ctx.mg.resume();
+    });
+    beob.observe(document.body, { childList: true });
     document.body.appendChild(d);
   };
   _renderPotions();

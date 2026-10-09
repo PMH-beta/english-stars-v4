@@ -18,7 +18,7 @@ import { persist } from './storage.js';
 import { markDirty } from './sync.js';
 import { commitDirty } from './dialog.js';
 import { iconHTML } from './pixel-icons.js';
-import { HP_MAX, REST_HEAL, BOSS_WIN_TALER } from './campaign-balance.js';
+import { HP_MAX, REST_HEAL, BOSS_WIN_TALER, scaledEnemy, VERB_TIER_START, VERB_TIER_PER_ROUND, VERB_OWN_SHARE_START, VERB_OWN_SHARE_PER_ROUND, VERB_OWN_SHARE_MIN } from './campaign-balance.js';
 import { openFight, fightPoolReady, verbsReady, loadPresetSupply } from './campaign-fight.js';
 import { equipEffects, openPotionChoice, POTIONS, POTION_TON, potionStacks } from './campaign-equipment.js';
 import { arenaTag, campfireTag, CAMPFIRE_FRAMES, CAMPFIRE_FPS } from './world.js';
@@ -394,6 +394,8 @@ export function startCampaignRun() {
   _saveCampaign();
   updateTalerBadge();
   renderCampaign();
+  // Frischer Lauf: zum Startbereich (unten) scrollen, damit die Startpunkte sichtbar sind.
+  document.getElementById('camp-map')?.scrollIntoView({ block: 'end', behavior: 'smooth' });
 }
 
 // Ausrüstung liegt als Paperdoll im PROFIL — die Kampagne verweist nicht mehr
@@ -466,6 +468,22 @@ function _zurueck(run) {
   if (ziel) run.map.nodes[ziel].type = 'fight';
 }
 
+// Boss-Sieg verbuchen: Runde +1 (nächste ist schwerer), Belohnung (wie Einsatz, nur
+// umgekehrt), nächster Lauf gratis, unverbrauchte Tränke wandern mit. Die Karte ist
+// zu Ende, die Lauf-Länge läuft in der nächsten Runde weiter.
+function _bossSieg(c) {
+  if (!c.run) return;
+  c.bossWins = (c.bossWins || 0) + 1;
+  c.round = (c.round || 0) + 1;
+  c.talerSpent -= BOSS_WIN_TALER;
+  c.freeStart = true;
+  c.stats.boss++;
+  c.stats.runsWon++;
+  _finishMap(c, true);
+  c.carryPotions = c.run.potions || [];
+  c.run = null;
+}
+
 // Kampf am Knoten öffnen. onEnd regelt die Run-Folgen: Boss-Sieg oder Tod beendet den
 // Run, 'retreat' geht einen Punkt zurück (_zurueck); null ist nur der interne
 // Nicht-Fall (z. B. Wortpool beim Laden leer).
@@ -479,29 +497,20 @@ function _startFight(node) {
     stat: (key) => { if (CAMP_STAT_KEYS.includes(key)) c.stats[key]++; },
     onEnd: (result) => {
       if (result === 'retreat') { _zurueck(c.run); _saveCampaign(); renderCampaign(); return; }
-      const bossWin = result === 'victory' && node.type === 'boss';
-      if (bossWin) {
-        c.bossWins = (c.bossWins || 0) + 1;
-        c.round = (c.round || 0) + 1;     // nächste Runde ist schwerer
-        c.talerSpent -= BOSS_WIN_TALER;   // Belohnung (wie Einsatz, nur umgekehrt)
-        c.freeStart = true;               // nächster Lauf startet ohne Einsatz
-      }
-      // Gewonnener Kampf zählt auf die Gegner-Art (Knoten-Typ); ein Boss-Sieg
-      // beendet den Lauf erfolgreich, der Tod lässt ihn scheitern.
-      if (result === 'victory' && CAMP_STAT_KEYS.includes(node.type)) c.stats[node.type]++;
-      if (bossWin) c.stats.runsWon++;
-      else if (result === 'death') c.stats.runsLost++;
-      if (bossWin || result === 'death') {
-        // Boss-Sieg beendet nur die Karte — die Lauf-Länge läuft in der nächsten
-        // Runde weiter; der Tod beendet den Lauf und setzt sie zurück.
-        _finishMap(c, bossWin);
-        if (result === 'death') c.round = 0;   // Niederlage → Aufstieg beginnt von vorn
-        if (bossWin) c.carryPotions = c.run.potions || [];   // unverbrauchte Tränke: Belohnung wie freeStart
+      // Schon verbucht (_renderCampaignNow hat den Boss-Sieg nachgeholt): nur zeichnen.
+      if (!c.run) { renderCampaign(); return; }
+      if (result === 'victory' && node.type === 'boss') _bossSieg(c);
+      else if (result === 'victory' && CAMP_STAT_KEYS.includes(node.type)) c.stats[node.type]++;
+      else if (result === 'death') {
+        // Der Tod beendet den Lauf: Lauf-Länge zurück, Aufstieg beginnt von vorn.
+        c.stats.runsLost++;
+        _finishMap(c, false);
+        c.round = 0;
         c.run = null;
       }
       _saveCampaign();
-      // Nach dem Boss führt „Zur Kampagne“ zurück zur Übersicht (F-35) — dort
-      // startet das Kind den nächsten Lauf selbst („Nächster Lauf gratis“).
+      // Nach dem Boss führt „Zur Kampagne“ zurück zur Übersicht (F-35); dort kommt
+      // das Popup mit der neuen Runde (F-82, _rundePopup).
       renderCampaign();
     },
   });
@@ -564,6 +573,47 @@ function _vorschauHtml() {
   </div>`;
 }
 
+// Neue Runde nach dem Boss (F-82, Wunsch des Nutzers 09.10.2026): Popup über der
+// Kampagnen-Übersicht — wie stark die Gegner jetzt werden (alt → neu), Zeit gleich
+// (F-83), Verben schwerer — und „Runde N starten“; danach unten am ersten Punkt.
+// Einmal je Runde und Sitzung; wer es schließt, startet über den Startkasten.
+let _rundePopupFuer = null;
+function _rundePopup(host) {
+  const c = _camp();
+  if (c.run || !c.freeStart || !c.round || _rundePopupFuer === c.round) return;
+  if (!host.offsetParent || document.querySelector('.p-runde-grund')) return;   // Tab nicht sichtbar
+  _rundePopupFuer = c.round;
+  const neu = c.round, alt = neu - 1, nr = neu + 1;
+  const zeile = (icon, name, typ) => {
+    const a = scaledEnemy(typ, alt), b = scaledEnemy(typ, neu);
+    return `<tr><th><span class="p-runde-name">${iconHTML(icon, 14)}${name}</span></th><td>${a.hp} → <b>${b.hp}</b></td><td>${a.dmg} → <b>${b.dmg}</b></td></tr>`;
+  };
+  // Verben: schwerer, solange die Stufen-Glocke steigt oder der Anteil eigener Verben sinkt.
+  const stufe = (r) => Math.min(5, VERB_TIER_START + VERB_TIER_PER_ROUND * r);
+  const eigen = (r) => Math.max(VERB_OWN_SHARE_MIN, VERB_OWN_SHARE_START - VERB_OWN_SHARE_PER_ROUND * r);
+  const verben = verbsReady()
+    ? `<tr><th><span class="p-runde-name">${iconHTML('portal', 14)}Verben</span></th><td colspan="2"><b>${stufe(neu) > stufe(alt) || eigen(neu) < eigen(alt) ? 'schwerer' : 'gleich'}</b></td></tr>`
+    : '';
+  const d = document.createElement('div');
+  d.className = 'p-dlg-grund p-runde-grund';
+  d.innerHTML = `<div class="p-dlg-karte">
+      <div class="p-dlg-emblem" style="background:var(--p-gold)">${iconHTML('crownBig', 28, { style: 'position:relative;left:1px' })}</div>
+      <div class="p-dlg-titel">Runde ${nr}</div>
+      <div class="p-kicker p-runde-kicker">So stark sind die Gegner</div>
+      <table class="p-runde-tabelle">
+        <thead><tr><th></th><th>Leben</th><th>Schaden</th></tr></thead>
+        <tbody>
+          ${zeile('sword', 'Gegner', 'fight')}${zeile('crown', 'Boss', 'boss')}
+          <tr><th><span class="p-runde-name">${iconHTML('hourglass', 14)}Zeit</span></th><td colspan="2"><b>gleich</b></td></tr>
+          ${verben}
+        </tbody>
+      </table>
+      <div class="p-dlg-knoepfe"><button class="p-dlg-btn p-dlg-btn--ok" data-start>Runde ${nr} starten · gratis</button></div>
+    </div>`;
+  d.querySelector('[data-start]').addEventListener('click', () => { d.remove(); startCampaignRun(); });
+  document.body.appendChild(d);
+}
+
 export function renderCampaign() {
   const host = document.getElementById('mode-campaign');
   if (!host) return;
@@ -571,6 +621,7 @@ export function renderCampaign() {
   // nachfüllen kann, sobald das erste Wort gelernt ist.
   loadPresetSupply().catch(() => {});
   _renderCampaignNow(host);
+  _rundePopup(host);
   // Bestehende 100%-Teilabschnitte (auch aus früherem Fortschritt) nachzählen; wenn dadurch
   // neue Taler dazukommen und keine Runde läuft, die Startansicht neu rendern.
   const before = _camp().claimed.length;
@@ -593,6 +644,10 @@ function _renderCampaignNow(host) {
   // gilt als beendet — Einsatz ist weg, Startansicht zeigen. Die Lauf-Länge geht
   // dabei zurück auf 0, sonst zählte sie in den nächsten Lauf hinein.
   if (c.run && c.run.hp <= 0) { c.run = null; c.runLen = 0; _saveCampaign(); }
+  // Boss gefallen, aber „Zur Kampagne“ nie getippt (App vorher geschlossen): der Lauf
+  // stand auf dem Boss-Punkt, der keinen Folgepunkt hat — nichts war mehr antippbar
+  // (Hänger nach Runde 3, 09.10.2026). Gilt als Boss-Sieg.
+  if (c.run && !c.run.fight && c.run.map.nodes[c.run.pos]?.type === 'boss') { _bossSieg(c); _saveCampaign(); }
   // 🛡️-Rüstung kann sich im Profil geändert haben → max. HP des Runs angleichen.
   if (c.run) {
     const hpMax = HP_MAX + equipEffects().hpBonus;
@@ -610,11 +665,8 @@ function _renderCampaignNow(host) {
   }
   host.innerHTML = _mapHtml(c.run);
   _drawEdges(c.run);
-  // Frischer Lauf: zum Startbereich (unten) scrollen, damit die Startknoten sichtbar sind.
-  if (c.run.pos == null) {
-    const m = document.getElementById('camp-map');
-    if (m) m.scrollIntoView({ block: 'end', behavior: 'smooth' });
-  }
+  // Kein Sprung nach unten beim Tab-Wechsel (Wunsch des Nutzers 09.10.2026) — nach
+  // unten zu den Startpunkten geht es nur beim Start eines Laufs (startCampaignRun).
 }
 
 // Startkasten unter der Vorschau: gesperrt (6.2), gratis nach Boss-Sieg (6.5),
@@ -671,13 +723,17 @@ function _mapHtml(run) {
     // Außenmaße wie Fragment 6.1: 46 + Rahmen, der Boss 70 + Rahmen.
     const size = isBoss ? 74 : 50;
     const radius = isBoss ? 'var(--p-r-dialog)' : 'var(--p-r-kachel)';
-    const reachable = _isReachable(run, n);
+    // Offener Kampf (App mitten im Kampf geschlossen): antippbar ist genau sein Punkt
+    // und setzt ihn fort — vorher waren es die Folgepunkte, und beim Boss gab es
+    // keine (Hänger, 09.10.2026).
+    const reachable = run.fight ? run.fight.nodeId === id : _isReachable(run, n);
     const isCur = run.pos === id;
     const visited = run.visited.includes(id);
     // Aktueller Knoten in Tinte, erreichbare in ihrer Farbe mit Goldring, alle
     // übrigen auf Sand mit blassem Symbol (die Kachel selbst bleibt satt). Der
     // Boss steht immer in Farbe mit Goldring und schwebt: er ist das Ziel (6.1).
-    const offen = (reachable && !isCur) || isBoss;
+    // Ein offener Kampf leuchtet auf seinem (Tinten-)Punkt.
+    const offen = (reachable && (!isCur || !!run.fight)) || isBoss;
     const bg = isCur ? 'var(--p-ink)' : (reachable || visited || isBoss) ? meta.ton : 'var(--p-inaktiv)';
     const blass = !(reachable || visited || isCur || isBoss);
     let icon = iconHTML(meta.icon, isBoss ? 56 : 28);

@@ -1780,6 +1780,24 @@ button.p-chip{ cursor:pointer; }
 .camp-kopf-leben > b{ font:900 13px var(--p-font); }
 /* Boss-Krone mittig: im 14er-Raster ist sie nur 13 breit (halbes Raster = 2 px). */
 .p-knoten-krone{ position:relative; left:2px; }
+/* Sie wippt in 4-fps-Stufen wie das Lagerfeuer flackert — die einzige Ausnahme von
+   „UI-Animationen weich“ (Wunsch des Nutzers 09.10.2026, nur auf der Karte). */
+:root .p-knoten-krone[data-ui]{ transition:none; }
+
+/* Neue Runde nach dem Boss (F-82): Tabelle alt → neu im Kartenstil. */
+.p-runde-kicker{ border:0; padding:0; margin-top:16px; text-align:left; }
+.p-runde-tabelle{
+  width:100%; margin-top:8px; border-collapse:separate; border-spacing:0;
+  border:var(--p-rahmen); border-radius:var(--p-r-chip-gross); background:var(--p-karte-hell);
+  font:800 12px var(--p-font); color:var(--p-ink); text-align:left;
+}
+.p-runde-tabelle th, .p-runde-tabelle td{ padding:9px 10px; }
+.p-runde-tabelle thead th{
+  padding-bottom:3px; font:900 9.5px var(--p-font); letter-spacing:.1em; text-transform:uppercase; color:var(--p-text-2);
+}
+.p-runde-tabelle tbody tr + tr > *{ border-top:var(--p-haarlinie); }
+.p-runde-name{ display:inline-flex; align-items:center; gap:7px; font-weight:900; }
+.p-runde-tabelle b{ font-weight:900; }
 
 /* Tränkeplätze: belegte tragen Kontur, freie bleiben gestrichelt (28 + Rahmen). */
 .camp-slot{

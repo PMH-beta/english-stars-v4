@@ -21,6 +21,7 @@ import { supabase, testConnection } from './modules/supabase.js';
 import { flushPendingSync } from './modules/sync.js';
 import { startIconAutoPaint, iconHTML } from './modules/pixel-icons.js';
 import { startUiTakt } from './modules/ui-takt.js';
+import { startKlappAnim } from './modules/klapp-anim.js';
 
 console.log('[main] English Stars', APP_VERSION, 'startet…');
 
@@ -275,6 +276,7 @@ startIconAutoPaint();
 // ── UI-Animationen ──────────────────────────────────────────────────
 // Ein gemeinsamer 8-fps-Takt für alles mit data-ui="…" (Handoff-Regel 6).
 startUiTakt();
+startKlappAnim();   // Klappkarten (<details>) weich auf und zu
 
 // ── Hochformat-Sperre ────────────────────────────────────────────────────────
 // Das Manifest (orientation: portrait) sperrt die installierte PWA; hier

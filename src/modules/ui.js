@@ -8,6 +8,7 @@ import { signIn, signUp, signOut, resendConfirmation, requestPasswordReset, upda
 import { cloudLoad, cloudReset, saveDeck, saveWordStats, saveExam, markDirty, flushPendingSync, setCloudConfirmed, getPendingCount, setKnownSig, cloudChangedRemotely, queuePresetStatDelete, deleteProbetest } from './sync.js';
 import { commitDirty } from './dialog.js';
 import { setGrundton, clearGrundton } from './screen-shell.js';
+import { weichUmbauen } from './klapp-anim.js';
 import { iconHTML } from './pixel-icons.js';
 import { uvMap, uvLernstand, constellationWords, FORGE_DISC, SLOTS_PER_FORM, uvTrainProgress, uvTrainForms, uvTrainWords, uvPruneOrphanSlotStats, UV_TRAIN_SIZE, migrateUvTrainSize } from './irregular-game.js';
 import { renderAvatarInto, renderCharacter, resetCharacterFeature, setCharacterCompanion, stageHTMLFor, charEditorOeffnen, charEditorGeaendert, charEditorUebernehmen, charAenderungenFragen } from './avatar.js';
@@ -426,7 +427,9 @@ function renderStudentMode() {
 // Deckgröße: UV_TRAIN_SIZE (irregular-game.js), genau so viele Verben — nicht mehr
 // "bis zu 15". Bestehende Decks kürzt migrateUvTrainSize beim Login.
 let _uvTrainExpanded = false;
-export function toggleUvTraining() { _uvTrainExpanded = !_uvTrainExpanded; renderUvTrainingSection(); }
+export function toggleUvTraining() {
+  weichUmbauen('#uv-training-section .tp-platz', () => { _uvTrainExpanded = !_uvTrainExpanded; renderUvTrainingSection(); });
+}
 
 function _trainingDecks() {
   return Object.values(window.SD?.decks || {})
@@ -476,8 +479,10 @@ function _uvFormChipsHtml(attrs) {
 // erscheinen oben zwei Chips zur neuen Formen-Wahl.
 let _uvTrainExpandedId = null;
 export function uvTrainToggleDeck(id) {
-  _uvTrainExpandedId = (_uvTrainExpandedId === id) ? null : id;
-  renderUvTrainingSection();
+  weichUmbauen('#uv-training-section .tp-deck', () => {
+    _uvTrainExpandedId = (_uvTrainExpandedId === id) ? null : id;
+    renderUvTrainingSection();
+  });
 }
 
 function _trainDeckCardHtml(deck) {
@@ -894,8 +899,10 @@ export function startProbetest(deckIds) {
 // darunter „Neuer Probetest" + Verlauf der durchgeführten Tests.
 let _probetestExpanded = false;
 export function toggleProbetestHistory() {
-  _probetestExpanded = !_probetestExpanded;
-  renderProbetestSection();
+  weichUmbauen('#probetest-section .p-zeilenkarte', () => {
+    _probetestExpanded = !_probetestExpanded;
+    renderProbetestSection();
+  });
 }
 
 // Ein Verlaufseintrag als Karte (geteilt: Vokabeln-Tab + Fortschritt-Seite).
@@ -2256,7 +2263,7 @@ export function exportData() {
   const blob = new Blob([json], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'english-stars-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+  a.download = 'vondu-backup-' + new Date().toISOString().slice(0, 10) + '.json';
   a.click();
 }
 

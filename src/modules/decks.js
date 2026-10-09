@@ -3,6 +3,7 @@ import { effectivePct, statKeyFor, wortScore } from './stats.js';
 import { markDirty, deleteCloudDeck, deleteCloudWordStats, deleteCloudPresetStats, saveDeck } from './sync.js';
 import { commitDirty } from './dialog.js';
 import { iconHTML } from './pixel-icons.js';
+import { weichUmbauen } from './klapp-anim.js';
 
 // ────────────────────────────────────────────────
 //  UI STATE
@@ -335,16 +336,21 @@ function _activeDecksContainerId() {
   return (window.SD?.activeMode === 'student') ? 'student-decks-container' : 'decks-container';
 }
 
+// Auf- und Zuklappen weich (klapp-anim.js, Wunsch des Nutzers 09.10.2026).
+const _weichDecks = (fn) => weichUmbauen('#' + _activeDecksContainerId() + ' .p-sammlung', fn);
+
 function _handleTap(deckId) {
-  if (_expandedDeckId === deckId) {
-    _expandedDeckId = null;
-  } else {
-    _expandedDeckId = deckId;
-    if (window.SD.activeDeckId !== deckId) {
-      switchDeck(deckId);
+  _weichDecks(() => {
+    if (_expandedDeckId === deckId) {
+      _expandedDeckId = null;
+    } else {
+      _expandedDeckId = deckId;
+      if (window.SD.activeDeckId !== deckId) {
+        switchDeck(deckId);
+      }
     }
-  }
-  renderDecks();
+    renderDecks();
+  });
 }
 
 function _attachCardListeners(cardEl, deckId) {
@@ -467,8 +473,10 @@ function _endDrag() {
 //  DECK UI ACTIONS
 // ────────────────────────────────────────────────
 export function toggleDeck(id) {
-  _expandedDeckId = (_expandedDeckId === id) ? null : id;
-  renderDecks();
+  _weichDecks(() => {
+    _expandedDeckId = (_expandedDeckId === id) ? null : id;
+    renderDecks();
+  });
 }
 
 export function activateDeck(id) {
