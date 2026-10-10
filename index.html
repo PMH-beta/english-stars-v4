@@ -42,20 +42,21 @@
 </head>
 <body>
 
-<!-- Vondu steht vom ersten Bild an fest in der Bildschirmmitte, gleich gross
-     (.p-start-logo) — hier, im Ladescreen danach, mit Knopf und mit Ladebalken.
-     Wortmarke und alles darunter haengen an ihm (.p-start-unten). -->
-<div id="init-overlay" style="position:fixed;inset:0;z-index:9999;background:#C9B8FF;">
-  <img class="p-start-logo" src="vondu-logo.svg" alt="" width="112" height="107">
-  <div class="p-start-unten"><img src="vondu-wordmark.svg" alt="" width="176" height="32" style="display:block;max-width:100%"></div>
+<!-- Vorschaltbild: Vondu allein genau in der Bildschirmmitte wie im Startbild des
+     Handys. Der Ladescreen danach stellt Logo, Wortmarke und Knopf bzw. Balken
+     als Gruppe mittig (1.1) — Vondu rueckt dabei einmal nach oben und steht dann. -->
+<div id="init-overlay" style="position:fixed;inset:0;z-index:9999;background:#C9B8FF;display:flex;align-items:center;justify-content:center;">
+  <img src="vondu-logo.svg" alt="" width="112" height="107" style="display:block">
 </div>
 
 <!-- ═══ LOADING SCREEN ═══ -->
 <div id="loading-screen" class="p-screen p-ton-lila" style="display:none">
-  <div class="p-buehne">
-    <img class="p-start-logo" src="vondu-logo.svg" alt="Vondu" width="112" height="107">
-    <div class="p-start-unten">
+  <div class="p-buehne p-buehne--mitte">
+    <img src="vondu-logo.svg" alt="Vondu" width="112" height="107" style="display:block;flex:none">
     <img src="vondu-wordmark.svg" alt="VONDU" width="176" height="32" style="display:block;max-width:100%">
+    <!-- Fester Platz fuer Knopf ODER Balken: die Gruppe ist immer gleich hoch,
+         Vondu rueckt nicht, wenn der Knopf kommt oder dem Balken weicht. -->
+    <div class="p-start-platz">
     <!-- Balken + Prozent sind bis zum Tippen des Start-Buttons ausgeblendet
          (startup.js) — sie gehoeren zum Ladevorgang und erscheinen erst mit ihm. -->
     <div id="loading-progress" style="width:100%;display:none">

@@ -1270,20 +1270,15 @@ body.p-app{
 /* Start, Registrieren, Passwort-Kette und Namenseingabe tragen kein Blatt,
    sondern eine einzelne Karte auf dem Grundton. */
 .p-buehne{ flex:1; display:flex; flex-direction:column; padding:20px 4% 0; }
-/* Startbildschirm: Vondu steht vom ersten Bild an fest in der Bildschirmmitte
-   und bleibt gleich groß (Wunsch des Nutzers 10.10.2026: das Logo sprang beim
-   Laden viermal — erst mittig, dann mit Wortmarke, mit Knopf und mit Balken
-   jeweils höher, weil 1.1 die ganze Gruppe mittig stellt). Wortmarke, Knopf und
-   Balken hängen 20 px darunter; dasselbe Maß hat #init-overlay in index.html.
-   Ganze Pixel als Versatz, damit das Logo in beiden Ebenen exakt gleich liegt. */
-.p-start-logo{
-  position:fixed; left:50%; top:50%; width:112px; height:107px; margin:-54px 0 0 -56px; display:block;
+/* Startbildschirm: alles mittig, ohne Karte. */
+.p-buehne--mitte{
+  align-items:center; justify-content:center; gap:20px; padding:0 10%; text-align:center;
 }
-.p-start-unten{
-  position:fixed; left:0; right:0; top:calc(50% + 73px); max-width:768px; margin:0 auto;
-  display:flex; flex-direction:column; align-items:center; gap:20px;
-  padding:0 min(10vw, 77px); text-align:center;
-}
+/* Fester Platz für „Los geht's!“ oder den Ladebalken (Wunsch des Nutzers
+   10.10.2026): vorher wuchs die Gruppe, sobald der Knopf kam oder dem Balken
+   wich, und Vondu rückte jedes Mal höher. 59 = Balken 22 + 10 + Prozentzeile 27,
+   der Knopf ist 58 hoch. */
+.p-start-platz{ width:100%; height:59px; flex:none; display:flex; flex-direction:column; align-items:center; }
 
 .p-dialogkarte{
   border:var(--p-rahmen); border-radius:28px; background:var(--p-karte-hell);
@@ -1573,9 +1568,9 @@ body.p-app .music-vol-btn{
 .p-sammlung + .p-sammlung, .p-neu + .p-sammlung{ margin-top:11px; }
 .p-sammlung > .p-balken{ margin-top:11px; }
 /* Aufgeklappt (Fragment 2.4): etwas mehr Luft ringsum, Balken 1 px näher. */
-.p-sammlung.is-offen{ padding:15px 14px 16px; }
-.p-sammlung + .p-sammlung.is-offen, .p-neu + .p-sammlung.is-offen{ margin-top:12px; }
-.p-sammlung.is-offen > .p-balken{ margin-top:10px; }
+/* Offen: Abstand oben, Kopf und Balken bleiben, wo sie zu standen (Wunsch des
+   Nutzers 10.10.2026 — vorher rückte die Karte beim Öffnen 1 px, ihr Kopf 2 px). */
+.p-sammlung.is-offen{ padding:14px 14px 16px; }
 .p-sammlung-kopf{ display:flex; align-items:flex-start; gap:10px; }
 .p-sammlung-name{ font:900 17px var(--p-font); }
 .p-sammlung-meta{ font:700 11px var(--p-font); color:var(--p-text-2); margin-top:2px; }

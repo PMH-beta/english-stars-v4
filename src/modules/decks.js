@@ -336,8 +336,12 @@ function _activeDecksContainerId() {
   return (window.SD?.activeMode === 'student') ? 'student-decks-container' : 'decks-container';
 }
 
-// Auf- und Zuklappen weich (klapp-anim.js, Wunsch des Nutzers 09.10.2026).
-const _weichDecks = (fn) => weichUmbauen('#' + _activeDecksContainerId() + ' .p-sammlung', fn);
+// Auf- und Zuklappen weich (klapp-anim.js, Wunsch des Nutzers 09.10.2026); die
+// angetippte Karte bleibt dabei stehen (10.10.2026).
+const _weichDecks = (fn, deckId) => {
+  const liste = '#' + _activeDecksContainerId() + ' .p-sammlung';
+  weichUmbauen(liste, fn, deckId ? liste + '[data-deck-id="' + CSS.escape(deckId) + '"]' : null);
+};
 
 function _handleTap(deckId) {
   _weichDecks(() => {
@@ -350,7 +354,7 @@ function _handleTap(deckId) {
       }
     }
     renderDecks();
-  });
+  }, deckId);
 }
 
 function _attachCardListeners(cardEl, deckId) {

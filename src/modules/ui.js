@@ -485,7 +485,7 @@ export function uvTrainToggleDeck(id) {
   weichUmbauen('#uv-training-section .tp-deck', () => {
     _uvTrainExpandedId = (_uvTrainExpandedId === id) ? null : id;
     renderUvTrainingSection();
-  });
+  }, '#uv-training-section .tp-deck[data-deck-id="' + CSS.escape(id) + '"]');
 }
 
 function _trainDeckCardHtml(deck) {
@@ -522,7 +522,7 @@ function _trainDeckCardHtml(deck) {
       <span class="tp-disz-fuss"><span>${p.mastered}/${t} gemeistert</span>${chip}</span>
     </button>`;
   };
-  return `<div class="tp-deck${open ? ' is-offen' : ''}">
+  return `<div class="tp-deck${open ? ' is-offen' : ''}" data-deck-id="${window.escHtml(id)}">
     <div class="tp-deck-kopf" onclick="uvTrainToggleDeck('${id}')">
       <div class="p-wachs">
         <div class="tp-deck-name">${window.escHtml(deck.name)}</div>
