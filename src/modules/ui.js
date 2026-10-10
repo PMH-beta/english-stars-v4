@@ -1505,7 +1505,10 @@ export function uvFlip(btn) {
 // [andere, aktuelle, andere] und ist auf die Mitte zentriert. Ein Wisch/Pfeil in
 // JEDE Richtung wechselt zur anderen Form; danach wird der Track für die neue Form
 // wieder zentriert aufgebaut → in beide Richtungen unbegrenzt, robust auch schnell.
-function _trackW(track) { return track.parentElement.offsetWidth; }
+// Seitenbreite. In der Schmiede ist eine Seite schmaler als das Fenster (Luft
+// zwischen Stahl und Gold, style.css): Lage einer Seite k also über _trackX.
+function _trackW(track) { return (track.firstElementChild || track.parentElement).getBoundingClientRect().width; }
+function _trackX(track, k) { const w = _trackW(track); return (track.parentElement.getBoundingClientRect().width - w) / 2 - k * w; }
 function _curForm(track) { return (+track.dataset.form || 0); }   // 0 = Past, 1 = PP
 function _formWhich(f) { return f === 0 ? 'past' : 'pp'; }
 
@@ -1521,9 +1524,8 @@ function _forgeFillTrack(track) {
 
 // Auf die Mittel-Seite setzen (anim=false ohne Übergang, für Erst-/Re-Layout).
 function _centerTrack(track, anim) {
-  const w = _trackW(track);
   track.style.transition = anim ? '' : 'none';
-  track.style.transform = `translateX(${-w}px)`;
+  track.style.transform = `translateX(${_trackX(track, 1)}px)`;
   if (!anim) { void track.offsetWidth; track.style.transition = ''; }
 }
 
@@ -1575,7 +1577,7 @@ function _snapToggle(track, targetPx, targetForm) {
 
 function _snapBack(track) {   // unter Schwelle: glatt zur Mitte zurück (kein Toggle)
   track.style.transition = '';
-  track.style.transform = `translateX(${-_trackW(track)}px)`;
+  track.style.transform = `translateX(${_trackX(track, 1)}px)`;
   _showChrome(track, _curForm(track));   // Chrome zurück auf die aktuelle Form
 }
 
@@ -1586,7 +1588,7 @@ export function uvSlide(idx, dir) {
   if (track._pending) _finalizeSnap(track);
   const target = _curForm(track) ? 0 : 1;
   _centerTrack(track, false); void track.offsetWidth;
-  _snapToggle(track, dir > 0 ? -2 * _trackW(track) : 0, target);
+  _snapToggle(track, _trackX(track, dir > 0 ? 2 : 0), target);
 }
 
 // Punkt: direkt auf eine Form. Schon dort → nur zentrieren, sonst animiert wechseln.
@@ -1597,7 +1599,7 @@ export function uvSetForm(idx, which) {
   if (track._pending) _finalizeSnap(track);
   if (_curForm(track) === want) { _centerTrack(track, false); return; }
   _centerTrack(track, false); void track.offsetWidth;
-  _snapToggle(track, -2 * _trackW(track), want);
+  _snapToggle(track, _trackX(track, 2), want);
 }
 
 // Info „Die Schmiede" (5.13): Vondu, vier farbige Punkte, „Verstanden".
@@ -1646,7 +1648,7 @@ function initUvSliders() {
       if (startX === null) return;
       dx = e.clientX - startX;
       const w = _trackW(track), cur = _curForm(track);
-      track.style.transform = `translateX(${-w + dx}px)`;
+      track.style.transform = `translateX(${_trackX(track, 1) + dx}px)`;
       // Chrome live: ab der Snap-Schwelle schon die andere Form zeigen.
       _showChrome(track, (Math.abs(dx) > w * 0.18) ? (cur ? 0 : 1) : cur);
     });
@@ -1655,8 +1657,8 @@ function initUvSliders() {
       const w = _trackW(track), cur = _curForm(track), other = cur ? 0 : 1;
       if (Math.abs(dx) > 6) track._moved = true;
       startX = null;
-      if (dx < -w * 0.18) _snapToggle(track, -2 * w, other);   // nach links → andere Form
-      else if (dx > w * 0.18) _snapToggle(track, 0, other);    // nach rechts → andere Form
+      if (dx < -w * 0.18) _snapToggle(track, _trackX(track, 2), other);   // nach links → andere Form
+      else if (dx > w * 0.18) _snapToggle(track, _trackX(track, 0), other);    // nach rechts → andere Form
       else _snapBack(track);                                   // zu kurz → zurück zur Mitte
       dx = 0;
     };
@@ -1705,6 +1707,14 @@ export function showMenu() {
   const mode = window.SD.activeMode || 'free';
   _applyModeActiveDeck(mode);   // aktives Deck des Modus sicherstellen (nach Cloud-Load 1:1)
   renderModeContent(mode);      // rendert die Decks des aktiven Modus
+  if (_ausSkelett) {            // nach den Platzhaltern: Inhalt kurz einblenden statt hart tauschen
+    _ausSkelett = false;
+    const sk = document.getElementById('schnell-toggle'); if (sk) sk.style.visibility = '';
+    for (const id of ['probetest-section', 'decks-container']) {
+      const e = document.getElementById(id);
+      if (e) { e.classList.remove('p-einblenden'); void e.offsetWidth; e.classList.add('p-einblenden'); }
+    }
+  }
   refreshFriendBadge();         // roter Anfrage-Zähler über dem Profilkopf
   // App-Tour (F-14): steht sie noch aus (neuer Spielstand), startet sie hier —
   // der Installier-Hinweis wartet dann bis zum nächsten Menü.
@@ -2607,7 +2617,7 @@ export async function handleLogin(user) {
   try {
     // Instagram-Gefühl: ist schon ein lokaler Name da, sofort die Menü-Shell mit
     // Skeleton-Kacheln zeigen (statt Blockier-Ladescreen), während hart geladen wird.
-    if (window.SD?.playerName) showMenuSkeleton();
+    if (window.SD?.playerName) showMenuSkeleton('free');   // der Start landet immer auf Vokabeln (restoreLastScreen)
     const r = await loadFromCloud();
     if (r === 'new') { showScreen('name-screen'); return; }
     if (r === 'failed') {
@@ -2760,7 +2770,12 @@ export async function softRefresh() {
 // harten Loads. Nach dem Load ersetzt showMenu() das durch echte Daten.
 // Bewegung nur bei den Punkten hinter „Lädt" (data-ui="dots", Übersicht 9.7) —
 // der Ladekreis steht, wie im Entwurf. Das Banner bleibt die Karte aus 2.3.
-function showMenuSkeleton() {
+// Seit 10.10.2026 (Wunsch des Nutzers: nach dem Start fiel alles an seinen Platz)
+// stehen die Platzhalter im Vokabeln-Tab dort, wo gleich die echten Karten stehen:
+// Probetest-Karte mit dem Ladekreis, Kopfzeile, „+ Neue …“ und je Sammlung des
+// lokalen Stands eine Karte in deren Höhe. showMenu() blendet den Inhalt dann ein.
+let _ausSkelett = false;
+function showMenuSkeleton(mode = window.SD?.activeMode || 'free') {
   showScreen('menu-screen');
   const nm = document.getElementById('menu-player-name');
   if (nm) nm.innerHTML = 'Lädt<span data-ui="dots" style="display:inline-block;width:1.2em;text-align:left">…</span>';
@@ -2768,11 +2783,26 @@ function showMenuSkeleton() {
   const bs = document.getElementById('menu-bosses');      if (bs) bs.textContent = '–';
   const av = document.getElementById('menu-avatar');      if (av) { av.innerHTML = ''; av.classList.add('is-leer'); }
   const ft = document.getElementById('menu-footer');      if (ft) ft.style.display = 'flex';
-  // Im Laden steht nur der Platzhalter im Blatt; Probetest und Kopfzeile kommen
-  // mit showMenu() zurück.
-  const pt = document.getElementById('probetest-section'); if (pt) pt.innerHTML = '';
-  const hd = document.getElementById('free-decks-header'); if (hd) hd.style.display = 'none';
+  const pt = document.getElementById('probetest-section');
+  const hd = document.getElementById('free-decks-header');
   const c = document.getElementById('decks-container');
+  const sammlungen = Object.values(window.SD?.decks || {}).filter((d) => deckMode(d) === 'free').length;
+  if (mode === 'free' && sammlungen && pt && hd && c) {
+    for (const [m, id] of [['free', 'mode-free'], ['student', 'mode-student'], ['campaign', 'mode-campaign']]) {
+      const e = document.getElementById(id); if (e) e.style.display = m === 'free' ? '' : 'none';
+    }
+    _renderModeToggle('free');
+    pt.innerHTML = '<div class="p-lade-platz p-lade-karte"><div class="p-lade-kreis"><div></div></div></div>';
+    hd.style.display = 'flex';
+    const sk = document.getElementById('schnell-toggle'); if (sk) sk.style.visibility = 'hidden';   // Stand kommt erst
+    c.innerHTML = '<div class="p-lade-platz p-lade-neu"></div>' + '<div class="p-lade-platz p-lade-deck"></div>'.repeat(sammlungen);
+    _ausSkelett = true;
+    return;
+  }
+  // Sonst (neues Konto, oder Neuladen in einem anderen Tab) wie 2.1: nur der
+  // Platzhalter im Blatt; Probetest und Kopfzeile kommen mit showMenu() zurück.
+  if (pt) pt.innerHTML = '';
+  if (hd) hd.style.display = 'none';
   if (c) c.innerHTML =
     // Liegt IM decks-container → verschwindet automatisch, sobald renderDecks rendert.
     '<div class="p-lade-kreis"><div></div></div>'

@@ -8,11 +8,13 @@
 // nachher, die Karten werden über ihre Reihenfolge zugeordnet. Bei „Bewegung
 // reduzieren“ springt alles wie bisher.
 
-const DAUER = 260;          // ms
+// Seit 10.10.2026 (Wunsch des Nutzers: „langsam – schnell – langsam“, vorher war
+// es manchmal zu schnell) ease-in-out statt ease-out und 400 statt 260 ms.
+const DAUER = 400;          // ms
 const VERZUG = 12;          // ms je Stufe
 const STUFEN = 3;
 const MAX_VERSATZ = 8;      // px je Stufe
-const sanft = (x) => 1 - Math.pow(1 - x, 3);
+const sanft = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);   // easeInOutCubic
 const ruhig = () => !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
 let _lauf = null;

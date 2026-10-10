@@ -489,7 +489,7 @@ body.in-game .mode-progress{display:block;}
 /* Formen-Wechsel im Anlege-Popup: die GANZE Wortliste slidet links raus und
    kommt mit den neuen Grau-Zuständen von rechts wieder rein. Vergebene Verben
    (.used) bleiben sichtbar, sind aber ausgegraut und nicht klickbar. */
-.uv-fill-slide{transition:transform .22s ease,opacity .22s ease;}
+.uv-fill-slide{transition:transform .3s cubic-bezier(.65,0,.35,1),opacity .3s cubic-bezier(.65,0,.35,1);}
 .uv-fill-slide.slide-left{transform:translateX(-105%);opacity:0;}
 .uv-fill-slide.slide-right{transition:none;transform:translateX(105%);opacity:0;}
 .uv-fill-row.used{opacity:.45;pointer-events:none;}
@@ -1167,7 +1167,7 @@ body.p-app{
   position:absolute; z-index:0; left:4px; top:4px; height:42px; width:calc((100% - 16px) / 3);
   border:var(--p-rahmen); border-radius:var(--p-r-kachel); background:var(--p-ton,var(--p-mint));
   transform:translateX(calc(var(--i, 1) * (100% + 4px)));
-  transition:transform .42s cubic-bezier(.5,0,.25,1), background-color .42s;
+  transition:transform .42s cubic-bezier(.65,0,.35,1), background-color .42s;   /* langsam – schnell – langsam */
   pointer-events:none;
 }
 @media (prefers-reduced-motion:reduce){ .p-tabs-schieber{ transition:none; } }
@@ -1208,6 +1208,15 @@ body.p-app{
   margin-top:11px;
   border:2px dashed rgba(31,31,36,.3); border-radius:22px; background:var(--p-inaktiv);
 }
+/* Platzhalter in den Maßen des echten Menüs (Wunsch des Nutzers 10.10.2026):
+   Probetest 80, „+ Neue …“ 54, Sammlung 126 — wie .p-zeilenkarte, .p-neu, .p-sammlung. */
+.p-lade-karte{ margin-top:0; height:80px; border-radius:var(--p-r-dialog); display:flex; align-items:center; justify-content:center; }
+.p-lade-karte > .p-lade-kreis{ padding:0; }
+.p-lade-neu{ margin-top:10px; height:54px; border-radius:var(--p-r-btn); }
+.p-lade-deck{ height:126px; border-radius:var(--p-r-dialog); }
+.p-einblenden{ animation:p-einblenden .25s cubic-bezier(.65,0,.35,1) both; }
+@keyframes p-einblenden{ from{ opacity:0; } }
+@media (prefers-reduced-motion:reduce){ .p-einblenden{ animation:none; } }
 /* „Fortschritt": 44 px hoch, Trophäe davor (Fragment 2.3). */
 .p-fortschritt{
   display:inline-flex; align-items:center; gap:6px; flex:none;
@@ -3611,6 +3620,19 @@ button.p-chip{ cursor:pointer; }
 /* Pfeile mittig zum Werkstück-Rahmen (180 hoch), nicht zur ganzen Seite. */
 .forge .cst-slider{ align-items:flex-start; }
 .forge .cst-arrow{ padding:0; margin-top:78.5px; font:900 17px var(--p-font); color:var(--p-text-2); }
+/* Stahl ↔ Gold (Wunsch des Nutzers 10.10.2026): die Seiten klebten aneinander und
+   wurden an einer unsichtbaren Linie neben den Pfeilen abgeschnitten. Jetzt reicht
+   das Fenster bis an den inneren Kartenrand (14 = Polster der Karte), die Pfeile
+   liegen darüber, und zwischen zwei Werkstücken bleibt so viel Luft wie vom
+   Werkstück zum Kartenrand (29 = 14 + Pfeil 5 + 10). Werkstück und Pfeile stehen
+   in Ruhe wie vorher; ui.js rechnet mit der Seitenbreite (_trackX). */
+.forge .cst-slider{ position:relative; }
+.forge .cst-slider-view{ margin:0 -14px; }
+.forge .cst-arrow{ position:absolute; top:0; z-index:1; }
+.forge .cst-arrow:first-child{ left:0; }
+.forge .cst-arrow:last-child{ right:0; }
+.forge .cst-page{ flex:0 0 calc(100% - 29px); padding:0 14.5px; }
+.forge .cst-track{ transition:transform .45s cubic-bezier(.65,0,.35,1); }   /* langsam – schnell – langsam */
 .forge-weapon-wrap{ gap:0; padding:0; align-items:stretch; }
 /* Werkstück-Rahmen 176 + Rahmen. */
 .forge-weapon{ width:100%; max-width:none; height:180px; border-radius:20px; }
@@ -3624,9 +3646,11 @@ button.p-chip{ cursor:pointer; }
 /* Balken 12 + Rahmen, Stahl in Stahlgrau. */
 .fw-bar{ height:16px; border-radius:7px; margin-top:7px; }
 .fw-bar-fill{ transition:none; }
-.forge .cst-dots{ gap:8px; margin-top:11px; align-items:flex-start; }
-.forge .uv-dot{ width:13px; height:13px; border:2px solid var(--p-ink); background:none; transform:none; }
-.forge .uv-dot.active{ width:9px; height:9px; border:0; background:var(--p-ink); transform:none; }
+/* Punkte gleich groß (Wunsch des Nutzers 10.10.2026, vorher 13er Ring und 9er
+   Punkt): Ring leer, gewählt gefüllt. */
+.forge .cst-dots{ gap:8px; margin-top:11px; align-items:center; }
+.forge .uv-dot{ width:12px; height:12px; border:2px solid var(--p-ink); background:none; transform:none; }
+.forge .uv-dot.active{ background:var(--p-ink); }
 /* Wörter anzeigen: Chip mit Buch und Pfeil. */
 .forge-words{ margin-top:12px; text-align:center; }
 .forge-words summary{
