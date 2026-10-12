@@ -22,6 +22,7 @@ import { flushPendingSync } from './modules/sync.js';
 import { startIconAutoPaint, iconHTML } from './modules/pixel-icons.js';
 import { startUiTakt } from './modules/ui-takt.js';
 import { startKlappAnim } from './modules/klapp-anim.js';
+import { startUnschaerfe } from './modules/unschaerfe.js';
 
 console.log('[main] English Stars', APP_VERSION, 'startet…');
 
@@ -277,6 +278,7 @@ startIconAutoPaint();
 // Ein gemeinsamer 8-fps-Takt für alles mit data-ui="…" (Handoff-Regel 6).
 startUiTakt();
 startKlappAnim();   // Klappkarten (<details>) weich auf und zu
+startUnschaerfe();  // Bewegungsunschärfe beim Gleiten (Schieber, Schmiede, Verbliste)
 
 // ── Hochformat-Sperre ────────────────────────────────────────────────────────
 // Das Manifest (orientation: portrait) sperrt die installierte PWA; hier
@@ -370,8 +372,9 @@ try { screen.orientation?.lock?.('portrait').catch(() => {}); } catch (e) {}
 (function pressOnTap() {
   const SEL = 'button, a[href], summary, [onclick], [role="button"]';
   const MOVE_TOL = 10;              // ab so vielen px gilt die Geste als Ziehen/Scrollen
-  const MIN_MS = 180;               // so lange bleibt auch ein ganz kurzer Tipp eingedrückt
-  const AUS_MS = 260;               // Zurückgleiten (Dauer wie .es-press-weich in style.css)
+  // Seit 13.10.2026 rund ein Viertel schneller (Wunsch des Nutzers: Bedienung „ein Tick schneller“).
+  const MIN_MS = 140;               // so lange bleibt auch ein ganz kurzer Tipp eingedrückt
+  const AUS_MS = 200;               // Zurückgleiten (Dauer wie .es-press-weich in style.css)
   // Seit 08.10.2026 deutlicher (Wunsch des Nutzers: am Handy sah man nichts):
   // tieferer Schatten, Fläche ×0,9, und der Inhalt wird kleiner (siehe groesse).
   const HELL = 'inset 5px 6px 0 rgba(31,31,36,.34)';
@@ -563,7 +566,7 @@ try { screen.orientation?.lock?.('portrait').catch(() => {}); } catch (e) {}
   // Kampf und Übungs-Screen (Tempo), Formularfelder, und alles, wofür der Browser
   // einen direkten Tipp verlangt (Musik, Installieren, Kamera/Datei; Mikrofon und
   // Vorlesen liegen im Übungs-Screen). data-sofort nimmt weitere Knöpfe aus.
-  const NACH_MS = 120;
+  const NACH_MS = 90;
   const SOFORT = '#cf-overlay, #game-screen, input, select, textarea, label, [data-sofort], '
     + '[onclick*="toggleMusic"], [onclick*="pwaInstall"], [onclick*="scan-file"], .p-ih-btn--ok';
   const restZeit = () => (letzter && performance.now() - letzter.at < 1500)

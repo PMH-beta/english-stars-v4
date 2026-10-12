@@ -8,13 +8,18 @@
 // nachher, die Karten werden über ihre Reihenfolge zugeordnet. Bei „Bewegung
 // reduzieren“ springt alles wie bisher.
 
+import { setzeUnschaerfe, loescheUnschaerfe } from './unschaerfe.js';
+
 // Seit 10.10.2026 (Wunsch des Nutzers: „langsam – schnell – langsam“, vorher war
-// es manchmal zu schnell) ease-in-out statt ease-out und 400 statt 260 ms.
-const DAUER = 400;          // ms
+// es manchmal zu schnell) ease-in-out statt ease-out und 400 statt 260 ms;
+// seit 13.10.2026 300 ms (Bedienung „ein Tick schneller“, dazu Bewegungsunschärfe).
+const DAUER = 300;          // ms
 const VERZUG = 12;          // ms je Stufe
 const STUFEN = 3;
 const MAX_VERSATZ = 8;      // px je Stufe
 const sanft = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);   // easeInOutCubic
+const tempo = (x) => (x < 0.5 ? 12 * x * x : 3 * Math.pow(2 - 2 * x, 2));            // seine Ableitung
+const UNSCHAERFE_MAX = 4;   // senkrecht schwächer als bei den Schiebern: hier ziehen ganze Listen mit
 const ruhig = () => !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
 let _lauf = null;
@@ -76,7 +81,7 @@ function _animiere(liste, danach, halten) {
     _lauf = null;
     if (danach) danach();
     for (const x of liste) { x.k.style.height = ''; x.k.style.overflow = ''; }
-    for (const s of folgende) s.style.translate = '';
+    for (const s of folgende) { s.style.translate = ''; loescheUnschaerfe(s); }
     if (halten) halten();
     _anker(true);
   };
@@ -91,6 +96,9 @@ function _animiere(liste, danach, halten) {
       const c = Math.max(-MAX_VERSATZ * k, Math.min(MAX_VERSATZ * k, v));
       s.style.translate = Math.abs(c) < 0.5 ? '' : `0 ${c.toFixed(1)}px`;
     });
+    // Was nachrutscht, verwischt senkrecht mit seiner Geschwindigkeit (px/ms).
+    const v = Math.abs(dh) * tempo(Math.max(0, Math.min(1, t / DAUER))) / DAUER;
+    for (const s of folgende) setzeUnschaerfe(s, 'y', v, UNSCHAERFE_MAX);
     if (t < ende) raf = requestAnimationFrame(bild); else fertig();
   };
   raf = requestAnimationFrame(bild);

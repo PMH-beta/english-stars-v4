@@ -489,7 +489,7 @@ body.in-game .mode-progress{display:block;}
 /* Formen-Wechsel im Anlege-Popup: die GANZE Wortliste slidet links raus und
    kommt mit den neuen Grau-Zuständen von rechts wieder rein. Vergebene Verben
    (.used) bleiben sichtbar, sind aber ausgegraut und nicht klickbar. */
-.uv-fill-slide{transition:transform .3s cubic-bezier(.65,0,.35,1),opacity .3s cubic-bezier(.65,0,.35,1);}
+.uv-fill-slide{transition:transform .23s cubic-bezier(.65,0,.35,1),opacity .23s cubic-bezier(.65,0,.35,1);}
 .uv-fill-slide.slide-left{transform:translateX(-105%);opacity:0;}
 .uv-fill-slide.slide-right{transition:none;transform:translateX(105%);opacity:0;}
 .uv-fill-row.used{opacity:.45;pointer-events:none;}
@@ -943,10 +943,10 @@ body.in-game .mode-progress{display:block;}
   scale:var(--es-press-scale,.96); translate:var(--es-press-dx,0) var(--es-press-dy,0);
 }
 .mg-stein:has(> .mg-stein-rand > .es-press){ scale:.96; translate:2px 2px; }
-.es-press-weich{ transition:background-color .26s ease-out, box-shadow .26s ease-out, scale .26s ease-out, translate .26s ease-out !important; }
-.es-press-weich > *, .mg-stein:has(> .mg-stein-rand > .es-press-weich){ transition:scale .26s ease-out, translate .26s ease-out !important; }
+.es-press-weich{ transition:background-color .2s ease-out, box-shadow .2s ease-out, scale .2s ease-out, translate .2s ease-out !important; }
+.es-press-weich > *, .mg-stein:has(> .mg-stein-rand > .es-press-weich){ transition:scale .2s ease-out, translate .2s ease-out !important; }
 .es-press.es-press-weich, .es-press.es-press-weich > *,
-.mg-stein:has(> .mg-stein-rand > .es-press.es-press-weich){ transition-duration:.07s !important; }
+.mg-stein:has(> .mg-stein-rand > .es-press.es-press-weich){ transition-duration:.05s !important; }
 @media(prefers-reduced-motion:reduce){
   .es-press-weich, .es-press.es-press-weich, .es-press-weich > *,
   .mg-stein:has(> .mg-stein-rand > .es-press-weich){ transition:none !important; }
@@ -991,7 +991,7 @@ body.in-game .mode-progress{display:block;}
 body.p-app{
   padding:0; background-image:none; background-color:var(--p-ton,var(--p-lila));
   align-items:stretch; font-family:var(--p-font);
-  transition:background-color .25s;
+  transition:background-color .2s;
 }
 /* Wer Bewegung reduziert haben will, bekommt den Wechsel hart. */
 @media (prefers-reduced-motion:reduce){
@@ -1009,7 +1009,7 @@ body.p-app{
   font-family:var(--p-font);
   display:flex; flex-direction:column;
   overflow-x:clip;                  /* faengt die -2px des Blatts ab */
-  transition:background-color .25s; /* Grundton-Wechsel faded kurz */
+  transition:background-color .2s; /* Grundton-Wechsel faded kurz */
 }
 /* Kopfbereich: liegt auf dem Grundton, über dem Blatt. Seitliches Polster
    relativ (16px von 402px Referenzbreite = 4%), damit es auf schmalen und
@@ -1167,7 +1167,7 @@ body.p-app{
   position:absolute; z-index:0; left:4px; top:4px; height:42px; width:calc((100% - 16px) / 3);
   border:var(--p-rahmen); border-radius:var(--p-r-kachel); background:var(--p-ton,var(--p-mint));
   transform:translateX(calc(var(--i, 1) * (100% + 4px)));
-  transition:transform .42s cubic-bezier(.65,0,.35,1), background-color .42s;   /* langsam – schnell – langsam */
+  transition:transform .32s cubic-bezier(.65,0,.35,1), background-color .32s;   /* langsam – schnell – langsam */
   pointer-events:none;
 }
 @media (prefers-reduced-motion:reduce){ .p-tabs-schieber{ transition:none; } }
@@ -1214,7 +1214,7 @@ body.p-app{
 .p-lade-karte > .p-lade-kreis{ padding:0; }
 .p-lade-neu{ margin-top:10px; height:54px; border-radius:var(--p-r-btn); }
 .p-lade-deck{ height:126px; border-radius:var(--p-r-dialog); }
-.p-einblenden{ animation:p-einblenden .25s cubic-bezier(.65,0,.35,1) both; }
+.p-einblenden{ animation:p-einblenden .2s cubic-bezier(.65,0,.35,1) both; }
 @keyframes p-einblenden{ from{ opacity:0; } }
 @media (prefers-reduced-motion:reduce){ .p-einblenden{ animation:none; } }
 /* „Fortschritt": 44 px hoch, Trophäe davor (Fragment 2.3). */
@@ -3640,7 +3640,7 @@ button.p-chip{ cursor:pointer; }
 .forge .cst-arrow:first-child{ left:0; }
 .forge .cst-arrow:last-child{ right:0; }
 .forge .cst-page{ flex:0 0 calc(100% - 29px); padding:0 14.5px; }
-.forge .cst-track{ transition:transform .45s cubic-bezier(.65,0,.35,1); }   /* langsam – schnell – langsam */
+.forge .cst-track{ transition:transform .34s cubic-bezier(.65,0,.35,1); }   /* langsam – schnell – langsam */
 .forge-weapon-wrap{ gap:0; padding:0; align-items:stretch; }
 /* Werkstück-Rahmen 176 + Rahmen. */
 .forge-weapon{ width:100%; max-width:none; height:180px; border-radius:20px; }
@@ -3968,10 +3968,12 @@ body.p-app .music-vol-btn{ bottom:calc(88px + env(safe-area-inset-bottom,0px)); 
   font:800 7.5px var(--p-font); text-transform:uppercase; letter-spacing:.06em;
   color:var(--p-text-2); white-space:nowrap;
 }
-/* Chip als Abzeichen auf der rechten oberen Ecke (Wunsch des Nutzers 13.10.2026):
-   als eigene Zeile machte er Kachel und Reihe höher, die Seite sprang. */
+/* Chip innen in der rechten oberen Ecke (Wunsch des Nutzers 13.10.2026): als
+   eigene Zeile machte er Kachel und Reihe höher, die Seite sprang; über die Ecke
+   hinaus stieß er an die Kachel darüber. */
 .pf-wert{ position:relative; }
-.pf-wert-chipzeile{ position:absolute; top:-9px; right:-5px; z-index:1; display:flex; }
+.pf-wert-chipzeile{ position:absolute; top:3px; right:3px; display:flex; }
+.pf-wert-chipzeile .pf-wert-chip{ padding:0 4px; font-size:8px; line-height:11px; }   /* kompakt: neben dem Symbol */
 .pf-wert-chip{
   display:inline-flex; align-items:center; white-space:nowrap;
   border:var(--p-rahmen); border-radius:11px; background:var(--p-ok);

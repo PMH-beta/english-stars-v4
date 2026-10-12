@@ -52,6 +52,7 @@ const PRECACHE = [
   './src/modules/pixel-world-fine.js', './src/modules/world.js', './src/modules/pixel-anim.js',
   // UI-Animationen (Phase 7): Modul aus dem Handoff + gemeinsamer Takt.
   './src/modules/ui-anim.js', './src/modules/ui-takt.js',
+  './src/modules/klapp-anim.js', './src/modules/unschaerfe.js',
   // App-Tour (Phase 7b) — ui.js importiert sie statisch.
   './src/modules/tour.js',
   './src/modules/pwa.js', './src/modules/screen-shell.js',

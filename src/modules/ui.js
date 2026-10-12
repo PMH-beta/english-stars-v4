@@ -667,7 +667,7 @@ export function uvTrainOpenCreate() {
         slide.classList.remove('slide-left');
         slide.classList.add('slide-right');
         requestAnimationFrame(() => requestAnimationFrame(() => slide.classList.remove('slide-right')));
-      }, 230);
+      }, 170);
     });
   });
   slide.querySelectorAll('.uv-fill-row').forEach((row) => {
@@ -1586,7 +1586,7 @@ function _snapToggle(track, targetPx, targetForm) {
   const fin = () => { track.removeEventListener('transitionend', onEnd); if (track._gen === gen) _finalizeSnap(track); };
   const onEnd = (e) => { if (e.propertyName === 'transform') fin(); };
   track.addEventListener('transitionend', onEnd);
-  setTimeout(fin, 520);
+  setTimeout(fin, 400);
 }
 
 function _snapBack(track) {   // unter Schwelle: glatt zur Mitte zurück (kein Toggle)

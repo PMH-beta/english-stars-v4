@@ -84,7 +84,7 @@ function _obenFarbe() {
 }
 let _lauf = 0, _bis = 0, _farbe = '', _beob = null;
 function _nachfuehren() {
-  _bis = performance.now() + 450;   // Blende 0,25 s + Luft
+  _bis = performance.now() + 400;   // Blende 0,2 s + Luft
   if (_lauf) return;
   const bild = () => {
     if (document.body.classList.contains('p-app')) {
