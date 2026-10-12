@@ -53,9 +53,9 @@
     <!-- Fester Platz fuer Knopf ODER Balken: die Gruppe ist immer gleich hoch,
          Vondu rueckt nicht, wenn der Knopf kommt oder dem Balken weicht. -->
     <div class="p-start-platz">
-    <!-- Balken + Prozent sind bis zum Tippen des Start-Buttons ausgeblendet
-         (startup.js) — sie gehoeren zum Ladevorgang und erscheinen erst mit ihm. -->
-    <div id="loading-progress" style="width:100%;display:none">
+    <!-- Balken + Prozent stehen ab dem ersten Bild: erst wird geladen, dann
+         ersetzt „Los geht's!“ den Balken am selben Platz (F-92, startup.js). -->
+    <div id="loading-progress" style="width:100%">
       <div class="p-ladebalken"><i id="loading-fill"></i></div>
       <div class="p-ladepct" id="loading-pct">0%</div>
     </div>

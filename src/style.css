@@ -1367,6 +1367,9 @@ body.p-app{
   text-align:center; font:800 10px var(--p-font);
   letter-spacing:var(--p-ls-kicker); color:var(--p-text-akzent);
 }
+/* Noch ohne Nummer (bevor main.js sie setzt) schon eine Zeile hoch — sonst rückte
+   Vondu auf dem Ladescreen im ersten Bild noch um 7 px. */
+.p-version:empty::before{ content:'\00a0'; }
 
 /* ── Vondu ───────────────────────────────────────────────────────────────── */
 /* Lockup aus Gesicht und Wortmarke, im Kopfbereich des Anmelde-Screens. */
@@ -3965,7 +3968,10 @@ body.p-app .music-vol-btn{ bottom:calc(88px + env(safe-area-inset-bottom,0px)); 
   font:800 7.5px var(--p-font); text-transform:uppercase; letter-spacing:.06em;
   color:var(--p-text-2); white-space:nowrap;
 }
-.pf-wert-chipzeile{ margin-top:4px; display:flex; justify-content:center; }
+/* Chip als Abzeichen auf der rechten oberen Ecke (Wunsch des Nutzers 13.10.2026):
+   als eigene Zeile machte er Kachel und Reihe höher, die Seite sprang. */
+.pf-wert{ position:relative; }
+.pf-wert-chipzeile{ position:absolute; top:-9px; right:-5px; z-index:1; display:flex; }
 .pf-wert-chip{
   display:inline-flex; align-items:center; white-space:nowrap;
   border:var(--p-rahmen); border-radius:11px; background:var(--p-ok);

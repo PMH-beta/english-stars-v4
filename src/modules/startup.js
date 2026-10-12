@@ -2,7 +2,7 @@
 import { _initTTS, warmTTS } from './speech.js';
 import { _sfx, primeSfx } from './game.js';
 import { _discoverTracks, _initAudio, _trackUrl, startMusicSync, _setMusicBtns } from './audio.js';
-import { showScreen, showMenu, handleLogin, handleLogout, showNewPasswordScreen } from './ui.js';
+import { showScreen, showMenu, handleLogin, handleLogout, showNewPasswordScreen, spielstandVorladen } from './ui.js';
 import { supabase, cachedSessionUser } from './supabase.js';
 import { onAuthChange } from './auth.js';
 
@@ -44,8 +44,7 @@ export async function startupSequence() {
   });
 
   console.log('[Startup] Loading-Screen:', performance.now().toFixed(0) + 'ms');
-  showScreen('loading-screen');
-  _setRing(false);   // Ring bleibt weg, bis wirklich geladen wird
+  showScreen('loading-screen');   // Balken steht schon (index.html): das Anmelden zählt zum Laden
 
   // Reihenfolge: erst wissen WER da ist, dann der Button.
   // Ein abgemeldetes Kind soll den Login sehen und nicht erst "Los geht's" tippen
@@ -59,9 +58,8 @@ export async function startupSequence() {
 }
 
 // ── Ring + Prozentanzeige ein-/ausblenden ──
-// Vor dem Tippen stand der Ring unbenutzt auf 0 % daneben; er gehört zum
-// Ladevorgang und erscheint deshalb erst mit ihm.
-// Seit dem Pastell-Redesign ein waagerechter Balken statt des Rings.
+// Seit dem Pastell-Redesign ein waagerechter Balken statt des Rings. Er läuft,
+// bis geladen ist, und macht dann dem „Los geht's!“-Knopf Platz (F-92).
 function _setRing(on) {
   const wrap = document.getElementById('loading-progress');
   if (wrap) wrap.style.display = on ? '' : 'none';
@@ -83,8 +81,11 @@ function setProgress(pct, msg) {
 }
 
 /**
- * Der "Los geht's"-Gate: nur der Button, kein Ring. Erst das Tippen startet den
- * sichtbaren Ladevorgang.
+ * Der "Los geht's"-Gate. Seit F-92 (13.10.2026) wird ZUERST geladen — Sounds,
+ * Musikliste, Mikrofon-Status und der Spielstand —, der Balken läuft dabei im
+ * festen Platz unter Vondu. Erst danach erscheint der Knopf am selben Platz,
+ * und das Tippen führt direkt ins fertige Menü (vorher lud alles erst nach dem
+ * Tippen, der Balken blitzte nur kurz auf, weil das Menü mit Platzhaltern kam).
  *
  * Der Button ist da, weil iOS Ton nur nach einer echten Nutzergeste freigibt —
  * Audio-Session, SFX-Entsperrung, Musik und TTS-Warmup passieren deshalb
@@ -98,18 +99,22 @@ function setProgress(pct, msg) {
 export function showStartGate(user) {
   if (user) window.currentUser = user;
   showScreen('loading-screen');
-  _setRing(false);
   const startBtn = document.getElementById('loading-start-btn');
-  if (!startBtn) { bootWork(); return; }
+  if (!startBtn) { bootWork().then(() => finishStartup()); return; }
   _gateOpen = true;
-  startBtn.style.display = '';
-  startBtn.disabled = false;
-  startBtn.onclick = async () => {
+  startBtn.style.display = 'none';
+  startBtn.onclick = null;
+  _setRing(true);
+  setProgress(5, 'Es geht los…');
+  bootWork().then(() => {
+    _setRing(false);
+    startBtn.disabled = false;
+    startBtn.style.display = '';
+    startBtn.onclick = onStart;
+  });
+  async function onStart() {
+    startBtn.onclick = null;   // ein zweites Tippen startet nichts doppelt
     _gateOpen = false;
-    startBtn.disabled = true;
-    startBtn.style.display = 'none';
-    _setRing(true);
-    setProgress(5, 'Es geht los…');
     // ── alles hier ist synchron in der Geste ──
     // iOS: Audio-Session EINMAL auf 'play-and-record' (Web Audio Session API, Safari
     // 16.4+). Erlaubt Aufnahme dauerhaft (Vosk bleibt funktionsfähig) UND spielt Ton
@@ -125,16 +130,16 @@ export function showStartGate(user) {
       if (musicPref === '1' && !window._musicOn) { startMusicSync(); _setMusicBtns(true); }
     } catch(e) { console.warn('[startup] Music unlock failed:', e); }
     // TTS-Warmup in der Geste anstoßen, aber nicht abwarten: es kostet bis zu 3,5 s
-    // (bis 1,5 s Stimmen-Poll + bis 2 s Warmup) und liefe sonst VOR dem Cloud-Load,
-    // statt parallel dazu. Bis im Spiel das erste Wort fällt, ist es längst fertig —
-    // speakWord geht ohnehin über _withVoices, das notfalls selbst wartet.
+    // (bis 1,5 s Stimmen-Poll + bis 2 s Warmup). Bis im Spiel das erste Wort fällt,
+    // ist es längst fertig — speakWord geht ohnehin über _withVoices, das notfalls
+    // selbst wartet.
     try { _initTTS(); } catch(e) {}
     try { warmTTS().catch(() => {}); } catch(e) {}
-    await bootWork();
-  };
+    await finishStartup();
+  }
 }
 
-// Die eigentliche Ladearbeit — läuft erst nach dem Tippen und meldet echte Schritte.
+// Die eigentliche Ladearbeit — läuft VOR dem Knopf und meldet echte Schritte.
 async function bootWork() {
   setProgress(12, 'Sounds werden geladen…');
   try { _sfx(); } catch(e) {}
@@ -160,8 +165,11 @@ async function bootWork() {
 
   // Kein resolveSession() mehr hier — die Session steht bereits, sie wird jetzt VOR
   // dem Button ermittelt (sonst käme der Login erst nach dem Tippen).
+  // Den Spielstand übernimmt nach dem Tippen handleLogin (spielstandVorladen, ui.js).
   setProgress(60, 'Dein Fortschritt wird geladen…');
-  await finishStartup();
+  if (window.currentUser && !_pendingRecovery) {
+    try { await spielstandVorladen(window.currentUser); } catch(e) {}
+  }
   setProgress(100, 'Bereit!');
 }
 

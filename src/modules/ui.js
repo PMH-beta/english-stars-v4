@@ -2622,17 +2622,33 @@ export async function cancelNewPassword() {
 // REGEL: Beim Start (und bei Resume > 2 Min) IMMER hart aus Supabase laden.
 // Cloud ist die einzige Wahrheit; lokaler Stand ist nur Offline-Fallback und
 // gewinnt nie. Kein Wert-Merge, keine Signatur, keine Single-Session.
+// Spielstand schon VOR „Los geht's!“ laden (F-92): der Ladescreen zeigt den
+// Balken, bis der Stand da ist; nach dem Tippen übernimmt handleLogin genau
+// dieses Ergebnis und geht direkt ins Menü.
+let _vorab = null;   // { uid, ergebnis: Promise<'ok'|'new'|'failed'> }
+export function spielstandVorladen(user) {
+  window.currentUser = user;
+  setCloudConfirmed(false);
+  const ergebnis = loadFromCloud();
+  ergebnis.catch(() => {});   // Fehler wertet handleLogin aus (try/catch dort)
+  _vorab = { uid: user?.id, ergebnis };
+  return ergebnis;
+}
+
 export async function handleLogin(user) {
   if (_loginInFlight) return;
   _loginInFlight = true;
+  const vorab = _vorab && _vorab.uid === user?.id ? _vorab : null;
+  _vorab = null;
   window.currentUser = user;
-  setCloudConfirmed(false);
-  console.log('[handleLogin] CALLED with user:', user?.email);
+  if (!vorab) setCloudConfirmed(false);
+  console.log('[handleLogin] CALLED with user:', user?.email, vorab ? '(vorab geladen)' : '');
   try {
     // Instagram-Gefühl: ist schon ein lokaler Name da, sofort die Menü-Shell mit
     // Skeleton-Kacheln zeigen (statt Blockier-Ladescreen), während hart geladen wird.
-    if (window.SD?.playerName) showMenuSkeleton('free');   // der Start landet immer auf Vokabeln (restoreLastScreen)
-    const r = await loadFromCloud();
+    // Vorab geladen ist der Stand schon da — dann gleich das echte Menü.
+    if (window.SD?.playerName && !vorab) showMenuSkeleton('free');   // der Start landet immer auf Vokabeln (restoreLastScreen)
+    const r = vorab ? await vorab.ergebnis : await loadFromCloud();
     if (r === 'new') { showScreen('name-screen'); return; }
     if (r === 'failed') {
       // Offline/unerreichbar: lokalen Cache als Fallback (Kind kann offline spielen);
