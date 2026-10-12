@@ -1277,6 +1277,7 @@ function _forgeWeaponSvg(type, steps, nextI, which) {
 
 // Gemeinsamer 4-fps-Takt fuer alle gluehenden Werkstuecke auf dem Schirm.
 let _forgeBild = 0, _forgeTimer = null;
+const _forgeTpl = document.createElement('template');
 function _forgeTick() {
   const werke = document.querySelectorAll('.fw-werk[data-werk]');
   if (!werke.length) { clearInterval(_forgeTimer); _forgeTimer = null; return; }
@@ -1284,7 +1285,16 @@ function _forgeTick() {
   werke.forEach((el) => {
     // Optional ein vierter Wert: Maßstab (Befüllen-Kachel 5.12 zeigt 1×).
     const [type, which, fertig, scale] = el.dataset.werk.split(':');
-    el.innerHTML = forgeTag(type, which, +fertig, _forgeBild, scale ? +scale : null);
+    const html = forgeTag(type, which, +fertig, _forgeBild, scale ? +scale : null);
+    if (el._bild === html) return;
+    el._bild = html;
+    // Nur das Bild tauschen, das <img> bleibt: neu eingesetzt war das Element
+    // unter dem Finger beim Loslassen oft schon weg — der Tipp startete nichts.
+    _forgeTpl.innerHTML = html;
+    const neu = _forgeTpl.content.firstElementChild, alt = el.firstElementChild;
+    if (alt && neu && alt.tagName === 'IMG' && neu.tagName === 'IMG') {
+      for (const a of ['src', 'width', 'height']) alt.setAttribute(a, neu.getAttribute(a));
+    } else el.innerHTML = html;
   });
 }
 export function startForgeAnim() {

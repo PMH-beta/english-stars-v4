@@ -3628,7 +3628,12 @@ button.p-chip{ cursor:pointer; }
    in Ruhe wie vorher; ui.js rechnet mit der Seitenbreite (_trackX). */
 .forge .cst-slider{ position:relative; }
 .forge .cst-slider-view{ margin:0 -14px; }
-.forge .cst-arrow{ position:absolute; top:0; z-index:1; }
+.forge .cst-arrow{ position:absolute; top:0; z-index:0; }
+/* Beim Wischen gleitet das Werkstück ÜBER die Pfeile (Wunsch des Nutzers
+   13.10.2026). Das Fenster liegt deshalb oben, lässt Tipps aber durch — nur der
+   Inhalt einer Seite fängt sie, so bleiben die Pfeile im Rand antippbar. */
+.forge .cst-slider-view{ position:relative; z-index:1; pointer-events:none; }
+.forge .cst-page > *{ pointer-events:auto; }
 .forge .cst-arrow:first-child{ left:0; }
 .forge .cst-arrow:last-child{ right:0; }
 .forge .cst-page{ flex:0 0 calc(100% - 29px); padding:0 14.5px; }
