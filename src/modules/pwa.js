@@ -154,6 +154,13 @@ if ('serviceWorker' in navigator) {
       let refreshing = false;
       navigator.serviceWorker.addEventListener('controllerchange', () => {
         if (refreshing) return;
+        // Der neue SW gehört zu genau dem Stand, den diese Seite schon fährt (der
+        // App-Code kommt network-first): nichts neu zu laden. Sonst warf das
+        // Neuladen beim ersten Start nach jedem neuen Stand zurück auf „Los geht's“.
+        try {
+          const c = navigator.serviceWorker.controller;
+          if (c && new URL(c.scriptURL).searchParams.get('v') === APP_VERSION) return;
+        } catch (e) {}
         refreshing = true;
         // Nicht mitten in Nutzung neuladen (Spiel/Scan/Review) — Reload aufschieben,
         // showMenu() führt ihn beim nächsten Menübesuch aus.

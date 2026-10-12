@@ -40,17 +40,13 @@
       media="(device-width:768px) and (device-height:1024px) and (-webkit-device-pixel-ratio:2)">
 <link rel="stylesheet" href="src/style.css">
 </head>
-<body>
-
-<!-- Vorschaltbild: Vondu allein genau in der Bildschirmmitte wie im Startbild des
-     Handys. Der Ladescreen danach stellt Logo, Wortmarke und Knopf bzw. Balken
-     als Gruppe mittig (1.1) — Vondu rueckt dabei einmal nach oben und steht dann. -->
-<div id="init-overlay" style="position:fixed;inset:0;z-index:9999;background:#C9B8FF;display:flex;align-items:center;justify-content:center;">
-  <img src="vondu-logo.svg" alt="" width="112" height="107" style="display:block">
-</div>
+<body class="p-app p-ton-lila">
 
 <!-- ═══ LOADING SCREEN ═══ -->
-<div id="loading-screen" class="p-screen p-ton-lila" style="display:none">
+<!-- Steht schon im ersten Bild, genau wie danach (Wunsch des Nutzers 13.10.2026):
+     nach dem Startbild des Handys kein eigenes Vorschaltbild mehr — Vondu steht
+     sofort in der Gruppe, „Los geht's!“ kommt in den freien Platz darunter. -->
+<div id="loading-screen" class="p-screen p-ton-lila" style="display:flex">
   <div class="p-buehne p-buehne--mitte">
     <img src="vondu-logo.svg" alt="Vondu" width="112" height="107" style="display:block;flex:none">
     <img src="vondu-wordmark.svg" alt="VONDU" width="176" height="32" style="display:block;max-width:100%">
@@ -63,7 +59,7 @@
       <div class="p-ladebalken"><i id="loading-fill"></i></div>
       <div class="p-ladepct" id="loading-pct">0%</div>
     </div>
-    <div id="loading-status" class="p-ladetext">Lade App…</div>
+    <div id="loading-status" class="p-ladetext"></div>
     <div id="loading-hint" class="p-ladetext"></div>
     <button id="loading-start-btn" class="p-btn" style="display:none;width:calc(100% + 4px);flex:none;background:var(--p-gold);font-size:15px;gap:10px">Los geht's!<canvas data-icon="starInk" width="14" height="14" style="width:14px;height:14px;image-rendering:pixelated;flex:none"></canvas></button>
     </div>
@@ -545,9 +541,9 @@
 
 <div class="confetti-wrap" id="confetti-wrap"></div>
 <!-- Globaler Musik-Button (sichtbar im Menü/Stats, im Spiel ist eigener Button in der Score-Bar) -->
-<button class="music-btn-global" id="music-btn-global" onclick="toggleMusic()" title="Musik an/aus"><canvas data-icon="music" width="14" height="14" style="width:28px;height:28px;image-rendering:pixelated;flex:none"></canvas></button>
+<button class="music-btn-global" id="music-btn-global" style="display:none" onclick="toggleMusic()" title="Musik an/aus"><canvas data-icon="music" width="14" height="14" style="width:28px;height:28px;image-rendering:pixelated;flex:none"></canvas></button>
 <!-- PWA Install-Button (nur sichtbar wenn Browser PWA-Install anbietet) -->
-<button class="music-vol-btn" id="music-vol-btn" onclick="toggleVolPopup()" title="Lautstärke"><canvas data-icon="speaker" width="14" height="14" style="width:14px;height:14px;image-rendering:pixelated;flex:none"></canvas></button>
+<button class="music-vol-btn" id="music-vol-btn" style="display:none" onclick="toggleVolPopup()" title="Lautstärke"><canvas data-icon="speaker" width="14" height="14" style="width:14px;height:14px;image-rendering:pixelated;flex:none"></canvas></button>
 <div class="music-vol-wrap" id="music-vol-wrap">
   <span id="music-vol-lbl">50%</span>
   <input type="range" min="0" max="100" value="50" id="music-vol-slider" oninput="setMusicVolume(this.value/100)" />

@@ -43,8 +43,6 @@ export async function startupSequence() {
     }
   });
 
-  const overlay = document.getElementById('init-overlay');
-  if (overlay) overlay.style.display = 'none';
   console.log('[Startup] Loading-Screen:', performance.now().toFixed(0) + 'ms');
   showScreen('loading-screen');
   _setRing(false);   // Ring bleibt weg, bis wirklich geladen wird
