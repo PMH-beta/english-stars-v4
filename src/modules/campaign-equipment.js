@@ -520,8 +520,13 @@ function _onPanelClick(e) {
     else {
       _selSlot = key;
       const worn = _wornItem(c, key);
-      if (worn) _selId = worn.id;
-      else {
+      if (worn) {
+        _selId = worn.id;
+        // Was das getragene Teil bringt, leuchtet gleich beim Anwählen auf
+        // (Wunsch des Nutzers 13.10.2026): Chips gegenüber dem leeren Fach,
+        // bei der Waffe gegenüber der Faust.
+        _vorherWerte = _statVals({ ...c.equipment, [key]: key === 'weapon' ? 'none' : null });
+      } else {
         const sel = _selectedItem();
         if (sel && sel.slot !== (SLOT_TYPE[key] || key)) _selId = null;   // Auswahl passt nicht mehr
       }
