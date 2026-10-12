@@ -548,7 +548,7 @@
   <span id="music-vol-lbl">50%</span>
   <input type="range" min="0" max="100" value="50" id="music-vol-slider" oninput="setMusicVolume(this.value/100)" />
 </div>
-<div id="version-badge" style="position:fixed;bottom:4px;left:50%;transform:translateX(-50%);font-size:.65rem;color:#bbb;font-weight:700;z-index:1000;pointer-events:none;"></div>
+<div id="version-badge" style="display:none;position:fixed;bottom:4px;left:50%;transform:translateX(-50%);font-size:.65rem;color:#bbb;font-weight:700;z-index:1000;pointer-events:none;"></div>
 
 <!-- Tesseract (OCR) und Vosk (Offline-Spracherkennung) werden NICHT mehr hier
      geladen: als klassische <script>-Tags am Body-Ende blockierten sie den Parser,

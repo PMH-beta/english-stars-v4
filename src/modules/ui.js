@@ -100,6 +100,10 @@ export function showScreen(id) {
   const musicVolBtn = document.getElementById('music-vol-btn');
   if (musicBtnGlobal) musicBtnGlobal.style.display = isLoading ? 'none' : '';
   if (musicVolBtn) musicVolBtn.style.display = isLoading ? 'none' : '';
+  // Screens mit eigener Versionszeile (.p-version) zeigen das globale Etikett
+  // nicht — sonst stand die Nummer dort doppelt (N54, Wunsch des Nutzers).
+  const versionBadge = document.getElementById('version-badge');
+  if (versionBadge) versionBadge.style.display = el.querySelector('.p-version') ? 'none' : '';
   // Letzten "wiederherstellbaren" Screen merken — ein Relaunch landet so näher dran.
   // Bewusst nur Menü/Profil/Fortschritt (kein mitten-im-Spiel/Scan/Review-Restore).
   if (['menu-screen','profile-screen','stats-screen'].includes(id)) {
