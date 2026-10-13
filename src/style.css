@@ -4428,8 +4428,12 @@ body.schnell-active .p-sammlung:not(.is-offen) > .p-balken{ height:9px; margin-t
   border:var(--p-rahmen); border-radius:12px 12px 0 0; background:var(--p-spur);
   display:flex; align-items:center; justify-content:center;
 }
+/* Ohne Unterkante statt mit heller: die helle Kante stieß an den unteren Ecken
+   schräg an die schwarzen Seitenränder, beim ersten/letzten Reiter stand dadurch
+   ein weißes Dreieck im Rahmen (Nutzer 14.10.2026). Die Fläche deckt die
+   Tafelkante zwischen den Seitenrändern trotzdem ab. */
 .ce-reiter-tab.is-aktiv{
-  height:52px; padding-top:5px; background:var(--p-karte-hell); border-bottom-color:var(--p-karte-hell);
+  height:52px; padding-top:5px; background:var(--p-karte-hell); border-bottom-width:0;
   box-shadow:inset 0 5px 0 var(--p-ton,var(--p-rosa));
 }
 .ce-tafel{ border:var(--p-rahmen); border-radius:0 0 18px 18px; background:var(--p-karte-hell); padding:12px 8px; }
