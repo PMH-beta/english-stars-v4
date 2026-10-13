@@ -4014,6 +4014,9 @@ body.p-app .music-vol-btn{ bottom:calc(88px + env(safe-area-inset-bottom,0px)); 
   display:flex; align-items:center; justify-content:center;
   box-shadow:var(--p-schatten-angehoben); transform:translate(-50%,-85%);
 }
+/* Platz für die Teil-Karte ist immer reserviert (Karte 10 + 100, mit zweizeiligem
+   Vorteil bis ~120), damit beim Fachwechsel nichts nachrückt (14.10.2026). */
+.pf-auswahl-unten{ min-height:120px; }
 /* Karte des Teils seit 14.10.2026 kompakter (Bild 76 statt 88 hoch — Waffen 2×
    48 × 72 passen genau, Rüstungsteile 64 × 64). */
 .pf-karte-teil{

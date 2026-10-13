@@ -419,7 +419,11 @@ function _previewHtml(c) {
 
 // Auswahl verwerfen — beim Öffnen der Profilseite, damit dort IMMER die leere
 // Startansicht steht (Modul-Zustand überlebt sonst den Seitenwechsel).
-export function resetEquipmentSelection() { _selSlot = null; _selId = null; _vorherWerte = null; }
+export function resetEquipmentSelection() { _selSlot = null; _selId = null; _vorherWerte = null; _auswahlHoehe = 0; }
+
+// Höchste bisher gemessene Höhe des Bereichs „Tasche + Karte" — er schrumpft beim
+// Fachwechsel nicht wieder (z. B. Karte mit zweizeiligem Vorteil), erst beim Zuklappen.
+let _auswahlHoehe = 0;
 
 export function renderEquipmentPanel() {
   const host = document.getElementById('prof-equip-section');
@@ -434,21 +438,27 @@ export function renderEquipmentPanel() {
     const BAG_COLS = 6;
     const meta = SLOTS[_selSlot];
     const slotType = SLOT_TYPE[_selSlot] || _selSlot;
-    const allOfSlot = forgedItems().filter(i => i.slot === slotType);
+    const alle = forgedItems();
+    const allOfSlot = alle.filter(i => i.slot === slotType);
     const worn = _wornItem(c, _selSlot);
-    const capacity = Math.max(BAG_COLS, Math.ceil(allOfSlot.length / BAG_COLS) * BAG_COLS);
+    // Jede Tasche so viele Reihen wie die vollste — sonst änderte sich beim
+    // Fachwechsel die Höhe und alles darunter rutschte (Wunsch 14.10.2026).
+    const reihen = Math.max(1, ...Object.keys(SLOTS).map(k => Math.ceil(alle.filter(i => i.slot === (SLOT_TYPE[k] || k)).length / BAG_COLS)));
+    const capacity = reihen * BAG_COLS;
     let inv = allOfSlot.map(it => `<button class="pf-teil${it.id === _selId ? ' is-gewaehlt' : ''}" data-item="${it.id}"
         title="${_anzeigeName(it)} (${it.parts}/${SLOTS_PER_FORM} Teile, ${it.station})">
         ${_teilBild(it, 1)}${worn && worn.id === it.id ? `<span class="pf-teil-haken">${iconHTML('check', 14)}</span>` : ''}
       </button>`).join('');
     for (let i = allOfSlot.length; i < capacity; i++) inv += `<div class="pf-teil is-leer" title="Leerer Platz — schmiede etwas in der Schmiede"></div>`;
     const emptyHint = allOfSlot.length ? '' : `<div class="pf-leer">Noch kein ${meta.name}-Teil geschmiedet — wähle in der Schmiede beim Befüllen ein passendes Objekt und übe seine Verben, dann taucht es hier auf.</div>`;
-    bagHtml = `
+    // Unter der Tasche ist immer Platz für die Teil-Karte reserviert (auch ohne
+    // angewähltes Teil), damit beim Wechsel nichts nachrückt.
+    bagHtml = `<div class="pf-auswahl">
       <div class="pf-tasche-kopf"><span class="pf-tasche-titel">${iconHTML(meta.px, 14)}${meta.mehrzahl} · ${allOfSlot.length}</span>
         ${allOfSlot.length ? '<span class="pf-tasche-hinweis">Antippen = anlegen</span>' : ''}</div>
       <div class="pf-tasche">${inv}</div>
-      ${_previewHtml(c)}
-      ${emptyHint}`;
+      <div class="pf-auswahl-unten">${_previewHtml(c)}${emptyHint}</div>
+    </div>`;
   }
 
   const gear = _gearMap(c);
@@ -469,6 +479,12 @@ export function renderEquipmentPanel() {
   if (cv && buehne.clientWidth && cv.offsetWidth > buehne.clientWidth) buehne.innerHTML = stageHTMLFor(window.SD, gear, 2);
   paintStages(buehne);
 
+  const auswahl = host.querySelector('.pf-auswahl');
+  if (auswahl) {
+    _auswahlHoehe = Math.max(_auswahlHoehe, auswahl.offsetHeight);
+    auswahl.style.minHeight = _auswahlHoehe + 'px';
+  } else _auswahlHoehe = 0;
+
   if (!host._pdWired) {
     host._pdWired = true;
     host.addEventListener('click', _onPanelClick);
@@ -483,7 +499,7 @@ export function renderEquipmentPanel() {
 function _tascheInsBild() {
   const host = document.getElementById('prof-equip-section');
   const puppe = host && host.querySelector('.pf-puppe');
-  const ziel = host && (host.querySelector('.pf-karte-teil') || host.querySelector('.pf-leer') || host.querySelector('.pf-tasche'));
+  const ziel = host && host.querySelector('.pf-auswahl');   // mit dem reservierten Platz für die Karte
   if (!puppe || !ziel) return;
   let frei = window.innerHeight - 12;
   for (const id of ['music-btn-global', 'music-vol-btn']) {
@@ -491,13 +507,17 @@ function _tascheInsBild() {
     if (r && r.height > 0) frei = Math.min(frei, r.top - 12);
   }
   const kb = ziel.getBoundingClientRect();
-  const bb = (host.querySelector('.pf-anlegen') || ziel).getBoundingClientRect();
-  let um = kb.bottom - frei;                       // am liebsten: ganze Karte frei
+  // Unterkante des Anlegen/Ablegen-Knopfs — ohne Karte dort, wo er im reservierten
+  // Platz säße (10 Abstand + halbe Karte 50 + halber Knopf 22). So rollt das erste
+  // Antippen gleich weit, egal welches Fach, und ein späterer Knopf ist frei.
+  const knopf = host.querySelector('.pf-anlegen'), platz = host.querySelector('.pf-auswahl-unten');
+  const knopfUnten = knopf ? knopf.getBoundingClientRect().bottom : (platz ? platz.getBoundingClientRect().top + 82 : kb.bottom);
+  let um = kb.bottom - frei;                       // am liebsten: ganzer Bereich frei
   const grenze = puppe.getBoundingClientRect().top - 8;
   if (um > grenze) {
-    // Kleine Handys: beides geht nicht. Dann mindestens Knopf frei und Karte ganz
+    // Kleine Handys: beides geht nicht. Dann mindestens Knopf frei und Bereich ganz
     // im Bild; die Puppe rutscht nur so weit wie dafür nötig aus dem Bild.
-    um = Math.max(grenze, bb.bottom - frei, kb.bottom - (window.innerHeight - 8));
+    um = Math.max(grenze, knopfUnten - frei, kb.bottom - (window.innerHeight - 8));
     um = Math.min(um, kb.top - 8);
   }
   if (um < 1) return;
@@ -548,6 +568,7 @@ function _onPanelClick(e) {
     // Slot ein Item, wird DAS angewählt (Karte unter der Tasche, „Ablegen").
     // Denselben Slot nochmal antippen = abwählen → Tasche verschwindet wieder.
     const key = slotBtn.dataset.slot;
+    const warOffen = !!_selSlot;
     _vorherWerte = null;
     if (_selSlot === key) { _selSlot = null; _selId = null; }
     else {
@@ -565,7 +586,9 @@ function _onPanelClick(e) {
       }
     }
     renderEquipmentPanel();
-    if (_selSlot) _tascheInsBild();
+    // Nur beim ersten Aufklappen rollen — beim Wechsel zwischen Fächern bleibt
+    // alles stehen (der Bereich ist dafür gleich hoch, s. renderEquipmentPanel).
+    if (_selSlot && !warOffen) _tascheInsBild();
     return;
   }
   // Klick ins Leere (kein Item, kein Slot, keine Karte) = Auswahl aufheben.
