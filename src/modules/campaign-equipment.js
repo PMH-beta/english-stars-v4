@@ -317,9 +317,10 @@ function _slotTile(c, key) {
 }
 
 // ── Kampf-Werte (echte Spielwerte, nicht nur Boni) ───────────────────────────
-// Kacheln nach 8.1. Bei angewähltem Teil rechnet _statVals mit der Vorschau-
-// equipment-Map; geänderte Kacheln werden grün (besser) bzw. rosa (schlechter)
-// und tragen die Änderung als Chip.
+// Seit 13.10.2026 (Wunsch des Nutzers: „als Liste wie in RPGs, nicht mit so vielen
+// Flächen“) eine Liste in einer Karte statt acht Kacheln (8.1) — Zeilen wie in
+// „Info zur Waffe“ (5.2). Geänderte Zeilen leuchten grün (besser) bzw. rosa
+// (schlechter) und tragen die Änderung als Chip links vom Wert.
 const STAT_DEFS = [
   { key: 'dmg',      px: 'sword',  label: 'Schaden',    fmt: v => String(v) },
   { key: 'hp',       px: 'heart',  label: 'Leben',      fmt: v => String(v) },
@@ -365,12 +366,12 @@ function _statsHtml(c) {
       const diff = a - o;
       const shown = d.delta ? d.delta(diff) : Math.round(diff * 100) / 100;
       cls = diff > 0 ? ' is-plus' : ' is-minus';
-      chip = `<div class="pf-wert-chipzeile"><span class="pf-wert-chip">${shown > 0 ? '+' : '−'}${Math.abs(shown)}</span></div>`;
+      chip = `<span class="pf-wert-chip">${shown > 0 ? '+' : '−'}${Math.abs(shown)}</span>`;
     }
-    return `<div class="pf-wert${cls}"><div class="pf-wert-ic">${iconHTML(d.px, 14)}</div>`
-      + `<div class="pf-wert-zahl">${d.fmt(a)}</div><div class="pf-wert-lbl">${d.label}</div>${chip}</div>`;
+    return `<div class="pf-wert${cls}">${iconHTML(d.px, 14)}<span class="pf-wert-lbl">${d.label}</span>`
+      + `<span class="p-wachs"></span>${chip}<span class="pf-wert-zahl">${d.fmt(a)}</span></div>`;
   }).join('');
-  return `<div class="pf-werte">${tiles}</div>`;
+  return `<div class="pf-werte"><div class="pf-werte-gitter">${tiles}</div></div>`;
 }
 
 // ALLE Verbesserungen eines Items als kurze Zahlen-Zeilen, je mit dem

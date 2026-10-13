@@ -7,12 +7,29 @@
 // Auf- und Zuklappen nachrutscht (klapp-anim.js ruft verfolge selbst).
 // Die Unschärfe ist ein SVG-Filter je Richtung und Stufe (feGaussianBlur nur in
 // einer Achse); CSS-blur() kann nur rundum. Bei „Bewegung reduzieren“ nichts.
+//
+// Leistung (13.10.2026, Nutzer: auf einem älteren iPhone ruckelte alles — „lieber
+// weniger Unschärfe und mehr Leistung“): Safari rechnet SVG-Filter auf HTML ohne
+// Grafikchip, jedes Bild neu — auf iPhone/iPad gibt es deshalb keine Unschärfe.
+// Anderswo schaltet sie sich ab, sobald zwei Animationen spürbar ruckeln (je
+// mindestens 3 Bilder über 34 ms), und bleibt auf diesem Gerät aus (es_leicht).
+
+import { isIOS } from './config.js';
 
 const STUFEN = 5;           // stärkste Stufe = stdDeviation in px
 const BELICHTUNG = 7;       // ms „Verschlusszeit“: Weg in dieser Zeit = Länge des Wischers
 const SPRUNG = 120;         // px je Bild: mehr ist ein Neuaufbau ohne Übergang, keine Bewegung
 const X_SEL = '.cst-track, .p-tabs-schieber, .uv-fill-slide';
+const LANGSAM_MS = 34;       // ein Bild darüber: unter 30 Bilder/s
 const ruhig = () => !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+let _gedrosselt = (() => { try { return localStorage.getItem('es_leicht') === '1'; } catch (e) { return false; } })();
+let _langsameLaeufe = 0;
+const _aus = () => _gedrosselt || ruhig() || isIOS();
+function _drosseln() {
+  _gedrosselt = true;
+  try { localStorage.setItem('es_leicht', '1'); } catch (e) {}
+  for (const el of _laeufe.keys()) loescheUnschaerfe(el);
+}
 
 let _defs = false;
 function _filterAnlegen() {
@@ -35,7 +52,7 @@ const _stufe = (v, max = STUFEN) => Math.min(max, Math.round((v * BELICHTUNG) / 
 
 /** Unschärfe direkt aus einer bekannten Geschwindigkeit setzen (px/ms). */
 export function setzeUnschaerfe(el, achse, v, max) {
-  if (!el || ruhig()) return;
+  if (!el || _aus()) return;
   _filterAnlegen();
   const s = _stufe(Math.abs(v), max);
   const soll = s ? `url(#p-mb-${achse}${s})` : '';
@@ -52,15 +69,21 @@ const FENSTER = 40;
 const _laeufe = new Map();
 const _lage = (el, achse) => { const r = el.getBoundingClientRect(); return achse === 'x' ? r.left : r.top; };
 export function verfolge(el, achse, ms, max) {
-  if (!el || ruhig()) return;
+  if (!el || _aus()) return;
   const jetzt = performance.now();
   const alt = _laeufe.get(el);
   if (alt) { alt.bis = Math.max(alt.bis, jetzt + ms); return; }
-  const l = { spur: [[jetzt, _lage(el, achse)]], bis: jetzt + ms, raf: 0 };
+  const l = { spur: [[jetzt, _lage(el, achse)]], bis: jetzt + ms, raf: 0, bilder: 0, langsam: 0, zuletzt: jetzt };
   _laeufe.set(el, l);
-  const ende = () => { cancelAnimationFrame(l.raf); loescheUnschaerfe(el); _laeufe.delete(el); };
+  const ende = () => {
+    cancelAnimationFrame(l.raf); loescheUnschaerfe(el); _laeufe.delete(el);
+    if (l.langsam >= 3 && ++_langsameLaeufe >= 2) _drosseln();
+  };
   const bild = (t) => {
-    if (!el.isConnected) return ende();
+    if (!el.isConnected || _gedrosselt) return ende();
+    // Ruckelt es? Die ersten zwei Bilder zählen nicht (da läuft noch der Umbau).
+    if (++l.bilder > 2 && t - l.zuletzt > LANGSAM_MS) l.langsam++;
+    l.zuletzt = t;
     const p = _lage(el, achse);
     if (Math.abs(p - l.spur[l.spur.length - 1][1]) >= SPRUNG) l.spur = [];   // Sprung: neu anfangen
     l.spur.push([t, p]);

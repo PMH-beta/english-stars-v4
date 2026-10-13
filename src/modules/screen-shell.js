@@ -41,7 +41,9 @@ const _bildPunkte = new Map();
 let _leinwand = null;
 function _bildFarbe(img, x, y) {
   const r = img.getBoundingClientRect();
-  if (!img.complete || !img.naturalWidth || x < r.left || x >= r.right || y < r.top || y >= r.bottom) return null;
+  // Kampfplatz noch nicht geladen: nachmessen, sobald er da ist.
+  if (!img.complete) { img.addEventListener('load', _nachfuehren, { once: true }); return null; }
+  if (!img.naturalWidth || x < r.left || x >= r.right || y < r.top || y >= r.bottom) return null;
   const W = 32, H = 8;
   const sx = Math.max(0, Math.min(img.naturalWidth - W, Math.floor((x - r.left) / r.width * img.naturalWidth) - W / 2));
   const sy = Math.max(0, Math.min(img.naturalHeight - H, Math.floor((y - r.top) / r.height * img.naturalHeight)));
@@ -95,9 +97,14 @@ function _nachfuehren() {
   };
   _lauf = requestAnimationFrame(bild);
 }
+// Nur was direkt am body hängt, kann die Farbe oben ändern: Screens, Dialoge,
+// Overlays (und die Klassen des body). Vorher startete jede Klassenänderung
+// irgendwo — jedes Drücken, jedes Neuzeichnen — 400 ms lang je Bild eine
+// Farbmessung mitten in die Animationen (Ruckeln auf älteren iPhones, 13.10.2026).
+const _amBody = (n) => n === document.body || n.parentNode === document.body;
 function _beobachten() {
   if (_beob) return;
-  _beob = new MutationObserver(_nachfuehren);
+  _beob = new MutationObserver((liste) => { if (liste.some((m) => _amBody(m.target))) _nachfuehren(); });
   _beob.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
 }
 

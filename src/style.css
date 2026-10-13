@@ -1168,7 +1168,7 @@ body.p-app{
   border:var(--p-rahmen); border-radius:var(--p-r-kachel); background:var(--p-ton,var(--p-mint));
   transform:translateX(calc(var(--i, 1) * (100% + 4px)));
   transition:transform .32s cubic-bezier(.65,0,.35,1), background-color .32s;   /* langsam – schnell – langsam */
-  pointer-events:none;
+  pointer-events:none; will-change:transform;   /* eigene Ebene: gleitet ohne Neuzeichnen */
 }
 @media (prefers-reduced-motion:reduce){ .p-tabs-schieber{ transition:none; } }
 
@@ -3954,30 +3954,36 @@ body.p-app .music-vol-btn{ bottom:calc(88px + env(safe-area-inset-bottom,0px)); 
   display:flex; justify-content:center; align-items:flex-end;
 }
 
-/* Kampf-Werte als Kacheln; geänderte Werte Mint (besser) bzw. Rosa (schlechter). */
-.pf-werte{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:6px; margin-top:14px; }
+/* Kampf-Werte als Liste (Wunsch des Nutzers 13.10.2026, statt acht Kacheln wie in
+   8.1): eine Karte wie die Teil-Karte, Zeilen wie in „Info zur Waffe“ (5.2) —
+   Symbol, Bezeichnung, Wert rechts, gepunktete Trennlinie. Zwei Spalten, wenn
+   beide mindestens 160 breit sind (ab ~390 px), sonst eine. Geänderte Zeilen
+   leuchten Mint (besser) bzw. Rosa (schlechter), der Chip steht links vom Wert —
+   die Werte bleiben bündig, keine Zeile wird höher. */
+.pf-werte{
+  margin-top:14px; border:var(--p-rahmen); border-radius:22px; background:var(--p-karte-hell);
+  padding:4px 13px; overflow:hidden;
+}
+/* Die Trennlinie steht über jeder Zeile; die oberste(n) schiebt -1 px aus dem Bild. */
+.pf-werte-gitter{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); column-gap:16px;
+  margin-top:-1px; clip-path:inset(1px -8px 0 -8px);   /* seitlich darf die leuchtende Zeile überstehen */
+}
 .pf-wert{
-  border:var(--p-rahmen); border-radius:14px; background:var(--p-karte);
-  padding:7px 7px 6px; min-width:0; text-align:center;
+  display:flex; align-items:center; gap:8px; min-width:0; height:34px; padding:0 6px; margin:0 -6px;
+  border-top:1px dotted rgba(31,31,36,.3); position:relative; isolation:isolate;
 }
-.pf-wert.is-plus{ background:#E4F4E8; }
-.pf-wert.is-minus{ background:#FFE5E7; }
-.pf-wert-ic{ display:flex; justify-content:center; }
-.pf-wert-zahl{ font:900 15px var(--p-font); margin-top:3px; white-space:nowrap; }
-.pf-wert-lbl{
-  font:800 7.5px var(--p-font); text-transform:uppercase; letter-spacing:.06em;
-  color:var(--p-text-2); white-space:nowrap;
+/* Leuchten als eigene Fläche hinter der Zeile — so bleibt die Trennlinie gerade. */
+.pf-wert.is-plus::before, .pf-wert.is-minus::before{
+  content:''; position:absolute; inset:2px 0; z-index:-1; border-radius:8px; background:#E4F4E8;
 }
-/* Chip innen in der rechten oberen Ecke (Wunsch des Nutzers 13.10.2026): als
-   eigene Zeile machte er Kachel und Reihe höher, die Seite sprang; über die Ecke
-   hinaus stieß er an die Kachel darüber. */
-.pf-wert{ position:relative; }
-.pf-wert-chipzeile{ position:absolute; top:3px; right:3px; display:flex; }
-.pf-wert-chipzeile .pf-wert-chip{ padding:0 4px; font-size:8px; line-height:11px; }   /* kompakt: neben dem Symbol */
+.pf-wert.is-minus::before{ background:#FFE5E7; }
+.pf-wert-lbl{ font:800 12px var(--p-font); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+.pf-wert-zahl{ font:900 14px var(--p-font); white-space:nowrap; flex:none; }
 .pf-wert-chip{
-  display:inline-flex; align-items:center; white-space:nowrap;
+  display:inline-flex; align-items:center; white-space:nowrap; flex:none;
   border:var(--p-rahmen); border-radius:11px; background:var(--p-ok);
-  padding:1px 6px; font:800 9px var(--p-font);
+  padding:0 5px; font:800 9px/13px var(--p-font);
 }
 .pf-wert.is-minus .pf-wert-chip{ background:var(--p-rosa); }
 
