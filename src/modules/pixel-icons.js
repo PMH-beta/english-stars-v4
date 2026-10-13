@@ -351,6 +351,25 @@ export function startIconAutoPaint() {
   _observer.observe(document.body, { childList: true, subtree: true });
 }
 
+// Handys verwerfen im Hintergrund manchmal den Inhalt von Canvas-Bildern
+// (13.10.2026: Symbole weg bis zum Neustart). Ein bemaltes Symbol ist nie ganz
+// leer — sind einige der Stichproben leer, malt iconsNeuMalen alle neu.
+export function iconsVerloren(root = document, n = 6) {
+  const list = root.querySelectorAll('canvas[data-icon][data-icon-painted]');
+  const schritt = Math.max(1, Math.floor(list.length / n));
+  for (let i = 0; i < list.length; i += schritt) {
+    const c = list[i];
+    const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+    let leer = true;
+    for (let j = 3; j < d.length; j += 4) if (d[j]) { leer = false; break; }
+    if (leer) return true;
+  }
+  return false;
+}
+export function iconsNeuMalen(root = document) {
+  root.querySelectorAll('canvas[data-icon]').forEach((c) => { delete c.dataset.iconPainted; paintIconCanvas(c); });
+}
+
 export function stopIconAutoPaint() {
   if (_observer) { _observer.disconnect(); _observer = null; }
 }

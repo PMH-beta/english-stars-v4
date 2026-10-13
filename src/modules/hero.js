@@ -101,7 +101,45 @@ export function imgTag(cfg, opts = {}) {
 // uiIdle der Referenzdatei — alle vier Bilder mit dem Zuschnitt von Bild 0,
 // damit nichts springt.
 const _ATEM = [0, 1, 1, 0];
-const _buehnen = new Map();
+const _buehnen = new Map();   // Schlüssel → 4 Canvas-Bilder (der Takt malt daraus)
+// Schlüssel → die 4 Pixelbilder dazu. Handys verwerfen im Hintergrund manchmal den
+// Inhalt von Canvas-Bildern (13.10.2026: Figur weg bis zum Neustart) — dann baut
+// _bilderZu die Canvas-Bilder hieraus neu (buehnenVerwerfen).
+const _buehnenQuelle = new Map();
+
+function _merkeBuehne(k, quelle) {
+  if (_buehnenQuelle.size >= 24) {
+    const alt = _buehnenQuelle.keys().next().value;
+    _buehnenQuelle.delete(alt);
+    _buehnen.delete(alt);
+  }
+  _buehnenQuelle.set(k, quelle);
+  return _bilderZu(k);
+}
+function _bilderZu(k) {
+  let b = _buehnen.get(k);
+  if (!b) {
+    const q = _buehnenQuelle.get(k);
+    if (!q) return null;
+    b = q.map((img) => toCanvas(img, 1));
+    _buehnen.set(k, b);
+  }
+  return b;
+}
+
+/** Sind gemerkte Bühnen-Bilder leer geworden? Prüft je Bühne ein deckendes Pixel von Bild 0. */
+export function buehnenVerloren() {
+  for (const [k, b] of _buehnen) {
+    const img = _buehnenQuelle.get(k)?.[0];
+    const i = img ? img.col.findIndex(Boolean) : -1;
+    if (i < 0) continue;
+    const a = b[0].getContext('2d').getImageData(i % img.w, Math.floor(i / img.w), 1, 1).data[3];
+    if (a === 0) return true;
+  }
+  return false;
+}
+/** Canvas-Bilder aller Bühnen verwerfen; sie entstehen beim nächsten Zugriff neu aus den Pixelbildern. */
+export function buehnenVerwerfen() { _buehnen.clear(); }
 
 function _unterkante(img) {
   for (let y = img.h - 1; y >= 0; y--) for (let x = 0; x < img.w; x++) {
@@ -185,12 +223,7 @@ function _atemBilder(cfg, gear, gefaehrte) {
 export function stageHTML(cfg, { gear, gefaehrte = null, scale = 2 } = {}) {
   const s = Math.max(1, Math.round(scale));
   const k = JSON.stringify([cfg, gear || 0, gefaehrte || 0]);
-  let bilder = _buehnen.get(k);
-  if (!bilder) {
-    if (_buehnen.size >= 24) _buehnen.delete(_buehnen.keys().next().value);
-    bilder = _atemBilder(cfg, gear, gefaehrte).map((img) => toCanvas(img, 1));
-    _buehnen.set(k, bilder);
-  }
+  const bilder = _bilderZu(k) || _merkeBuehne(k, _atemBilder(cfg, gear, gefaehrte));
   const { width: w, height: h } = bilder[0];
   return `<canvas data-ui="idle" data-idle="${encodeURIComponent(k)}" width="${w}" height="${h}"`
     + ` style="width:${w * s}px;height:${h * s}px;image-rendering:pixelated;display:block;flex:none"></canvas>`;
@@ -202,11 +235,7 @@ export function stageHTML(cfg, { gear, gefaehrte = null, scale = 2 } = {}) {
 // (wie uiIdle der Referenz für E_st…/E_pet…).
 function _atemEinzeln(img, split) { return _ATEM.map((f) => _senken(img, split, f)); }
 function _canvasAtem(k, bilder, scale, d) {
-  if (!_buehnen.has(k)) {
-    if (_buehnen.size >= 24) _buehnen.delete(_buehnen.keys().next().value);
-    _buehnen.set(k, bilder().map((img) => toCanvas(img, 1)));
-  }
-  const { width: w, height: h } = _buehnen.get(k)[0];
+  const { width: w, height: h } = (_bilderZu(k) || _merkeBuehne(k, bilder()))[0];
   return `<canvas data-ui="idle"${d ? ` data-d="${d}"` : ''} data-idle="${encodeURIComponent(k)}" width="${w}" height="${h}"`
     + ` style="width:${w * scale}px;height:${h * scale}px;image-rendering:pixelated;display:block;flex:none"></canvas>`;
 }
@@ -246,7 +275,7 @@ export function kachelURL(cfg, art, scale) {
 /** Atem-Bilder zu einem Bühnen-Canvas (für den UI-Takt, ui-anim „idle“). */
 export function stageFrames(el) {
   const k = el && el.dataset && el.dataset.idle;
-  return k ? (_buehnen.get(decodeURIComponent(k)) || null) : null;
+  return k ? _bilderZu(decodeURIComponent(k)) : null;
 }
 
 /** Bild 0 in alle Bühnen-Canvases unter root malen. */

@@ -23,6 +23,7 @@ import { startIconAutoPaint, iconHTML } from './modules/pixel-icons.js';
 import { startUiTakt } from './modules/ui-takt.js';
 import { startKlappAnim } from './modules/klapp-anim.js';
 import { startUnschaerfe } from './modules/unschaerfe.js';
+import { startBilderWache } from './modules/bilder-wache.js';
 
 console.log('[main] English Stars', APP_VERSION, 'startet…');
 
@@ -275,6 +276,7 @@ setInterval(() => { checkForRemoteChange().catch(() => {}); }, 60 * 1000);
 // Die App rendert überall per innerHTML — ein MutationObserver füllt jedes neu
 // aufgetauchte Icon-Canvas, damit kein Aufrufer ans Nachmalen denken muss.
 startIconAutoPaint();
+startBilderWache();   // nach der Rückkehr in die App: verworfene Symbole/Figuren neu malen
 
 // ── UI-Animationen ──────────────────────────────────────────────────
 // Ein gemeinsamer 8-fps-Takt für alles mit data-ui="…" (Handoff-Regel 6).
