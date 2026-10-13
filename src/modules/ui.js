@@ -1355,7 +1355,8 @@ function _forgeItem(m, which) {
   else if (nextI >= 0) {
     const s = steps[nextI], fs = FORGE_DISC[s.discipline] || { name: s.discipline };
     pct = s.prog && s.prog.total ? Math.min(100, Math.round((s.prog.score / s.prog.total) * 100)) : 0;
-    label = (DISZ_ICON[s.discipline] ? iconHTML(DISZ_ICON[s.discipline], 14) : '') + fs.name;
+    // „· Teil 5/5“ (F-93): das % gilt nur diesem Teil, nicht dem ganzen Werkstück.
+    label = (DISZ_ICON[s.discipline] ? iconHTML(DISZ_ICON[s.discipline], 14) : '') + `${fs.name} · Teil ${nextI + 1}/${steps.length}`;
   } else { label = iconHTML('lock', 14) + 'erst die Station davor'; pct = 0; showPct = false; }
   return `<div class="forge-weapon-wrap">
     <div class="fw-name">${mt.mat}-${ob.name}</div>

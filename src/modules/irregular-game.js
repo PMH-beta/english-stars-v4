@@ -182,12 +182,35 @@ export function startConstellationForm(cIdx, which) {
   if (!slot) slot = [...slots].reverse().find((s) => s.unlocked) || slots[0];
   if (!slot) return;
   _enterUV(c);
-  // Merker für die End-Karte: Spielt diese Runde das LETZTE offene Teil eines
-  // Gefährten frei? (Gefährten tauchen erst mit allen 5 Teilen in der Tasche auf.)
-  const unlocksCompanion = forgeObject(cIdx, which).slot === 'companion'
-    && !slot.lit && slots.filter((s) => !s.lit).length === 1;
-  window._uvStar = { which, slot: slot.i, discipline: slot.discipline, suf: slot.suffix, unlocksCompanion };
+  // wdh = Teil war schon fertig (Wiederholung) → am Ende keine Teil-Meldung (uvTeilMeldung).
+  window._uvStar = { which, slot: slot.i, discipline: slot.discipline, suf: slot.suffix, wdh: !!slot.lit };
   startGame('uvslot');
+}
+
+// Meldung, wenn ein Schmiede-Teil 100 % erreicht (F-93): welches Teil von wie
+// vielen und wann das Werkstück ins Profil kommt; mit dem letzten Teil „fertig“.
+// Vorher stand nach JEDEM Teil „100 % erreicht! … gemeistert“ — bei 4 von 5 hielt
+// man das Werkstück für fertig. null = keine Stations-Runde oder Wiederholung.
+// Artikel und Mehrzahl je Objekt, damit der Satz stimmt.
+const _ARTIKEL = { schwert: 'das', axt: 'die', ruestung: 'die', handschuhe: 'die', stiefel: 'die' };
+const _MEHRZAHL = new Set(['handschuhe', 'stiefel']);
+export function uvTeilMeldung() {
+  const star = window._uvStar, c = window._uvConstellation;
+  if (!star || !c || window._uvTrain || star.wdh) return null;
+  const steps = constellationStars(c).filter((s) => s.which === star.which);
+  const fertig = steps.filter((s) => s.lit).length;
+  const ob = forgeObject(c.idx, star.which);
+  if (fertig >= steps.length && ob.slot === 'companion') {
+    return { icon: '🐾', title: 'Gefährte freigespielt!', body: `Alle ${steps.length} Teile geschafft! Dein Gefährte wartet jetzt im Profil unter Ausrüstung.`, ok: 'Super!' };
+  }
+  const name = `${star.which === 'past' ? 'Stahl' : 'Gold'}-${ob.name}`;
+  const art = _ARTIKEL[ob.type] || 'der', viele = _MEHRZAHL.has(ob.type);
+  if (fertig >= steps.length) {
+    const Art = art[0].toUpperCase() + art.slice(1);
+    return { icon: '🏆', title: `${name} fertig!`, body: `Alle ${steps.length} Teile geschafft! ${Art} ${name} ${viele ? 'warten' : 'wartet'} jetzt im Profil unter Ausrüstung.`, ok: 'Super!' };
+  }
+  const rest = steps.length - fertig;
+  return { icon: '⚒️', title: `Teil ${fertig} von ${steps.length} geschmiedet!`, body: `Noch ${rest} ${rest === 1 ? 'Teil' : 'Teile'}, dann ${viele ? 'kommen' : 'kommt'} ${art} ${name} ins Profil.`, ok: 'Weiter' };
 }
 
 // ── Trainingsplatz: eine Disziplin über ALLE Verben eines Trainings-Decks ────

@@ -11,7 +11,7 @@ import { charReiter, charOption, charSchritt, charFarbe } from './modules/avatar
 import { tourAnsehen } from './modules/tour.js';
 import { showScreen, saveName, showMenu, showProfile, editPlayerName, showCharacter, showCharacterOnboarding, finishCharacterOnboarding, closeCharacter, charSpeichern, charNameBearbeiten, charZurSchmiede, showStats, showFriendStats, closeFriendStats, confirmReset, showFeedback, hideFeedback, exportData, importData, showAuth, authToggleMode, authSubmit, authResend, authLogout, authGoogleSignIn, handleLogin, handleLogout, showPasswordReset, submitPasswordReset, showNewPasswordScreen, submitNewPassword, cancelNewPassword, setActiveMode, renderModeContent, openProbetestPicker, toggleProbetestHistory, deleteProbetestEntry, uvFlip, uvSlide, uvSetForm, uvInfo, uvWaffenInfo, uvOpenFill, uvTestForge, uvTestForgeRandom, toggleUvTraining, uvTrainOpenCreate, uvTrainDelete, uvTrainToggleDeck, uvTrainChooseForms, uvTrainReset, uvTrainOpenStats, onAppResume, checkForRemoteChange, softRefresh } from './modules/ui.js';
 import { pwaInstall } from './modules/pwa.js';
-import { startConstellationStar, startConstellationForm, startUvTraining, uvProgress } from './modules/irregular-game.js';
+import { startConstellationStar, startConstellationForm, startUvTraining, uvProgress, uvTeilMeldung } from './modules/irregular-game.js';
 import { openVocabManager, openPresetDeckStats, vmTab, renderVocabList, parsePastedText, onScanFile, showReview, renderReviewList, removeReviewItem, addReviewItem, rescanReview, confirmAddVocab, renderPresetsTab, togglePresetCategory, vmBack, vmRenameActiveDeck, newDeckFlow, newDeckPreset, newDeckCustom, confirmAbortDraft } from './modules/vocab.js';
 import { onFriendSearchInput, onFriendSearchEnter, sendFriendRequest, respondFriendRequest, cancelFriendRequest, confirmRemoveFriend, openFriendStats, refreshFriendBadge, refreshFriendsLive } from './modules/friends.js';
 import { startCampaignRun, campaignNode, campPotionInfo, talerTest, talerDeckTest } from './modules/campaign.js';
@@ -92,10 +92,12 @@ window._sfx = _sfx;
 window.playSfx = playSfx;
 
 // Gestaltwandler (UV-Engine): Sternbild-Sterne starten + Live-Fortschritt.
-// _uvProgress wird von game.js (progressForCurrentMode) im UV-Zweig genutzt.
+// _uvProgress wird von game.js (progressForCurrentMode) im UV-Zweig genutzt,
+// _uvTeilMeldung beim Rundenende (Teil x von 5 bzw. Werkstück fertig, F-93).
 window.startConstellationStar = startConstellationStar;
 window.startConstellationForm = startConstellationForm;
 window._uvProgress = uvProgress;
+window._uvTeilMeldung = uvTeilMeldung;
 
 // Decks via window für Legacy-Code
 window.syncMirrorFromActiveDeck = syncMirrorFromActiveDeck;
