@@ -4,7 +4,7 @@
 // je schneller, desto stärker; steht es, ist es wieder scharf (auch Pixel-Art).
 // Waagerecht: Stahl ↔ Gold in der Schmiede (auch beim Wischen mit dem Finger),
 // der Reiter-Schieber im Menü, das Umblättern der Verbliste. Senkrecht: was beim
-// Auf- und Zuklappen nachrutscht (klapp-anim.js ruft setzeUnschaerfe selbst).
+// Auf- und Zuklappen nachrutscht (klapp-anim.js ruft verfolge selbst).
 // Die Unschärfe ist ein SVG-Filter je Richtung und Stufe (feGaussianBlur nur in
 // einer Achse); CSS-blur() kann nur rundum. Bei „Bewegung reduzieren“ nichts.
 
@@ -51,7 +51,7 @@ export function loescheUnschaerfe(el) { if (el && el.style.filter.startsWith('ur
 const FENSTER = 40;
 const _laeufe = new Map();
 const _lage = (el, achse) => { const r = el.getBoundingClientRect(); return achse === 'x' ? r.left : r.top; };
-export function verfolge(el, achse, ms) {
+export function verfolge(el, achse, ms, max) {
   if (!el || ruhig()) return;
   const jetzt = performance.now();
   const alt = _laeufe.get(el);
@@ -67,8 +67,8 @@ export function verfolge(el, achse, ms) {
     while (l.spur.length > 2 && t - l.spur[1][0] >= FENSTER) l.spur.shift();
     const [t0, p0] = l.spur[0];
     const v = t - t0 >= 8 ? Math.abs(p - p0) / (t - t0) : 0;
-    setzeUnschaerfe(el, achse, v);
-    if (t < l.bis || _stufe(v)) l.raf = requestAnimationFrame(bild); else ende();
+    setzeUnschaerfe(el, achse, v, max);
+    if (t < l.bis || _stufe(v, max)) l.raf = requestAnimationFrame(bild); else ende();
   };
   l.raf = requestAnimationFrame(bild);
 }

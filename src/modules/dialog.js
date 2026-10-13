@@ -264,6 +264,11 @@ export function esToast(msg, ms = 2200) {
   _toastTimer = setTimeout(() => { t.style.opacity = '0'; }, ms);
 }
 
+// Die Punkte kommen erst, wenn das Speichern länger dauert (Wunsch des Nutzers
+// 13.10.2026: beim Durchklicken der Reiter blinkten sie jedes Mal kurz auf).
+// Gespeichert wird genauso; ein schnelles Speichern sieht man einfach nicht.
+const SAVING_SICHTBAR_AB = 1000;   // ms
+
 /**
  * DER eine Speicher-Wrapper: zeigt den "Speichern…"-Balken, wartet auf
  * Backend-Bestätigung, blendet aus. Bei Timeout/Fehler → Balken weg + Toast
@@ -272,7 +277,7 @@ export function esToast(msg, ms = 2200) {
  * saveFn ist verantwortlich für die Cloud-Writes.
  */
 export function withSaving(saveFn, { label = 'Speichern…', timeoutMs = 5000 } = {}) {
-  esSavingShow(label);
+  const zeigen = setTimeout(() => esSavingShow(label), SAVING_SICHTBAR_AB);
   const work = (async () => {
     try { await saveFn(); return 'ok'; }
     catch (e) { console.warn('[withSaving] fehlgeschlagen:', e?.message); return 'fail'; }
@@ -281,6 +286,7 @@ export function withSaving(saveFn, { label = 'Speichern…', timeoutMs = 5000 } 
     let done = false;
     const finish = (mode) => {
       if (done) return; done = true;
+      clearTimeout(zeigen);
       esSavingHide();
       if (mode === 'timeout') esToast('Zeitüberschreitung — im Hintergrund gespeichert');
       else if (mode !== 'ok') esToast('Im Hintergrund gespeichert');
