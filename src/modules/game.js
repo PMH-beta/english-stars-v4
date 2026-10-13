@@ -2,7 +2,7 @@
 import { QPERROUND, EXAM_QUESTIONS, calcGrade, gradeText, UV_LVL } from './config.js';
 import { effectivePct, isMastered, statKeyFor, getVocabStat, SP_TEILE, spWort, spKurz, spellingStand, wortScore } from './stats.js';
 import { activeDeck, syncMirrorFromActiveDeck } from './decks.js';
-import { showScreen, showMenu, hideFeedback, showFeedback } from './ui.js';
+import { showScreen, showMenu, hideFeedback, showFeedback, TP_DISZ } from './ui.js';
 import { ensureMicStream, releaseMicStream, voskStop, stopVisualizer, speakWord, speakWordOnce, startVoskRecognition, startRecording, _shouldUseVosk, warmAudio, warmIosMic, micZustand, gehoert } from './speech.js';
 import { persist } from './storage.js';
 import { markDirty, saveExam, saveProbetest } from './sync.js';
@@ -1403,9 +1403,10 @@ export function playSfx(type) {
 function progressForCurrentMode() {
   if(window.isUV && window._uvProgress){
     // Slot-Runde: Fortschritt + Titel beziehen sich auf das AKTUELLE Teil (Disziplin).
-    const star=window._uvStar;
+    // Trainingsplatz-Runde: Namen wie bei den Vokabeln (F-96), sonst Schmiede-Teil.
+    const star=window._uvStar, tp=window._uvTrain && TP_DISZ[window._uvTrain.disc];
     const discTitles={erkennen:['Erkennen','lupe'],schmieden:['Schmieden','hammer'],verzaubern:['Verzaubern','wand']};
-    const [title, icon] = (star && discTitles[star.discipline]) || ['Schmiede','hammer'];
+    const [title, icon] = (tp && [tp.name, tp.icon]) || (star && discTitles[star.discipline]) || ['Schmiede','hammer'];
     return {...window._uvProgress(), title, icon};
   }
   const presetWs = window.SD?.globalPresetStats?.wordStats || {};

@@ -455,11 +455,18 @@ function renderStudentMode() {
 // ── Trainingsplatz: aufklappbare Sektion ÜBER der Schmiede (wie Probetest) ──
 // Trainings-Decks sind ECHTE Decks (SD.decks) mit mode 'training' → Sync läuft
 // über die decks-Tabelle wie bei Vokabelsammlungen. Die drei Spiel-Sektionen
-// sind die Schmiede-Disziplinen (🔍 Erkennen · 🔨 Schmieden · 🪄 Verzaubern) mit
-// eigenen _tr_-Stats — der Schmiede-Stationsfortschritt bleibt unberührt.
+// sind die Schmiede-Disziplinen mit eigenen _tr_-Stats — der Schmiede-Stations-
+// fortschritt bleibt unberührt. Hier heißen sie seit F-96 (14.10.2026) wie bei den
+// Vokabeln: Erkennen · Rechtschreibung · Aussprache (TP_DISZ); die Schmiede behält
+// Erkennen · Schmieden · Verzaubern.
 // Achtung: mode 'training' (nicht 'student') — migrateDeckModes räumt 'student' weg.
 // Deckgröße: UV_TRAIN_SIZE (irregular-game.js), genau so viele Verben — nicht mehr
 // "bis zu 15". Bestehende Decks kürzt migrateUvTrainSize beim Login.
+export const TP_DISZ = {
+  erkennen:   { name: 'Erkennen',        icon: 'target' },
+  schmieden:  { name: 'Rechtschreibung', icon: 'pencil' },
+  verzaubern: { name: 'Aussprache',      icon: 'mic' },
+};
 let _uvTrainExpanded = false;
 export function toggleUvTraining() {
   weichUmbauen('#uv-training-section .tp-platz', () => { _uvTrainExpanded = !_uvTrainExpanded; renderUvTrainingSection(); });
@@ -568,9 +575,9 @@ function _trainDeckCardHtml(deck) {
     <div class="p-balken tp-deck-balken"><i style="width:${pct}%"></i></div>
     ${open ? `<div class="tp-deck-offen">
       ${formsChips}
-      ${disziplin('Erkennen', 'target', 'var(--p-blau)', per[0], 'erkennen')}
-      ${disziplin('Schmieden', 'hammer', 'var(--p-pfirsich)', per[1], 'schmieden')}
-      ${disziplin('Verzaubern', 'wand', 'var(--p-lila)', per[2], 'verzaubern')}
+      ${disziplin(TP_DISZ.erkennen.name, TP_DISZ.erkennen.icon, 'var(--p-blau)', per[0], 'erkennen')}
+      ${disziplin(TP_DISZ.schmieden.name, TP_DISZ.schmieden.icon, 'var(--p-pfirsich)', per[1], 'schmieden')}
+      ${disziplin(TP_DISZ.verzaubern.name, TP_DISZ.verzaubern.icon, 'var(--p-lila)', per[2], 'verzaubern')}
       <div class="tp-aktionen">
         <button class="tp-aktion" onclick="uvTrainOpenStats('${id}')">${iconHTML('chart', 14)}Statistik</button>
         <button class="tp-aktion" onclick="uvTrainReset('${id}')">${iconHTML('refresh', 14)}Zurücksetzen</button>
@@ -877,20 +884,19 @@ export function uvTrainOpenStats(id) {
       ? `<span class="tp-st-feld is-fertig">${iconHTML('check', 14)}</span>`
       : `<span class="tp-st-feld is-dran">${iconHTML('hourglass', 14)}</span>`;
   };
-  const DISZ_ICON = { erkennen: 'target', schmieden: 'hammer', verzaubern: 'wand' };
   const spalten = forms.map((f) => (f === 'past'
     ? { kopf: 'Past', seite: 'rechts', wort: (v) => v.past, suf: 'past' }
     : { kopf: 'Particip.', seite: 'links', wort: (v) => v.pp, suf: 'pp' }));
   const raster = `grid-template-columns:1fr .8fr${' 1fr 40px'.repeat(spalten.length)}`;
   const makeTable = (disc) => {
-    const d = FORGE_DISC[disc], sufs = UV_TRAIN_SUF[disc];
+    const d = TP_DISZ[disc], sufs = UV_TRAIN_SUF[disc];
     const kopf = `<div class="tp-st-kopf" style="${raster}"><span>Deutsch</span><span>Engl.</span>`
       + spalten.map((sp) => `<span class="tp-st-${sp.seite}">${sp.kopf}</span><span></span>`).join('') + '</div>';
     const rows = verbs.map((v) => `<div class="tp-st-zeile" style="${raster}">
         <span class="tp-st-de">${window.escHtml(v.de)}</span><span>${window.escHtml(v.en)}</span>`
       + spalten.map((sp) => `<span class="tp-st-form tp-st-${sp.seite}">${window.escHtml(sp.wort(v) || '')}</span>${feld(statOf(v, sufs[sp.suf]))}`).join('')
       + '</div>').join('');
-    return `<div class="vm-st-kicker">${iconHTML(DISZ_ICON[disc], 14)}<div>${d.name}</div></div>
+    return `<div class="vm-st-kicker">${iconHTML(d.icon, 14)}<div>${d.name}</div></div>
 <div class="vm-st-karte">${kopf}${rows}</div>`;
   };
   pane.innerHTML = verbs.length
