@@ -3926,15 +3926,18 @@ body.p-app .music-vol-btn{ bottom:calc(88px + env(safe-area-inset-bottom,0px)); 
 .pf-abschnitt-titel{ font:900 17px var(--p-font); }
 .pf-abschnitt-linie{ flex:1; height:2px; background:rgba(31,31,36,.2); }
 
-/* Fächer links/rechts, Bühne in der Mitte. */
+/* Fächer links/rechts, Bühne in der Mitte. Seit 14.10.2026 auf Wunsch kompakter
+   (Fächer 50 statt 58, Bühne so hoch wie die Fächer statt fest 307 — vorher stand
+   über dem Kopf viel Leerraum), damit nach dem Antippen eines Fachs Tasche und
+   Teil-Karte mit „Ablegen“ ins Bild passen. */
 .pf-puppe{ display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:8px; margin-top:12px; }
-.pf-spalte{ display:flex; flex-direction:column; gap:7px; }
+.pf-spalte{ display:flex; flex-direction:column; gap:6px; }
 .pf-fach{
   display:flex; flex-direction:column; align-items:center; gap:4px;
   padding:0; border:0; background:none; cursor:pointer; font-family:inherit; color:var(--p-ink);
 }
 .pf-fach-kachel{
-  width:58px; height:58px; border:var(--p-rahmen); border-radius:18px; background:var(--p-inaktiv);
+  width:50px; height:50px; border:var(--p-rahmen); border-radius:16px; background:var(--p-inaktiv);
   display:flex; align-items:center; justify-content:center;
 }
 .pf-fach.is-voll .pf-fach-kachel{ background:var(--p-karte); }
@@ -3949,7 +3952,7 @@ body.p-app .music-vol-btn{ bottom:calc(88px + env(safe-area-inset-bottom,0px)); 
   color:var(--p-text-2); white-space:nowrap;
 }
 .pf-buehne{
-  position:relative; min-width:0; height:307px; padding-bottom:6px; overflow:hidden;
+  position:relative; min-width:0; align-self:stretch; padding-bottom:6px; overflow:hidden;
   border:var(--p-rahmen); border-radius:24px; background:var(--p-karte);
   display:flex; justify-content:center; align-items:flex-end;
 }
@@ -3986,10 +3989,10 @@ body.p-app .music-vol-btn{ bottom:calc(88px + env(safe-area-inset-bottom,0px)); 
 .pf-wert.is-minus .pf-wert-chip{ background:var(--p-rosa); }
 
 /* Tasche: alle Teile des angewählten Fachs, 6 je Zeile. */
-.pf-tasche-kopf{ display:flex; align-items:center; justify-content:space-between; gap:7px; margin-top:18px; }
+.pf-tasche-kopf{ display:flex; align-items:center; justify-content:space-between; gap:7px; margin-top:14px; }
 .pf-tasche-titel{ display:inline-flex; align-items:center; gap:7px; font:900 14px var(--p-font); }
 .pf-tasche-hinweis{ font:700 10.5px var(--p-font); color:var(--p-text-2); }
-.pf-tasche{ display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:6px; margin-top:9px; }
+.pf-tasche{ display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:6px; margin-top:8px; }
 .pf-teil{
   position:relative; aspect-ratio:1; min-width:0; padding:0; cursor:pointer;
   border:var(--p-rahmen); border-radius:14px; background:var(--p-karte);
@@ -4011,12 +4014,14 @@ body.p-app .music-vol-btn{ bottom:calc(88px + env(safe-area-inset-bottom,0px)); 
   display:flex; align-items:center; justify-content:center;
   box-shadow:var(--p-schatten-angehoben); transform:translate(-50%,-85%);
 }
+/* Karte des Teils seit 14.10.2026 kompakter (Bild 76 statt 88 hoch — Waffen 2×
+   48 × 72 passen genau, Rüstungsteile 64 × 64). */
 .pf-karte-teil{
-  margin-top:12px; border:var(--p-rahmen); border-radius:22px; background:var(--p-karte-hell);
-  padding:12px 13px; display:flex; align-items:center; gap:12px;
+  margin-top:10px; border:var(--p-rahmen); border-radius:22px; background:var(--p-karte-hell);
+  padding:10px 12px; display:flex; align-items:center; gap:12px;
 }
 .pf-teil-bild{
-  width:68px; height:88px; flex:none;
+  width:68px; height:76px; flex:none;
   border:var(--p-rahmen); border-radius:16px; background:var(--p-inaktiv);
   display:flex; align-items:center; justify-content:center;
 }

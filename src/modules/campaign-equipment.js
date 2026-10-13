@@ -476,6 +476,35 @@ export function renderEquipmentPanel() {
   }
 }
 
+// Nach dem Antippen eines Fachs Tasche und Teil-Karte (mit „Anlegen“/„Ablegen“)
+// ganz ins Bild holen, frei vom schwebenden Musikknopf — höchstens so weit, dass
+// die Puppe oben im Bild bleibt (Wunsch des Nutzers 14.10.2026: die Karte lag
+// unter dem Bildschirmrand bzw. unter dem Musikknopf).
+function _tascheInsBild() {
+  const host = document.getElementById('prof-equip-section');
+  const puppe = host && host.querySelector('.pf-puppe');
+  const ziel = host && (host.querySelector('.pf-karte-teil') || host.querySelector('.pf-leer') || host.querySelector('.pf-tasche'));
+  if (!puppe || !ziel) return;
+  let frei = window.innerHeight - 12;
+  for (const id of ['music-btn-global', 'music-vol-btn']) {
+    const r = document.getElementById(id)?.getBoundingClientRect();   // fest positioniert: offsetParent ist immer null
+    if (r && r.height > 0) frei = Math.min(frei, r.top - 12);
+  }
+  const kb = ziel.getBoundingClientRect();
+  const bb = (host.querySelector('.pf-anlegen') || ziel).getBoundingClientRect();
+  let um = kb.bottom - frei;                       // am liebsten: ganze Karte frei
+  const grenze = puppe.getBoundingClientRect().top - 8;
+  if (um > grenze) {
+    // Kleine Handys: beides geht nicht. Dann mindestens Knopf frei und Karte ganz
+    // im Bild; die Puppe rutscht nur so weit wie dafür nötig aus dem Bild.
+    um = Math.max(grenze, bb.bottom - frei, kb.bottom - (window.innerHeight - 8));
+    um = Math.min(um, kb.top - 8);
+  }
+  if (um < 1) return;
+  const ruhig = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  window.scrollBy({ top: um, behavior: ruhig ? 'auto' : 'smooth' });
+}
+
 // Item in den passenden Slot legen (Ring-Items landen im ring1-Slot).
 function _equipInto(c, it) {
   c.equipment[it.slot === 'ring' ? 'ring1' : it.slot] = it.id;
@@ -536,6 +565,7 @@ function _onPanelClick(e) {
       }
     }
     renderEquipmentPanel();
+    if (_selSlot) _tascheInsBild();
     return;
   }
   // Klick ins Leere (kein Item, kein Slot, keine Karte) = Auswahl aufheben.
