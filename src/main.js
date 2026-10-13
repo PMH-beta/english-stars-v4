@@ -378,7 +378,9 @@ try { screen.orientation?.lock?.('portrait').catch(() => {}); } catch (e) {}
   // Seit 08.10.2026 deutlicher (Wunsch des Nutzers: am Handy sah man nichts):
   // tieferer Schatten, Fläche ×0,9, und der Inhalt wird kleiner (siehe groesse).
   const HELL = 'inset 5px 6px 0 rgba(31,31,36,.34)';
-  const DUNKEL = 'inset 4px 5px 0 rgba(0,0,0,.66)';
+  // Dunkle Knöpfe (z. B. „Zum Menü“) seit 13.10.2026 mit halb so dunklem Schatten:
+  // mit .66 blitzte beim Drücken ein fast schwarzer Streifen auf (Nutzer: „blinkt schwarz“).
+  const DUNKEL = 'inset 4px 5px 0 rgba(0,0,0,.32)';
   let pressed = null, pressedAt = 0, startX = 0, startY = 0, spaet = 0;
   let letzter = null;               // { quelle, at } des letzten Drückens (für die Verzögerung)
 
