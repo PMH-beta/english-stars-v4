@@ -662,9 +662,10 @@ export async function goHomeSaving() {
 
 export function confirmHome() {
   window._gameConfirmOpen = true;   // Marker: Android-Zurück am Dialog = „Zum Menü"
+  // Betont ist das Weiterspielen (Wunsch des Nutzers 14.10.2026: „man will ja bleiben").
   const opts = window.isProbetest
-    ? { icon:'⚠️', title:'Probetest abbrechen?', body:'Der Probetest wird beendet. Dein Fortschritt in dieser Runde geht verloren und wird nicht gespeichert.', ok:'Abbrechen', cancel:'Weiter testen', danger:true }
-    : { icon:'🏠', title:'Zurück zum Menü?', body:'Der Lernfortschritt dieser Runde wird gespeichert.', ok:'Zum Menü', cancel:'Bleiben' };
+    ? { icon:'⚠️', title:'Probetest abbrechen?', body:'Der Probetest wird beendet. Dein Fortschritt in dieser Runde geht verloren und wird nicht gespeichert.', ok:'Abbrechen', cancel:'Weiter testen', danger:true, cancelPrimary:true }
+    : { icon:'🏠', title:'Zurück zum Menü?', body:'Der Lernfortschritt dieser Runde wird gespeichert.', ok:'Zum Menü', cancel:'Bleiben', cancelPrimary:true };
   window.esConfirm(opts).then(ok => {
     window._gameConfirmOpen = false;
     if(!ok) return;
@@ -757,15 +758,16 @@ function renderQuestion(q) {
     if(q.gap){
       // Lücke wie 5.10: das Wort als Buchstaben-Kacheln, die fehlende Stelle
       // gestrichelt. Getippt wird direkt in die Lücke (Wunsch des Nutzers,
-      // 08.10.2026): der Buchstabe steht so im Wort, und weil es nur EIN Buchstabe
-      // ist, wird gleich geprüft — ohne Feld darunter und ohne „Prüfen".
+      // 08.10.2026). Seit 14.10.2026 prüft erst „Prüfen" bzw. Enter (vorher sofort
+      // beim ersten Buchstaben — ändern ging nicht); ein neuer Buchstabe ersetzt den alten.
       // Ein Wort = eine Gruppe: umgebrochen wird nur zwischen Wörtern (_passeFelder).
       const w=q.gapWord||''; let cells=`<span class="sp-wortgruppe">${vor}`;
       for(let k=0;k<w.length;k++){
         cells += (k===q.gapIdx)
-          ? `<input class="gap-kachel is-luecke gap-eingabe" id="type-input" type="text" maxlength="1"
+          ? `<input class="gap-kachel is-luecke gap-eingabe" id="type-input" type="text" maxlength="2"
               autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Fehlender Buchstabe"
-              oninput="if(this.value.trim())submitType()">`
+              oninput="this.value=this.value.slice(-1)" onfocus="this.select()"
+              onkeydown="if(event.key==='Enter')submitType()">`
           : /\s/.test(w[k]) ? (/\s/.test(w[k-1]) ? '' : `</span><span class="sp-wortgruppe">`)
           : `<span class="gap-kachel">${window.escHtml(w[k])}</span>`;
       }
@@ -778,8 +780,7 @@ function renderQuestion(q) {
       </div>`;
     }
     // Formen (5.6–5.10): Prüfen in Gold, Haken vorn. Vokabeln (4.6): Haken hinten.
-    // Die Lücke prüft sich selbst (siehe oben), sie hat keinen Knopf.
-    html+=q.gap ? `</div>` : window.isUV
+    html+=window.isUV
       ? `<button class="submit-btn uv-pruefen" onclick="submitType()">${iconHTML('check',14)}Prüfen</button></div>`
       : `<button class="submit-btn" onclick="submitType()">Prüfen${iconHTML('check',14)}</button></div>`;
   } else if(q.type==='pronounce'){
@@ -806,9 +807,23 @@ function renderQuestion(q) {
       if(isL && q.luecken?.includes(i)) html+=`</span><span class="sp-wortgruppe">`;   // nächstes Wort
     });
     html+=isL ? `</span></div>` : `</div>`;
-    html+=`<div class="order-tray${isL?' letters':''}" id="order-tray">`;
-    q.tiles.forEach(t=>{ html+=`<div class="order-tile" data-val="${t}">${t}</div>`; });
-    html+=`</div>`;
+    if(isL){
+      // Vorrat als Spiegel der Felder (Wunsch des Nutzers 14.10.2026): gleiche
+      // Breite, gleiche Gruppen und Umbrüche, direkt darunter — nur gemischt. Jeder
+      // Stein hat seinen festen Platz; genommen bleibt der Platz leer, zurück kommt
+      // er genau dorthin. Das „to" steht unsichtbar mit, damit die Spalten passen.
+      html+=`<div class="order-tray letters" id="order-tray"><span class="sp-wortgruppe">`
+        +(q.vorsatz ? `<span class="sp-vorsatz is-platz">${window.escHtml(q.vorsatz)}</span>` : '');
+      q.tiles.forEach((t,i)=>{
+        html+=`<div class="order-heim" data-heim="${i}"><div class="order-tile" data-val="${t}" data-heim="${i}">${t}</div></div>`;
+        if(q.luecken?.includes(i)) html+=`</span><span class="sp-wortgruppe">`;
+      });
+      html+=`</span></div>`;
+    } else {
+      html+=`<div class="order-tray" id="order-tray">`;
+      q.tiles.forEach(t=>{ html+=`<div class="order-tile" data-val="${t}">${t}</div>`; });
+      html+=`</div>`;
+    }
     html+=`<button class="submit-btn uv-pruefen" id="order-check" onclick="checkOrder()" disabled>${iconHTML('check',14)}Prüfen</button></div>`;
   }
   card.innerHTML=html;
@@ -841,13 +856,12 @@ function _passeFelder(card){
   }
   fw=Math.max(16, fw);
   if(fw<50){
-    reihe.style.setProperty('--fw', fw+'px');
-    reihe.style.setProperty('--fs', (fw>=38 ? 22 : fw>=26 ? 18 : 16)+'px');
-  }
-  const vorrat=card.querySelector('#order-tray.letters'), n=vorrat?.children.length||0;
-  if(n>6){
-    const proReihe=Math.ceil(n/2);
-    vorrat.style.setProperty('--tw', Math.max(44, Math.min(86, Math.floor((vorrat.clientWidth-(proReihe-1)*10)/proReihe)))+'px');
+    // Der Vorrat beim Sortieren spiegelt die Felder (14.10.2026) — dieselben Maße.
+    for(const el of [reihe, card.querySelector('#order-tray.letters')]){
+      if(!el) continue;
+      el.style.setProperty('--fw', fw+'px');
+      el.style.setProperty('--fs', (fw>=38 ? 22 : fw>=26 ? 18 : 16)+'px');
+    }
   }
 }
 
@@ -864,21 +878,23 @@ function initOrderDnD(){
   let pending=null;     // pointerdown – noch offen, ob Tap oder Ziehen
 
   function updateCheck(){ if(checkBtn) checkBtn.disabled=!slots.every(s=>s.querySelector('.order-tile')); }
+  // Buchstaben haben im Vorrat einen festen Platz (data-heim); Formen gehen ans Ende.
+  const heim=(tile)=>(tile.dataset.heim!=null && tray.querySelector(`.order-heim[data-heim="${tile.dataset.heim}"]`))||tray;
   function placeTile(tile, target){
     if(target && target.classList.contains('order-slot')){
       const occ=target.querySelector('.order-tile');
-      if(occ && occ!==tile) tray.appendChild(occ);   // belegten Slot räumen
+      if(occ && occ!==tile) heim(occ).appendChild(occ);   // belegten Slot räumen
       target.appendChild(tile);
     } else {
-      tray.appendChild(tile);
+      heim(tile).appendChild(tile);
     }
     updateCheck();
   }
   // Tap (ohne Ziehen): Kachel im Tray → in den nächsten freien Slot; Kachel in
-  // einem Slot → zurück ins Tray (rückwärts). So geht Sortieren auch per Klick.
+  // einem Slot → zurück an ihren Platz im Tray. So geht Sortieren auch per Klick.
   function tapPlace(tile){
     if(tile.parentElement && tile.parentElement.classList.contains('order-slot')){
-      tray.appendChild(tile);
+      heim(tile).appendChild(tile);
     } else {
       const slot=slots.find(s=>!s.querySelector('.order-tile'));
       if(!slot) return;
@@ -1001,6 +1017,8 @@ export function submitType() {
   const inp=document.getElementById('type-input');if(!inp)return;
   const val=inp.value.trim();if(!val)return;
   window.answered=true;inp.disabled=true;
+  // Knopf ausgrauen, sobald geprüft ist (wie beim Sortieren) — vorher sah er noch tippbar aus.
+  const knopf=document.querySelector('#game-card .submit-btn'); if(knopf) knopf.disabled=true;
   const ohneTo=spOhneTo(window.currentQ);
   const corrects=window.currentQ.answer.split('/').map(x=>ohneTo(x.trim().toLowerCase()));
   const ok=corrects.includes(ohneTo(val.toLowerCase()));

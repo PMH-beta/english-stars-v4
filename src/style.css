@@ -3157,10 +3157,13 @@ button.p-chip{ cursor:pointer; }
 .choice-btn:hover:not(:disabled){ border-color:var(--p-ink); color:var(--p-ink); transform:none; box-shadow:none; }
 .choice-btn:disabled{ opacity:1; cursor:default; }
 .choice-btn.correct, .choice-btn.wrong{ border-color:var(--p-ink); color:var(--p-ink); box-shadow:none; }
-/* Tippen (4.6): Feld 56 + Rahmen, linksbündig; Prüfen 54 + Rahmen. */
+/* Tippen (4.6): Feld 56 + Rahmen; Prüfen 54 + Rahmen. Seit 14.10.2026 auf Wunsch
+   mittig und groß (24 statt 14, linksbündig wirkte beim Tippen seltsam und zu
+   klein; ab 16 px zoomt iOS beim Antippen auch nicht mehr hinein) — der
+   Platzhalter bleibt klein. */
 .type-input-wrap{ margin:18px 0 0; }
-.type-input{ height:60px; border-radius:18px; text-align:left; font:700 14px var(--p-font); box-shadow:none; }
-.type-input::placeholder{ color:var(--p-text-2); opacity:1; }
+.type-input{ height:60px; border-radius:18px; text-align:center; font:900 24px var(--p-font); box-shadow:none; }
+.type-input::placeholder{ color:var(--p-text-2); opacity:1; font:700 14px var(--p-font); }
 .type-input:focus{ border-color:var(--p-ink); box-shadow:none; }
 .type-input.correct, .type-input.wrong{ border-color:var(--p-ink); color:var(--p-ink); }
 .type-input.correct{ background:var(--p-ok); }
@@ -3536,6 +3539,8 @@ button.p-chip{ cursor:pointer; }
 .gap-feld.correct{ background:var(--p-ok); }
 .gap-feld.wrong{ background:var(--p-falsch); }
 .p-fragekarte .gap-feld + .submit-btn{ margin-top:16px; }
+/* Lücke mit Prüfen-Knopf (14.10.2026): Abstand wie beim Sortieren. */
+.p-fragekarte .gap-reihe + .submit-btn{ margin-top:20px; }
 /* Ordnen (5.6 Formen, 5.9 Buchstaben). */
 .p-fragekarte .order-slots{ display:flex; flex-direction:column; flex-wrap:nowrap; gap:9px; margin:16px 0 0; }
 .order-slots:not(.letters) .order-slot{
@@ -3583,8 +3588,21 @@ button.p-chip{ cursor:pointer; }
   min-width:96px; height:54px; padding:0 14px; border-radius:16px; background:var(--p-karte);
   font:900 16px var(--p-font); box-shadow:none;
 }
-/* Mehr als 6 Buchstaben: höchstens 2 Reihen, Steine mindestens 44 px (--tw, game.js). */
-.order-tray.letters .order-tile{ min-width:var(--tw,86px); }
+/* Buchstaben sortieren (14.10.2026, Wunsch des Nutzers): der Vorrat spiegelt die
+   Felder — gleiche Breite (--fw/--fs aus _passeFelder), gleiche Gruppen und
+   Umbrüche, gleiche Abstände, direkt darunter. Jeder Stein hat seinen Platz; ist
+   er oben, bleibt der Platz blass gestrichelt (wie leere Taschenplätze im Profil). */
+.p-fragekarte .order-tray.letters{ flex-wrap:wrap; gap:8px 28px; margin-top:16px; min-height:0; }
+.order-heim{
+  flex:0 1 var(--fw,50px); width:var(--fw,50px); min-width:0; height:calc(var(--fw,50px) * 58 / 50);
+  border-radius:calc(var(--fw,50px) * 14 / 50);
+}
+.order-heim:not(:has(.order-tile)){ border:2px dashed rgba(31,31,36,.3); }
+.order-tray.letters .order-tile{
+  width:100%; height:100%; min-width:0; padding:0; border-radius:inherit;
+  background:var(--p-karte); font:900 var(--fs,22px) var(--p-font);
+}
+.sp-vorsatz.is-platz{ visibility:hidden; }
 .order-tile.dragging{ box-shadow:var(--p-schatten-angehoben); opacity:1; }
 .order-tile.correct, .order-tile.wrong{ border-color:var(--p-ink); color:var(--p-ink); box-shadow:none; }
 .order-tile.correct{ background:var(--p-ok); }

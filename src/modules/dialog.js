@@ -96,24 +96,25 @@ export function esAlert(opts) {
 }
 
 // confirm → Bestätigen/Abbrechen. Promise resolved true (OK) / false (Abbrechen).
+// cancelPrimary: der Abbrechen-Knopf ist der betonte (z. B. „Bleiben" im Spiel).
 export function esConfirm(opts) {
   opts = opts || {};
   return new Promise(resolve => {
     const { overlay, card } = _scaffold(opts);
     const row = _btnRow();
     const cancel = document.createElement('button');
-    cancel.className = 'p-dlg-btn p-dlg-btn--ab';
+    cancel.className = 'p-dlg-btn ' + (opts.cancelPrimary ? 'p-dlg-btn--ok' : 'p-dlg-btn--ab');
     cancel.textContent = opts.cancel || 'Abbrechen';
     cancel.addEventListener('click', () => { overlay.remove(); resolve(false); });
     const ok = document.createElement('button');
-    ok.className = 'p-dlg-btn ' + (opts.danger ? 'p-dlg-btn--gefahr' : 'p-dlg-btn--ok');
+    ok.className = 'p-dlg-btn ' + (opts.danger ? 'p-dlg-btn--gefahr' : opts.cancelPrimary ? 'p-dlg-btn--ab' : 'p-dlg-btn--ok');
     ok.textContent = opts.ok || 'OK';
     ok.addEventListener('click', () => { overlay.remove(); resolve(true); });
     row.appendChild(cancel);
     row.appendChild(ok);
     card.appendChild(row);
     _mount(overlay);
-    ok.focus();
+    (opts.cancelPrimary ? cancel : ok).focus();
   });
 }
 
