@@ -110,6 +110,7 @@ export function showScreen(id) {
     try { localStorage.setItem('es_last_screen', id); } catch(e) {}
   }
   _currentScreen = id; // aktuellen Screen merken (Android-Back-Layer)
+  if (id === 'game-screen') _spielWaechterAn(); else _spielWaechterAus();
   // Echte VORWÄRTS-Navigation zu einem In-App-Screen (nicht Menü, nicht Pre-Login)
   // bekommt einen eigenen History-Eintrag, damit der Zurück erst zum Menü navigiert
   // (Branch 3) statt sofort den Menü-Exit (Branch 4) auszulösen. NICHT aus dem
@@ -181,6 +182,32 @@ function _hasBackEntry() {
 // Genau einen Back-Eintrag oben sicherstellen — nur pushen, wenn keiner liegt.
 function _ensureGuard() {
   if (!_hasBackEntry()) _armGuard();
+}
+
+// Zurück im Spiel ohne Verlaufswechsel (Versuch 13.10.2026, Wunsch des Nutzers):
+// beim Zurück-Wischen spielte Chrome für den Wächter-Eintrag seine eigene
+// Zurück-Animation und blitzte dabei schwarz. Ein CloseWatcher fängt Zurück ab,
+// ohne dass der Verlauf wechselt — der Ablauf bleibt derselbe (_onBackNavPop:
+// Overlay schließen bzw. „Zurück zum Menü?“, am Dialog nochmal Zurück = Menü).
+// Nach jedem Zurück kommt ein neuer Wächter, solange das Spiel läuft. Ohne
+// CloseWatcher (iOS, ältere Browser) bleibt es beim Verlauf wie bisher.
+let _spielWaechter = null;
+function _spielWaechterAn() {
+  if (_spielWaechter || typeof window.CloseWatcher !== 'function') return;
+  try {
+    const w = new window.CloseWatcher();
+    w.onclose = () => {
+      if (_spielWaechter === w) _spielWaechter = null;
+      _onBackNavPop();
+      if (_currentScreen === 'game-screen') _spielWaechterAn();
+    };
+    _spielWaechter = w;
+  } catch (e) { _spielWaechter = null; }
+}
+function _spielWaechterAus() {
+  const w = _spielWaechter;
+  _spielWaechter = null;
+  if (w) { try { w.destroy(); } catch (e) {} }
 }
 
 // Bei echter Nutzer-Geste den Wächter wiederherstellen, wenn keiner liegt (z.B. nach
