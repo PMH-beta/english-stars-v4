@@ -318,9 +318,10 @@ function _slotTile(c, key) {
 
 // ── Kampf-Werte (echte Spielwerte, nicht nur Boni) ───────────────────────────
 // Seit 13.10.2026 (Wunsch des Nutzers: „als Liste wie in RPGs, nicht mit so vielen
-// Flächen“) eine Liste in einer Karte statt acht Kacheln (8.1) — Zeilen wie in
-// „Info zur Waffe“ (5.2). Geänderte Zeilen leuchten grün (besser) bzw. rosa
-// (schlechter) und tragen die Änderung als Chip links vom Wert.
+// Flächen“) eine Liste statt acht Kacheln (8.1) — Zeilen wie in „Info zur Waffe“
+// (5.2); später am Tag auf Wunsch kleiner als zwei Tabellen nebeneinander (je 4).
+// Geänderte Zeilen leuchten grün (besser) bzw. rosa (schlechter) und tragen die
+// Änderung als Chip links vom Wert.
 const STAT_DEFS = [
   { key: 'dmg',      px: 'sword',  label: 'Schaden',    fmt: v => String(v) },
   { key: 'hp',       px: 'heart',  label: 'Leben',      fmt: v => String(v) },
@@ -370,8 +371,10 @@ function _statsHtml(c) {
     }
     return `<div class="pf-wert${cls}">${iconHTML(d.px, 14)}<span class="pf-wert-lbl">${d.label}</span>`
       + `<span class="p-wachs"></span>${chip}<span class="pf-wert-zahl">${d.fmt(a)}</span></div>`;
-  }).join('');
-  return `<div class="pf-werte"><div class="pf-werte-gitter">${tiles}</div></div>`;
+  });
+  const half = Math.ceil(tiles.length / 2);
+  return `<div class="pf-werte"><div class="pf-werte-tabelle">${tiles.slice(0, half).join('')}</div>`
+    + `<div class="pf-werte-tabelle">${tiles.slice(half).join('')}</div></div>`;
 }
 
 // ALLE Verbesserungen eines Items als kurze Zahlen-Zeilen, je mit dem
