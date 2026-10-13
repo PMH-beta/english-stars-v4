@@ -2071,17 +2071,22 @@ function _campaignBlock() {
   const bosses = c.bossWins || 0;
   // Zählt erst ab Einführung der Statistik — ältere Läufe sind nicht nachrechenbar.
   const st = (c.stats && typeof c.stats === 'object') ? c.stats : {};
-  const rekord = st.bestRun || 0, rekordBosse = st.bestRunBosses || 0;
+  // In der Freund-Ansicht stammt c aus SEINEM Konto — über die API lässt sich dort
+  // alles hineinschreiben, auch HTML statt Zahlen. Darum nur Zahlen einsetzen
+  // (Sicherheitsprüfung 14.10.2026: Schadcode lief sonst beim Betrachter).
+  const zahl = (v) => { const n = Math.round(Number(v)); return Number.isFinite(n) ? n : 0; };
+  const rekord = zahl(st.bestRun), rekordBosse = zahl(st.bestRunBosses);
   const kachel = (icon, zahl, label, gold) => `<div class="fs-kachel${gold ? ' is-gold' : ''}">`
     + `<div class="fs-kachel-kopf">${iconHTML(icon, 28)}<span class="fs-kachel-zahl">${_fsZahl(zahl)}</span></div>`
     + `<div class="fs-kachel-lbl">${label}</div></div>`;
   let lauf;
   const run = c.run;
   if (run && run.map) {
-    const rows = run.map.rows || 13;
-    const node = run.pos != null ? run.map.nodes[run.pos] : null;
-    const row = node ? node.row + 1 : 0;
-    const hpPct = run.hpMax ? Math.round((run.hp / run.hpMax) * 100) : 0;
+    const rows = Math.min(zahl(run.map.rows) || 13, 99);   // Deckel: riesige Zahl fröre die Seite ein
+    const node = run.pos != null && run.map.nodes ? run.map.nodes[run.pos] : null;
+    const row = node ? zahl(node.row) + 1 : 0;
+    const hp = zahl(run.hp), hpMax = zahl(run.hpMax);
+    const hpPct = hpMax ? Math.round((hp / hpMax) * 100) : 0;
     // Reihen als Kästchen: geschafft Tinte, aktuelle Gold, die letzte (Boss) Rosa.
     const segs = Array.from({ length: rows }, (_, i) => {
       const cls = i + 1 < row ? 'is-fertig' : i + 1 === row ? 'is-jetzt' : i === rows - 1 ? 'is-boss' : '';
@@ -2091,7 +2096,7 @@ function _campaignBlock() {
       + `<div class="fs-reihen" style="grid-template-columns:repeat(${rows},1fr)">${segs}</div>`
       + `<div class="fs-reihen-lbl"><span>Start</span><span>Boss</span></div>`
       + `<div class="fs-hp">${iconHTML('heart', 14)}<div class="fs-hp-spur"><i data-ui="fill" data-c="64" style="width:${hpPct}%"></i></div>`
-      + `<span class="fs-hp-wert">${run.hp}/${run.hpMax}</span></div>`;
+      + `<span class="fs-hp-wert">${hp}/${hpMax}</span></div>`;
   } else {
     lauf = `<div class="fs-lauf-kopf"><span>Aktueller Lauf</span></div><div class="fs-lauf-leer">Kein Lauf aktiv.</div>`;
   }
