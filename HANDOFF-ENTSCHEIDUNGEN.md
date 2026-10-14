@@ -215,6 +215,7 @@ Boss-Krone. Es gelten weiter die Regeln oben.
 | F-83 | Tempo je Runde | **A:** bleibt gleich — schwerer wird es über Schaden und Verben. | Kampagne | 09.10.2026 |
 | — | Unregelmäßige (Spirale) | **Nutzer:** nicht stärker als normale Gegner — dieselben Werte (15 Leben, 9 Schaden, gleiche Steigerung); stärker ist nur der Boss. Axt- und Talisman-Bonus gegen sie bleiben. | Kampagne | 09.10.2026 |
 | — | App-Name | **Nutzer:** überall „Vondu“ statt „English Stars“ — Manifest (name, short_name), Fenstertitel, Name unter dem Icon auf dem iPhone, Dateiname der Sicherung. Interne Schlüssel (Speicher, Repo, Pfade) bleiben, sonst gingen Spielstände verloren. Installierte Apps zeigen den neuen Namen erst nach Neuinstallation bzw. wenn Android das Manifest neu liest. | — | 09.10.2026 |
+| — | Runden-Popup verständlich (Nutzer: „die Prozente machen keinen Sinn … ‚so viel stärker als in Runde 1‘ braucht man nicht … Verben schwerer kann man ganz rausnehmen“) | **Nutzer: vorher → jetzt** — Titel „Die Gegner werden stärker“ statt „Runde N“, Unterzeile weg; je Gegner und Boss „Leben“ und „Schaden“ mit altem Wert, Pfeil und neuem Wert als Chip (Leben rosa, Schaden pfirsich), „Zeit bleibt gleich“, darunter „Schaden = so viele Leben verlierst du pro Treffer.“; Knopf weiter „Runde N starten“. Leisten, Prozente, Funken und die Zeile „Verben“ entfallen, die neuen Zahlen springen nacheinander kurz auf. Ändert F-82 (Inhalt), Werte unverändert. | Kampagne | 14.10.2026 |
 
 ### Ohne Rückfrage entschieden (Aussehen) — Update 1
 
