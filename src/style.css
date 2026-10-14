@@ -4015,12 +4015,22 @@ body.p-app .music-vol-btn{ bottom:calc(88px + env(safe-area-inset-bottom,0px)); 
 .pf-wert.is-minus::before{ background:#FFE5E7; }
 .pf-wert-lbl{ font:800 11px var(--p-font); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
 .pf-wert-zahl{ font:900 12px var(--p-font); white-space:nowrap; flex:none; }
-.pf-wert-chip{
-  display:inline-flex; align-items:center; white-space:nowrap; flex:none;
-  border:var(--p-rahmen); border-radius:9px; background:var(--p-ok);
-  padding:0 4px; font:800 8px/11px var(--p-font);
+/* Vergleich (Wunsch des Nutzers 15.10.2026): alt klein und grau → neu groß, dazu der
+   Pixel-Pfeil hoch (besser) bzw. runter (schlechter). Beim Antippen springt der neue
+   Wert kurz auf, beim Anlegen zählt er hoch und sprüht Funken (campaign-equipment.js). */
+.pf-wert-alt{ font:800 10px var(--p-font); color:var(--p-text-2); white-space:nowrap; flex:none; }
+.pf-wert-pfeil{ font:800 10px var(--p-font); color:var(--p-text-2); flex:none; margin:0 -2px; }
+.pf-wert-zahl.is-neu{ font-size:14px; position:relative; }
+.pf-wert-richtung{ flex:none; margin-left:-2px; }
+/* Schmale Handys: ohne Pfeil, sonst wird die Bezeichnung abgeschnitten (Farbe und alt → neu reichen). */
+@media (max-width:359px){ .pf-wert-richtung{ display:none; } }
+.pf-wert-zahl.is-auf{ animation:pf-wert-auf .34s ease-out; }
+@keyframes pf-wert-auf{ 0%{ scale:1; } 40%{ scale:1.35; } 100%{ scale:1; } }
+.pf-wert-funke{
+  position:absolute; right:22px; top:10px; width:4px; height:4px; z-index:2; pointer-events:none;
+  animation:pf-wert-funke .55s ease-out forwards;
 }
-.pf-wert.is-minus .pf-wert-chip{ background:var(--p-rosa); }
+@keyframes pf-wert-funke{ from{ translate:0 0; opacity:1; } to{ translate:var(--dx) var(--dy); opacity:0; } }
 
 /* Tasche: alle Teile des angewählten Fachs, 6 je Zeile. */
 .pf-tasche-kopf{ display:flex; align-items:center; justify-content:space-between; gap:7px; margin-top:14px; }
@@ -4036,10 +4046,13 @@ body.p-app .music-vol-btn{ bottom:calc(88px + env(safe-area-inset-bottom,0px)); 
 .pf-teil.is-gewaehlt{ background:var(--p-gold); box-shadow:0 0 0 3px var(--p-karte-hell), 0 0 0 5px var(--p-ink); }
 .pf-teil.is-leer{ border:2px dashed rgba(31,31,36,.35); background:rgba(248,246,236,.5); cursor:default; }
 .pf-teil.is-gezogen{ opacity:.35; }
-.pf-teil-haken{
-  position:absolute; right:-7px; top:-7px; width:26px; height:26px;
-  border:var(--p-rahmen); border-radius:50%; background:var(--p-ok);
-  display:flex; align-items:center; justify-content:center;
+/* Das getragene Teil trägt unten ein Band „angelegt“ (Wunsch des Nutzers 15.10.2026,
+   vorher Haken oben rechts) — Tinte statt Gold, damit es sich vom angewählten
+   (goldene Fläche mit Doppelring) unterscheidet. */
+.pf-teil-an{
+  position:absolute; left:50%; bottom:-7px; translate:-50% 0; z-index:1;
+  border:2px solid var(--p-ink); border-radius:7px; background:var(--p-ink); color:var(--p-karte);
+  padding:0 4px; font:900 7px/11px var(--p-font); letter-spacing:.06em; text-transform:uppercase; white-space:nowrap;
 }
 /* Gepacktes Teil am Finger: angehoben mit dem harten Schatten des Designs. */
 .pf-zieh{
@@ -4080,6 +4093,7 @@ body.p-app .music-vol-btn{ bottom:calc(88px + env(safe-area-inset-bottom,0px)); 
   border:var(--p-rahmen); border-radius:14px; background:var(--p-karte);
   display:flex; align-items:center; gap:6px; font:900 12px var(--p-font); color:var(--p-ink);
 }
+.pf-anlegen.is-anlegen{ background:var(--p-gold); }
 /* Leere Tasche / keine Treffer: gestrichelter Kasten (8.1 „Niemand mit …"). */
 .pf-leer, .fr-leer{
   margin-top:10px; border:2px dashed rgba(31,31,36,.55); border-radius:18px;
