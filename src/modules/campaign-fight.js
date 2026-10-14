@@ -503,7 +503,7 @@ function _buildPlayers() {
   const gm = equippedGearMap();
   if (petEl && gm && gm.companion) {
     const a = ensureAvatar(window.SD);
-    pet = createPetPlayer(petEl, petKind(a.pet), petColorHex(a.pet, a.petColor), hs);
+    pet = createPetPlayer(petEl, petKind(a.pet), petColorHex(a.pet, a.petColor), hs, gm.companion.which);   // Funkeln F-97
   }
   _ctx.players = { hero, feind, pet };
   if (flug) { try { _ctx.layer = new ProjectileLayer(flug, { scale: hs }); } catch (e) { _ctx.layer = null; } }

@@ -10,7 +10,7 @@ import { persist } from './storage.js';
 import { markDirty } from './sync.js';
 import { commitDirty } from './dialog.js';
 // Paletten der NEUEN Figur — nur für die Migration (nächstliegender Farbton).
-import { imgTag, petTag, petURL, gearFor, fitScale, MASSE, ausschnitt, stageHTML, petKind, petColorHex, editorFigurHTML, editorPetHTML, kachelURL, paintStages } from './hero.js';
+import { imgTag, petTag, petURL, gearFor, fitScale, MASSE, ausschnitt, stageHTML, petKind, petColorHex, editorFigurHTML, editorPetHTML, editorPetFunkeln, kachelURL, paintStages } from './hero.js';
 import { SKIN as NEU_SKIN, HAIR as NEU_HAIR, CLOTH as NEU_CLOTH, IRIS as NEU_IRIS, HAIR_N as NEU_HAIR_N, EYES_N as NEU_EYES_N, MOUTH_N as NEU_MOUTH_N, TOPS_N as NEU_TOPS_N, PANTS_N as NEU_PANTS_N, PETS as NEU_PETS } from './pixel-hero-fine.js';
 import { iconHTML } from './pixel-icons.js';
 
@@ -207,7 +207,8 @@ export function stageHTMLFor(sd, gearMap, scale = 2) {
   const cfg = ensureAvatar(sd);
   const gefaehrte = gearMap && gearMap.companion
     ? { kind: petKind(cfg.pet), color: petColorHex(cfg.pet, cfg.petColor) } : null;
-  return stageHTML(cfg, { gear: gearFor(gearMap), gefaehrte, scale });
+  // Stahl- oder Gold-Gefährte funkelt (F-97).
+  return stageHTML(cfg, { gear: gearFor(gearMap), gefaehrte, scale, glanz: gefaehrte ? gearMap.companion.which : null });
 }
 
 // ────────────────────────────────────────────────
@@ -319,7 +320,10 @@ function _renderBuehne() {
   if (!pet) return;
   if (_modus === 'start') { pet.innerHTML = ''; pet.style.display = 'none'; return; }
   pet.style.display = '';
-  if (_petInfo.available) { pet.innerHTML = editorPetHTML(_entwurf.pet, _entwurf.petColor, 3); paintStages(pet); }
+  if (_petInfo.available) {
+    pet.innerHTML = editorPetHTML(_entwurf.pet, _entwurf.petColor, 3) + editorPetFunkeln(_entwurf.pet, _entwurf.petColor, 3, _petInfo.which);
+    paintStages(pet);
+  }
   else pet.innerHTML = '<div class="ce-kein-pet"><span class="ce-kein-pet-chip">Noch kein Gefährte</span><span class="ce-kein-pet-platz"></span></div>';
 }
 

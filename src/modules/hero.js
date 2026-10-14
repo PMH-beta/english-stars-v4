@@ -166,6 +166,34 @@ function _fuss({ w, h, col }) {
   return { yb: b, mn, mx, fl: b < h - 8 };
 }
 
+// ── Funkeln des Gefährten (F-97, 14.10.2026) ────────────────────────────────
+// Ob der Stahl- oder der Gold-Gefährte angelegt ist, zeigen drei Funkel-Sterne am
+// Tier — das Funkeln vom Rundenende (ui-anim „sparkle", 7 × 7), nacheinander im
+// Takt: oben rechts, als Glanzpunkt auf dem Körper und rechts unten vor der Brust
+// (das Tier schaut nach rechts; links reicht es bis an die Figur). Gold weiß-golden
+// wie im Modul, Stahl silbern (style.css). Am Pixelraster des Tiers ausgerichtet.
+function _kasten({ w, h, col }) {
+  let x0 = w, y0 = h, x1 = -1, y1 = -1;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const c = col[y * w + x];
+    if (!c || c.length >= 9) continue;   // Schattenton (#RRGGBBAA) zählt nicht
+    if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+  }
+  return x1 < 0 ? null : { x0, y0, x1, y1 };
+}
+/** Drei Funkel-Sterne um einen Kasten (Rohpixel) im Maßstab s; which = 'past' (Stahl) | 'pp' (Gold). */
+export function funkelnHTML(k, s, which) {
+  if (!k || (which !== 'past' && which !== 'pp')) return '';
+  const w = k.x1 - k.x0 + 1, h = k.y1 - k.y0 + 1;
+  const sterne = [
+    [k.x1 + 1, k.y0 + 1, 0],
+    [k.x0 + Math.round(w * 0.55), k.y0 + Math.round(h * 0.4), 5],
+    [k.x1 - 1, k.y0 + Math.round(h * 0.8), 10],
+  ];
+  return sterne.map(([cx, cy, d]) => `<canvas class="p-funkeln p-funkeln--${which === 'pp' ? 'gold' : 'stahl'}" data-ui="sparkle" data-d="${d}" width="7" height="7"`
+    + ` style="left:${(cx - 3) * s}px;top:${(cy - 3) * s}px;width:${7 * s}px;height:${7 * s}px"></canvas>`).join('');
+}
+
 function _atemBilder(cfg, gear, gefaehrte) {
   const H = hero(gear ? { ...cfg, gear } : cfg).render();
   if (!gefaehrte) {
@@ -211,7 +239,11 @@ function _atemBilder(cfg, gear, gefaehrte) {
     for (let y = 0; y < h2; y++) for (let x = 0; x < w2; x++) o[y * w2 + x] = col[(y + y0) * W + x + x0];
     return { w: w2, h: h2, col: o };
   };
-  return [0, 1, 2, 3].map((f) => schneide(f ? baue(_ATEM[f], _ATEM[(f + 1) % 4]) : c0));
+  const bilder = [0, 1, 2, 3].map((f) => schneide(f ? baue(_ATEM[f], _ATEM[(f + 1) % 4]) : c0));
+  // Wo das Tier im fertigen Bild steht (für das Funkeln).
+  const pk = _kasten(Pt), ox = dx - X0 - x0, oy2 = oy - Y0 - y0;
+  if (pk) bilder.pet = { x0: pk.x0 + ox, y0: pk.y0 + oy2, x1: pk.x1 + ox, y1: pk.y1 + oy2 };
+  return bilder;
 }
 
 /**
@@ -220,13 +252,16 @@ function _atemBilder(cfg, gear, gefaehrte) {
  * Nach dem Einsetzen paintStages() aufrufen, damit Bild 0 auch ohne Bewegung
  * (prefers-reduced-motion) steht.
  */
-export function stageHTML(cfg, { gear, gefaehrte = null, scale = 2 } = {}) {
+export function stageHTML(cfg, { gear, gefaehrte = null, scale = 2, glanz = null } = {}) {
   const s = Math.max(1, Math.round(scale));
   const k = JSON.stringify([cfg, gear || 0, gefaehrte || 0]);
   const bilder = _bilderZu(k) || _merkeBuehne(k, _atemBilder(cfg, gear, gefaehrte));
   const { width: w, height: h } = bilder[0];
-  return `<canvas data-ui="idle" data-idle="${encodeURIComponent(k)}" width="${w}" height="${h}"`
+  const cv = `<canvas data-ui="idle" data-idle="${encodeURIComponent(k)}" width="${w}" height="${h}"`
     + ` style="width:${w * s}px;height:${h * s}px;image-rendering:pixelated;display:block;flex:none"></canvas>`;
+  // glanz = Form des angelegten Gefährten ('past' Stahl / 'pp' Gold): Funkeln am Tier.
+  const funkeln = gefaehrte && glanz ? funkelnHTML(_buehnenQuelle.get(k)?.pet, s, glanz) : '';
+  return funkeln ? `<span class="p-buehne-figur" style="width:${w * s}px;height:${h * s}px">${cv}${funkeln}</span>` : cv;
 }
 
 // ── Charakter-Editor (1.9, 1.10, 8.4–8.12) ──────────────────────────────────
@@ -255,6 +290,11 @@ export function editorPetHTML(petIdx, colorIdx, scale = 3) {
     const img = petMenuImage(kind, farbe);
     return _atemEinzeln(img, _unterkante(img) - 6);
   }, scale, 2);
+}
+/** Funkeln zum Editor-Tier (F-97): dasselbe Bild wie editorPetHTML, gleicher Maßstab. */
+export function editorPetFunkeln(petIdx, colorIdx, scale, which) {
+  const s = Math.max(1, Math.round(scale));
+  return funkelnHTML(_kasten(petMenuImage(petKind(petIdx), petColorHex(petIdx, colorIdx))), s, which);
 }
 
 // Kacheln: Ausschnitte der Figur mit allen aktuellen Einstellungen (START-HERE):
@@ -328,16 +368,22 @@ export function petTag(petIdx, colorIdx, opts = {}) {
  * springt er mit — also genau dann, wenn der Angriff des Helden trifft.
  * Stehen läuft mit 4 fps, alles andere mit 8 fps (Handoff-Regel 6).
  */
-export function createPetPlayer(el, kind, color, scale = 2) {
+export function createPetPlayer(el, kind, color, scale = 2, glanz = null) {
   const s = Math.max(1, Math.round(scale));
+  // Nur das Bild tauschen — die Funkel-Sterne (F-97) bleiben stehen.
   const zeig = (img) => {
     const cv = toCanvas(img, s);
     Object.assign(cv.style, { imageRendering: 'pixelated', display: 'block' });
-    el.replaceChildren(cv);
+    const alt = el.querySelector(':scope > canvas:not(.p-funkeln)');
+    if (alt) alt.replaceWith(cv); else el.prepend(cv);
   };
   let timer = null, idle = petBattleFrames(kind, color, 'idle');
+  el.replaceChildren();
+  // Funkeln nur im Stehen; beim Angriff, Treffer, Sieg oder K.o. ist es aus.
+  if (glanz) el.insertAdjacentHTML('beforeend', funkelnHTML(_kasten(idle[0]), s, glanz));
   const ruhe = () => {
     clearInterval(timer);
+    el.classList.remove('ohne-funkeln');
     let i = 0;
     zeig(idle[0]);
     timer = setInterval(() => { i = (i + 1) % idle.length; zeig(idle[i]); }, 1000 / PET_BATTLE.idleFps);
@@ -347,6 +393,7 @@ export function createPetPlayer(el, kind, color, scale = 2) {
     /** name: 'attack' | 'hurt' | 'win' | 'die' | 'ko'. Danach zurück ins Stehen. */
     play(name) {
       clearInterval(timer);
+      el.classList.add('ohne-funkeln');
       if (name === 'win' || name === 'ko') {
         const f = petBattleFrames(kind, color, name);
         let i = 0;
