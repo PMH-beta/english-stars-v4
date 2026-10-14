@@ -4425,19 +4425,14 @@ body.schnell-active .p-sammlung:not(.is-offen) > .p-balken{ height:9px; margin-t
   position:relative; height:318px; margin-top:12px; overflow:hidden;
   border:var(--p-rahmen); border-radius:26px; background:var(--p-karte-hell);
 }
-/* Wiese hinter der Figur (Wunsch des Nutzers 15.10.2026, ersetzt den Sandboden der
-   Editor-Bühne): der Kampfplatz „Wiese“ wie im Kampf fest im Maßstab 2, nie
-   skaliert. Die Füße stehen dort 126 px über der Unterkante auf dem Weg, die Stelle
-   des Helden liegt 107 px links der Mitte — beides hier unter die Figur geschoben
-   (--wiese-fuss = Abstand der Füße vom unteren Rand der Bühne). Das Bild liegt
-   hinter allem (z-index −1 in der isolierten Bühne). */
-.p-wiese{
-  position:absolute; left:50%; bottom:calc(var(--wiese-fuss, 0px) - 126px); z-index:-1;
-  width:5120px; height:1440px; max-width:none; transform:translateX(calc(-50% + 107px));
+/* Schlichter Pixel-Raum hinter der Figur (raum.js, Wunsch des Nutzers 15.10.2026;
+   ersetzt die Wiese vom selben Tag und den Sandboden der Editor-Bühne): unten links
+   angesetzt, im Maßstab der Figur, hinter allem (z-index −1 in der isolierten Bühne). */
+.p-raum{
+  position:absolute; left:0; bottom:0; z-index:-1; max-width:none;
   image-rendering:pixelated; pointer-events:none; user-select:none;
 }
-.pf-buehne{ isolation:isolate; --wiese-fuss:6px; }
-.ce-buehne{ isolation:isolate; --wiese-fuss:28px; }
+.pf-buehne, .ce-buehne{ isolation:isolate; }
 .ce-figuren{
   position:absolute; left:0; right:0; bottom:28px;
   display:flex; align-items:flex-end; justify-content:center; gap:2px;

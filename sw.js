@@ -51,7 +51,7 @@ const PRECACHE = [
   // (Phase 6) — alle statisch importiert, fehlten bisher hier.
   './src/modules/pixel-world-fine.js', './src/modules/world.js', './src/modules/pixel-anim.js',
   // Stärkere Gold-Bilder für Talisman und Ring (F-99) — world.js importiert sie statisch.
-  './src/modules/schmuck-gold.js',
+  './src/modules/schmuck-gold.js', './src/modules/raum.js',
   // UI-Animationen (Phase 7): Modul aus dem Handoff + gemeinsamer Takt.
   './src/modules/ui-anim.js', './src/modules/ui-takt.js',
   './src/modules/klapp-anim.js', './src/modules/unschaerfe.js', './src/modules/bilder-wache.js',

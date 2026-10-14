@@ -11,6 +11,7 @@ import { setGrundton, clearGrundton } from './screen-shell.js';
 import { weichUmbauen } from './klapp-anim.js';
 import { iconHTML } from './pixel-icons.js';
 import { uvMap, uvLernstand, constellationWords, FORGE_DISC, SLOTS_PER_FORM, uvTrainProgress, uvTrainForms, uvTrainWords, uvPruneOrphanSlotStats, UV_TRAIN_SIZE, migrateUvTrainSize } from './irregular-game.js';
+import { raumMalen } from './raum.js';
 import { renderAvatarInto, renderCharacter, resetCharacterFeature, setCharacterCompanion, stageHTMLFor, charEditorOeffnen, charEditorGeaendert, charEditorUebernehmen, charAenderungenFragen } from './avatar.js';
 import { paintStages } from './hero.js';
 import { installHinweisEinmal, installMoeglich } from './pwa.js';
@@ -1813,6 +1814,7 @@ export function showCharacter() {
   charEditorOeffnen('profil');
   showScreen('character-screen');
   renderCharacter();
+  raumMalen(document.querySelector('#character-screen .ce-buehne'), { fuss: 28, s: 3 });
 }
 // Erster Start (1.9/1.10): „Wer bist du?", 7 Reiter ohne Gefährte, „Los geht's!".
 export function showCharacterOnboarding() {
@@ -1821,6 +1823,7 @@ export function showCharacterOnboarding() {
   charEditorOeffnen('start');
   showScreen('character-screen');
   renderCharacter();
+  raumMalen(document.querySelector('#character-screen .ce-buehne'), { fuss: 28, s: 3 });
 }
 export function finishCharacterOnboarding() {
   // Neuer Spielstand: die App-Tour kommt genau einmal (F-14) — bis sie beendet

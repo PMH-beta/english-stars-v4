@@ -287,13 +287,6 @@ export function arenaTag(key) {
   return `<img class="cf-kulisse" src="arena/A_${k}.png" width="5120" height="1440" alt="" draggable="false">`;
 }
 
-/**
- * Wiese hinter der Figur in Profil und Charakter-Editor (Wunsch des Nutzers
- * 15.10.2026): derselbe Kampfplatz wie im Kampf, fest im Maßstab 2 — die Füße
- * stehen wie dort auf dem Weg (CSS `.p-wiese`).
- */
-export const wieseTag = () => `<img class="p-wiese" src="arena/A_wiese.png" width="5120" height="1440" alt="" draggable="false">`;
-
 // ── Lagerfeuer ──────────────────────────────────────────────────────────────
 /** Lagerfeuer, statisch (Bild 0) oder ein bestimmtes Bild der 8-fps-Folge. */
 export function campfireTag(bild = null, scale = 2) {
