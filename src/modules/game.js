@@ -986,6 +986,7 @@ function esc(s) { return(s+'').replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
 
 export function nextQuestion() {
   try{ if(window.speechSynthesis) window.speechSynthesis.cancel(); }catch(e){}
+  window.stopConfetti?.();   // Serien-Konfetti (5/10 richtig) endet mit „Weiter“
   window.questionIndex++;
   showQuestion();
 }

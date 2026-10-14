@@ -728,7 +728,12 @@ document.addEventListener('click',e=>{
 
 // ── CONFETTI ──
 // Pastell-Konfetti wie 7.16/4.14: gerahmte Plättchen, die im 8-fps-Takt fallen
-// (data-ui="confetti"), nach 3 s wieder weg.
+// (data-ui="confetti" läuft endlos). Seit 14.10.2026 auf Wunsch so lange, bis
+// weitergetippt wird — stopConfetti() bei der nächsten Frage und beim
+// Screen-Wechsel (vorher nach 3 s weg, der Dialog stand dann noch).
+function stopConfetti(){
+  document.querySelectorAll('#confetti-wrap .cf-konfetti').forEach(b=>b.remove());
+}
 function spawnConfetti(){
   const wrap=document.getElementById('confetti-wrap');
   const farben=['#FFBBC1','#BCE3FF','#C9B8FF','#B7E3C2','#FFD6A5','#FFD66B'];
@@ -744,7 +749,6 @@ function spawnConfetti(){
   box.innerHTML=html;
   box.dataset.ui='confetti';
   wrap.appendChild(box);
-  setTimeout(()=>box.remove(),3000);
 }
 </script>
 </body>

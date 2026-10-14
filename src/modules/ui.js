@@ -57,6 +57,7 @@ const P_TON = {
 };
 
 export function showScreen(id) {
+  window.stopConfetti?.();   // Konfetti fällt, bis weitergetippt wird (index.html)
   // App-Tour läuft nur auf dem Menü: übernimmt ein anderer Screen (z. B. die
   // Anmeldung), räumt sie sich ab — ohne tourSeen, sie kommt dann wieder.
   if (id !== 'menu-screen' && tourLaeuft()) tourAbbrechen();
