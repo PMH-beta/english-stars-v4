@@ -168,20 +168,18 @@ function _uvBadge(key){ const b=_FORM_BADGE[key]||_FORM_BADGE.past;
   return `<div class="badge uv-badge" style="background:${b[1]}">${iconHTML(b[2],14)}${b[0]}</div>`; }
 // Anweisung unter der Plakette (800 13px, 5.6–5.11).
 function _uvInstr(t){ return `<div class="q-instr uv-instr">${t}</div>`; }
-// Deutsches Wort als Vorgabe: „haben → Simple Past" (5.9/5.10), bei allen drei
-// Formen nur das Wort (5.6).
-function _uvWord(de,key){
-  const f=_FORM_BADGE[key];
-  return key==='all'
-    ? `<div class="uv-wort uv-wort--klein">${window.escHtml(de)}</div>`
-    : `<div class="uv-wort">${window.escHtml(de)}${f?' → '+f[0]:''}</div>`;
+// Deutsches Wort als Vorgabe. Auf Wunsch (14.10.2026, „Formen sieht abgespeckt
+// aus“) wie bei den Vokabeln groß mit „DE“ davor; die Form steht nur noch in der
+// Plakette darüber (vorher „haben → Simple Past“ in 18 px, 5.9/5.10).
+function _uvWord(de,mitInstr){
+  return `<div class="question-text${mitInstr?' mit-instr':''}"><span class="q-lang">DE</span>${window.escHtml(de)}</div>`;
 }
 // Aufgaben-Zusatz (Buchstabenlücke, falsche Form …) unter dem Wort.
 function _uvTask(t){ return `<div class="uv-aufgabe">${t}</div>`; }
 // UV-Fragekopf in fester Reihenfolge: Form-Plakette → (Anweisung) → deutsches Wort
 // → (englische Aufgabe). Anweisung/Aufgabe optional.
 function _uvHead(de,key,instr,task){
-  return _uvBadge(key)+(instr?_uvInstr(instr):'')+_uvWord(de,key)+(task?_uvTask(task):'');
+  return _uvBadge(key)+(instr?_uvInstr(instr):'')+_uvWord(de,!!instr)+(task?_uvTask(task):'');
 }
 // Falsche Form in der rosa Fläche (5.7).
 function _uvFalsch(w){ return `<div class="uv-falsch">${window.escHtml(w)}</div>`; }
@@ -247,7 +245,7 @@ function bRufen(item, which, lvl, suf){
   const base={type:'pronounce',badge:'pronounce',statKey:statKeyFor(item.de,item.en,suf||mt.suf.pr,item._presetId||null),_presetId:item._presetId||null,hint:''};
   if(lvl===3){ // schwer: ganze Reihe sprechen
     const chain=`${inf} ${_firstForm(item.forms.past)} ${_firstForm(item.forms.participle)}`;
-    return {...base,question:_uvBadge('all')+_uvInstr('Sprich alle drei Formen')+_uvWord(item.de,'all'),answer:chain};
+    return {...base,question:_uvBadge('all')+_uvInstr('Sprich alle drei Formen')+_uvWord(item.de,true),answer:chain};
   }
   // leicht/mittel: nur das deutsche Wort, Zielform aus dem Kopf sprechen
   return {...base,question:_uvHead(item.de,which,'Sprich die Form',''),answer:target};
@@ -289,7 +287,7 @@ function bErkennenOrder(item, which, suf){
   return {
     type:'order', orderKind:'forms', badge:'vocab', _presetId:item._presetId||null,
     statKey:statKeyFor(item.de,item.en,suf||_verbMeta(which).suf.mc,item._presetId||null),
-    question:_uvBadge('all')+_uvInstr('Zieh die Formen in die richtige Reihenfolge')+_uvWord(item.de,'all'),
+    question:_uvBadge('all')+_uvInstr('Zieh die Formen in die richtige Reihenfolge')+_uvWord(item.de,true),
     slotLabels:['Present','Simple Past','Past Participle'],
     solution:sol, tiles:_scramble(sol),
     answer:`${present} · ${past} · ${pp}`,
@@ -797,15 +795,18 @@ function renderQuestion(q) {
       <div class="pronounce-result" id="pronounce-result"></div>
     </div>`;
   } else if(q.type==='order'){
-    // Ordnen wie 5.6 (Formen: Beschriftung links, Ablage rechts) und 5.9
-    // (Buchstaben: Kacheln nebeneinander) — alles in der Fragekarte.
+    // Ordnen wie 5.9 (Buchstaben: Kacheln nebeneinander) — alles in der Fragekarte.
+    // Die drei Formen stehen seit 14.10.2026 auf Wunsch nebeneinander wie in der
+    // Verbtabelle (vorher untereinander, 5.6): Kopf in der Formfarbe (F-101),
+    // darunter die Ablage, darunter der Vorrat als Spiegel wie beim Buchstaben-Sortieren.
     html+=`<div class="p-fragekarte">${head}${frage}`;
     const isL=q.orderKind==='letters';
-    html+=`<div class="order-slots${isL?' letters':''}" id="order-slots">`;
+    const FORM_TON=['present','past','pp'];
+    html+=`<div class="order-slots${isL?' letters':' formen'}" id="order-slots">`;
     // Buchstaben: ein Wort = eine Gruppe, umgebrochen wird nur zwischen Wörtern (_passeFelder).
     if(isL) html+=`<span class="sp-wortgruppe">`+(q.vorsatz ? `<span class="sp-vorsatz">${window.escHtml(q.vorsatz)}</span>` : '');
     q.slotLabels.forEach((lab,i)=>{
-      html+=`<div class="order-slot" data-slot="${i}">${lab?`<span class="slot-label">${lab}</span>`:''}</div>`;
+      html+=`<div class="order-slot" data-slot="${i}">${lab?`<span class="slot-label${isL?'':' slot-label--'+FORM_TON[i]}">${lab}</span>`:''}</div>`;
       if(isL && q.luecken?.includes(i)) html+=`</span><span class="sp-wortgruppe">`;   // nächstes Wort
     });
     html+=isL ? `</span></div>` : `</div>`;
@@ -822,8 +823,8 @@ function renderQuestion(q) {
       });
       html+=`</span></div>`;
     } else {
-      html+=`<div class="order-tray" id="order-tray">`;
-      q.tiles.forEach(t=>{ html+=`<div class="order-tile" data-val="${t}">${t}</div>`; });
+      html+=`<div class="order-tray formen" id="order-tray">`;
+      q.tiles.forEach((t,i)=>{ html+=`<div class="order-heim" data-heim="${i}"><div class="order-tile" data-val="${t}" data-heim="${i}">${t}</div></div>`; });
       html+=`</div>`;
     }
     html+=`<button class="submit-btn uv-pruefen" id="order-check" onclick="checkOrder()" disabled>${iconHTML('check',14)}Prüfen</button></div>`;
@@ -840,6 +841,19 @@ function renderQuestion(q) {
   if(q.type==='type') setTimeout(()=>document.getElementById('type-input')?.focus(),120);
   if(q.type==='order') initOrderDnD();
   if(q.gap || q.orderKind==='letters') _passeFelder(card);
+  if(q.orderKind==='forms') _passeFormen(card);
+}
+
+// Drei Formen nebeneinander (14.10.2026): eine lange Form („understood“) wird
+// kleiner statt umzubrechen — eine Schriftgröße für alle drei Steine, 16 → 11 px.
+function _passeFormen(card){
+  const tiles=[...card.querySelectorAll('.order-tray.formen .order-tile')];
+  const r=document.createRange();
+  const passt=(t)=>{ r.selectNodeContents(t); return r.getBoundingClientRect().width <= t.clientWidth-12; };   // innerhalb des Polsters (6 px)
+  for(const fs of [16,15,14,13,12,11]){
+    card.style.setProperty('--ofs', fs+'px');
+    if(tiles.every(passt)) return;
+  }
 }
 
 // Lange Wörter (Vorschlag vom 08.10.2026, Vorbild Wortleiste des Buchstabensturms):
@@ -880,7 +894,7 @@ function initOrderDnD(){
   let pending=null;     // pointerdown – noch offen, ob Tap oder Ziehen
 
   function updateCheck(){ if(checkBtn) checkBtn.disabled=!slots.every(s=>s.querySelector('.order-tile')); }
-  // Buchstaben haben im Vorrat einen festen Platz (data-heim); Formen gehen ans Ende.
+  // Jeder Stein hat im Vorrat einen festen Platz (data-heim), Buchstaben wie Formen.
   const heim=(tile)=>(tile.dataset.heim!=null && tray.querySelector(`.order-heim[data-heim="${tile.dataset.heim}"]`))||tray;
   function placeTile(tile, target){
     if(target && target.classList.contains('order-slot')){

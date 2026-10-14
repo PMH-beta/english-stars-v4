@@ -3499,9 +3499,6 @@ button.p-chip{ cursor:pointer; }
 /* Kopf der Formen-Aufgabe: ohne eigene Schrift, damit die Plakette oben anliegt. */
 .uv-kopf{ font-size:0; line-height:0; }
 .uv-instr{ font:800 13px var(--p-font); color:var(--p-text-akzent); margin-top:14px; }
-/* Pfeil „→" steht nicht in Nunito: Ersatzschrift wie im Entwurf (sans-serif). */
-.uv-wort{ font:900 18px 'Nunito',sans-serif; color:var(--p-ink); margin-top:6px; }
-.uv-wort--klein{ font-size:15px; }
 .uv-aufgabe{ font:900 22px var(--p-font); color:var(--p-ink); margin-top:8px; letter-spacing:.1em; }
 /* Falsche Form (5.7) in rosa Fläche — ohne Durchstreichen (F-52). */
 .uv-falsch{
@@ -3552,26 +3549,40 @@ button.p-chip{ cursor:pointer; }
 .p-fragekarte .gap-reihe + .submit-btn{ margin-top:20px; }
 /* Ordnen (5.6 Formen, 5.9 Buchstaben). */
 .p-fragekarte .order-slots{ display:flex; flex-direction:column; flex-wrap:nowrap; gap:9px; margin:16px 0 0; }
-.order-slots:not(.letters) .order-slot{
-  flex:none; display:grid; grid-template-columns:112px 1fr; gap:10px; align-items:center;
+/* Drei Formen nebeneinander wie in der Verbtabelle (Wunsch des Nutzers 14.10.2026,
+   vorher untereinander mit Beschriftung links, 5.6): oben der Kopf in der Formfarbe
+   (F-101: Simple Past gold, Past Participle hellblau), darunter die Ablage, darunter
+   der Vorrat als Spiegel — jeder Stein hat dort seinen Platz. Lange Formen werden
+   kleiner (--ofs aus _passeFormen in game.js). */
+.p-fragekarte .order-slots.formen,
+.p-fragekarte .order-tray.formen{ display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:8px; }
+.order-slots.formen .order-slot{
+  display:flex; flex-direction:column; align-items:stretch; justify-content:flex-start; gap:8px;
   min-width:0; min-height:0; padding:0; border:0; border-radius:0; background:none; transition:none;
 }
-.order-slots:not(.letters) .slot-label{
-  font:900 9.5px var(--p-font); letter-spacing:.1em; text-transform:uppercase;
-  color:var(--p-text-akzent); text-align:left;
+.order-slots.formen .slot-label{
+  display:flex; align-items:center; justify-content:center; min-height:34px; padding:3px 4px;
+  border:var(--p-rahmen); border-radius:10px; background:var(--p-inaktiv);
+  font:900 9px/1.2 var(--p-font); letter-spacing:.08em; text-transform:uppercase;
+  color:var(--p-ink); text-align:center;
 }
-.order-slots:not(.letters) .order-slot::after{
+.order-slots.formen .slot-label--past{ background:var(--p-gold); }
+.order-slots.formen .slot-label--pp{ background:var(--p-blau); }
+.order-slots.formen .order-slot::after{
   content:''; box-sizing:border-box; height:54px;
   border:2px dashed var(--p-ink); border-radius:16px; background:var(--p-feld);
 }
-/* Formen-Aufgaben zeigen keinen Warte-Kasten (5.6–5.11). */
-#game-screen.ist-formen .feedback:not(.show){ display:none; }
-.order-slots:not(.letters) .order-slot:has(.order-tile)::after{ display:none; }
-.order-slots:not(.letters) .order-slot.drop-hover::after{ background:var(--p-karte-hell); }
-.order-slots:not(.letters) .order-slot .order-tile{
-  height:54px; min-width:0; padding:0 10px; border-radius:16px; background:var(--p-pfirsich);
-  font:900 15px var(--p-font); box-shadow:none;
+.order-slots.formen .order-slot:has(.order-tile)::after{ display:none; }
+.order-slots.formen .order-slot.drop-hover::after{ background:var(--p-karte-hell); }
+.order-slots.formen .order-slot .order-tile,
+.order-tray.formen .order-tile{
+  width:100%; height:54px; min-width:0; padding:0 6px; border-radius:16px; box-shadow:none;
+  font:900 var(--ofs,16px) var(--p-font); white-space:nowrap;
 }
+.order-slots.formen .order-slot .order-tile:not(.correct, .wrong){ background:var(--p-pfirsich); }
+.p-fragekarte .order-tray.formen{ min-height:0; margin-top:12px; }
+.order-tray.formen .order-heim{ width:auto; height:54px; border-radius:16px; }
+.order-tray.formen .order-tile:not(.correct, .wrong){ background:var(--p-karte); }
 .p-fragekarte .order-slots.letters{ flex-direction:row; flex-wrap:wrap; justify-content:center; gap:8px 28px; margin-top:20px; }
 .order-slots.letters .order-slot{
   flex:0 1 var(--fw,50px); width:var(--fw,50px); min-width:0; height:calc(var(--fw,50px) * 58 / 50); min-height:0; padding:0;
