@@ -18,7 +18,9 @@ import { persist } from './storage.js';
 import { markDirty } from './sync.js';
 import { commitDirty } from './dialog.js';
 import { iconHTML } from './pixel-icons.js';
-import { HP_MAX, REST_HEAL, BOSS_WIN_TALER, scaledEnemy } from './campaign-balance.js';
+import { HP_MAX, REST_HEAL, BOSS_WIN_TALER, scaledEnemy, roundTimeFactor, STORM_BASE_MS } from './campaign-balance.js';
+import { enemyCombatSheet, SpritePlayer } from './pixel-anim.js';
+import { pickEnemyKey, enemyBattleSVG } from './enemies.js';
 import { openFight, fightPoolReady, verbsReady, loadPresetSupply } from './campaign-fight.js';
 import { equipEffects, openPotionChoice, POTIONS, POTION_TON, potionStacks } from './campaign-equipment.js';
 import { arenaTag, campfireTag, CAMPFIRE_FRAMES, CAMPFIRE_FPS } from './world.js';
@@ -571,10 +573,12 @@ function _vorschauHtml() {
 // Neue Runde nach dem Boss (F-82, Wunsch des Nutzers 09.10.2026): Popup über der
 // Kampagnen-Übersicht und „Runde N starten“; danach unten am ersten Punkt. Einmal
 // je Runde und Sitzung; wer es schließt, startet über den Startkasten.
-// Neu gefasst 14.10.2026 (Nutzer: Prozente ab Runde 1, Leisten und „Verben
-// schwerer“ versteht man nicht): Titel „Die Gegner werden stärker“, je Gegner und
-// Boss Leben und Schaden als „vorher → jetzt“, Zeit bleibt gleich (F-83), darunter
-// ein Satz, was Schaden heißt. Die neuen Zahlen springen nacheinander kurz auf.
+// 14.10.2026: „vorher → jetzt“ statt Prozente und Leisten, ohne „Verben schwerer“.
+// 15.10.2026 auf Wunsch („cooler, stärker“, Variante „beides“): dunkle Karte, die
+// Krone glüht, ein Gegner und ein Boss stehen als echte Kampf-Figuren da (atmen im
+// Takt wie im Kampf), darunter je Leben und Schaden alt → neu — die neuen Werte in
+// Rot mit Pfeil nach oben, sie zählen vom alten Wert hoch und sprühen Funken. Dazu
+// die Zeit (F-102: Grundzeit einer Welle, 5 % weniger je Runde, höchstens 40 %).
 let _rundePopupFuer = null;
 function _rundePopup(host) {
   const c = _camp();
@@ -582,36 +586,76 @@ function _rundePopup(host) {
   if (!host.offsetParent || document.querySelector('.p-runde-grund')) return;   // Tab nicht sichtbar
   _rundePopupFuer = c.round;
   const neu = c.round, alt = neu - 1, nr = neu + 1;
-  const zeile = (art, ton, vorher, jetzt) => `<div class="p-runde-zeile">
-        <span class="p-runde-art">${art}</span>
-        <span class="p-runde-zahlen"><span class="p-runde-alt">${vorher}</span><span class="p-runde-pfeil">→</span><b class="p-runde-neu" style="background:${ton}">${jetzt}</b></span>
-      </div>`;
-  const gruppe = (icon, name, typ) => {
-    const a = scaledEnemy(typ, alt), b = scaledEnemy(typ, neu);
-    return `<div class="p-runde-gruppe">
-        <span class="p-runde-name">${iconHTML(icon, 14)}${name}</span>
-        <div class="p-runde-werte">${zeile('Leben', 'var(--p-rosa)', a.hp, b.hp)}${zeile('Schaden', 'var(--p-pfirsich)', a.dmg, b.dmg)}</div>
-      </div>`;
-  };
+  const g = { a: scaledEnemy('fight', alt), b: scaledEnemy('fight', neu) };
+  const bo = { a: scaledEnemy('boss', alt), b: scaledEnemy('boss', neu) };
+  const zahl = (vorher, jetzt, einheit = '') => `<span class="p-runde-zahlen"><span class="p-runde-alt">${vorher}${einheit}</span><span class="p-runde-pfeil">→</span>`
+    + `<b class="p-runde-neu" data-von="${vorher}" data-bis="${jetzt}" data-einheit="${einheit}">${vorher}${einheit}</b>`
+    + `<span class="p-runde-hoch${jetzt < vorher ? ' is-ab' : ''}">${iconHTML('chevronUpLight', 14)}</span></span>`;
+  const sek = (r) => Math.round(STORM_BASE_MS * roundTimeFactor(r) / 1000);
+  const zeit = sek(neu) < sek(alt) ? zahl(sek(alt), sek(neu), ' s') : '<span class="p-runde-gleich">bleibt gleich</span>';
   const d = document.createElement('div');
   d.className = 'p-dlg-grund p-runde-grund';
-  d.innerHTML = `<div class="p-dlg-karte">
-      <div class="p-dlg-emblem" style="background:var(--p-gold)">${iconHTML('crownBig', 28, { style: 'position:relative;left:1px' })}</div>
+  d.innerHTML = `<div class="p-dlg-karte p-runde-karte">
+      <div class="p-dlg-emblem p-runde-krone" style="background:var(--p-gold)">${iconHTML('crownBig', 28, { style: 'position:relative;left:1px' })}</div>
       <div class="p-dlg-titel">Die Gegner werden stärker</div>
-      <div class="p-runde-liste">
-        ${gruppe('sword', 'Gegner', 'fight')}${gruppe('crown', 'Boss', 'boss')}
-        <div class="p-runde-gruppe">
-          <span class="p-runde-name">${iconHTML('hourglass', 14)}Zeit</span>
-          <span class="p-runde-gleich">bleibt gleich</span>
-        </div>
+      <div class="p-runde-buehne">
+        <div class="p-runde-figur" data-typ="fight"></div>
+        <div class="p-runde-figur is-boss" data-typ="boss"></div>
       </div>
-      <div class="p-runde-hinweis">Schaden = so viele Leben verlierst du pro Treffer.</div>
-      <div class="p-dlg-knoepfe"><button class="p-dlg-btn p-dlg-btn--ok" data-start>Runde ${nr} starten</button></div>
+      <div class="p-runde-tabelle">
+        <span></span><span class="p-runde-kopf">${iconHTML('sword', 14)}Gegner</span><span class="p-runde-kopf">${iconHTML('crown', 14)}Boss</span>
+        <span class="p-runde-art">Leben</span>${zahl(g.a.hp, g.b.hp)}${zahl(bo.a.hp, bo.b.hp)}
+        <span class="p-runde-art">Schaden</span>${zahl(g.a.dmg, g.b.dmg)}${zahl(bo.a.dmg, bo.b.dmg)}
+        <span class="p-runde-art">${iconHTML('hourglass', 14)}Zeit</span><span class="p-runde-zeit">${zeit}</span>
+      </div>
+      <div class="p-dlg-knoepfe"><button class="p-dlg-btn p-runde-start" data-start>Runde ${nr} starten</button></div>
     </div>`;
+  // Figuren wie im Kampf (Kampf-Blatt, Stehen im 4-fps-Takt), Maßstab 1.
+  const spieler = [];
+  d.querySelectorAll('.p-runde-figur').forEach((box) => {
+    const key = pickEnemyKey(box.dataset.typ);
+    const blatt = enemyCombatSheet(key);
+    if (blatt) { const p = new SpritePlayer(document.createElement('canvas'), blatt, { scale: 1 }); box.appendChild(p.cv); spieler.push(p); }
+    else box.innerHTML = enemyBattleSVG(key);
+  });
+  const wache = setInterval(() => { if (!d.isConnected) { spieler.forEach((p) => p.destroy()); clearInterval(wache); } }, 1000);
   d.querySelector('[data-start]').addEventListener('click', () => { d.remove(); startCampaignRun(); });
   document.body.appendChild(d);
-  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
-  d.querySelectorAll('.p-runde-neu').forEach((z, i) => setTimeout(() => z.classList.add('is-auf'), 450 + i * 300));
+  _rundeHochzaehlen(d);
+}
+
+// Die neuen Werte zählen nacheinander vom alten Wert hoch (bzw. runter bei der
+// Zeit), springen am Ende kurz auf und sprühen Pixel-Funken. Bei „Bewegung
+// reduzieren“ stehen sie sofort da.
+function _rundeHochzaehlen(d) {
+  const werte = [...d.querySelectorAll('.p-runde-neu')];
+  const setze = (z, v) => { z.textContent = v + z.dataset.einheit; };
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) { werte.forEach((z) => setze(z, +z.dataset.bis)); return; }
+  const DAUER = 600, ABSTAND = 260, START = 500;
+  werte.forEach((z, i) => setTimeout(() => {
+    if (!z.isConnected) return;
+    const von = +z.dataset.von, bis = +z.dataset.bis, t0 = performance.now();
+    const bild = (jetzt) => {
+      if (!z.isConnected) return;
+      const t = Math.min(1, (jetzt - t0) / DAUER);
+      setze(z, Math.round(von + (bis - von) * (1 - Math.pow(1 - t, 3))));
+      if (t < 1) { requestAnimationFrame(bild); return; }
+      z.classList.add('is-auf');
+      _rundeFunken(z);
+    };
+    requestAnimationFrame(bild);
+  }, START + i * ABSTAND));
+}
+function _rundeFunken(z) {
+  for (let i = 0; i < 7; i++) {
+    const f = document.createElement('i');
+    f.className = 'p-runde-funke';
+    f.style.background = i % 2 ? 'var(--p-gold)' : 'var(--p-falsch-stark)';
+    f.style.setProperty('--dx', Math.round((Math.random() - 0.5) * 34) + 'px');
+    f.style.setProperty('--dy', -Math.round(8 + Math.random() * 18) + 'px');
+    f.addEventListener('animationend', () => f.remove());
+    z.appendChild(f);
+  }
 }
 
 export function renderCampaign() {

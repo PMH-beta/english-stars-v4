@@ -25,6 +25,16 @@ export const ENEMY = {
 // spätere Runden werden gefährlicher, die Kämpfe aber kaum länger.
 export const ROUND_SCALE = 0.15;
 export const ROUND_SCALE_HP = 0.08;
+
+// Zeit je Runde (F-102, 15.10.2026; hebt F-83 „bleibt gleich“ auf): mit jeder
+// abgeschlossenen Runde 5 % weniger Grundzeit in jedem Minispiel, höchstens 40 %
+// weniger (ab Runde 9 bleibt es bei 60 %). Zeitboni (Handschuhe, Stab, Zeittrank)
+// kommen danach unverändert obendrauf.
+export const ROUND_TIME_STEP = 0.05;
+export const ROUND_TIME_MIN = 0.6;
+export function roundTimeFactor(round) {
+  return Math.max(ROUND_TIME_MIN, 1 - ROUND_TIME_STEP * Math.max(0, round || 0));
+}
 export function scaledEnemy(type, round) {
   const base = ENEMY[type] || ENEMY.fight;
   const r = Math.max(0, round || 0);

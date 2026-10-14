@@ -1832,30 +1832,56 @@ button.p-chip{ cursor:pointer; }
    „UI-Animationen weich“ (Wunsch des Nutzers 09.10.2026, nur auf der Karte). */
 :root .p-knoten-krone[data-ui]{ transition:none; }
 
-/* Neue Runde nach dem Boss (F-82, neu gefasst 14.10.2026): je Gegner und Boss
-   „Leben“ und „Schaden“ als vorher → jetzt, der neue Wert als Chip (Leben rosa,
-   Schaden pfirsich); er springt nacheinander kurz auf. */
-.p-runde-liste{
-  margin-top:14px; padding:2px 12px; text-align:left;
-  border:var(--p-rahmen); border-radius:var(--p-r-chip-gross); background:var(--p-karte-hell);
+/* Neue Runde nach dem Boss (F-82; 14.10.2026 vorher → jetzt; 15.10.2026 auf Wunsch
+   „cooler, stärker“): dunkle Karte wie die Kampf-Leiste, die Krone glüht, Gegner
+   und Boss als Kampf-Figuren (Maßstab 1) auf einer Bodenlinie, darunter die Werte
+   als Tabelle — der neue Wert rot mit Pfeil nach oben (Zeit: Pfeil nach unten). */
+.p-dlg-karte.p-runde-karte{ background:var(--p-ink); color:var(--p-karte); }
+.p-runde-karte .p-dlg-titel.p-dlg-titel{ color:var(--p-karte); }
+.p-runde-krone{ animation:p-runde-gluehen 1.6s ease-in-out infinite; }
+@keyframes p-runde-gluehen{
+  0%, 100%{ box-shadow:0 0 0 0 rgba(255,214,107,0); }
+  50%{ box-shadow:0 0 18px 5px rgba(255,214,107,.6); }
 }
-.p-runde-gruppe{ display:grid; grid-template-columns:auto 1fr; align-items:center; gap:4px 12px; padding:10px 0; }
-.p-runde-gruppe + .p-runde-gruppe{ border-top:var(--p-haarlinie); }
-.p-runde-name{ align-self:start; display:inline-flex; align-items:center; gap:7px; min-height:24px; font:900 12px var(--p-font); color:var(--p-ink); white-space:nowrap; }
-.p-runde-werte{ display:grid; gap:4px; }
-.p-runde-zeile{ display:flex; align-items:center; justify-content:space-between; gap:6px; min-height:24px; }
-.p-runde-art{ font:800 9.5px var(--p-font); letter-spacing:.1em; text-transform:uppercase; color:var(--p-text-2); }
-.p-runde-zahlen{ display:inline-flex; align-items:center; gap:5px; font-variant-numeric:tabular-nums; white-space:nowrap; }
-.p-runde-alt{ font:800 13px var(--p-font); color:var(--p-text-2); }
-.p-runde-pfeil{ font:900 13px var(--p-font); color:var(--p-text-2); }
-.p-runde-neu{
-  min-width:32px; padding:1px 6px; text-align:center;
-  border:var(--p-rahmen); border-radius:var(--p-r-chip); font:900 14px var(--p-font); color:var(--p-ink);
+.p-runde-buehne{
+  display:flex; justify-content:center; align-items:flex-end; gap:34px;
+  margin-top:12px; padding-bottom:6px; border-bottom:2px solid var(--p-nachtgrau);
 }
+/* Ruhe-Box wie im Kampf (144 × 156 bzw. 192 × 204 bei Maßstab 2). */
+.p-runde-figur{ position:relative; width:72px; height:78px; flex:none; }
+.p-runde-figur.is-boss{ width:96px; height:102px; }
+.p-runde-tabelle{
+  display:grid; grid-template-columns:auto 1fr 1fr; align-items:center; gap:8px 10px;
+  margin-top:12px; text-align:left;
+}
+.p-runde-kopf{
+  display:inline-flex; align-items:center; justify-content:center; gap:6px;
+  font:900 12px var(--p-font); color:var(--p-karte); white-space:nowrap;
+}
+.p-runde-art{
+  display:inline-flex; align-items:center; gap:6px;
+  font:800 9.5px var(--p-font); letter-spacing:.1em; text-transform:uppercase; color:var(--p-grau-hell); white-space:nowrap;
+}
+.p-runde-zahlen{
+  display:flex; align-items:center; justify-content:center; gap:5px;
+  font-variant-numeric:tabular-nums; white-space:nowrap;
+}
+.p-runde-alt, .p-runde-pfeil{ font:800 12px var(--p-font); color:var(--p-grau-hell); }
+.p-runde-neu{ position:relative; font:900 17px var(--p-font); color:var(--p-falsch-stark); }
 .p-runde-neu.is-auf{ animation:p-runde-auf .32s ease-out; }
-@keyframes p-runde-auf{ 0%{ scale:1; } 40%{ scale:1.22; } 100%{ scale:1; } }
-.p-runde-gleich{ justify-self:end; font:800 12px var(--p-font); color:var(--p-ink); }
-.p-runde-hinweis{ margin-top:10px; font:800 11.5px/1.35 var(--p-font); color:var(--p-text-2); }
+@keyframes p-runde-auf{ 0%{ scale:1; } 40%{ scale:1.3; } 100%{ scale:1; } }
+.p-runde-hoch{ display:flex; }
+.p-runde-hoch.is-ab{ scale:1 -1; }   /* gespiegelt, nicht gedreht */
+.p-runde-zeit{ grid-column:2 / 4; display:flex; justify-content:center; }
+.p-runde-gleich{ font:800 12px var(--p-font); color:var(--p-karte); }
+.p-runde-funke{
+  position:absolute; left:50%; top:40%; width:4px; height:4px; margin-left:-2px;
+  animation:p-runde-funke .55s ease-out forwards; pointer-events:none;
+}
+@keyframes p-runde-funke{ from{ translate:0 0; opacity:1; } to{ translate:var(--dx) var(--dy); opacity:0; } }
+/* Start-Knopf auf der dunklen Karte gold mit Tinte. */
+.p-dlg-btn.p-runde-start{ background:var(--p-gold); color:var(--p-ink); }
+@media (prefers-reduced-motion: reduce){ .p-runde-krone{ animation:none; } }
 
 /* Tränkeplätze: belegte tragen Kontur, freie bleiben gestrichelt (28 + Rahmen). */
 .camp-slot{
