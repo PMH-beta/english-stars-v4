@@ -3069,6 +3069,16 @@ button.p-chip{ cursor:pointer; }
 .vm-abbrechen{ background:var(--p-inaktiv); color:var(--p-ink); font:800 13px var(--p-font); }
 .vm-confirm{ background:var(--p-ink); color:var(--p-gold); font:900 13px var(--p-font); }
 .vm-confirm.is-disabled{ background:var(--p-inaktiv); color:var(--p-text-2); }
+/* „Bestätigen" schwebt (Wunsch des Nutzers 14.10.2026: man sah sonst nicht, dass
+   unten bestätigt werden muss): unten mittig auf Höhe des Musikknopfs (24 +
+   Sicherheitszone, 56 hoch wie 9.5), so schmal, dass er ihn nie berührt; zentriert ohne
+   transform (den setzt der Drück-Effekt). Darunter im Inhalt Platz zum Ausscrollen. */
+.vm-confirm.vm-confirm--schwebt{
+  position:fixed; z-index:400; left:0; right:0; margin:0 auto;
+  bottom:calc(24px + env(safe-area-inset-bottom,0px));
+  width:min(240px, calc(100% - 160px)); height:56px; flex:none;
+}
+.vm-schwebe-platz{ height:96px; }
 
 /* Statistik der Sammlung (3.7): Kicker mit Symbol, Tabelle als Karte. */
 .vm-st-kicker{

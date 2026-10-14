@@ -135,8 +135,14 @@ function _renderVmTabsForMode() {
     vmBack();
   });
   row.appendChild(abortBtn);
-  row.appendChild(confirmBtn);
   bottomArea.appendChild(row);
+  // „Bestätigen" schwebt seit 14.10.2026 unten mittig (style.css .vm-confirm--schwebt),
+  // „Abbrechen" bleibt unter dem Inhalt; darunter Platz zum Ausscrollen.
+  confirmBtn.classList.add('vm-confirm--schwebt');
+  bottomArea.appendChild(confirmBtn);
+  const platz = document.createElement('div');
+  platz.className = 'vm-schwebe-platz';
+  bottomArea.appendChild(platz);
   _syncDraftConfirm();
 }
 
@@ -244,7 +250,7 @@ function _wordTablesHtml(deck) {
   }
   function makeTable(suf, icon, title) {
     const rows = vocab.map(v => {
-      const ws = v._presetId ? presetWs : deck.wordStats;
+      const ws = (v._presetId ? presetWs : deck.wordStats) || {};   // neue Sammlung: noch keine wordStats
       const sp = suf === '_sp' ? spStat(ws, v) : null;
       const s = sp ? sp.s : ws[statKeyFor(v.de, v.en, suf, v._presetId || null)];
       const st = sp ? sp.st : wordStatus(s, 3);
@@ -345,7 +351,7 @@ function _updateVmCount() {
 // Uebungsarten, dieselbe Rechnung wie in deckProgress.
 function _wortStand(deck, v) {
   const presetWs = window.SD?.globalPresetStats?.wordStats || {};
-  const ws = v._presetId ? presetWs : deck.wordStats;
+  const ws = (v._presetId ? presetWs : deck.wordStats) || {};   // neue Sammlung: noch keine wordStats
   let summe = 0;
   for (const suffix of ['_mc', '_sp', '_pr']) {
     if (suffix === '_sp') { summe += wortScore(ws, v, '_sp', v._presetId || null).score; continue; }
