@@ -2026,11 +2026,14 @@ function _fsKicker(text) { return `<div class="fs-kicker">${text}</div>`; }
 
 // Fortschritt-Karte nach 8.3: Titel, Unterzeile, Prozent, Balken; fertig = Mint
 // mit „erledigt" und ohne Balken. Mit Liste aufklappbar (Pfeil wie 8.3, offen
-// hell auf Tinte). ton = Balkenfarbe (Vokabeln Mint, Unregelmäßige Flieder).
+// hell auf Tinte). ton = Balkenfarbe — seit 14.10.2026 überall Flieder (Wunsch des
+// Nutzers: Grün heißt nur noch „erledigt“; vorher waren die Vokabel-Balken und
+// -Kästchen Mint und auf der grünen, fertigen Karte nicht zu sehen).
 // Freund-Ansicht (8.2, F-25): nie aufklappbar — die Wörter eines Freundes
 // bleiben verborgen. Die Listen werden trotzdem weiter gebaut (geplante
 // Eltern-Funktion), nur nicht gezeigt.
-function _fsKarte({ titel, sub, pct, fertig, ton = 'mint', bild = '', liste = '' }) {
+// Balken ohne Füll-Animation (Wunsch 14.10.2026: „braucht man nicht“).
+function _fsKarte({ titel, sub, pct, fertig, ton = 'lila', bild = '', liste = '' }) {
   if (_statsFriendMode) liste = '';
   const rechts = fertig
     ? `<span class="fs-erledigt">${iconHTML('check', 14)}erledigt</span>`
@@ -2040,7 +2043,7 @@ function _fsKarte({ titel, sub, pct, fertig, ton = 'mint', bild = '', liste = ''
     + `<div class="fs-karte-text"><div class="fs-karte-titel">${titel}</div><div class="fs-karte-sub">${sub}</div></div>`
     + `${rechts}${pfeil}</div>`;
   const balken = fertig ? ''
-    : `<div class="fs-balken"><i class="fs-balken--${ton}" data-ui="fill" data-c="64" style="width:${pct}%"></i></div>`;
+    : `<div class="fs-balken"><i class="fs-balken--${ton}" style="width:${pct}%"></i></div>`;
   const cls = 'fs-karte' + (fertig ? ' is-fertig' : '');
   if (!liste) return `<div class="${cls}">${kopf}${balken}</div>`;
   return `<details class="${cls}"><summary>${kopf}${balken}</summary>${liste}</details>`;
@@ -2065,7 +2068,7 @@ function _vocabWordRows(words, ws, presetId) {
     en: v.en,
     an: ['_mc', '_sp', '_pr'].map((suf) => wortScore(ws, v, suf, presetId).mastered),
   }));
-  return _fsWortListe(zeilen, 'mint', ['Wählen', 'Schreiben', 'Sprechen']);
+  return _fsWortListe(zeilen, 'lila', ['Wählen', 'Schreiben', 'Sprechen']);
 }
 
 // Kampagne nach 8.3: Rekord-Karte, sechs Kennzahlen, aktueller Lauf.
@@ -2102,7 +2105,7 @@ function _campaignBlock() {
     lauf = `<div class="fs-lauf-kopf"><span>Aktueller Lauf</span><span>Reihe ${row} / ${rows}</span></div>`
       + `<div class="fs-reihen" style="grid-template-columns:repeat(${rows},1fr)">${segs}</div>`
       + `<div class="fs-reihen-lbl"><span>Start</span><span>Boss</span></div>`
-      + `<div class="fs-hp">${iconHTML('heart', 14)}<div class="fs-hp-spur"><i data-ui="fill" data-c="64" style="width:${hpPct}%"></i></div>`
+      + `<div class="fs-hp">${iconHTML('heart', 14)}<div class="fs-hp-spur"><i style="width:${hpPct}%"></i></div>`
       + `<span class="fs-hp-wert">${hp}/${hpMax}</span></div>`;
   } else {
     lauf = `<div class="fs-lauf-kopf"><span>Aktueller Lauf</span></div><div class="fs-lauf-leer">Kein Lauf aktiv.</div>`;
