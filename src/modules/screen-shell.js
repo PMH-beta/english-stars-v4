@@ -66,11 +66,17 @@ function _bildFarbe(img, x, y) {
 // Screen-Wechsel einen Moment anders sein als der Body), darüber jede feste Ebene,
 // die oben in der Mitte liegt, mit ihrer Deckkraft gemischt (von unten nach oben) —
 // beim Kampf samt Kampfplatz.
+// Im Handy-Browser (Android, App nicht installiert) steht oben Chromes Adresszeile —
+// theme-color färbt dort nur die Leiste UNTEN. Im Kampf wird deshalb am unteren Rand
+// gemessen, die Leiste passt dann zum Boden der Kampfarena (Wunsch des Nutzers
+// 15.10.2026). Sonst und in der installierten App wie bisher oben.
+const _handyBrowser = /Android/i.test(navigator.userAgent) && !!window.matchMedia?.('(display-mode: browser)').matches;
 function _obenFarbe() {
   const x = window.innerWidth / 2;
+  const y = _handyBrowser && document.getElementById('cf-overlay') ? window.innerHeight - 2 : 1;
   let [r, g, b] = _rgba(getComputedStyle(document.body).backgroundColor);
   const misch = ([er, eg, eb], a) => { r += (er - r) * a; g += (eg - g) * a; b += (eb - b) * a; };
-  const stapel = document.elementsFromPoint(x, 1);
+  const stapel = document.elementsFromPoint(x, y);
   const screen = stapel.find((e) => e.classList.contains('p-screen'));
   if (screen) { const f = _rgba(getComputedStyle(screen).backgroundColor); if (f[3] > 0) misch(f, f[3]); }
   const ebenen = stapel.filter((e) => getComputedStyle(e).position === 'fixed').reverse();
@@ -79,7 +85,7 @@ function _obenFarbe() {
     const a = f[3] * _deckkraft(e);
     if (a > 0) misch(f, a);
     const kulisse = e.querySelector('.cf-kulisse');
-    const p = kulisse && _bildFarbe(kulisse, x, 1);
+    const p = kulisse && _bildFarbe(kulisse, x, y);
     if (p) misch(p, p[3]);
   }
   return '#' + [r, g, b].map((v) => Math.round(v).toString(16).padStart(2, '0')).join('');
