@@ -2895,9 +2895,10 @@ export async function checkForRemoteChange() {
 
 // Baustein 4: Nach Relaunch näher am letzten Ort landen. Menü immer als Basis
 // initialisieren (Back-Navigation), dann ggf. Profil/Fortschritt darüberlegen.
+// Das Menü öffnet im zuletzt aktiven Reiter (SD.activeMode) — seit 15.10.2026 auf
+// Wunsch des Nutzers; vorher immer Vokabeln (am PC sprang man so nach einem Boss-Sieg
+// samt Neuladen aus der Kampagne heraus).
 function restoreLastScreen() {
-  // App-Öffnen landet immer auf dem Vokabeln-Tab (nicht dem zuletzt aktiven Modus).
-  if (window.SD) window.SD.activeMode = 'free';
   showMenu();
   let last = null;
   try { last = localStorage.getItem('es_last_screen'); } catch(e) {}
