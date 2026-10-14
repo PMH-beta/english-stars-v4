@@ -13,7 +13,8 @@
 // Speichern und Sync sind so lange gesperrt. Der echte Stand wird dabei weder
 // angezeigt noch verändert; am Ende zeichnet showMenu/showProfile ihn neu.
 
-import { VONDU_FRAMES, decodeSprite, itemPartsImage } from './pixel-world-fine.js';
+import { VONDU_FRAMES, decodeSprite } from './pixel-world-fine.js';
+import { werkstueckBild } from './world.js';
 import { atemBilderHTML, paintStages } from './hero.js';
 import { iconHTML } from './pixel-icons.js';
 import { defaultAvatar } from './avatar.js';
@@ -252,7 +253,7 @@ function _beispielHTML() {
   const ob = FORGE_OBJECTS.find((o) => o.type === b.type);
   const pct = Math.round(b.fertig / SLOTS_PER_FORM * 100);
   const bild = atemBilderHTML('tv:' + b.type + ':' + b.zustand,
-    () => [0, 1, 2, 3].map((f) => itemPartsImage(b.type, b.mat, b.zustand, f)), 3);
+    () => [0, 1, 2, 3].map((f) => werkstueckBild(b.type, b.mat, b.zustand, f, false)), 3);   // glüht wie in der Schmiede
   return `<div class="tv-beispiel">
       <div class="tv-beispiel-bild">${bild}</div>
       <div class="tv-beispiel-rechts">

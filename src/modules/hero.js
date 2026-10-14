@@ -167,35 +167,84 @@ function _fuss({ w, h, col }) {
 }
 
 // ── Holo-Fell des Schillernden Gefährten (F-97, neu gefasst 14.10.2026) ─────
-// Nur der goldene Gefährte schillert, und nur, wenn er angelegt ist: über das
-// Fell läuft ein Regenbogen-Verlauf wie bei einer Holo-Karte, dazu ein heller
-// Glanzstreifen; beides rückt in vier Schritten weiter (4 fps, im Takt des
-// Atmens). Dunkle Pixel (Kontur, Augen) und Schatten bleiben. Die Pixeldaten des
-// Moduls bleiben unverändert — eingefärbt wird nur das fertige Bild.
-const _hex2 = (n) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, '0');
+// Nur der goldene Gefährte schillert, und nur, wenn er angelegt ist. Wie eine
+// Überblendung (Wunsch des Nutzers: „nicht das ganze Fell“, „außen Glänzen“):
+// das Fell behält Farbe und Schattierung, darüber liegt nur ein Hauch Regenbogen;
+// ein weicher Regenbogen-Glanz wandert schräg über den Körper, und der Fellrand
+// direkt an der äußeren Kontur schillert. Die Kontur selbst nimmt etwas Farbe an.
+// Vier Schritte im Takt des Atmens. Kontur = die dunklen Farben am Außenrand des
+// Tiers (je Tier und Fellfarbe andere), deshalb bleibt auch dunkles Fell Fell.
+// Die Pixeldaten des Moduls bleiben unverändert — eingefärbt wird nur das Bild.
+const HOLO = { ton: 0.06, satt: 0.9, hell: 0.6, zyklus: 1.6, band: 0.25, bandTon: 0.5, bandBreite: 9, rand: 0.55, randTon: 0.6, kontur: 0.2 };
+const _hx = (c) => [parseInt(c.slice(1, 3), 16) / 255, parseInt(c.slice(3, 5), 16) / 255, parseInt(c.slice(5, 7), 16) / 255];
+const _lum = ([r, g, b]) => 0.299 * r + 0.587 * g + 0.114 * b;
+const _hex2 = (v) => Math.max(0, Math.min(255, Math.round(v * 255))).toString(16).padStart(2, '0');
+const _hexOf = (a) => '#' + a.map(_hex2).join('');
+const _screen = (a, b, t) => 1 - (1 - a) * (1 - b * t);
 function _hsl(h, s, l) {
+  h = ((h % 360) + 360) % 360;
   const k = (n) => (n + h / 30) % 12, a = s * Math.min(l, 1 - l);
-  const f = (n) => 255 * (l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1)));
+  const f = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1));
   return [f(0), f(8), f(4)];
 }
-/** Bild (w, h, col) im Holo-Schritt p (0–3) eingefärbt. */
-export function holoBild(img, p) {
-  const col = img.col.slice();
-  for (let y = 0; y < img.h; y++) for (let x = 0; x < img.w; x++) {
-    const i = y * img.w + x, c = col[i];
-    if (!c || c.length !== 7) continue;   // leer oder halbdurchsichtig (Schatten)
-    const r = parseInt(c.slice(1, 3), 16), g = parseInt(c.slice(3, 5), 16), b = parseInt(c.slice(5, 7), 16);
-    if ((0.299 * r + 0.587 * g + 0.114 * b) / 255 < 0.24) continue;   // Kontur, Augen
-    const [hr, hg, hb] = _hsl(((x + y) * 16 + p * 90) % 360, 0.9, 0.66);
-    let nr = r + (hr - r) * 0.45, ng = g + (hg - g) * 0.45, nb = b + (hb - b) * 0.45;
-    if ((((x - y + p * 4) % 16) + 16) % 16 < 2) { nr += (255 - nr) * 0.55; ng += (255 - ng) * 0.55; nb += (255 - nb) * 0.55; }
-    col[i] = '#' + _hex2(nr) + _hex2(ng) + _hex2(nb);
+// Je Pixel: 1 Fell, 2 Kontur oder sehr dunkel (Augen), 3 Lichtpunkt der Augen.
+// silh = Kontur am Außenrand, randFell = Fell direkt an dieser Kontur.
+function _holoMasken({ w, h, col }) {
+  const n = w * h, opak = (i) => !!col[i] && col[i].length === 7;
+  const aussen = new Uint8Array(n), stapel = [];
+  for (let x = 0; x < w; x++) stapel.push(x, (h - 1) * w + x);
+  for (let y = 0; y < h; y++) stapel.push(y * w, y * w + w - 1);
+  while (stapel.length) {
+    const i = stapel.pop();
+    if (aussen[i] || opak(i)) continue;
+    aussen[i] = 1;
+    const x = i % w, y = (i / w) | 0;
+    if (x > 0) stapel.push(i - 1); if (x < w - 1) stapel.push(i + 1);
+    if (y > 0) stapel.push(i - w); if (y < h - 1) stapel.push(i + w);
   }
-  return { w: img.w, h: img.h, col };
+  const amRand = (i) => { const x = i % w, y = (i / w) | 0;
+    return x === 0 || y === 0 || x === w - 1 || y === h - 1 || aussen[i - 1] || aussen[i + 1] || aussen[i - w] || aussen[i + w]; };
+  const kontur = new Set();
+  for (let i = 0; i < n; i++) if (opak(i) && amRand(i) && _lum(_hx(col[i])) < 0.36) kontur.add(col[i]);
+  const art = new Uint8Array(n);
+  for (let i = 0; i < n; i++) if (opak(i)) art[i] = kontur.has(col[i]) || _lum(_hx(col[i])) < 0.13 ? 2 : col[i] === '#fffaf0' ? 3 : 1;
+  const silh = new Uint8Array(n), randFell = new Uint8Array(n);
+  for (let i = 0; i < n; i++) if (art[i] && amRand(i)) silh[i] = 1;
+  for (let i = 0; i < n; i++) {
+    if (art[i] !== 1) continue;
+    const x = i % w, y = (i / w) | 0;
+    for (let dy = -1; dy <= 1 && !randFell[i]; dy++) for (let dx = -1; dx <= 1; dx++) {
+      const X = x + dx, Y = y + dy;
+      if (X >= 0 && Y >= 0 && X < w && Y < h && silh[Y * w + X] && art[Y * w + X] === 2) { randFell[i] = 1; break; }
+    }
+  }
+  return { art, silh, randFell };
+}
+/** Bild (w, h, col) im Holo-Schritt p (0–3); opt ändert die Stärken (Perlmutt-Gegenstand). */
+export function holoBild(img, p, opt) {
+  const P = opt ? { ...HOLO, ...opt } : HOLO;
+  const { w, h } = img, col = img.col.slice(), { art, silh, randFell } = _holoMasken(img);
+  const diag = w + h, bandPos = ((p % 4) + 0.5) / 4 * diag * 1.2 - diag * 0.1;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = y * w + x, a = art[i];
+    if (a !== 1 && !(a === 2 && silh[i])) continue;
+    // Regenbogen quer zum Glanzstreifen, rückt je Schritt weiter
+    const H = _hsl(360 * ((x - y + h) / diag * P.zyklus) + p * 90 + 200, P.satt, P.hell);
+    const base = _hx(img.col[i]);
+    if (a === 2) { col[i] = _hexOf(base.map((v, k) => v + (H[k] * 0.55 - v) * P.kontur)); continue; }
+    const gH = _lum(H), C = H.map((v) => v - gH), L = _lum(base);
+    let o = base.map((v, k) => v + C[k] * P.ton * (0.35 + 0.65 * L));
+    const u = Math.abs((x + y) - bandPos) / P.bandBreite;
+    const band = u < 1 ? 0.5 + 0.5 * Math.cos(Math.PI * u) : 0;
+    if (band > 0) o = o.map((v, k) => _screen(v + C[k] * P.bandTon * band, 1, P.band * band));
+    if (randFell[i]) o = o.map((v, k) => _screen(v + C[k] * P.randTon * L, 1 + (H[k] - 1) * 0.5, P.rand * (1 - L)));
+    col[i] = _hexOf(o.map((v) => Math.max(0, Math.min(1, v))));
+  }
+  return { w, h, col };
 }
 /** Schillerndes Bild als <canvas data-ui="idle"> (4 Holo-Schritte) im Maßstab scale. */
-export function holoHTML(key, img, scale) {
-  return _canvasAtem(JSON.stringify(['holo', key]), () => [0, 1, 2, 3].map((p) => holoBild(img, p)), Math.max(1, Math.round(scale)), 0);
+export function holoHTML(key, img, scale, opt) {
+  return _canvasAtem(JSON.stringify(['holo', key]), () => [0, 1, 2, 3].map((p) => holoBild(img, p, opt)), Math.max(1, Math.round(scale)), 0);
 }
 /** Eigenes Tier klein mit Holo-Fell (Fach „Gefährte" im Profil). */
 export function petHoloHTML(petIdx, colorIdx, scale = 1) {
