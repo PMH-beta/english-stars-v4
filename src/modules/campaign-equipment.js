@@ -364,41 +364,48 @@ function _statVals(equipment) {
 let _selId = null;
 function _selectedItem() { return _itemById(_selId) || null; }
 
-// Werte VOR dem letzten Anlegen/Ablegen (F-57) bzw. ohne das getragene Teil (Fach
-// antippen): die Zeilen zeigen dann alt → neu. Ohne Änderung nur der Wert; ein
-// Fachwechsel oder ein Tipp ins Leere vergisst den alten Stand.
+// Werte VOR dem letzten Anlegen/Ablegen: die geänderten Zeilen leuchten danach,
+// ihre Zahl zählt vom alten Wert hoch. Ein Fachwechsel oder ein Tipp ins Leere
+// vergisst den alten Stand.
 let _vorherWerte = null;
 
-// Was die Werte-Tabellen vergleichen (Wunsch des Nutzers 15.10.2026): Ist in der
-// Tasche ein Teil angewählt, das NICHT getragen wird, zeigen sie, was sich gegenüber
-// der aktuellen Ausrüstung ändern würde (Vorschau, nichts wird angelegt). Sonst wie
-// bisher die Änderung gegenüber _vorherWerte.
+// Vergleich (Wunsch des Nutzers 15.10.2026): Ist in der Tasche ein Teil angewählt,
+// das NICHT getragen wird, zeigen die Tabellen, was sich gegenüber der aktuellen
+// Ausrüstung ändern würde — nichts wird angelegt. Der aktuelle Wert bleibt rechts
+// an seinem Platz stehen, links davon steht der neue Wert in Farbe mit Pfeil
+// (spiegelverkehrt zu „alt → neu“, damit keine Zahl springt). Das getragene Teil
+// selbst zeigt keinen Vergleich.
 const _slotKeyOf = (it) => (it.slot === 'ring' ? 'ring1' : it.slot);
-function _vergleich(c) {
-  const cur = _statVals(c.equipment);
+function _vorschauWerte(c) {
   const it = _selectedItem();
-  if (it && !_wornKeyOf(c, it)) return { von: cur, zu: _statVals({ ...c.equipment, [_slotKeyOf(it)]: it.id }) };
-  return { von: _vorherWerte || cur, zu: cur };
+  return it && !_wornKeyOf(c, it) ? _statVals({ ...c.equipment, [_slotKeyOf(it)]: it.id }) : null;
 }
 
-// Nach dem Rendern: 'auf' = neue Werte springen kurz auf (Teil angewählt),
-// 'zaehlen' = sie zählen vom alten Wert hoch und sprühen Funken (angelegt).
+// Nach dem Rendern: 'auf' = die neuen Werte der Vorschau springen kurz auf,
+// 'zaehlen' = die aktuellen Werte zählen vom alten Wert hoch und sprühen Funken.
 let _effekt = null;
 
 function _statsHtml(c) {
-  const { von, zu } = _vergleich(c);
+  const cur = _statVals(c.equipment);
+  const vorschau = _vorschauWerte(c);
   const tiles = STAT_DEFS.map(d => {
-    const a = zu[d.key], o = von[d.key];
-    if (o === a) {
-      return `<div class="pf-wert">${iconHTML(d.px, 14)}<span class="pf-wert-lbl">${d.label}</span>`
-        + `<span class="p-wachs"></span><span class="pf-wert-zahl">${d.fmt(a)}</span></div>`;
+    const a = cur[d.key];
+    const o = _vorherWerte ? _vorherWerte[d.key] : a;
+    const v = vorschau ? vorschau[d.key] : a;
+    let cls = '', links = '', zahl = `<span class="pf-wert-zahl">${d.fmt(a)}</span>`;
+    if (v !== a) {
+      // Vorschau: Pfeil + neuer Wert in Farbe ← aktueller Wert (bleibt, wo er ist).
+      const besser = v > a;
+      cls = besser ? ' is-plus' : ' is-minus';
+      links = `${iconHTML(besser ? 'chevronUp' : 'chevron', 14, { cls: 'pf-wert-richtung' })}`
+        + `<span class="pf-wert-vorschau">${d.fmt(v)}</span><span class="pf-wert-pfeil">←</span>`;
+    } else if (o !== a) {
+      // Gerade angelegt bzw. abgelegt: die Zeile leuchtet, die Zahl zählt hoch.
+      cls = a > o ? ' is-plus' : ' is-minus';
+      zahl = `<span class="pf-wert-zahl is-neu" data-key="${d.key}" data-von="${o}" data-bis="${a}">${d.fmt(a)}</span>`;
     }
-    // alt → neu, der neue Wert groß, dazu der Pfeil (hoch = besser, runter = schlechter).
-    const besser = a > o;
-    return `<div class="pf-wert ${besser ? 'is-plus' : 'is-minus'}">${iconHTML(d.px, 14)}<span class="pf-wert-lbl">${d.label}</span>`
-      + `<span class="p-wachs"></span><span class="pf-wert-alt">${d.fmt(o)}</span><span class="pf-wert-pfeil">→</span>`
-      + `<span class="pf-wert-zahl is-neu" data-key="${d.key}" data-von="${o}" data-bis="${a}">${d.fmt(a)}</span>`
-      + `${iconHTML(besser ? 'chevronUp' : 'chevron', 14, { cls: 'pf-wert-richtung' })}</div>`;
+    return `<div class="pf-wert${cls}">${iconHTML(d.px, 14)}<span class="pf-wert-lbl">${d.label}</span>`
+      + `<span class="p-wachs"></span>${links}${zahl}</div>`;
   });
   const half = Math.ceil(tiles.length / 2);
   return `<div class="pf-werte"><div class="pf-werte-tabelle">${tiles.slice(0, half).join('')}</div>`
@@ -438,7 +445,7 @@ function _previewHtml(c) {
   return `<div class="pf-karte-teil">
     <span class="pf-teil-bild">${_teilBild(it, 2)}</span>
     <div class="pf-teil-info">
-      <div class="pf-teil-kopf"><span class="pf-teil-name">${_anzeigeName(it)}</span>${wornKey ? '<span class="pf-angelegt">angelegt</span>' : ''}</div>
+      <div class="pf-teil-kopf"><span class="pf-teil-name">${_anzeigeName(it)}</span></div>
       ${_itemBonuses(it).map(b => `<div class="pf-bonus">${iconHTML(b.px, 14)}${b.text}</div>`).join('')}
     </div>
     <button class="pf-anlegen${wornKey ? '' : ' is-anlegen'}" data-equip="${it.id}">${wornKey ? iconHTML('close', 14) + 'Ablegen' : 'Anlegen'}</button>
@@ -473,9 +480,13 @@ export function renderEquipmentPanel() {
     // Fachwechsel die Höhe und alles darunter rutschte (Wunsch 14.10.2026).
     const reihen = Math.max(1, ...Object.keys(SLOTS).map(k => Math.ceil(alle.filter(i => i.slot === (SLOT_TYPE[k] || k)).length / BAG_COLS)));
     const capacity = reihen * BAG_COLS;
+    // Bild so groß, wie die Kachel es ganzzahlig zulässt (Teile sind höchstens 32 × 36):
+    // am Handy 1×, am PC 2× (Wunsch des Nutzers 15.10.2026: dort waren sie winzig).
+    const kachel = ((host.clientWidth || 358) - (BAG_COLS - 1) * 6) / BAG_COLS;
+    const bildS = Math.max(1, Math.floor((kachel - 14) / 36));
     let inv = allOfSlot.map(it => `<button class="pf-teil${it.id === _selId ? ' is-gewaehlt' : ''}" data-item="${it.id}"
         title="${_anzeigeName(it)} (${it.parts}/${SLOTS_PER_FORM} Teile, ${it.station})">
-        ${_teilBild(it, 1)}${worn && worn.id === it.id ? '<span class="pf-teil-an">angelegt</span>' : ''}
+        ${_teilBild(it, bildS)}${worn && worn.id === it.id ? '<span class="pf-teil-an">angelegt</span>' : ''}
       </button>`).join('');
     for (let i = allOfSlot.length; i < capacity; i++) inv += `<div class="pf-teil is-leer" title="Leerer Platz — schmiede etwas in der Schmiede"></div>`;
     const emptyHint = allOfSlot.length ? '' : `<div class="pf-leer">Noch kein ${meta.name}-Teil geschmiedet — wähle in der Schmiede beim Befüllen ein passendes Objekt und übe seine Verben, dann taucht es hier auf.</div>`;
@@ -529,9 +540,9 @@ export function renderEquipmentPanel() {
 // reduzieren“.
 function _werteEffekt(host, art) {
   if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
-  const zahlen = [...host.querySelectorAll('.pf-wert-zahl.is-neu')];
   const auf = (z) => { z.classList.remove('is-auf'); void z.offsetWidth; z.classList.add('is-auf'); };
-  if (art === 'auf') { zahlen.forEach(auf); return; }
+  if (art === 'auf') { host.querySelectorAll('.pf-wert-vorschau').forEach(auf); return; }
+  const zahlen = [...host.querySelectorAll('.pf-wert-zahl.is-neu')];
   zahlen.forEach((z, i) => {
     const d = STAT_DEFS.find((x) => x.key === z.dataset.key);
     const von = +z.dataset.von, bis = +z.dataset.bis;
@@ -612,9 +623,9 @@ function _onPanelClick(e) {
     if (wornKey) c.equipment[wornKey] = wornKey === 'weapon' ? 'none' : null;
     else _equipInto(c, it);
     _save();
-    // Angelegt: die Werte zählen hoch. Abgelegt: das Teil bleibt angewählt und die
-    // Tabellen zeigen wieder, was es beim Anlegen brächte.
-    _effekt = wornKey ? 'auf' : 'zaehlen';
+    // Angelegt: die Werte zählen hoch. Abgelegt: ebenso (runter); das Teil bleibt
+    // angewählt und links steht wieder, was das Anlegen brächte.
+    _effekt = 'zaehlen';
     renderEquipmentPanel();
     return;
   }
@@ -623,12 +634,11 @@ function _onPanelClick(e) {
     // Antippen = vergleichen (Wunsch des Nutzers 15.10.2026, ändert F-57 „Antippen =
     // anlegen“): das Teil wird nur angewählt, die Werte zeigen, was sich gegenüber der
     // aktuellen Ausrüstung ändern würde; angelegt wird mit dem Knopf „Anlegen“ (oder
-    // durch Ziehen). Das getragene Teil zeigt, was es gegenüber dem leeren Fach bringt.
+    // durch Ziehen). Das getragene Teil zeigt keinen Vergleich.
     const it = _itemById(itemBtn.dataset.item);
     if (!it) return;
     _selId = it.id;
-    const wornKey = _wornKeyOf(c, it);
-    _vorherWerte = wornKey ? _statVals({ ...c.equipment, [wornKey]: wornKey === 'weapon' ? 'none' : null }) : null;
+    _vorherWerte = null;
     _effekt = 'auf';
     renderEquipmentPanel();
     return;
@@ -646,11 +656,10 @@ function _onPanelClick(e) {
       _selSlot = key;
       const worn = _wornItem(c, key);
       if (worn) {
+        // Das getragene Teil wird angewählt — ohne Vergleich (Wunsch des Nutzers
+        // 15.10.2026: verglichen wird immer mit dem, was gerade angelegt ist; hebt
+        // „leuchtet gegenüber dem leeren Fach“ vom 13.10. auf).
         _selId = worn.id;
-        // Was das getragene Teil bringt, leuchtet gleich beim Anwählen auf
-        // (Wunsch des Nutzers 13.10.2026): Chips gegenüber dem leeren Fach,
-        // bei der Waffe gegenüber der Faust.
-        _vorherWerte = _statVals({ ...c.equipment, [key]: key === 'weapon' ? 'none' : null });
       } else {
         const sel = _selectedItem();
         if (sel && sel.slot !== (SLOT_TYPE[key] || key)) _selId = null;   // Auswahl passt nicht mehr

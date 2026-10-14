@@ -4015,16 +4015,17 @@ body.p-app .music-vol-btn{ bottom:calc(88px + env(safe-area-inset-bottom,0px)); 
 .pf-wert.is-minus::before{ background:#FFE5E7; }
 .pf-wert-lbl{ font:800 11px var(--p-font); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
 .pf-wert-zahl{ font:900 12px var(--p-font); white-space:nowrap; flex:none; }
-/* Vergleich (Wunsch des Nutzers 15.10.2026): alt klein und grau → neu groß, dazu der
-   Pixel-Pfeil hoch (besser) bzw. runter (schlechter). Beim Antippen springt der neue
-   Wert kurz auf, beim Anlegen zählt er hoch und sprüht Funken (campaign-equipment.js). */
-.pf-wert-alt{ font:800 10px var(--p-font); color:var(--p-text-2); white-space:nowrap; flex:none; }
-.pf-wert-pfeil{ font:800 10px var(--p-font); color:var(--p-text-2); flex:none; margin:0 -2px; }
-.pf-wert-zahl.is-neu{ font-size:14px; position:relative; }
-.pf-wert-richtung{ flex:none; margin-left:-2px; }
-/* Schmale Handys: ohne Pfeil, sonst wird die Bezeichnung abgeschnitten (Farbe und alt → neu reichen). */
+/* Vergleich (Wunsch des Nutzers 15.10.2026): der aktuelle Wert bleibt rechts, wo er
+   ist; links davon Pixel-Pfeil hoch (besser) bzw. runter (schlechter) und der neue
+   Wert groß ←. Beim Antippen springt der neue Wert kurz auf, beim Anlegen zählt der
+   aktuelle Wert hoch und sprüht Funken (campaign-equipment.js). */
+.pf-wert-vorschau{ font:900 14px var(--p-font); white-space:nowrap; flex:none; }
+.pf-wert-pfeil{ font:800 10px var(--p-font); color:var(--p-text-2); flex:none; margin:0 -1px; }
+.pf-wert-zahl.is-neu{ position:relative; }
+.pf-wert-richtung{ flex:none; margin-right:-2px; }
+/* Schmale Handys: ohne Pfeil, sonst wird die Bezeichnung abgeschnitten (Farbe reicht). */
 @media (max-width:359px){ .pf-wert-richtung{ display:none; } }
-.pf-wert-zahl.is-auf{ animation:pf-wert-auf .34s ease-out; }
+.pf-wert-zahl.is-auf, .pf-wert-vorschau.is-auf{ animation:pf-wert-auf .34s ease-out; }
 @keyframes pf-wert-auf{ 0%{ scale:1; } 40%{ scale:1.35; } 100%{ scale:1; } }
 .pf-wert-funke{
   position:absolute; right:22px; top:10px; width:4px; height:4px; z-index:2; pointer-events:none;
@@ -4063,26 +4064,23 @@ body.p-app .music-vol-btn{ bottom:calc(88px + env(safe-area-inset-bottom,0px)); 
 }
 /* Platz für die Teil-Karte ist immer reserviert (Karte 10 + 100, mit zweizeiligem
    Vorteil bis ~120), damit beim Fachwechsel nichts nachrückt (14.10.2026). */
-.pf-auswahl-unten{ min-height:120px; }
+.pf-auswahl-unten{ min-height:122px; }
 /* Karte des Teils seit 14.10.2026 kompakter (Bild 76 statt 88 hoch — Waffen 2×
    48 × 72 passen genau, Rüstungsteile 64 × 64). */
 .pf-karte-teil{
   margin-top:10px; border:var(--p-rahmen); border-radius:22px; background:var(--p-karte-hell);
   padding:10px 12px; display:flex; align-items:center; gap:12px;
 }
+/* Bild-Kasten seit 15.10.2026 wieder 76 x 88 (eine 2x-Waffe, 72 hoch, stiess bei 76
+   oben und unten an den Rand): rundum Luft, das Teil steht mittig. */
 .pf-teil-bild{
-  width:68px; height:76px; flex:none;
+  width:76px; height:88px; flex:none;
   border:var(--p-rahmen); border-radius:16px; background:var(--p-inaktiv);
   display:flex; align-items:center; justify-content:center;
 }
 .pf-teil-info{ flex:1; min-width:0; }
 .pf-teil-kopf{ display:flex; align-items:center; flex-wrap:wrap; gap:6px; }
 .pf-teil-name{ font:900 16px var(--p-font); }
-.pf-angelegt{
-  display:inline-flex; align-items:center; white-space:nowrap;
-  border:var(--p-rahmen); border-radius:11px; background:var(--p-ok);
-  padding:1px 7px; font:800 9px var(--p-font);
-}
 .pf-bonus{
   display:flex; align-items:center; gap:6px; margin-top:7px;
   font:800 11.5px var(--p-font); color:var(--p-text-akzent);
