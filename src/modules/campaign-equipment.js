@@ -14,8 +14,8 @@ import { HP_MAX, FIST_DMG, WEAPON_BASE_DMG, WEAPON_GOLD_BONUS, EQUIP_EFFECT, TAL
 import { getConstellations, forgeObject, objektName } from './irregular-verbs.js';
 import { starLit, SLOTS_PER_FORM } from './irregular-game.js';
 import { stageHTMLFor, petSVG, ensureAvatar } from './avatar.js';
-import { paintStages } from './hero.js';
-import { itemTag } from './world.js';
+import { paintStages, petHoloHTML } from './hero.js';
+import { itemTag, itemHoloHTML } from './world.js';
 import { persist } from './storage.js';
 import { markDirty } from './sync.js';
 import { commitDirty } from './dialog.js';
@@ -304,14 +304,17 @@ function _wornItem(c, key) {
 const _anzeigeName = (it) => it.name.replace(/\s*✨$/, '');
 
 // Bild eines Teils (Gegenstand aus pixel-world-fine.js, Stahl bzw. Gold).
-const _teilBild = (it, scale) => itemTag(it.type, it.which, scale);
+// Der goldene Gefährte schillert auch klein (Holo-Fell, F-97).
+const _schillert = (it) => it.slot === 'companion' && it.which === 'pp';
+const _teilBild = (it, scale) => _schillert(it) ? itemHoloHTML(it.type, it.which, scale) : itemTag(it.type, it.which, scale);
 
 function _slotTile(c, key) {
   const meta = SLOTS[key];
   const it = _wornItem(c, key);
   // Im Fach „Gefährte“ steht das eigene Tier des Kindes (8.1), sonst das Teil.
   const inner = !it ? iconHTML(meta.px, 28, { cls: 'pf-fach-leer' })
-    : key === 'companion' ? petSVG(ensureAvatar(window.SD), { scale: 1 }) : _teilBild(it, 1);
+    : key === 'companion' ? (_schillert(it) ? petHoloHTML(ensureAvatar(window.SD).pet, ensureAvatar(window.SD).petColor, 1) : petSVG(ensureAvatar(window.SD), { scale: 1 }))
+    : _teilBild(it, 1);
   const title = it ? `${_anzeigeName(it)} (${it.parts}/${SLOTS_PER_FORM} Teile)` : `${meta.name} — ${meta.desc}`;
   return `<button class="pf-fach${it ? ' is-voll' : ''}${key === _selSlot ? ' is-aktiv' : ''}" data-slot="${key}" title="${title}">`
     + `<span class="pf-fach-kachel">${inner}</span><span class="pf-fach-lbl">${meta.kurz}</span></button>`;
@@ -478,7 +481,7 @@ export function renderEquipmentPanel() {
   const buehne = host.querySelector('.pf-buehne');
   const cv = buehne && buehne.querySelector('canvas');
   if (cv && buehne.clientWidth && cv.offsetWidth > buehne.clientWidth) buehne.innerHTML = stageHTMLFor(window.SD, gear, 2);
-  paintStages(buehne);
+  paintStages(host);   // Bühne und schillernde Bilder (Fach, Tasche, Karte): Bild 0 sofort
 
   const auswahl = host.querySelector('.pf-auswahl');
   if (auswahl) {
@@ -635,6 +638,7 @@ function _startCarry() {
   const g = document.createElement('div');
   g.className = 'pf-zieh';
   g.innerHTML = _teilBild(d.it, 1);
+  paintStages(g);
   g.style.left = d.x + 'px';
   g.style.top = d.y + 'px';
   document.body.appendChild(g);

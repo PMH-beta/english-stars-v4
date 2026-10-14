@@ -11,10 +11,11 @@
 //     deshalb feste Vielfache, keine width:100%-Streckung.
 
 import {
-  itemSprite, spriteToCanvas,
+  itemSprite, spriteToCanvas, decodeSprite,
   itemPartsCanvasTrimmed, partStates, PART_ANIM, PART_NAMES, FORGE_PANEL,
   ARENAS, CAMPFIRE, CAMPFIRE_FRAMES, CAMPFIRE_FPS,
 } from './pixel-world-fine.js';
+import { holoHTML } from './hero.js';
 
 export { PART_NAMES, PART_ANIM, FORGE_PANEL, CAMPFIRE_FRAMES, CAMPFIRE_FPS, partStates };
 
@@ -54,6 +55,12 @@ export function itemTag(type, which, scale = 2) {
     const sp = itemSprite(type, mat);
     return sp ? _tag(spriteToCanvas(sp, s)) : null;
   });
+}
+
+/** Gegenstand mit Holo-Glanz als animiertes Canvas (Schillernder Gefährte, F-97). */
+export function itemHoloHTML(type, which, scale = 2) {
+  const mat = material(which), sp = itemSprite(type, mat);
+  return sp ? holoHTML(['item', type, mat], decodeSprite(sp), scale) : itemTag(type, which, scale);
 }
 
 // ── Schmiede: 5 Teile ───────────────────────────────────────────────────────
