@@ -539,27 +539,13 @@ export function resetDeckProgress(id) {
   const deck = window.SD.decks[id];
   if (!deck) return;
   const isPreset = deck.deckPath === 'preset';
+  // esConfirm setzt den Text als Text ein (textContent) — der Name deshalb ohne escHtml.
   const bodyText = isPreset
-    ? `Der gesamte Lernfortschritt von »${window.escHtml(deck.name)}« wird gelöscht. Die Sammlung bleibt bestehen — alle Wörter und Vorlagen bleiben erhalten.`
-    : `Der Lernfortschritt von »${window.escHtml(deck.name)}« wird gelöscht. Die Wörter bleiben erhalten.`;
-  const overlay = document.createElement('div');
-  overlay.className = 'p-sperrt';   // Hintergrund scrollt nicht mit (main.js)
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
-  overlay.innerHTML = `
-    <div style="background:#fff;border-radius:20px;padding:28px 22px;max-width:340px;width:100%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.2);">
-      <div style="font-size:2.5rem;margin-bottom:10px;">🔄</div>
-      <div class="p-dlg-titel" style="margin-bottom:12px">Fortschritt zurücksetzen?</div>
-      <p style="font-size:.88rem;color:#555;line-height:1.6;margin:0 0 20px;">${bodyText}</p>
-      <div style="display:flex;gap:10px;justify-content:center;">
-        <button id="_rp-ok" class="p-dlg-btn p-dlg-btn--gefahr">Zurücksetzen</button>
-        <button id="_rp-cancel" class="p-dlg-btn p-dlg-btn--ok">Abbrechen</button>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(overlay);
-  overlay.querySelector('#_rp-cancel').addEventListener('click', () => overlay.remove());
-  overlay.querySelector('#_rp-ok').addEventListener('click', async () => {
-    overlay.remove();
+    ? `Der gesamte Lernfortschritt von »${deck.name}« wird gelöscht. Die Sammlung bleibt bestehen — alle Wörter und Vorlagen bleiben erhalten.`
+    : `Der Lernfortschritt von »${deck.name}« wird gelöscht. Die Wörter bleiben erhalten.`;
+  // Dialog wie „Sammlung löschen?“ (Fragment 2.12): Symbol auf Rosa, Vondu trägt den Text.
+  window.esConfirm({ icon: '🔄', danger: true, title: 'Fortschritt zurücksetzen?', body: bodyText, ok: 'Zurücksetzen', cancel: 'Abbrechen' }).then(async (ok) => {
+    if (!ok) return;
     deck.wordStats = {};
     deck.categoryProgress = {
       vocab:       { played: 0, correct: 0, bestStreak: 0 },
