@@ -550,8 +550,8 @@ export function resetDeckProgress(id) {
       <div class="p-dlg-titel" style="margin-bottom:12px">Fortschritt zurücksetzen?</div>
       <p style="font-size:.88rem;color:#555;line-height:1.6;margin:0 0 20px;">${bodyText}</p>
       <div style="display:flex;gap:10px;justify-content:center;">
-        <button id="_rp-cancel" class="p-dlg-btn p-dlg-btn--ab">Abbrechen</button>
-        <button id="_rp-ok" class="p-dlg-btn" style="background:var(--p-gold);color:var(--p-ink)">Zurücksetzen</button>
+        <button id="_rp-ok" class="p-dlg-btn p-dlg-btn--gefahr">Zurücksetzen</button>
+        <button id="_rp-cancel" class="p-dlg-btn p-dlg-btn--ok">Abbrechen</button>
       </div>
     </div>
   `;

@@ -96,25 +96,29 @@ export function esAlert(opts) {
 }
 
 // confirm → Bestätigen/Abbrechen. Promise resolved true (OK) / false (Abbrechen).
-// cancelPrimary: der Abbrechen-Knopf ist der betonte (z. B. „Bleiben" im Spiel).
+// Betont (dunkel) und RECHTS steht immer, was die App empfiehlt — dort liegt der
+// Daumen (Wunsch des Nutzers 14.10.2026). Bei Gefahr (danger: Löschen,
+// Zurücksetzen, Abbrechen eines Entwurfs …) und mit cancelPrimary („Bleiben")
+// ist das der Abbrechen-Knopf; der ablehnende bzw. gefährliche steht dann links.
 export function esConfirm(opts) {
   opts = opts || {};
   return new Promise(resolve => {
     const { overlay, card } = _scaffold(opts);
     const row = _btnRow();
+    const sicher = !!(opts.cancelPrimary || opts.danger);
     const cancel = document.createElement('button');
-    cancel.className = 'p-dlg-btn ' + (opts.cancelPrimary ? 'p-dlg-btn--ok' : 'p-dlg-btn--ab');
+    cancel.className = 'p-dlg-btn ' + (sicher ? 'p-dlg-btn--ok' : 'p-dlg-btn--ab');
     cancel.textContent = opts.cancel || 'Abbrechen';
     cancel.addEventListener('click', () => { overlay.remove(); resolve(false); });
     const ok = document.createElement('button');
-    ok.className = 'p-dlg-btn ' + (opts.danger ? 'p-dlg-btn--gefahr' : opts.cancelPrimary ? 'p-dlg-btn--ab' : 'p-dlg-btn--ok');
+    ok.className = 'p-dlg-btn ' + (opts.danger ? 'p-dlg-btn--gefahr' : sicher ? 'p-dlg-btn--ab' : 'p-dlg-btn--ok');
     ok.textContent = opts.ok || 'OK';
     ok.addEventListener('click', () => { overlay.remove(); resolve(true); });
-    row.appendChild(cancel);
-    row.appendChild(ok);
+    if (sicher) { row.appendChild(ok); row.appendChild(cancel); }
+    else { row.appendChild(cancel); row.appendChild(ok); }
     card.appendChild(row);
     _mount(overlay);
-    (opts.cancelPrimary ? cancel : ok).focus();
+    (sicher ? cancel : ok).focus();
   });
 }
 
