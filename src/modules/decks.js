@@ -543,6 +543,7 @@ export function resetDeckProgress(id) {
     ? `Der gesamte Lernfortschritt von »${window.escHtml(deck.name)}« wird gelöscht. Die Sammlung bleibt bestehen — alle Wörter und Vorlagen bleiben erhalten.`
     : `Der Lernfortschritt von »${window.escHtml(deck.name)}« wird gelöscht. Die Wörter bleiben erhalten.`;
   const overlay = document.createElement('div');
+  overlay.className = 'p-sperrt';   // Hintergrund scrollt nicht mit (main.js)
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
   overlay.innerHTML = `
     <div style="background:#fff;border-radius:20px;padding:28px 22px;max-width:340px;width:100%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.2);">

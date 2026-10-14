@@ -278,6 +278,17 @@ setInterval(() => { checkForRemoteChange().catch(() => {}); }, 60 * 1000);
 startIconAutoPaint();
 startBilderWache();   // nach der Rückkehr in die App: verworfene Symbole/Figuren neu malen
 
+// ── Kein Scrollen hinter Popups ─────────────────────────────────────────────
+// Solange ein Dialog oder ein Vollbild-Overlay offen ist, steht die Seite dahinter
+// still (Wunsch des Nutzers 14.10.2026) — html.popup-offen in style.css. Erkannt
+// werden die direkten Kinder von body mit Abdunklung bzw. Vollbild.
+(function scrollSperre() {
+  const SEL = 'body > .p-dlg-grund, body > .uv-fill-overlay, body > .rest-ov, body > .p-sperrt';
+  const pruefe = () => document.documentElement.classList.toggle('popup-offen', !!document.querySelector(SEL));
+  new MutationObserver(pruefe).observe(document.body, { childList: true });
+  pruefe();
+})();
+
 // ── UI-Animationen ──────────────────────────────────────────────────
 // Ein gemeinsamer 8-fps-Takt für alles mit data-ui="…" (Handoff-Regel 6).
 startUiTakt();
@@ -328,6 +339,7 @@ try { screen.orientation?.lock?.('portrait').catch(() => {}); } catch (e) {}
   };
   document.addEventListener('touchstart', (e) => {
     active = window.scrollY <= 0 && !document.body.classList.contains('in-game')
+      && !document.documentElement.classList.contains('popup-offen')
       && !innerScrolled(e.target);
     startY = e.touches[0].clientY;
     dist = 0;

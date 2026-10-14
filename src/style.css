@@ -1022,6 +1022,10 @@ body.p-app{
   font:900 13px var(--p-font); letter-spacing:var(--p-ls-titel); text-transform:uppercase;
 }
 
+/* Kein Scrollen hinter Popups (Wunsch des Nutzers 14.10.2026): solange ein Dialog
+   oder Vollbild-Overlay offen ist (main.js scrollSperre), steht die Seite still. */
+html.popup-offen, html.popup-offen body{ overflow:hidden; overscroll-behavior:none; }
+
 /* ── Das Blatt ───────────────────────────────────────────────────────────── */
 /* Das cremefarbene Panel, das unter dem Kopfbereich beginnt und bis zur
    Unterkante läuft. flex:1 ist zwingend — ohne endet es mitten im Screen.
