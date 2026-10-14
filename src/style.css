@@ -1022,25 +1022,6 @@ body.p-app{
   font:900 13px var(--p-font); letter-spacing:var(--p-ls-titel); text-transform:uppercase;
 }
 
-/* Funkeln des Gefährten (F-97, 14.10.2026): drei Funkel-Sterne (ui-anim „sparkle")
-   am Tier — Gold wie im Modul weiß-golden, Stahl silbern. Positionen setzt hero.js
-   (funkelnHTML) am Pixelraster des Tiers. Im Kampf nur im Stehen. */
-.p-buehne-figur{ position:relative; display:block; flex:none; }
-.p-funkeln{ position:absolute; z-index:1; pointer-events:none; image-rendering:pixelated; }
-.p-funkeln--stahl{ filter:grayscale(1) brightness(1.12); }
-.ohne-funkeln > .p-funkeln{ visibility:hidden; }
-#character-pet-canvas{ position:relative; }
-
-/* Android-Navigationsleiste schwarz (Wunsch des Nutzers 14.10.2026). Chrome zeichnet
-   die App mit viewport-fit=cover bis unter die Gesten-Leiste — dort stand das
-   cremefarbene Blatt. Schwarz in Höhe der Sicherheitszone; Android hellt den Griff
-   vor dunklem Grund selbst auf. Färbt Chrome die Leiste selbst (Zone 0), wirkt es
-   nicht. Nur Android: auf dem iPhone schwebt der Balken frei über der App. */
-html.ist-android body::after{
-  content:''; position:fixed; left:0; right:0; bottom:0; height:env(safe-area-inset-bottom,0px);
-  background:#000; z-index:2147483646; pointer-events:none;
-}
-
 /* ── Das Blatt ───────────────────────────────────────────────────────────── */
 /* Das cremefarbene Panel, das unter dem Kopfbereich beginnt und bis zur
    Unterkante läuft. flex:1 ist zwingend — ohne endet es mitten im Screen.

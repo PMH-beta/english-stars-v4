@@ -27,9 +27,6 @@ import { startBilderWache } from './modules/bilder-wache.js';
 
 console.log('[main] English Stars', APP_VERSION, 'startet…');
 
-// Android: Navigationsleiste schwarz (style.css html.ist-android body::after).
-if (/Android/i.test(navigator.userAgent)) document.documentElement.classList.add('ist-android');
-
 // Hinweis: Früher löschte ein preBoot() hier bei JEDEM Boot den kompletten
 // SW-Cache (clearSWCache) + temporäre localStorage-Keys (cleanupStorage).
 // Entfernt — der Service Worker verwaltet Caching jetzt korrekt (network-first

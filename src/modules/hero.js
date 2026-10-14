@@ -166,32 +166,41 @@ function _fuss({ w, h, col }) {
   return { yb: b, mn, mx, fl: b < h - 8 };
 }
 
-// ── Funkeln des Gefährten (F-97, 14.10.2026) ────────────────────────────────
-// Ob der Stahl- oder der Gold-Gefährte angelegt ist, zeigen drei Funkel-Sterne am
-// Tier — das Funkeln vom Rundenende (ui-anim „sparkle", 7 × 7), nacheinander im
-// Takt: oben rechts, als Glanzpunkt auf dem Körper und rechts unten vor der Brust
-// (das Tier schaut nach rechts; links reicht es bis an die Figur). Gold weiß-golden
-// wie im Modul, Stahl silbern (style.css). Am Pixelraster des Tiers ausgerichtet.
-function _kasten({ w, h, col }) {
-  let x0 = w, y0 = h, x1 = -1, y1 = -1;
-  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-    const c = col[y * w + x];
-    if (!c || c.length >= 9) continue;   // Schattenton (#RRGGBBAA) zählt nicht
-    if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
-  }
-  return x1 < 0 ? null : { x0, y0, x1, y1 };
+// ── Holo-Fell des Schillernden Gefährten (F-97, neu gefasst 14.10.2026) ─────
+// Nur der goldene Gefährte schillert, und nur, wenn er angelegt ist: über das
+// Fell läuft ein Regenbogen-Verlauf wie bei einer Holo-Karte, dazu ein heller
+// Glanzstreifen; beides rückt in vier Schritten weiter (4 fps, im Takt des
+// Atmens). Dunkle Pixel (Kontur, Augen) und Schatten bleiben. Die Pixeldaten des
+// Moduls bleiben unverändert — eingefärbt wird nur das fertige Bild.
+const _hex2 = (n) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, '0');
+function _hsl(h, s, l) {
+  const k = (n) => (n + h / 30) % 12, a = s * Math.min(l, 1 - l);
+  const f = (n) => 255 * (l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1)));
+  return [f(0), f(8), f(4)];
 }
-/** Drei Funkel-Sterne um einen Kasten (Rohpixel) im Maßstab s; which = 'past' (Stahl) | 'pp' (Gold). */
-export function funkelnHTML(k, s, which) {
-  if (!k || (which !== 'past' && which !== 'pp')) return '';
-  const w = k.x1 - k.x0 + 1, h = k.y1 - k.y0 + 1;
-  const sterne = [
-    [k.x1 + 1, k.y0 + 1, 0],
-    [k.x0 + Math.round(w * 0.55), k.y0 + Math.round(h * 0.4), 5],
-    [k.x1 - 1, k.y0 + Math.round(h * 0.8), 10],
-  ];
-  return sterne.map(([cx, cy, d]) => `<canvas class="p-funkeln p-funkeln--${which === 'pp' ? 'gold' : 'stahl'}" data-ui="sparkle" data-d="${d}" width="7" height="7"`
-    + ` style="left:${(cx - 3) * s}px;top:${(cy - 3) * s}px;width:${7 * s}px;height:${7 * s}px"></canvas>`).join('');
+/** Bild (w, h, col) im Holo-Schritt p (0–3) eingefärbt. */
+export function holoBild(img, p) {
+  const col = img.col.slice();
+  for (let y = 0; y < img.h; y++) for (let x = 0; x < img.w; x++) {
+    const i = y * img.w + x, c = col[i];
+    if (!c || c.length !== 7) continue;   // leer oder halbdurchsichtig (Schatten)
+    const r = parseInt(c.slice(1, 3), 16), g = parseInt(c.slice(3, 5), 16), b = parseInt(c.slice(5, 7), 16);
+    if ((0.299 * r + 0.587 * g + 0.114 * b) / 255 < 0.24) continue;   // Kontur, Augen
+    const [hr, hg, hb] = _hsl(((x + y) * 16 + p * 90) % 360, 0.9, 0.66);
+    let nr = r + (hr - r) * 0.45, ng = g + (hg - g) * 0.45, nb = b + (hb - b) * 0.45;
+    if ((((x - y + p * 4) % 16) + 16) % 16 < 2) { nr += (255 - nr) * 0.55; ng += (255 - ng) * 0.55; nb += (255 - nb) * 0.55; }
+    col[i] = '#' + _hex2(nr) + _hex2(ng) + _hex2(nb);
+  }
+  return { w: img.w, h: img.h, col };
+}
+/** Schillerndes Bild als <canvas data-ui="idle"> (4 Holo-Schritte) im Maßstab scale. */
+export function holoHTML(key, img, scale) {
+  return _canvasAtem(JSON.stringify(['holo', key]), () => [0, 1, 2, 3].map((p) => holoBild(img, p)), Math.max(1, Math.round(scale)), 0);
+}
+/** Eigenes Tier klein mit Holo-Fell (Fach „Gefährte" im Profil). */
+export function petHoloHTML(petIdx, colorIdx, scale = 1) {
+  const kind = petKind(petIdx), farbe = petColorHex(petIdx, colorIdx);
+  return holoHTML(['pet', kind, farbe], pet(kind, farbe).render(), scale);
 }
 
 function _atemBilder(cfg, gear, gefaehrte) {
@@ -212,7 +221,8 @@ function _atemBilder(cfg, gear, gefaehrte) {
   const Y0 = Math.min(0, oy);
   const Y1 = Math.ceil(Math.max(H.h, oy + Pt.h, ...E.map((e) => e.cy + e.ry)));
   const W = X1 - X0, HH = Y1 - Y0;
-  const baue = (hf, pf) => {
+  // ph = Holo-Schritt (nur beim Schillernden Gefährten, gefaehrte.holo).
+  const baue = (hf, pf, ph = 0) => {
     const col = new Array(W * HH).fill(null);
     for (let y = 0; y < HH; y++) for (let x = 0; x < W; x++) {
       const px = x + X0 + 0.5, py = y + Y0 + 0.5;
@@ -225,7 +235,7 @@ function _atemBilder(cfg, gear, gefaehrte) {
       }
     };
     setze(_senken(H, 50, hf), 0, 0);
-    setze(_senken(Pt, ps, pf), dx, oy);
+    setze(gefaehrte.holo ? holoBild(_senken(Pt, ps, pf), ph) : _senken(Pt, ps, pf), dx, oy);
     return col;
   };
   const c0 = baue(0, 0);
@@ -239,11 +249,7 @@ function _atemBilder(cfg, gear, gefaehrte) {
     for (let y = 0; y < h2; y++) for (let x = 0; x < w2; x++) o[y * w2 + x] = col[(y + y0) * W + x + x0];
     return { w: w2, h: h2, col: o };
   };
-  const bilder = [0, 1, 2, 3].map((f) => schneide(f ? baue(_ATEM[f], _ATEM[(f + 1) % 4]) : c0));
-  // Wo das Tier im fertigen Bild steht (für das Funkeln).
-  const pk = _kasten(Pt), ox = dx - X0 - x0, oy2 = oy - Y0 - y0;
-  if (pk) bilder.pet = { x0: pk.x0 + ox, y0: pk.y0 + oy2, x1: pk.x1 + ox, y1: pk.y1 + oy2 };
-  return bilder;
+  return [0, 1, 2, 3].map((f) => schneide(f ? baue(_ATEM[f], _ATEM[(f + 1) % 4], f) : c0));
 }
 
 /**
@@ -252,16 +258,13 @@ function _atemBilder(cfg, gear, gefaehrte) {
  * Nach dem Einsetzen paintStages() aufrufen, damit Bild 0 auch ohne Bewegung
  * (prefers-reduced-motion) steht.
  */
-export function stageHTML(cfg, { gear, gefaehrte = null, scale = 2, glanz = null } = {}) {
+export function stageHTML(cfg, { gear, gefaehrte = null, scale = 2 } = {}) {
   const s = Math.max(1, Math.round(scale));
   const k = JSON.stringify([cfg, gear || 0, gefaehrte || 0]);
   const bilder = _bilderZu(k) || _merkeBuehne(k, _atemBilder(cfg, gear, gefaehrte));
   const { width: w, height: h } = bilder[0];
-  const cv = `<canvas data-ui="idle" data-idle="${encodeURIComponent(k)}" width="${w}" height="${h}"`
+  return `<canvas data-ui="idle" data-idle="${encodeURIComponent(k)}" width="${w}" height="${h}"`
     + ` style="width:${w * s}px;height:${h * s}px;image-rendering:pixelated;display:block;flex:none"></canvas>`;
-  // glanz = Form des angelegten Gefährten ('past' Stahl / 'pp' Gold): Funkeln am Tier.
-  const funkeln = gefaehrte && glanz ? funkelnHTML(_buehnenQuelle.get(k)?.pet, s, glanz) : '';
-  return funkeln ? `<span class="p-buehne-figur" style="width:${w * s}px;height:${h * s}px">${cv}${funkeln}</span>` : cv;
 }
 
 // ── Charakter-Editor (1.9, 1.10, 8.4–8.12) ──────────────────────────────────
@@ -284,17 +287,13 @@ export function atemBilderHTML(k, bilder, scale = 2) {
 export function editorFigurHTML(cfg, scale = 3) {
   return _canvasAtem(JSON.stringify(['ef', cfg]), () => _atemEinzeln(shadowed(hero(cfg).render()), 50), scale, 0);
 }
-export function editorPetHTML(petIdx, colorIdx, scale = 3) {
+export function editorPetHTML(petIdx, colorIdx, scale = 3, holo = false) {
   const kind = petKind(petIdx), farbe = petColorHex(petIdx, colorIdx);
-  return _canvasAtem(JSON.stringify(['ep', kind, farbe]), () => {
+  return _canvasAtem(JSON.stringify(['ep', kind, farbe, holo ? 1 : 0]), () => {
     const img = petMenuImage(kind, farbe);
-    return _atemEinzeln(img, _unterkante(img) - 6);
+    const bilder = _atemEinzeln(img, _unterkante(img) - 6);
+    return holo ? bilder.map((b, f) => holoBild(b, f)) : bilder;   // Schillernder Gefährte
   }, scale, 2);
-}
-/** Funkeln zum Editor-Tier (F-97): dasselbe Bild wie editorPetHTML, gleicher Maßstab. */
-export function editorPetFunkeln(petIdx, colorIdx, scale, which) {
-  const s = Math.max(1, Math.round(scale));
-  return funkelnHTML(_kasten(petMenuImage(petKind(petIdx), petColorHex(petIdx, colorIdx))), s, which);
 }
 
 // Kacheln: Ausschnitte der Figur mit allen aktuellen Einstellungen (START-HERE):
@@ -368,22 +367,18 @@ export function petTag(petIdx, colorIdx, opts = {}) {
  * springt er mit — also genau dann, wenn der Angriff des Helden trifft.
  * Stehen läuft mit 4 fps, alles andere mit 8 fps (Handoff-Regel 6).
  */
-export function createPetPlayer(el, kind, color, scale = 2, glanz = null) {
+export function createPetPlayer(el, kind, color, scale = 2, holo = false) {
   const s = Math.max(1, Math.round(scale));
-  // Nur das Bild tauschen — die Funkel-Sterne (F-97) bleiben stehen.
+  // Schillernder Gefährte: jedes gezeigte Bild einen Holo-Schritt weiter.
+  let schritt = 0;
   const zeig = (img) => {
-    const cv = toCanvas(img, s);
+    const cv = toCanvas(holo ? holoBild(img, (schritt = (schritt + 1) % 4)) : img, s);
     Object.assign(cv.style, { imageRendering: 'pixelated', display: 'block' });
-    const alt = el.querySelector(':scope > canvas:not(.p-funkeln)');
-    if (alt) alt.replaceWith(cv); else el.prepend(cv);
+    el.replaceChildren(cv);
   };
   let timer = null, idle = petBattleFrames(kind, color, 'idle');
-  el.replaceChildren();
-  // Funkeln nur im Stehen; beim Angriff, Treffer, Sieg oder K.o. ist es aus.
-  if (glanz) el.insertAdjacentHTML('beforeend', funkelnHTML(_kasten(idle[0]), s, glanz));
   const ruhe = () => {
     clearInterval(timer);
-    el.classList.remove('ohne-funkeln');
     let i = 0;
     zeig(idle[0]);
     timer = setInterval(() => { i = (i + 1) % idle.length; zeig(idle[i]); }, 1000 / PET_BATTLE.idleFps);
@@ -393,7 +388,6 @@ export function createPetPlayer(el, kind, color, scale = 2, glanz = null) {
     /** name: 'attack' | 'hurt' | 'win' | 'die' | 'ko'. Danach zurück ins Stehen. */
     play(name) {
       clearInterval(timer);
-      el.classList.add('ohne-funkeln');
       if (name === 'win' || name === 'ko') {
         const f = petBattleFrames(kind, color, name);
         let i = 0;

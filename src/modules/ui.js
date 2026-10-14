@@ -14,7 +14,7 @@ import { uvMap, uvLernstand, constellationWords, FORGE_DISC, SLOTS_PER_FORM, uvT
 import { renderAvatarInto, renderCharacter, resetCharacterFeature, setCharacterCompanion, stageHTMLFor, charEditorOeffnen, charEditorGeaendert, charEditorUebernehmen, charAenderungenFragen } from './avatar.js';
 import { paintStages } from './hero.js';
 import { installHinweisEinmal, installMoeglich } from './pwa.js';
-import { IRREGULAR_PRESET_ID, uvAvailableVerbs, CONSTELLATION_SIZE, cefrOf, forgeObject, FORGE_OBJECTS, usedForgeObjects, allVerbsSorted, verbsByEns, UV_TRAIN_SUF } from './irregular-verbs.js';
+import { IRREGULAR_PRESET_ID, uvAvailableVerbs, CONSTELLATION_SIZE, cefrOf, forgeObject, FORGE_OBJECTS, usedForgeObjects, allVerbsSorted, verbsByEns, UV_TRAIN_SUF, objektName } from './irregular-verbs.js';
 import { objectPerkText, renderEquipmentPanel, resetEquipmentSelection, forgedItems, equippedGearMap, objectInfoRows, ohneEmoji, SLOTS } from './campaign-equipment.js';
 import { renderFriendsSection, refreshFriendBadge, friendProgress, subscribeFriendRealtime, unsubscribeFriendRealtime } from './friends.js';
 import { renderCampaign, renderCampaignDemo, updateTalerBadge, refreshClaimedTaler } from './campaign.js';
@@ -1297,11 +1297,6 @@ export function uvOpenFill(objType) {
   showWordStep();
 }
 
-const FORGE_MAT = {
-  past: { label: '⏱ Simple Past', mat: 'Stahl' },
-  pp:   { label: '✓ Past Participle', mat: 'Gold' },
-};
-
 // Werkstueck mit Teile-Zustaenden aus pixel-world-fine.js. Die fertigen Teile
 // sind immer die ersten — die Schmiede schaltet der Reihe nach frei —, deshalb
 // reicht ihre ANZAHL: partStates() setzt daraus 'bb' + glühendes Teil + 'ggg'.
@@ -1345,7 +1340,7 @@ export function startForgeAnim() {
 // der Waffe ein Fortschrittsbalken für den AKTUELLEN Schritt (das gerade pulsierende
 // Teil): Schritt-Name + % = Anteil der schon gemeisterten Verben dieses Schritts.
 function _forgeItem(m, which) {
-  const ob = forgeObject(m.c.idx, which), mt = FORGE_MAT[which];
+  const ob = forgeObject(m.c.idx, which);
   const steps = m.stars.filter((s) => s.which === which);
   const litN = steps.filter((s) => s.lit).length;
   const done = steps.length > 0 && litN === steps.length;
@@ -1366,7 +1361,7 @@ function _forgeItem(m, which) {
     label = (DISZ_ICON[s.discipline] ? iconHTML(DISZ_ICON[s.discipline], 14) : '') + `${fs.name} · Teil ${nextI + 1}/${steps.length}`;
   } else { label = iconHTML('lock', 14) + 'erst die Station davor'; pct = 0; showPct = false; }
   return `<div class="forge-weapon-wrap">
-    <div class="fw-name">${mt.mat}-${ob.name}</div>
+    <div class="fw-name">${objektName(ob.type, which)}</div>
     <div class="forge-weapon ${which} ${state}"${tap} data-stage="${litN}" data-steps="${steps.length}">
       ${_forgeWeaponSvg(ob.type, steps, nextI, which)}
     </div>
@@ -1424,7 +1419,7 @@ function _forgeStation(m) {
   return `<div class="forge-station${m.unlocked ? '' : ' locked'}${m.complete ? ' complete' : ''}">
     <div class="forge-head">
       <div class="p-wachs">
-        <div class="forge-title" data-obj="${window.escHtml(ob.name)}">${FORGE_MAT.past.mat}-${window.escHtml(ob.name)}</div>
+        <div class="forge-title" data-obj="${window.escHtml(ob.name)}" data-past="${window.escHtml(objektName(ob.type, 'past'))}" data-pp="${window.escHtml(objektName(ob.type, 'pp'))}">${window.escHtml(objektName(ob.type, 'past'))}</div>
         <div class="forge-form">${iconHTML('hourglass', 14)}<span>Simple Past</span></div>
       </div>
       <button class="forge-waffe-info" onclick="uvWaffenInfo(${m.c.idx})" aria-label="Info zur Waffe">i</button>
@@ -1531,7 +1526,7 @@ export function uvWaffenInfo(idx, type) {
       <span class="p-wi-bild">${itemTag(ob.type, which, 2)}</span>
       <div class="p-wi-text">
         <div class="p-wi-kicker">${art} · ${which === 'past' ? 'Simple Past' : 'Past Participle'}</div>
-        <div class="p-wi-name">${which === 'past' ? 'Stahl' : 'Gold'}-${window.escHtml(ob.name)}</div>
+        <div class="p-wi-name">${window.escHtml(objektName(ob.type, which))}</div>
         <div class="p-wi-teile">${teile}</div>
         <div class="p-wi-stand">${fertig} von ${SLOTS_PER_FORM} Teilen geschmiedet</div>
       </div>
@@ -1591,7 +1586,7 @@ function _showChrome(track, form) {
   // Kopf der Station (5.1) folgt der gezeigten Form.
   const st = wrap.closest('.forge-station');
   const titel = st && st.querySelector('.forge-title');
-  if (titel) titel.textContent = (isPast ? FORGE_MAT.past.mat : FORGE_MAT.pp.mat) + '-' + (titel.dataset.obj || '');
+  if (titel) titel.textContent = (isPast ? titel.dataset.past : titel.dataset.pp) || '';
   const formEl = st && st.querySelector('.forge-form span');
   if (formEl) formEl.textContent = isPast ? 'Simple Past' : 'Past Participle';
   wrap.querySelectorAll('.uv-dot').forEach((d, i) => d.classList.toggle('active', i === form));
@@ -1822,7 +1817,7 @@ export function showCharacter() {
   const pets = forgedItems().filter((i) => i.slot === 'companion');
   const gear = equippedGearMap();
   const pet = gear.companion || pets.find((p) => p.which === 'pp') || pets[0] || null;
-  setCharacterCompanion({ available: !!pet, which: pet ? pet.which : null });
+  setCharacterCompanion({ available: !!pet, which: pet ? pet.which : null, holo: !!(gear.companion && gear.companion.which === 'pp') });
   charEditorOeffnen('profil');
   showScreen('character-screen');
   renderCharacter();
@@ -2241,7 +2236,7 @@ function _uvLernstandBlock() {
       en: w.en, an: [..._fsReihe(w.past.mastered, w.past.total), ..._fsReihe(w.pp.mastered, w.pp.total)],
     }));
     return _fsKarte({
-      titel: `${which === 'past' ? 'Stahl' : 'Gold'}-${ob.name}`,
+      titel: objektName(ob.type, which),
       sub, pct: r.scorePct, fertig: r.complete, ton: 'lila',
       bild: itemTag(ob.type, which, 1),
       liste: r.unlocked && zeilen.length ? _fsWortListe(zeilen, 'lila') : '',

@@ -13,7 +13,7 @@
 import { startGame } from './game.js';
 import { effectivePct, statKeyFor } from './stats.js';
 import { UV_MASTERY_MIN_ATTEMPTS, MASTERY_THRESHOLD } from './config.js';
-import { irregularAsVocab, getConstellations, IRREGULAR_PRESET_ID, UV_TRAIN_SUF, verbsByEns, forgeObject } from './irregular-verbs.js';
+import { irregularAsVocab, getConstellations, IRREGULAR_PRESET_ID, UV_TRAIN_SUF, verbsByEns, forgeObject, objektName } from './irregular-verbs.js';
 
 export const SLOTS_PER_FORM = 5;
 // Die drei Disziplinen (Icon + Name) — von ui.js/game.js für Label/% genutzt.
@@ -203,14 +203,15 @@ export function uvTeilMeldung() {
   if (fertig >= steps.length && ob.slot === 'companion') {
     return { icon: '🐾', title: 'Gefährte freigespielt!', body: `Alle ${steps.length} Teile geschafft! Dein Gefährte wartet jetzt im Profil unter Ausrüstung.`, ok: 'Super!' };
   }
-  const name = `${star.which === 'past' ? 'Stahl' : 'Gold'}-${ob.name}`;
+  const name = objektName(ob.type, star.which);
   const art = _ARTIKEL[ob.type] || 'der', viele = _MEHRZAHL.has(ob.type);
+  // Mit Artikel: „der Schillernde Gefährte" (nicht „der Schillernder …").
+  const mitArtikel = `${art} ${name.replace(/^Schillernder /, 'Schillernde ')}`;
   if (fertig >= steps.length) {
-    const Art = art[0].toUpperCase() + art.slice(1);
-    return { icon: '🏆', title: `${name} fertig!`, body: `Alle ${steps.length} Teile geschafft! ${Art} ${name} ${viele ? 'warten' : 'wartet'} jetzt im Profil unter Ausrüstung.`, ok: 'Super!' };
+    return { icon: '🏆', title: `${name} fertig!`, body: `Alle ${steps.length} Teile geschafft! ${mitArtikel[0].toUpperCase()}${mitArtikel.slice(1)} ${viele ? 'warten' : 'wartet'} jetzt im Profil unter Ausrüstung.`, ok: 'Super!' };
   }
   const rest = steps.length - fertig;
-  return { icon: '⚒️', title: `Teil ${fertig} von ${steps.length} geschmiedet!`, body: `Noch ${rest} ${rest === 1 ? 'Teil' : 'Teile'}, dann ${viele ? 'kommen' : 'kommt'} ${art} ${name} ins Profil.`, ok: 'Weiter' };
+  return { icon: '⚒️', title: `Teil ${fertig} von ${steps.length} geschmiedet!`, body: `Noch ${rest} ${rest === 1 ? 'Teil' : 'Teile'}, dann ${viele ? 'kommen' : 'kommt'} ${mitArtikel} ins Profil.`, ok: 'Weiter' };
 }
 
 // ── Trainingsplatz: eine Disziplin über ALLE Verben eines Trainings-Decks ────

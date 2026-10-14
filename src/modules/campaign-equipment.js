@@ -11,7 +11,7 @@
 // Kampf spielbar — Definitionen hier, Kampf-Logik in campaign-fight.js.
 
 import { HP_MAX, FIST_DMG, WEAPON_BASE_DMG, WEAPON_GOLD_BONUS, EQUIP_EFFECT, TALISMAN_MULT, RING_POTION_BONUS, COMPANION_GUARDS, WEAPON_PERK, PERK_SCHWERT_DMG, PERK_DOLCH_DODGE, PERK_SPEER_BOSS, PERK_AXT_ELITE, PERK_HAMMER_MULT, PERK_STAB_MS, PERK_BOGEN_FIGHT, PERK_KOLBEN_GUARD, POTION_CHOICES, POTION_HEAL, POTION_POWER, POTION_TIME_MS, POTION_TIME_WAVES } from './campaign-balance.js';
-import { getConstellations, forgeObject } from './irregular-verbs.js';
+import { getConstellations, forgeObject, objektName } from './irregular-verbs.js';
 import { starLit, SLOTS_PER_FORM } from './irregular-game.js';
 import { stageHTMLFor, petSVG, ensureAvatar } from './avatar.js';
 import { paintStages } from './hero.js';
@@ -76,7 +76,7 @@ export function objectInfoRows(type, which, fertig) {
     return '';
   };
   const rows = [{ px: SLOTS[slotKey]?.px || 'star', label: 'Wirkung', wert: wert(which), sub: bald }];
-  if (!gold && wert('pp') !== wert('past')) rows.push({ px: 'coin', label: 'Gold-Fassung', wert: wert('pp'), sub: 'mit dem Past Participle' });
+  if (!gold && wert('pp') !== wert('past')) rows.push({ px: 'coin', label: type === 'gefaehrte' ? objektName(type, 'pp') : 'Gold-Fassung', wert: wert('pp'), sub: 'mit dem Past Participle' });
   return rows;
 }
 // Fach eines Objekt-Typs (Waffe oder Rüstungsteil) — wie forgeObject().slot.
@@ -116,12 +116,13 @@ export function forgedItems() {
       if (lit < SLOTS_PER_FORM) continue;
       const ob = forgeObject(c.idx, which);
       const tier = 'verzaubert';
-      // Name trägt IMMER das Material (Stahl/Gold = Form) — „Verzaubert" ist nur
-      // die Ausbaustufe (✨-Suffix), sonst wären zwei fertige Teile ununterscheidbar.
+      // Name trägt IMMER die Form (Stahl/Gold, bei Schmuck Silber/Gold, objektName) —
+      // „Verzaubert" ist nur die Ausbaustufe (✨-Suffix), sonst wären zwei fertige
+      // Teile ununterscheidbar.
       const item = {
         id: `f:${c.idx}:${which}`,
         type: ob.type, slot: ob.slot, icon: ob.icon,
-        name: `${which === 'past' ? 'Stahl' : 'Gold'}-${ob.name}${tier === 'verzaubert' ? ' ✨' : ''}`,
+        name: `${objektName(ob.type, which)}${tier === 'verzaubert' ? ' ✨' : ''}`,
         station: c.name, which, tier, parts: lit,
       };
       if (ob.slot === 'weapon') {
