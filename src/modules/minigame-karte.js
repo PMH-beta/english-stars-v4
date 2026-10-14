@@ -39,7 +39,7 @@ export const frageDE = (de) => `<span class="mg-de"><span>DE</span>${_esc(de)}</
 
 /** Verbform-Frage „go → [Simple Past]" (F.8, F.9); which = 'past' | 'pp'. */
 export const frageForm = (en, which) =>
-  `<span class="mg-wort">${_esc(en)}</span>${PFEIL}<span class="mg-form">${which === 'pp' ? 'Past Participle' : 'Simple Past'}</span>`;
+  `<span class="mg-wort">${_esc(en)}</span>${PFEIL}<span class="mg-form mg-form--${which === 'pp' ? 'pp' : 'past'}">${which === 'pp' ? 'Past Participle' : 'Simple Past'}</span>`;
 
 /** Hörfrage: nur das Hörbild (F.5) oder „take → Hörbild" (F.10). */
 export const frageHoeren = (en = '') => (en ? `<span class="mg-wort">${_esc(en)}</span>${PFEIL}` : '') + BALKEN;

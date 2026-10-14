@@ -2663,12 +2663,16 @@ button.p-chip{ cursor:pointer; }
    das Wort folgt der Größe der Frage. */
 .mg-aufgabe-frage.mg-eine-zeile{ white-space:nowrap; }
 .mg-aufgabe-frage .mg-wort{ font-size:inherit; }
-/* Form als Chip (F.8, F.9): beide Formen flieder. */
+/* Form als Chip (F.8, F.9). Auf Wunsch (14.10.2026, F-101: man sah nicht gleich,
+   welche Form gefragt ist) in der Formfarbe statt beide flieder — Simple Past gold,
+   Past Participle hellblau — und etwas größer (30 statt 26, Schrift 15 statt 13). */
 .mg-form{
-  display:inline-flex; align-items:center; height:26px; padding:0 9px;
-  border:var(--p-rahmen); border-radius:9px; background:var(--p-lila);
-  font:800 13px/1.3 var(--p-font); color:var(--p-ink); white-space:nowrap;
+  display:inline-flex; align-items:center; height:30px; padding:0 11px;
+  border:var(--p-rahmen); border-radius:10px; background:var(--p-lila);
+  font:900 15px/1.3 var(--p-font); color:var(--p-ink); white-space:nowrap;
 }
+.mg-form--past{ background:var(--p-gold); }
+.mg-form--pp{ background:var(--p-blau); }
 /* Hörbild (F.5, F.10): Balken 5 breit, laufen im Takt. */
 .mg-hoerbild{ display:flex; align-items:center; gap:3px; height:28px; }
 .mg-hoerbild > span{ width:5px; display:block; }
@@ -3402,6 +3406,10 @@ button.p-chip{ cursor:pointer; }
 }
 .uv-form-chip.sel .fc-title{ font-weight:900; }
 .uv-form-chip.sel .fc-title::after{ content:none; }
+/* F-101 (14.10.2026): gewählt in der Formfarbe — Simple Past gold, Participle
+   hellblau, beide bleiben flieder. */
+.uv-form-chip.past.sel{ background:var(--p-gold); }
+.uv-form-chip.pp.sel{ background:var(--p-blau); }
 
 /* Dialoge „Neues Trainings-Deck" (5.4) und „… befüllen" (5.12). */
 .uv-fill-card{ border-radius:28px; background:var(--p-karte-hell); padding:18px 18px 16px; }

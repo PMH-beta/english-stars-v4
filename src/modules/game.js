@@ -154,12 +154,14 @@ function _verbMeta(which){
 // ── Frage-Kopf: macht intuitiv klar, WELCHE Form gefragt ist ──
 // Bedeutung (🇩🇪) + farbige Plakette mit Form-Nummer (1./2./3. Form). q.question
 // wird in renderQuestion als innerHTML gesetzt → HTML hier ist erlaubt.
-// Plakette je Form wie 5.6–5.11: Simple Past hellblau, Past Participle gold,
-// alle drei Formen flieder — mit Hammer bzw. dem Reihenfolge-Symbol.
+// Plakette je Form wie 5.6–5.11, alle drei Formen flieder — mit Hammer bzw. dem
+// Reihenfolge-Symbol. Seit F-101 (Wunsch des Nutzers 14.10.2026) überall Simple
+// Past gold und Past Participle hellblau (vorher umgekehrt); die Schmiede-Waffen
+// bleiben Stahl = Simple Past, Gold = Past Participle.
 const _FORM_BADGE={
   grund:['Present','var(--p-blau)','hammer'],
-  past: ['Simple Past','var(--p-blau)','hammer'],
-  pp:   ['Past Participle','var(--p-gold)','hammer'],
+  past: ['Simple Past','var(--p-gold)','hammer'],
+  pp:   ['Past Participle','var(--p-blau)','hammer'],
   all:  ['Alle drei Formen','var(--p-lila)','order'],
 };
 function _uvBadge(key){ const b=_FORM_BADGE[key]||_FORM_BADGE.past;
