@@ -119,9 +119,11 @@ function _leinwand(img, s) {
 }
 
 // ── Schmiede: 5 Teile ───────────────────────────────────────────────────────
-// Anzeige-Maßstab je Objektart (FORGE_PANEL). Der Gefährte ist breiter gebaut
-// und bekommt deshalb 3× statt 4×.
-export const forgeScale = (type) => (type === 'gefaehrte' ? FORGE_PANEL.petScale : FORGE_PANEL.weaponScale);
+// Anzeige-Maßstab je Objektart (FORGE_PANEL). Das Modul gibt dem Gefährten 3×
+// (petScale) — er ist aber nur 28 × 31 groß wie Ring und Talisman und wirkte daneben
+// winzig (Nutzer 14.10.2026), darum bekommen alle Werkstücke 4× (112 × 124 passt in
+// die 176 hohe Fläche).
+export const forgeScale = () => FORGE_PANEL.weaponScale;
 
 /**
  * Werkstück mit Teile-Zuständen. `fertig` = Zahl der fertigen Teile (0–5);

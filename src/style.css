@@ -3692,6 +3692,11 @@ button.p-chip{ cursor:pointer; }
 /* Balken 12 + Rahmen, Stahl in Stahlgrau. */
 .fw-bar{ height:16px; border-radius:7px; margin-top:7px; }
 .fw-bar-fill{ transition:none; }
+/* Fertiges Werkstück (Wunsch des Nutzers 14.10.2026, „dass man weiß: das ist komplett
+   fertig“): die Fläche um das Werkstück wird mint, der volle Balken grün — bei Stahl
+   und Gold; der Rest der Karte bleibt. */
+.forge-weapon.done{ background:var(--p-ok); }
+.fw-step.done .fw-bar-fill{ background:var(--p-richtig); }
 /* Punkte gleich groß (Wunsch des Nutzers 10.10.2026, vorher 13er Ring und 9er
    Punkt): Ring leer, gewählt gefüllt. */
 .forge .cst-dots{ gap:8px; margin-top:11px; align-items:center; }
