@@ -163,7 +163,8 @@ export function presetProgressPct(deck, presetId) {
 // Modus-Zeile der aufgeklappten Sammlung: Name, Prozent, Balken und darunter
 // „x/y gemeistert" mit dem Taler-Chip. Der Chip wechselt bei 100 % von
 // grau-gestrichelt auf gold-durchgezogen — das ist der sichtbare Lohn.
-function _modusZeile(name, mod, klasse, onclick) {
+// Auch für die Trainings-Decks im Reiter Formen (ui.js, seit 15.10.2026).
+export function _modusZeile(name, mod, klasse, onclick) {
   const total = mod.total || 0;
   const pct = total > 0 ? Math.min(100, Math.round((mod.score / total) * 100)) : 0;
   const verdient = total > 0 && mod.mastered === total;

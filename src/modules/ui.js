@@ -1,7 +1,7 @@
 // src/modules/ui.js
 import { persist, freshData, clearStorage } from './storage.js';
 import { effectivePct, statKeyFor, wortScore } from './stats.js';
-import { syncMirrorFromActiveDeck, deckProgress, presetProgressPct, renderDecks, renderModeSubBy, migrateStatKeys, migrateDeckModes, deckMode, activeDeckIdForMode, createDeck, deleteDeck, tourAufgeklappt } from './decks.js';
+import { syncMirrorFromActiveDeck, deckProgress, presetProgressPct, renderDecks, renderModeSubBy, migrateStatKeys, migrateDeckModes, deckMode, activeDeckIdForMode, createDeck, deleteDeck, tourAufgeklappt, _modusZeile } from './decks.js';
 import { getPresetCategories } from './vocab.js';
 import { releaseMicStream, stopVisualizer, voskStop, speakWord } from './speech.js';
 import { signIn, signUp, signOut, resendConfirmation, requestPasswordReset, updatePassword, signInWithGoogle } from './auth.js';
@@ -542,30 +542,21 @@ function _trainDeckCardHtml(deck) {
         ${_uvFormChipsHtml((f) => `onclick="uvTrainChooseForms('${id}','${f}')"`)}
       </div>`
     : '';
-  // Karte nach 5.3: Name, „N Verben · Formen", Taler-Chip, Prozent und Chevron,
-  // Balken in Flieder; offen die drei Disziplinen und die drei Aktionen.
+  // Karte wie die Vokabelsammlungen (Wunsch des Nutzers 15.10.2026, „1 zu 1 wie die
+  // Vorlagendecks“; vorher 5.3 mit Symbol-Kacheln und Trennlinie): Name, „N Verben ·
+  // Formen“ (ohne Datum, sonst zwei Zeilen), Taler-Chip, Prozent und Chevron, Balken; offen die drei
+  // Disziplinen als farbige Modus-Zeilen (Erkennen blau wie Vokabeln, Rechtschreibung
+  // flieder, Aussprache rosa) und Statistik / Zurücksetzen / Löschen.
   const ts = UV_TRACK_STYLE[_uvTrack(deck)];
   const talerChip = talerEarned === 3
     ? `<span class="p-chip p-chip--gold p-chip--icon">${iconHTML('coin', 14)}3/3 Taler</span>`
     : `<span class="p-chip p-chip--unverdient p-chip--icon">${iconHTML('coinOff', 14)}${talerEarned}/3 Taler</span>`;
-  const disziplin = (name, icon, ton, p, disc) => {
-    const t = p.total || 0;
-    const dp = t > 0 ? Math.min(100, Math.round((p.score / t) * 100)) : 0;
-    const chip = t > 0 && p.mastered === t
-      ? `<span class="p-chip p-chip--gold p-chip--icon">${iconHTML('coin', 14)}+1 Taler</span>`
-      : `<span class="p-chip p-chip--unverdient p-chip--icon">${iconHTML('coinOff', 14)}+1 Taler</span>`;
-    return `<button class="tp-disz" onclick="startUvTraining('${id}','${disc}')">
-      <span class="tp-disz-kopf"><span class="tp-disz-kachel" style="background:${ton}">${iconHTML(icon, 28)}</span>
-        <span class="tp-disz-name">${name}</span><span class="tp-disz-pct">${dp}%</span></span>
-      <span class="p-balken tp-disz-balken"><i style="width:${dp}%"></i></span>
-      <span class="tp-disz-fuss"><span>${p.mastered}/${t} gemeistert</span>${chip}</span>
-    </button>`;
-  };
-  return `<div class="tp-deck${open ? ' is-offen' : ''}" data-deck-id="${window.escHtml(id)}">
-    <div class="tp-deck-kopf" onclick="uvTrainToggleDeck('${id}')">
+  const zeile = (disc, klasse, p) => _modusZeile(TP_DISZ[disc].name, p, klasse, `startUvTraining('${id}','${disc}')`);
+  return `<div class="p-sammlung tp-deck${open ? ' is-offen' : ''}" data-deck-id="${window.escHtml(id)}">
+    <div class="p-sammlung-kopf tp-deck-kopf" onclick="uvTrainToggleDeck('${id}')">
       <div class="p-wachs">
-        <div class="tp-deck-name">${window.escHtml(deck.name)}</div>
-        <div class="tp-deck-meta">${(deck.vocab || []).length} Verben · ${ts.label}</div>
+        <div class="p-sammlung-name">${window.escHtml(deck.name)}</div>
+        <div class="p-sammlung-meta">${(deck.vocab || []).length} Verben · ${ts.label}</div>
         <div class="p-sammlung-chips">${talerChip}</div>
       </div>
       <div class="p-sammlung-rechts">
@@ -573,17 +564,17 @@ function _trainDeckCardHtml(deck) {
         <div class="p-chevron">${iconHTML('chevron', 14)}${iconHTML('chevronUpLight', 14)}</div>
       </div>
     </div>
-    <div class="p-balken tp-deck-balken"><i style="width:${pct}%"></i></div>
-    ${open ? `<div class="tp-deck-offen">
-      ${formsChips}
-      ${disziplin(TP_DISZ.erkennen.name, TP_DISZ.erkennen.icon, 'var(--p-blau)', per[0], 'erkennen')}
-      ${disziplin(TP_DISZ.schmieden.name, TP_DISZ.schmieden.icon, 'var(--p-pfirsich)', per[1], 'schmieden')}
-      ${disziplin(TP_DISZ.verzaubern.name, TP_DISZ.verzaubern.icon, 'var(--p-lila)', per[2], 'verzaubern')}
-      <div class="tp-aktionen">
-        <button class="tp-aktion" onclick="uvTrainOpenStats('${id}')">${iconHTML('chart', 14)}Statistik</button>
-        <button class="tp-aktion" onclick="uvTrainReset('${id}')">${iconHTML('refresh', 14)}Zurücksetzen</button>
-        <button class="tp-aktion tp-aktion--gefahr" onclick="uvTrainDelete('${id}')">${iconHTML('trash', 14)}Löschen</button>
-      </div>
+    <div class="p-balken"><i style="width:${pct}%"></i></div>
+    ${open ? `${formsChips}
+    <div class="p-modi">
+      ${zeile('erkennen', 'vokabeln', per[0])}
+      ${zeile('schmieden', 'rechtschreibung', per[1])}
+      ${zeile('verzaubern', 'aussprache', per[2])}
+    </div>
+    <div class="p-aktionen">
+      <button class="p-aktion" onclick="uvTrainOpenStats('${id}')">Statistik</button>
+      <button class="p-aktion" onclick="uvTrainReset('${id}')">Zurücksetzen</button>
+      <button class="p-aktion p-aktion--gefahr" onclick="uvTrainDelete('${id}')">Löschen</button>
     </div>` : ''}
   </div>`;
 }

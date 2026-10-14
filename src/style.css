@@ -3354,46 +3354,11 @@ button.p-chip{ cursor:pointer; }
   font:900 13px var(--p-font); color:var(--p-ink); cursor:pointer;
 }
 .tp-leer{ text-align:center; padding:10px 0 2px; }
-/* Deck-Karte (5.3). */
-.tp-deck{ margin-top:12px; border:var(--p-rahmen); border-radius:24px; background:var(--p-karte); padding:14px; }
-.tp-deck-kopf{ display:flex; align-items:flex-start; gap:10px; cursor:pointer; }
-.tp-deck-name{ font:900 17px var(--p-font); color:var(--p-ink); }
-.tp-deck-meta{ font:700 11px var(--p-font); color:var(--p-text-2); margin-top:2px; }
-.tp-deck .p-chip{ border-radius:11px; }
-.tp-deck.is-offen > .tp-deck-kopf .p-chevron{ background:var(--p-ink); }
-.tp-deck.is-offen > .tp-deck-kopf .p-chevron [data-icon="chevron"]{ display:none; }
-.tp-deck.is-offen > .tp-deck-kopf .p-chevron [data-icon="chevronUpLight"]{ display:block; }
-.tp-deck-balken{ margin-top:9px; }
-.tp-deck-balken > i{ background:var(--p-lila); }
-.tp-deck-offen{
-  display:flex; flex-direction:column; gap:9px;
-  border-top:var(--p-trenner); margin-top:13px; padding-top:13px;
-}
-/* Disziplin-Zeile: Kachel + Name + Prozent, Balken in Tinte, darunter Taler. */
-.tp-disz{
-  display:block; width:100%; text-align:left; cursor:pointer;
-  border:var(--p-rahmen); border-radius:18px; background:var(--p-karte-hell); padding:12px 13px;
-  font-family:var(--p-font); color:var(--p-ink);
-}
-.tp-disz-kopf{ display:flex; align-items:center; gap:10px; }
-.tp-disz-kachel{
-  width:40px; height:40px; flex:none; border:var(--p-rahmen); border-radius:16px;
-  display:flex; align-items:center; justify-content:center;
-}
-.tp-disz-name{ flex:1; min-width:0; font:900 14px var(--p-font); }
-.tp-disz-pct{ font:900 16px var(--p-font); }
-.tp-disz-balken{ display:block; height:11px; border-radius:7px; margin-top:9px; }
-.tp-disz-balken > i{ background:var(--p-ink); }
-.tp-disz-fuss{ display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:8px; }
-.tp-disz-fuss > span:first-child{ font:700 10px var(--p-font); color:var(--p-text-3); }
-.tp-disz .p-chip{ border-radius:11px; }
-.tp-aktionen{ display:flex; gap:8px; margin-top:3px; }
-.tp-aktion{
-  flex:1; height:48px; display:flex; align-items:center; justify-content:center; gap:6px;
-  border:var(--p-rahmen); border-radius:15px; background:var(--p-karte);
-  font:800 11px var(--p-font); color:var(--p-ink); cursor:pointer;
-}
-.tp-aktion--gefahr{ background:var(--p-falsch); }
+/* Deck-Karte wie die Vokabelsammlungen (.p-sammlung, Wunsch des Nutzers 15.10.2026;
+   vorher 5.3 mit Symbol-Kacheln). Nach einem Reset stehen die Formen-Kacheln über
+   den Modus-Zeilen. */
+.tp-neu + .tp-deck{ margin-top:11px; }
+.tp-deck .uv-form-choice{ margin-top:12px; }
 /* Formen-Wahl (5.4): drei gleich breite Kacheln 40 + Rahmen, die gewählte flieder. */
 .uv-form-choice{ display:flex; gap:6px; margin-top:6px; }
 .uv-form-chip, .uv-form-chip.past, .uv-form-chip.pp, .uv-form-chip.both{
