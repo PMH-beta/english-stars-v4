@@ -740,6 +740,13 @@ body.in-game .mode-progress{display:block;}
    position:absolute HINTER Kopfzeile/Aufgabe/Spielfeld, die im normalen
    Fluss darüber liegen (siehe campaign-fight.js _renderOverlay). */
 .cf-scenery{position:absolute;inset:0;overflow:hidden;z-index:1;}
+/* Am PC (Wunsch des Nutzers 15.10.2026): der Kampfplatz ist so breit wie die App-Spalte
+   der anderen Screens (768), nicht wie das ganze Fenster — links und rechts dunkler Grund.
+   Abweichung von D.1 („breiter = mehr Landschaft“) nur über 800 px Fensterbreite. */
+@media (min-width:800px){
+  #cf-overlay{ background:var(--p-ink) !important; }
+  #cf-overlay .cf-scenery{ left:50%; right:auto; width:768px; translate:-50% 0; }
+}
 /* Kampfplatz (Update 1, D.1): fertiges Bild 2560 × 720, fest im Maßstab 2, unten
    mittig — nie cover/contain, nie Prozent. Breiter oder höher = mehr Landschaft. */
 .cf-kulisse{
