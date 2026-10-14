@@ -15,7 +15,7 @@ import { getConstellations, forgeObject, objektName } from './irregular-verbs.js
 import { starLit, SLOTS_PER_FORM } from './irregular-game.js';
 import { stageHTMLFor, petSVG, ensureAvatar } from './avatar.js';
 import { paintStages, petHoloHTML } from './hero.js';
-import { itemTag, itemHoloHTML } from './world.js';
+import { itemTag, itemHoloHTML, wieseTag } from './world.js';
 import { persist } from './storage.js';
 import { markDirty } from './sync.js';
 import { commitDirty } from './dialog.js';
@@ -478,7 +478,7 @@ export function renderEquipmentPanel() {
     <div class="pf-abschnitt">${iconHTML('shield', 28)}<span class="pf-abschnitt-titel">Ausrüstung</span><span class="pf-abschnitt-linie"></span></div>
     <div class="pf-puppe">
       <div class="pf-spalte">${PD_LEFT.map(k => _slotTile(c, k)).join('')}</div>
-      <div class="pf-buehne">${stageHTMLFor(window.SD, gear, 3)}</div>
+      <div class="pf-buehne">${wieseTag()}${stageHTMLFor(window.SD, gear, 3)}</div>
       <div class="pf-spalte">${PD_RIGHT.map(k => _slotTile(c, k)).join('')}</div>
     </div>
     ${_statsHtml(c)}
@@ -488,7 +488,7 @@ export function renderEquipmentPanel() {
   // (nur ganzzahlig, Regel 6).
   const buehne = host.querySelector('.pf-buehne');
   const cv = buehne && buehne.querySelector('canvas');
-  if (cv && buehne.clientWidth && cv.offsetWidth > buehne.clientWidth) buehne.innerHTML = stageHTMLFor(window.SD, gear, 2);
+  if (cv && buehne.clientWidth && cv.offsetWidth > buehne.clientWidth) buehne.innerHTML = wieseTag() + stageHTMLFor(window.SD, gear, 2);
   paintStages(host);   // Bühne und schillernde Bilder (Fach, Tasche, Karte): Bild 0 sofort
 
   const auswahl = host.querySelector('.pf-auswahl');
