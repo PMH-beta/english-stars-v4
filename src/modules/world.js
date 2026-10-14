@@ -76,7 +76,7 @@ export function itemHoloHTML(type, which, scale = 2) {
 // schillernder Rand — etwas kräftiger als beim Tier, weil die Fläche keine eigene
 // Farbe hat. Gilt überall, wo der goldene Gefährte als Gegenstand steht.
 const _schillert = (type, mat) => type === 'gefaehrte' && mat === 'pp';
-const HOLO_DING = { ton: 0.16, band: 0.28, bandTon: 0.55, rand: 0.45, randTon: 0.6 };
+const HOLO_DING = { ton: 0.16, band: 0.28, bandTon: 0.55, rand: 0.45, randTon: 0.6, funkeln: false };   // Funkeln nur beim Tier
 const _rgb = (c) => [1, 3, 5].map((k) => parseInt(c.slice(k, k + 2), 16));
 const _hell = ([r, g, b]) => (0.299 * r + 0.587 * g + 0.114 * b) / 255;
 const _misch = (a, b, t) => '#' + a.map((v, k) => Math.round(v + (b[k] - v) * t).toString(16).padStart(2, '0')).join('');
@@ -131,11 +131,15 @@ export function forgeTag(type, which, fertig, bild = 0, scale = null) {
   const mat = material(which);
   const s = Math.max(1, Math.round(scale ?? forgeScale(type)));
   const zu = partStates(fertig);
-  // Ein fertiges oder unbegonnenes Werkstück steht still — nur der Glühzustand
-  // und der schillernde Gefährte haben mehrere Bilder.
+  // Ein unbegonnenes Werkstück steht still — der Glühzustand und der schillernde
+  // Gefährte haben mehrere Bilder. Ein fertiges glänzt alle 4 s einmal auf (Bilder
+  // 0–3 von 16 des Schmiede-Takts, sonst still; nicht bei „Bewegung reduzieren“).
   const f = zu.includes('n') || _schillert(type, mat) ? (bild % PART_ANIM.frames) : 0;
-  return _hole(`fp:${type}:${mat}:${zu}:${f}:${s}`, () => {
-    const b = werkstueckBild(type, mat, zu, f);
+  const g = zu === 'bbbbb' && !_schillert(type, mat) && !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    ? bild % (PART_ANIM.frames * 4) : -1;
+  const glanz = g >= 0 && g < PART_ANIM.frames ? g : -1;
+  return _hole(`fp:${type}:${mat}:${zu}:${f}:${glanz}:${s}`, () => {
+    const b = werkstueckBild(type, mat, zu, f, true, glanz);
     return b ? _tag(_leinwand(b, s)) : null;
   });
 }
@@ -155,8 +159,44 @@ const GLUT_RAND = [null, '#FF9A3A', '#FFD86A', '#FF9A3A'];
 const FUNKEN = [[], [0, 1, 6], [2, 3, 4, 5], [6, 7, 0]];   // welche Orte je Bild
 const _mischRgb = (a, b, t) => a.map((v, k) => v + (b[k] - v) * t);
 const _alsHex = (a) => '#' + a.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
-/** Werkstück als {w, h, col}: Teile-Zustände aus dem Modul, glühendes Teil kräftig. zuschneiden = wie itemPartsCanvasTrimmed. */
-export function werkstueckBild(type, mat, zu, f, zuschneiden = true) {
+// Fertiges Werkstück (Wunsch des Nutzers 14.10.2026: „sichtbar, dass es fertig
+// ist, nicht übertrieben“): ein heller Glanz läuft in vier Bildern schräg über die
+// Fläche wie über poliertes Metall; die Kontur bleibt.
+const GLANZ_LICHT = _rgb('#FFF8E6');
+function _glanzBand(col, w, box, g) {
+  const von = box.x + box.y - 3, bis = box.x + box.w + box.y + box.h + 3;
+  const mitte = von + (bis - von) * (g + 0.5) / PART_ANIM.frames;
+  for (let i = 0; i < col.length; i++) {
+    const c = col[i];
+    if (!c || c.length !== 7) continue;
+    const x = i % w, y = (i / w) | 0, u = Math.abs(x + y - mitte) / 3.5;
+    if (u >= 1) continue;
+    const rgb = _rgb(c);
+    if (_hell(rgb) < 0.3) continue;                                       // Kontur bleibt
+    col[i] = _alsHex(_mischRgb(rgb, GLANZ_LICHT, 0.62 * (0.5 + 0.5 * Math.cos(Math.PI * u))));
+  }
+  // dazu ein kleiner Funke rechts oben: Bild 1 und 3 ein Pixel, Bild 2 ein Kreuz
+  const gr = [0, 1, 2, 1][g];
+  if (!gr) return;
+  let x1 = -1, y0 = 1e9;
+  for (let i = 0; i < col.length; i++) if (col[i]) { const x = i % w, y = (i / w) | 0; if (x > x1) x1 = x; if (y < y0) y0 = y; }
+  const frei = (x, y) => x >= box.x && y >= box.y && x < box.x + box.w && y < box.y + box.h && !col[y * w + x];
+  let ort = null, bd = 1e9;
+  for (let y = box.y + 1; y < box.y + box.h - 1; y++) for (let x = box.x + 1; x < box.x + box.w - 1; x++) {
+    let ok = true, nah = false;
+    for (let dy = -1; dy <= 1 && ok; dy++) for (let dx = -1; dx <= 1; dx++) if (!frei(x + dx, y + dy)) { ok = false; break; }
+    if (!ok) continue;
+    for (let dy = -2; dy <= 2 && !nah; dy++) for (let dx = -2; dx <= 2; dx++) { const X = x + dx, Y = y + dy; if (X >= 0 && Y >= 0 && X < w && col[Y * w + X]) { nah = true; break; } }
+    const d = (x - x1 - 1) ** 2 + (y - y0 - 1) ** 2;
+    if (nah && d < bd) { bd = d; ort = [x, y]; }
+  }
+  if (!ort) return;
+  const [fx, fy] = ort;
+  col[fy * w + fx] = gr === 2 ? '#ffffff' : '#ffe9a8';
+  if (gr === 2) for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) col[(fy + dy) * w + fx + dx] = '#ffd86a';
+}
+/** Werkstück als {w, h, col}: Teile-Zustände aus dem Modul, glühendes Teil kräftig. zuschneiden = wie itemPartsCanvasTrimmed; glanz 0–3 = Glanz über das fertige Stück. */
+export function werkstueckBild(type, mat, zu, f, zuschneiden = true, glanz = -1) {
   const gs = _gold(type, mat);
   const roh = gs ? composeParts(gs.img, gs.pm, zu, f) : itemPartsImage(type, mat, zu, f);
   if (!roh) return null;
@@ -202,6 +242,7 @@ export function werkstueckBild(type, mat, zu, f, zuschneiden = true) {
       for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (frei(x + dx, y + dy)) col[(y + dy) * w + x + dx] = '#FFC23A';
     }
   }
+  if (glanz >= 0) _glanzBand(col, w, box, glanz);
   const bild = { w, h, col };
   return zuschneiden ? cropImage(bild, box) : bild;
 }

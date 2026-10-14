@@ -175,7 +175,7 @@ function _fuss({ w, h, col }) {
 // Vier Schritte im Takt des Atmens. Kontur = die dunklen Farben am Außenrand des
 // Tiers (je Tier und Fellfarbe andere), deshalb bleibt auch dunkles Fell Fell.
 // Die Pixeldaten des Moduls bleiben unverändert — eingefärbt wird nur das Bild.
-const HOLO = { ton: 0.06, satt: 0.9, hell: 0.6, zyklus: 1.6, band: 0.25, bandTon: 0.5, bandBreite: 9, rand: 0.55, randTon: 0.6, kontur: 0.2 };
+const HOLO = { ton: 0.06, satt: 0.9, hell: 0.6, zyklus: 1.6, band: 0.25, bandTon: 0.5, bandBreite: 9, rand: 0.55, randTon: 0.6, kontur: 0.2, funkeln: true };
 const _hx = (c) => [parseInt(c.slice(1, 3), 16) / 255, parseInt(c.slice(3, 5), 16) / 255, parseInt(c.slice(5, 7), 16) / 255];
 const _lum = ([r, g, b]) => 0.299 * r + 0.587 * g + 0.114 * b;
 const _hex2 = (v) => Math.max(0, Math.min(255, Math.round(v * 255))).toString(16).padStart(2, '0');
@@ -218,12 +218,12 @@ function _holoMasken({ w, h, col }) {
       if (X >= 0 && Y >= 0 && X < w && Y < h && silh[Y * w + X] && art[Y * w + X] === 2) { randFell[i] = 1; break; }
     }
   }
-  return { art, silh, randFell };
+  return { art, silh, randFell, aussen };
 }
 /** Bild (w, h, col) im Holo-Schritt p (0–3); opt ändert die Stärken (Perlmutt-Gegenstand). */
 export function holoBild(img, p, opt) {
   const P = opt ? { ...HOLO, ...opt } : HOLO;
-  const { w, h } = img, col = img.col.slice(), { art, silh, randFell } = _holoMasken(img);
+  const { w, h } = img, col = img.col.slice(), { art, silh, randFell, aussen } = _holoMasken(img);
   const diag = w + h, bandPos = ((p % 4) + 0.5) / 4 * diag * 1.2 - diag * 0.1;
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
     const i = y * w + x, a = art[i];
@@ -240,7 +240,39 @@ export function holoBild(img, p, opt) {
     if (randFell[i]) o = o.map((v, k) => _screen(v + C[k] * P.randTon * L, 1 + (H[k] - 1) * 0.5, P.rand * (1 - L)));
     col[i] = _hexOf(o.map((v) => Math.max(0, Math.min(1, v))));
   }
+  if (P.funkeln) _funkenOrte(img, aussen, art).forEach(([x, y], k) => {
+    const g = _FUNKEN[p % 4][k];
+    if (!g) return;
+    const hell = _hexOf(_hsl(360 * ((x - y + h) / diag * P.zyklus) + p * 90 + 200, 0.95, 0.7));   // kräftig genug für den hellen Grund
+    col[y * w + x] = g === 2 ? '#ffffff' : hell;
+    if (g === 2) for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) col[(y + dy) * w + x + dx] = hell;
+  });
   return { w, h, col };
+}
+// Leichtes Funkeln ums Tier (Wunsch des Nutzers 14.10.2026, „ganz leichtes Glänzen
+// drumherum“): zwei Funken knapp außerhalb der Kontur — rechts oben und rechts
+// weiter unten, weg von der Figur, die auf der Bühne und im Kampf links steht —
+// wechseln sich ab: 2 = Kreuz (weiß, Arme im Regenbogen), 1 = ein Pixel, 0 = aus.
+// Nur in freie Pixel mit freiem Rand, nie aufs Tier oder den Schatten.
+const _FUNKEN = [[2, 0], [1, 1], [0, 2], [1, 1]];
+function _funkenOrte({ w, h, col }, aussen, art) {
+  let y0 = h, x1 = -1, y1 = -1;
+  for (let i = 0; i < w * h; i++) if (art[i]) { const x = i % w, y = (i / w) | 0; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  if (x1 < 0) return [];
+  const frei = (x, y) => x >= 0 && y >= 0 && x < w && y < h && aussen[y * w + x] && !col[y * w + x];
+  const tier = (x, y) => x >= 0 && y >= 0 && x < w && y < h && art[y * w + x];
+  return [[x1 + 1, y0 + 2], [x1 + 1, y0 + Math.round((y1 - y0) * 0.62)]].map(([tx, ty]) => {
+    let best = null, bd = 1e9;
+    for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
+      let ok = true, nah = false;
+      for (let dy = -1; dy <= 1 && ok; dy++) for (let dx = -1; dx <= 1; dx++) if (!frei(x + dx, y + dy)) { ok = false; break; }
+      if (!ok) continue;
+      for (let dy = -2; dy <= 2 && !nah; dy++) for (let dx = -2; dx <= 2; dx++) if (tier(x + dx, y + dy)) { nah = true; break; }
+      const d = (x - tx) ** 2 + (y - ty) ** 2;
+      if (nah && d < bd) { bd = d; best = [x, y]; }
+    }
+    return best;
+  }).filter(Boolean);
 }
 /** Schillerndes Bild als <canvas data-ui="idle"> (4 Holo-Schritte) im Maßstab scale. */
 export function holoHTML(key, img, scale, opt) {

@@ -1314,7 +1314,8 @@ const _forgeTpl = document.createElement('template');
 function _forgeTick() {
   const werke = document.querySelectorAll('.fw-werk[data-werk]');
   if (!werke.length) { clearInterval(_forgeTimer); _forgeTimer = null; return; }
-  _forgeBild = (_forgeBild + 1) % PART_ANIM.frames;
+  // 16 Bilder: das Glühen nutzt davon je 4 (bild % 4), der Glanz fertiger Werkstücke 4 von 16 (world.js).
+  _forgeBild = (_forgeBild + 1) % (PART_ANIM.frames * 4);
   werke.forEach((el) => {
     // Optional ein vierter Wert: Maßstab (Befüllen-Kachel 5.12 zeigt 1×).
     const [type, which, fertig, scale] = el.dataset.werk.split(':');
@@ -1353,7 +1354,7 @@ function _forgeItem(m, which) {
   // Beschriftung wie 5.1: Pixel-Symbol + Name in Versalien (CSS).
   const DISZ_ICON = { erkennen: 'target', schmieden: 'hammer', verzaubern: 'wand' };
   let label, pct, showPct = true;
-  if (done) { label = `${ob.name} fertig`; pct = 100; showPct = false; }
+  if (done) { label = iconHTML('check', 14) + `${ob.name} fertig`; pct = 100; showPct = false; }
   else if (nextI >= 0) {
     const s = steps[nextI], fs = FORGE_DISC[s.discipline] || { name: s.discipline };
     pct = s.prog && s.prog.total ? Math.min(100, Math.round((s.prog.score / s.prog.total) * 100)) : 0;
