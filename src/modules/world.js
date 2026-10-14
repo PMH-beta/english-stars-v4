@@ -206,8 +206,11 @@ export function werkstueckBild(type, mat, zu, f, zuschneiden = true, glanz = -1)
   const istN = (i) => pm[i] >= 0 && zu[pm[i]] === 'n';
   if (_schillert(type, mat)) {
     const istB = (i) => pm[i] >= 0 && zu[pm[i]] === 'b';
-    const holo = holoBild(_perlmutt({ w, h, col }, istB), f, HOLO_DING).col;
-    col = col.map((v, i) => (istB(i) ? holo[i] : v));
+    // Fertig funkelt er wie das Tier (Wunsch des Nutzers 14.10.2026, Reiter „Formen“) —
+    // nur im Zuschnitt-Rahmen; beim Schmieden nicht, da sprühen die Schmiede-Funken.
+    const fertig = zu === 'bbbbb';
+    const holo = holoBild(_perlmutt({ w, h, col }, istB), f, fertig ? { ...HOLO_DING, funkeln: true, rahmen: box } : HOLO_DING).col;
+    col = col.map((v, i) => (istB(i) || (fertig && !v && holo[i]) ? holo[i] : v));
   }
   let x0 = w, y0 = h, x1 = -1, y1 = -1;
   for (let i = 0; i < w * h; i++) {

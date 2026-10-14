@@ -240,7 +240,7 @@ export function holoBild(img, p, opt) {
     if (randFell[i]) o = o.map((v, k) => _screen(v + C[k] * P.randTon * L, 1 + (H[k] - 1) * 0.5, P.rand * (1 - L)));
     col[i] = _hexOf(o.map((v) => Math.max(0, Math.min(1, v))));
   }
-  if (P.funkeln) _funkenOrte(img, aussen, art).forEach(([x, y], k) => {
+  if (P.funkeln) _funkenOrte(img, aussen, art, P.rahmen).forEach(([x, y], k) => {
     const g = _FUNKEN[p % 4][k];
     if (!g) return;
     const hell = _hexOf(_hsl(360 * ((x - y + h) / diag * P.zyklus) + p * 90 + 200, 0.95, 0.7));   // kräftig genug für den hellen Grund
@@ -253,13 +253,15 @@ export function holoBild(img, p, opt) {
 // drumherum“): zwei Funken knapp außerhalb der Kontur — rechts oben und rechts
 // weiter unten, weg von der Figur, die auf der Bühne und im Kampf links steht —
 // wechseln sich ab: 2 = Kreuz (weiß, Arme im Regenbogen), 1 = ein Pixel, 0 = aus.
-// Nur in freie Pixel mit freiem Rand, nie aufs Tier oder den Schatten.
+// Nur in freie Pixel mit freiem Rand, nie aufs Tier oder den Schatten. rahmen =
+// erlaubte Fläche {x, y, w, h}, wenn das Bild danach zugeschnitten wird (Schmiede).
 const _FUNKEN = [[2, 0], [1, 1], [0, 2], [1, 1]];
-function _funkenOrte({ w, h, col }, aussen, art) {
+function _funkenOrte({ w, h, col }, aussen, art, rahmen) {
   let y0 = h, x1 = -1, y1 = -1;
   for (let i = 0; i < w * h; i++) if (art[i]) { const x = i % w, y = (i / w) | 0; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
   if (x1 < 0) return [];
-  const frei = (x, y) => x >= 0 && y >= 0 && x < w && y < h && aussen[y * w + x] && !col[y * w + x];
+  const R = rahmen || { x: 0, y: 0, w, h };
+  const frei = (x, y) => x >= R.x && y >= R.y && x < R.x + R.w && y < R.y + R.h && x < w && y < h && aussen[y * w + x] && !col[y * w + x];
   const tier = (x, y) => x >= 0 && y >= 0 && x < w && y < h && art[y * w + x];
   return [[x1 + 1, y0 + 2], [x1 + 1, y0 + Math.round((y1 - y0) * 0.62)]].map(([tx, ty]) => {
     let best = null, bd = 1e9;
