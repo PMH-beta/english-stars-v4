@@ -10,7 +10,7 @@
 // Tränke (💎 Schatz): 3 zufällige zur Wahl, run-gebunden (run.potions), im
 // Kampf spielbar — Definitionen hier, Kampf-Logik in campaign-fight.js.
 
-import { HP_MAX, FIST_DMG, WEAPON_BASE_DMG, WEAPON_GOLD_BONUS, EQUIP_EFFECT, TALISMAN_MULT, RING_POTION_BONUS, COMPANION_GUARDS, WEAPON_PERK, PERK_SCHWERT_DMG, PERK_DOLCH_DODGE, PERK_SPEER_BOSS, PERK_AXT_ELITE, PERK_HAMMER_MULT, PERK_STAB_MS, PERK_BOGEN_FIGHT, PERK_KOLBEN_GUARD, POTION_CHOICES, POTION_HEAL, POTION_POWER, POTION_TIME_MS, POTION_TIME_WAVES } from './campaign-balance.js';
+import { HP_MAX, FIST_DMG, WEAPON_BASE_DMG, WEAPON_GOLD_BONUS, EQUIP_EFFECT, TALISMAN_MULT, TALISMAN_MULT_GOLD, RING_POTION_BONUS, RING_POTION_BONUS_GOLD, COMPANION_GUARDS, WEAPON_PERK, PERK_SCHWERT_DMG, PERK_DOLCH_DODGE, PERK_SPEER_BOSS, PERK_AXT_ELITE, PERK_HAMMER_MULT, PERK_STAB_MS, PERK_BOGEN_FIGHT, PERK_KOLBEN_GUARD, POTION_CHOICES, POTION_HEAL, POTION_POWER, POTION_TIME_MS, POTION_TIME_WAVES } from './campaign-balance.js';
 import { getConstellations, forgeObject, objektName } from './irregular-verbs.js';
 import { starLit, SLOTS_PER_FORM } from './irregular-game.js';
 import { stageHTMLFor, petSVG, ensureAvatar } from './avatar.js';
@@ -30,7 +30,7 @@ export const SLOTS = {
   body:      { icon: '🛡️', px: 'shield', name: 'Rüstung',     kurz: 'Rüstung',  mehrzahl: 'Rüstungen',  desc: 'mehr Leben' },
   arms:      { icon: '🧤', px: 'glove',  name: 'Handschuhe',  kurz: 'Handsch.', mehrzahl: 'Handschuhe', desc: 'mehr Zeit pro Minispiel' },
   legs:      { icon: '🥾', px: 'boots',  name: 'Stiefel',     kurz: 'Stiefel',  mehrzahl: 'Stiefel',    desc: 'Chance auszuweichen' },
-  talisman:  { icon: '🧿', px: 'orb',    name: 'Talisman',    kurz: 'Talisman', mehrzahl: 'Talismane',  desc: '+50 % Schaden an Formen-Knoten' },
+  talisman:  { icon: '🧿', px: 'orb',    name: 'Talisman',    kurz: 'Talisman', mehrzahl: 'Talismane',  desc: `+${Math.round((TALISMAN_MULT - 1) * 100)} % Schaden an Formen-Knoten (Gold +${Math.round((TALISMAN_MULT_GOLD - 1) * 100)} %)` },
   ring1:     { icon: '💍', px: 'ring',   name: 'Ring',        kurz: 'Ring',     mehrzahl: 'Ringe',      desc: 'mehr Trank-Auswahl am Schatz' },
   companion: { icon: '🐾', px: 'paw',    name: 'Gefährte',    kurz: 'Gefährte', mehrzahl: 'Gefährten',  desc: 'fängt Fehlgriffe pro Kampf ab' },
 };
@@ -70,13 +70,13 @@ export function objectInfoRows(type, which, fertig) {
     if (ob.slot === 'body') return `+${_equipVal('body', it)} Leben`;
     if (ob.slot === 'arms') return `+${_equipVal('arms', it) / 1000} s Zeit`;
     if (ob.slot === 'legs') return `+${Math.round(_equipVal('legs', it) * 100)} % Ausweichen`;
-    if (ob.slot === 'talisman') return `+${Math.round((TALISMAN_MULT - 1) * 100)} % Schaden an Formen-Knoten`;
-    if (ob.slot === 'ring') return `+${RING_POTION_BONUS} Trank zur Wahl`;
+    if (ob.slot === 'talisman') return _formenText(w === 'pp' ? TALISMAN_MULT_GOLD : TALISMAN_MULT);
+    if (ob.slot === 'ring') return _trankText(w === 'pp' ? RING_POTION_BONUS_GOLD : RING_POTION_BONUS);
     if (ob.slot === 'companion') return `fängt ${COMPANION_GUARDS[w === 'past' ? 'stahl' : 'gold']} Fehler pro Kampf`;
     return '';
   };
   const rows = [{ px: SLOTS[slotKey]?.px || 'star', label: 'Wirkung', wert: wert(which), sub: bald }];
-  if (!gold && wert('pp') !== wert('past')) rows.push({ px: 'coin', label: type === 'gefaehrte' ? objektName(type, 'pp') : 'Gold-Fassung', wert: wert('pp'), sub: 'mit dem Past Participle' });
+  if (!gold && wert('pp') !== wert('past')) rows.push({ px: 'coin', label: ['gefaehrte', 'talisman', 'ring'].includes(type) ? objektName(type, 'pp') : 'Gold-Fassung', wert: wert('pp'), sub: 'mit dem Past Participle' });
   return rows;
 }
 // Fach eines Objekt-Typs (Waffe oder Rüstungsteil) — wie forgeObject().slot.
@@ -166,20 +166,29 @@ function _equipVal(slot, it) {
   const e = EQUIP_EFFECT[slot];
   return e[it.which === 'past' ? 'stahl' : 'gold'] + (it.tier === 'verzaubert' ? e.verzaubert : 0);
 }
+// Talisman und Ring nach Material (F-100): Sonnen-Talisman und Kronenring wirken
+// stärker als die Silber-Versionen.
+const _taliMult = (it) => (it.which === 'pp' ? TALISMAN_MULT_GOLD : TALISMAN_MULT);
+const _ringBonus = (it) => (it.which === 'pp' ? RING_POTION_BONUS_GOLD : RING_POTION_BONUS);
+const _formenText = (mult) => `+${Math.round((mult - 1) * 100)} % Schaden an Formen-Knoten`;
+const _trankText = (n) => `+${n} ${n === 1 ? 'Trank' : 'Tränke'} zur Wahl`;
 function _effectsOf(equipment) {
   const get = (k) => {
     const it = _itemById(equipment[k]);
     return (it && it.slot === (SLOT_TYPE[k] || k)) ? it : null;
   };
-  const eff = { hpBonus: 0, timeBonusMs: 0, dodge: 0, headGuards: 0, talisman: false, companionGuards: 0, potionBonus: 0 };
+  const eff = { hpBonus: 0, timeBonusMs: 0, dodge: 0, headGuards: 0, talisman: false, talismanMult: 1, companionGuards: 0, potionBonus: 0 };
   const head = get('head'); if (head) eff.headGuards = _equipVal('head', head);
   const body = get('body'); if (body) eff.hpBonus = _equipVal('body', body);
   const arms = get('arms'); if (arms) eff.timeBonusMs = _equipVal('arms', arms);
   const legs = get('legs'); if (legs) eff.dodge = _equipVal('legs', legs);
-  eff.talisman = !!get('talisman');
+  const tali = get('talisman');
+  eff.talisman = !!tali;
+  if (tali) eff.talismanMult = _taliMult(tali);
   const comp = get('companion');
   if (comp) eff.companionGuards = COMPANION_GUARDS[comp.which === 'past' ? 'stahl' : 'gold'] || 0;
-  if (get('ring1')) eff.potionBonus += RING_POTION_BONUS;
+  const ring = get('ring1');
+  if (ring) eff.potionBonus += _ringBonus(ring);
   // Waffen-Typ-Vorteile, die wie Ausrüstung wirken (Dolch/Stab/Streitkolben).
   const w = _weaponOf(equipment);
   if (w.type === 'dolch') eff.dodge += PERK_DOLCH_DODGE;
@@ -333,8 +342,7 @@ const STAT_DEFS = [
   { key: 'time',     px: 'glove',  label: 'Extra-Zeit', fmt: v => '+' + v + ' s' },
   { key: 'dodge',    px: 'boots',  label: 'Ausweichen', fmt: v => v + ' %' },
   { key: 'potion',   px: 'potion', label: 'Tränke',     fmt: v => String(v) },
-  { key: 'talisman', px: 'orb',    label: 'Formen',     fmt: v => v ? '+' + Math.round((TALISMAN_MULT - 1) * 100) + ' %' : '—',
-    delta: d => d * Math.round((TALISMAN_MULT - 1) * 100) },
+  { key: 'talisman', px: 'orb',    label: 'Formen',     fmt: v => v ? '+' + v + ' %' : '—' },   // Wert in % (Silber 50, Gold 75)
   { key: 'comp',     px: 'paw',    label: 'Gefährte',   fmt: v => v ? v + '×' : '—' },
 ];
 function _statVals(equipment) {
@@ -347,7 +355,7 @@ function _statVals(equipment) {
     time:     eff.timeBonusMs / 1000,
     dodge:    Math.round(eff.dodge * 100),
     potion:   POTION_CHOICES + eff.potionBonus,
-    talisman: eff.talisman ? 1 : 0,
+    talisman: eff.talisman ? Math.round((eff.talismanMult - 1) * 100) : 0,
     comp:     eff.companionGuards,
   };
 }
@@ -399,8 +407,8 @@ function _itemBonuses(it) {
   if (it.slot === 'body') return [{ px: 'heart', text: `+${_equipVal('body', it)} Leben` }];
   if (it.slot === 'arms') return [{ px: 'glove', text: `+${_equipVal('arms', it) / 1000} s Zeit` }];
   if (it.slot === 'legs') return [{ px: 'boots', text: `+${Math.round(_equipVal('legs', it) * 100)} % Ausweichen` }];
-  if (it.slot === 'talisman') return [{ px: 'orb', text: `+${Math.round((TALISMAN_MULT - 1) * 100)} % Schaden an Formen-Knoten` }];
-  if (it.slot === 'ring') return [{ px: 'potion', text: `+${RING_POTION_BONUS} Trank zur Wahl` }];
+  if (it.slot === 'talisman') return [{ px: 'orb', text: _formenText(_taliMult(it)) }];
+  if (it.slot === 'ring') return [{ px: 'potion', text: _trankText(_ringBonus(it)) }];
   if (it.slot === 'companion') return [{ px: 'paw', text: `fängt ${COMPANION_GUARDS[it.which === 'past' ? 'stahl' : 'gold']} Fehler pro Kampf` }];
   return [];
 }

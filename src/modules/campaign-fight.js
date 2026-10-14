@@ -925,7 +925,7 @@ function _heroDmg(teile = 1) {
   const hammer = weapon.type === 'hammer' && f.wave === 1;
   if (hammer) dmg *= PERK_HAMMER_MULT;
   const tali = node.type === 'irregular' && eff.talisman;
-  if (tali) dmg = Math.round(dmg * TALISMAN_MULT);
+  if (tali) dmg = Math.round(dmg * (eff.talismanMult || TALISMAN_MULT));   // Sonnen-Talisman stärker (F-100)
   if (teile > 1) dmg = Math.ceil(dmg / teile);
   return { dmg, html: '−' + dmg + (bonus ? iconHTML('star', 14) : '') + (hammer ? iconHTML('hammer', 14) : '') + (tali ? iconHTML('orb', 14) : '') };
 }

@@ -126,8 +126,10 @@ export const EQUIP_EFFECT = {
   arms: { stahl: 2000, gold: 3000, verzaubert: 2000 },   // Zeitbonus je Minispiel (ms)
   legs: { stahl: 0.08, gold: 0.14, verzaubert: 0.06 },   // Ausweich-Chance
 };
-export const TALISMAN_MULT = 1.5;          // Waffenschaden ×1.5 an 🌀-Knoten
-export const RING_POTION_BONUS = 1;        // 💍 je Ring: +1 Trank-Auswahl am 💎 (3→4→5)
+export const TALISMAN_MULT = 1.5;          // Waffenschaden ×1.5 an 🌀-Knoten (Silber-Talisman)
+export const TALISMAN_MULT_GOLD = 1.75;    // Sonnen-Talisman ×1.75 — Gold wirkt stärker (F-100)
+export const RING_POTION_BONUS = 1;        // 💍 Silber-Ring: +1 Trank-Auswahl am 💎 (3→4)
+export const RING_POTION_BONUS_GOLD = 2;   // Kronenring: +2 (3→5, F-100)
 // 🐾 gefangene Fehlgriffe pro Kampf — nach Material (Gold besser als Stahl).
 export const COMPANION_GUARDS = { stahl: 1, gold: 2 };
 

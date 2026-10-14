@@ -13,11 +13,12 @@
 
 import {
   itemSprite, spriteToCanvas, decodeSprite,
-  itemPartsCanvasTrimmed, itemPartsImage, itemBounds, cropImage, partMap,
+  itemPartsCanvasTrimmed, itemPartsImage, itemBounds, cropImage, partMap, composeParts,
   partStates, PART_ANIM, PART_NAMES, FORGE_PANEL,
   ARENAS, CAMPFIRE, CAMPFIRE_FRAMES, CAMPFIRE_FPS,
 } from './pixel-world-fine.js';
 import { holoHTML, holoBild } from './hero.js';
+import { goldSchmuck } from './schmuck-gold.js';
 
 export { PART_NAMES, PART_ANIM, FORGE_PANEL, CAMPFIRE_FRAMES, CAMPFIRE_FPS, partStates };
 
@@ -54,6 +55,8 @@ export const material = (which) => (which === 'pp' ? 'pp' : 'past');
 export function itemTag(type, which, scale = 2) {
   const mat = material(which), s = Math.max(1, Math.round(scale));
   return _hole(`it:${type}:${mat}:${s}`, () => {
+    const gs = _gold(type, mat);
+    if (gs) return _tag(_leinwand(gs.img, s));
     const sp = itemSprite(type, mat);
     if (sp && _schillert(type, mat)) return _tag(_leinwand(holoBild(_perlmutt(decodeSprite(sp)), 0, HOLO_DING), s));
     return sp ? _tag(spriteToCanvas(sp, s)) : null;
@@ -87,6 +90,24 @@ function _perlmutt(img, nur = null) {
     col[i] = L < 0.3 ? _misch(...PERL_KONTUR, L / 0.3) : _misch(...PERL, Math.min(1, (L - 0.3) / 0.55));
   }
   return { w: img.w, h: img.h, col };
+}
+// Sonnen-Talisman und Kronenring (F-99): eigene, stärkere Gold-Bilder aus
+// schmuck-gold.js statt der Gold-Sprites des Moduls — samt Teile-Karte für die
+// fünf Schmiede-Schritte. Silber bleibt das Modul-Bild.
+const _gold = (type, mat) => (mat === 'pp' ? goldSchmuck(type) : null);
+// Rahmen zum Zuschneiden wie itemBounds im Modul: Vereinigung über alle
+// Bauzustände und Glüh-Bilder, damit das Werkstück nie springt.
+const _goldRahmen = new Map();
+function _goldGrenzen(type, gs) {
+  if (_goldRahmen.has(type)) return _goldRahmen.get(type);
+  let x0 = 1e9, y0 = 1e9, x1 = -1, y1 = -1;
+  for (const zu of ['ggggg', 'ngggg', 'bnggg', 'bbngg', 'bbbng', 'bbbbn', 'bbbbb']) for (let f = 0; f < PART_ANIM.frames; f++) {
+    const im = composeParts(gs.img, gs.pm, zu, f);
+    im.col.forEach((c, i) => { if (!c) return; const x = i % im.w, y = (i / im.w) | 0; if (x < x0) x0 = x; if (y < y0) y0 = y; if (x > x1) x1 = x; if (y > y1) y1 = y; });
+  }
+  const box = { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 };
+  _goldRahmen.set(type, box);
+  return box;
 }
 // Bild {w, h, col} ganzzahlig vergrößert auf eine Leinwand.
 function _leinwand(img, s) {
@@ -136,9 +157,11 @@ const _mischRgb = (a, b, t) => a.map((v, k) => v + (b[k] - v) * t);
 const _alsHex = (a) => '#' + a.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
 /** Werkstück als {w, h, col}: Teile-Zustände aus dem Modul, glühendes Teil kräftig. zuschneiden = wie itemPartsCanvasTrimmed. */
 export function werkstueckBild(type, mat, zu, f, zuschneiden = true) {
-  const roh = itemPartsImage(type, mat, zu, f);
+  const gs = _gold(type, mat);
+  const roh = gs ? composeParts(gs.img, gs.pm, zu, f) : itemPartsImage(type, mat, zu, f);
   if (!roh) return null;
-  const { w, h } = roh, pm = partMap(type), box = itemBounds(type, mat) || { x: 0, y: 0, w, h };
+  const { w, h } = roh, pm = gs ? gs.pm : partMap(type);
+  const box = gs ? _goldGrenzen(type, gs) : (itemBounds(type, mat) || { x: 0, y: 0, w, h });
   let col = roh.col.slice();
   const istN = (i) => pm[i] >= 0 && zu[pm[i]] === 'n';
   if (_schillert(type, mat)) {

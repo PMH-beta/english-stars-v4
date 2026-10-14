@@ -221,11 +221,12 @@ export const FORGE_OBJECTS = [
 ];
 // Anzeigename eines Objekts in einer Form (Stahl = Simple Past, Gold = Past
 // Participle). Wo „Stahl" nicht passt, eigene Namen (Wunsch des Nutzers
-// 14.10.2026): Ring und Talisman Silber/Gold, der Gefährte „Gefährte" bzw.
-// „Schillernder Gefährte" (der goldene hat Holo-Fell, hero.js).
+// 14.10.2026): Ring und Talisman Silber bzw. in der stärkeren Gold-Gestaltung
+// „Sonnen-Talisman" und „Kronenring" (F-99, Bilder in schmuck-gold.js), der
+// Gefährte „Gefährte" bzw. „Schillernder Gefährte" (der goldene hat Holo-Fell, hero.js).
 const _OBJEKT_NAMEN = {
-  ring:      { past: 'Silber-Ring',     pp: 'Gold-Ring' },
-  talisman:  { past: 'Silber-Talisman', pp: 'Gold-Talisman' },
+  ring:      { past: 'Silber-Ring',     pp: 'Kronenring' },
+  talisman:  { past: 'Silber-Talisman', pp: 'Sonnen-Talisman' },
   gefaehrte: { past: 'Gefährte',        pp: 'Schillernder Gefährte' },
 };
 export function objektName(type, which) {
