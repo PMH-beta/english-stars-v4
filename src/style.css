@@ -4023,22 +4023,10 @@ body.p-app .music-vol-btn{ bottom:calc(88px + env(safe-area-inset-bottom,0px)); 
 .pf-wert-lbl{ font:800 11px var(--p-font); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
 .pf-wert-zahl{ font:900 12px var(--p-font); white-space:nowrap; flex:none; }
 /* Vergleich (Wunsch des Nutzers 15.10.2026): der aktuelle Wert bleibt rechts, wo er
-   ist; links davon Pixel-Pfeil hoch (besser) bzw. runter (schlechter) und der neue
-   Wert groß ←. Beim Antippen springt der neue Wert kurz auf, beim Anlegen zählt der
-   aktuelle Wert hoch und sprüht Funken (campaign-equipment.js). */
+   ist; links davon der neue Wert groß ← (Zeile mint = besser, rosa = schlechter).
+   Ohne Pfeile hoch/runter und ohne Animation — die Werte ändern sich einfach. */
 .pf-wert-vorschau{ font:900 14px var(--p-font); white-space:nowrap; flex:none; }
 .pf-wert-pfeil{ font:800 10px var(--p-font); color:var(--p-text-2); flex:none; margin:0 -1px; }
-.pf-wert-zahl.is-neu{ position:relative; }
-.pf-wert-richtung{ flex:none; margin-right:-2px; }
-/* Schmale Handys: ohne Pfeil, sonst wird die Bezeichnung abgeschnitten (Farbe reicht). */
-@media (max-width:359px){ .pf-wert-richtung{ display:none; } }
-.pf-wert-zahl.is-auf, .pf-wert-vorschau.is-auf{ animation:pf-wert-auf .34s ease-out; }
-@keyframes pf-wert-auf{ 0%{ scale:1; } 40%{ scale:1.35; } 100%{ scale:1; } }
-.pf-wert-funke{
-  position:absolute; right:22px; top:10px; width:4px; height:4px; z-index:2; pointer-events:none;
-  animation:pf-wert-funke .55s ease-out forwards;
-}
-@keyframes pf-wert-funke{ from{ translate:0 0; opacity:1; } to{ translate:var(--dx) var(--dy); opacity:0; } }
 
 /* Tasche: alle Teile des angewählten Fachs, 6 je Zeile. */
 .pf-tasche-kopf{ display:flex; align-items:center; justify-content:space-between; gap:7px; margin-top:14px; }

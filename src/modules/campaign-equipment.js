@@ -373,18 +373,15 @@ let _vorherWerte = null;
 // Vergleich (Wunsch des Nutzers 15.10.2026): Ist in der Tasche ein Teil angewählt,
 // das NICHT getragen wird, zeigen die Tabellen, was sich gegenüber der aktuellen
 // Ausrüstung ändern würde — nichts wird angelegt. Der aktuelle Wert bleibt rechts
-// an seinem Platz stehen, links davon steht der neue Wert in Farbe mit Pfeil
+// an seinem Platz stehen, links davon steht der neue Wert in Farbe mit „←“
 // (spiegelverkehrt zu „alt → neu“, damit keine Zahl springt). Das getragene Teil
-// selbst zeigt keinen Vergleich.
+// selbst zeigt keinen Vergleich. Ohne Pfeile hoch/runter und ohne Animation —
+// die Werte ändern sich einfach (Wunsch des Nutzers, später am 15.10.2026).
 const _slotKeyOf = (it) => (it.slot === 'ring' ? 'ring1' : it.slot);
 function _vorschauWerte(c) {
   const it = _selectedItem();
   return it && !_wornKeyOf(c, it) ? _statVals({ ...c.equipment, [_slotKeyOf(it)]: it.id }) : null;
 }
-
-// Nach dem Rendern: 'auf' = die neuen Werte der Vorschau springen kurz auf,
-// 'zaehlen' = die aktuellen Werte zählen vom alten Wert hoch und sprühen Funken.
-let _effekt = null;
 
 function _statsHtml(c) {
   const cur = _statVals(c.equipment);
@@ -393,20 +390,17 @@ function _statsHtml(c) {
     const a = cur[d.key];
     const o = _vorherWerte ? _vorherWerte[d.key] : a;
     const v = vorschau ? vorschau[d.key] : a;
-    let cls = '', links = '', zahl = `<span class="pf-wert-zahl">${d.fmt(a)}</span>`;
+    let cls = '', links = '';
     if (v !== a) {
-      // Vorschau: Pfeil + neuer Wert in Farbe ← aktueller Wert (bleibt, wo er ist).
-      const besser = v > a;
-      cls = besser ? ' is-plus' : ' is-minus';
-      links = `${iconHTML(besser ? 'chevronUp' : 'chevron', 14, { cls: 'pf-wert-richtung' })}`
-        + `<span class="pf-wert-vorschau">${d.fmt(v)}</span><span class="pf-wert-pfeil">←</span>`;
+      // Vorschau: neuer Wert in Farbe ← aktueller Wert (bleibt, wo er ist).
+      cls = v > a ? ' is-plus' : ' is-minus';
+      links = `<span class="pf-wert-vorschau">${d.fmt(v)}</span><span class="pf-wert-pfeil">←</span>`;
     } else if (o !== a) {
-      // Gerade angelegt bzw. abgelegt: die Zeile leuchtet, die Zahl zählt hoch.
+      // Gerade angelegt bzw. abgelegt: die Zeile leuchtet.
       cls = a > o ? ' is-plus' : ' is-minus';
-      zahl = `<span class="pf-wert-zahl is-neu" data-key="${d.key}" data-von="${o}" data-bis="${a}">${d.fmt(a)}</span>`;
     }
     return `<div class="pf-wert${cls}">${iconHTML(d.px, 14)}<span class="pf-wert-lbl">${d.label}</span>`
-      + `<span class="p-wachs"></span>${links}${zahl}</div>`;
+      + `<span class="p-wachs"></span>${links}<span class="pf-wert-zahl">${d.fmt(a)}</span></div>`;
   });
   const half = Math.ceil(tiles.length / 2);
   return `<div class="pf-werte"><div class="pf-werte-tabelle">${tiles.slice(0, half).join('')}</div>`
@@ -527,51 +521,11 @@ export function renderEquipmentPanel() {
     auswahl.style.minHeight = _auswahlHoehe + 'px';
   } else _auswahlHoehe = 0;
 
-  const effekt = _effekt; _effekt = null;
-  if (effekt) _werteEffekt(host, effekt);
-
   if (!host._pdWired) {
     host._pdWired = true;
     host.addEventListener('click', _onPanelClick);
     host.addEventListener('pointerdown', _onPointerDown);
   }
-}
-
-// Geänderte Werte beleben (Wunsch des Nutzers 15.10.2026, „motivierend, nicht wie
-// eine Statistik“): 'auf' = kurz aufspringen; 'zaehlen' = vom alten Wert hochzählen
-// (bzw. runter), dann aufspringen und Pixel-Funken sprühen. Nicht bei „Bewegung
-// reduzieren“.
-function _werteEffekt(host, art) {
-  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
-  const auf = (z) => { z.classList.remove('is-auf'); void z.offsetWidth; z.classList.add('is-auf'); };
-  if (art === 'auf') { host.querySelectorAll('.pf-wert-vorschau').forEach(auf); return; }
-  const zahlen = [...host.querySelectorAll('.pf-wert-zahl.is-neu')];
-  zahlen.forEach((z, i) => {
-    const d = STAT_DEFS.find((x) => x.key === z.dataset.key);
-    const von = +z.dataset.von, bis = +z.dataset.bis;
-    const stellen = Number.isInteger(von) && Number.isInteger(bis) ? 0 : 1;
-    const DAUER = 650, t0 = performance.now() + i * 120;
-    const bild = (jetzt) => {
-      if (!z.isConnected) return;
-      const t = Math.max(0, Math.min(1, (jetzt - t0) / DAUER));
-      const v = von + (bis - von) * (1 - Math.pow(1 - t, 3));
-      z.textContent = d.fmt(t < 1 ? +v.toFixed(stellen) : bis);
-      if (t < 1) { requestAnimationFrame(bild); return; }
-      auf(z);
-      const zeile = z.closest('.pf-wert');
-      for (let k = 0; k < 6; k++) {
-        const f = document.createElement('i');
-        f.className = 'pf-wert-funke';
-        f.style.background = bis > von ? (k % 2 ? 'var(--p-gold)' : 'var(--p-richtig)') : 'var(--p-falsch-stark)';
-        f.style.setProperty('--dx', Math.round((Math.random() - 0.5) * 30) + 'px');
-        f.style.setProperty('--dy', -Math.round(6 + Math.random() * 14) + 'px');
-        f.addEventListener('animationend', () => f.remove());
-        zeile.appendChild(f);
-      }
-    };
-    z.textContent = d.fmt(von);
-    requestAnimationFrame(bild);
-  });
 }
 
 // Nach dem Antippen eines Fachs Tasche und Teil-Karte (mit „Anlegen“/„Ablegen“)
@@ -626,9 +580,8 @@ function _onPanelClick(e) {
     if (wornKey) c.equipment[wornKey] = wornKey === 'weapon' ? 'none' : null;
     else _equipInto(c, it);
     _save();
-    // Angelegt: die Werte zählen hoch. Abgelegt: ebenso (runter); das Teil bleibt
-    // angewählt und links steht wieder, was das Anlegen brächte.
-    _effekt = 'zaehlen';
+    // Das Teil bleibt angewählt; nach dem Ablegen steht links wieder, was das
+    // Anlegen brächte.
     renderEquipmentPanel();
     return;
   }
@@ -642,7 +595,6 @@ function _onPanelClick(e) {
     if (!it) return;
     _selId = it.id;
     _vorherWerte = null;
-    _effekt = 'auf';
     renderEquipmentPanel();
     return;
   }
@@ -768,7 +720,6 @@ function _onPointerUp(e) {
   _selSlot = s.dataset.slot;   // Ziel-Slot bleibt offen → Tasche bleibt sichtbar
   _selId = d.it.id;            // angelegtes Item bleibt angewählt → Werte bleiben sichtbar
   _save();
-  _effekt = 'zaehlen';
   renderEquipmentPanel();
 }
 
