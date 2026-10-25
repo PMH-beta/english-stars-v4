@@ -91,6 +91,22 @@ async function fetchWithRetry(fn) {
   return await fn();
 }
 
+// PostgREST liefert höchstens 1000 Zeilen pro Abfrage (Supabase „Max rows") — ohne
+// Seiten fehlten ab der 1001. Zeile still Wortstände. Die Wörter fingen lokal bei 0
+// an, und der nächste Upload überschrieb damit den echten Cloud-Stand.
+// build() baut die Abfrage samt eindeutiger Sortierung (stabile Seiten). Fehler auf
+// irgendeiner Seite → { data: null, error } wie bei einer einzelnen Abfrage.
+const PAGE_ROWS = 1000;
+async function _selectAll(build) {
+  const rows = [];
+  for (let from = 0; ; from += PAGE_ROWS) {
+    const res = await fetchWithRetry(() => build().range(from, from + PAGE_ROWS - 1));
+    if (res.error) return { data: null, error: res.error };
+    rows.push(...(res.data || []));
+    if (!res.data || res.data.length < PAGE_ROWS) return { data: rows, error: null };
+  }
+}
+
 const LOAD_TIMEOUT_MS = 5000;   // pro Versuch
 const LOAD_RETRIES    = 2;      // Versuche bevor 'failed'
 
@@ -120,8 +136,8 @@ async function _cloudLoadOnce(userId) {
   const [profileRes, decksRes, wordStatsRes, presetStatsRes, presetCatProgRes, probetestsRes] = await Promise.all([
     fetchWithRetry(() => supabase.from('profiles').select('player_name, highscore, total_points, active_deck_id, active_mode, uv_active, uv_fills, avatar, campaign, updated_at').eq('id', userId).maybeSingle()),
     fetchWithRetry(() => supabase.from('decks').select('*').eq('user_id', userId).order('sort_order').order('created_at')),
-    fetchWithRetry(() => supabase.from('word_stats').select('*').eq('user_id', userId)),
-    fetchWithRetry(() => supabase.from('preset_stats').select('*').eq('user_id', userId)),
+    _selectAll(() => supabase.from('word_stats').select('*').eq('user_id', userId).order('deck_id').order('stat_key')),
+    _selectAll(() => supabase.from('preset_stats').select('*').eq('user_id', userId).order('stat_key')),
     fetchWithRetry(() => supabase.from('preset_category_progress').select('*').eq('user_id', userId)),
     fetchWithRetry(() => supabase.from('probetests').select('*').eq('user_id', userId).order('taken_at', { ascending: false }).limit(50)),
   ]);
@@ -451,8 +467,8 @@ export async function saveGlobalPresetStats(stats, userId) {
   // (eingeschmolzene Schmiede-Aufträge, uvTestForge-Reste, fehlgeschlagene
   // Delete-Aufrufe) ewig in der Cloud liegen — die Freund-Ansicht liest NUR die
   // Cloud und zeigt sonst längst gelöschten Fortschritt als „fertig".
-  const { data: cloudKeys, error: keyErr } = await fetchWithRetry(() => supabase
-    .from('preset_stats').select('stat_key').eq('user_id', userId));
+  const { data: cloudKeys, error: keyErr } = await _selectAll(() => supabase
+    .from('preset_stats').select('stat_key').eq('user_id', userId).order('stat_key'));
   if (!keyErr && Array.isArray(cloudKeys)) {
     const localKeys = new Set(Object.keys(stats.wordStats || {}));
     const extra = cloudKeys.map(r => r.stat_key).filter(k => !localKeys.has(k));
