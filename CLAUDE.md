@@ -34,7 +34,11 @@ Google angewiesen sein — E-Mail-Weg muss immer Alternative bleiben.
   Ansage anfassen — kein automatisches Mitpflegen.
 
 ## Werkzeuge (selbstständig nutzen, wenn es passt)
-Skills liegen lokal in `.claude/skills/` (gitignored, nur Windows-Rechner).
+Skills liegen lokal in `.claude/skills/` (gitignored, je Rechner einrichten).
+**Sagt der Nutzer „ich arbeite am Linux-Rechner“ oder fehlt
+`.claude/skills/app-im-browser-pruefen/`: sofort `claude-skills/EINRICHTEN.md`
+abarbeiten**, danach Neustart von Claude Code erbitten. Eigene Skills
+immer in `claude-skills/` ändern (Quelle) und nach `.claude/skills/` kopieren.
 - Sichtbare Änderung an Screens/Spielen → danach selbst prüfen mit
   Skill `app-im-browser-pruefen` (Playwright-MCP, Supabase gesperrt).
 - Gespeicherte Daten/Felder/Migration → vor dem Bauen `speicherfeld-pruefen`.
