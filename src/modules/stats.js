@@ -23,8 +23,20 @@ export function isStatMastered(s) {
   return !!s && Math.floor(s.asked || 0) >= MASTERY_MIN_ATTEMPTS && effectivePct(s) >= MASTERY_THRESHOLD;
 }
 
+// Ablage der Stats eines Vorlage-Worts. Trainingsplatz-Runde (window._uvTrain): die
+// Verb-Stats liegen im Trainings-Deck selbst (deck.wordStats → word_stats) — eigener
+// Stand je Deck (Wunsch 28.10.2026). Sonst global (SD.globalPresetStats).
+export function presetStatStore(presetId) {
+  const tr = window._uvTrain;
+  if (tr && presetId === 'irregular-verbs') {
+    const deck = window.SD?.decks?.[tr.deckId];
+    if (deck) return deck.wordStats || (deck.wordStats = {});
+  }
+  return window.SD?.globalPresetStats?.wordStats;
+}
+
 export function isMastered(q) {
-  const store = q._presetId ? window.SD?.globalPresetStats?.wordStats : window.SD.wordStats;
+  const store = q._presetId ? presetStatStore(q._presetId) : window.SD.wordStats;
   return isStatMastered(store?.[q.statKey]);
 }
 

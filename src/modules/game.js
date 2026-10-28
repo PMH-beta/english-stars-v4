@@ -1,6 +1,6 @@
 // src/modules/game.js
 import { QPERROUND, EXAM_QUESTIONS, calcGrade, gradeText, UV_LVL } from './config.js';
-import { effectivePct, isMastered, statKeyFor, getVocabStat, SP_TEILE, spWort, spKurz, spellingStand, wortScore } from './stats.js';
+import { effectivePct, isMastered, statKeyFor, getVocabStat, SP_TEILE, spWort, spKurz, spellingStand, wortScore, presetStatStore } from './stats.js';
 import { activeDeck, syncMirrorFromActiveDeck } from './decks.js';
 import { showScreen, showMenu, hideFeedback, showFeedback, TP_DISZ } from './ui.js';
 import { ensureMicStream, releaseMicStream, voskStop, stopVisualizer, speakWord, speakWordOnce, startVoskRecognition, startRecording, _shouldUseVosk, warmAudio, warmIosMic, micZustand, gehoert } from './speech.js';
@@ -186,7 +186,7 @@ function _uvFalsch(w){ return `<div class="uv-falsch">${window.escHtml(w)}</div>
 
 // Methodenstufe (1/2/3) aus dem vorhandenen EMA eines Suffix-Stats ableiten.
 function uvLevel(statKey){
-  const s=window.SD?.globalPresetStats?.wordStats?.[statKey];
+  const s=presetStatStore(IRREGULAR_PRESET_ID)?.[statKey];
   let lvl=1;
   if(s && Math.floor(s.asked||0)>=3){
     const ep=effectivePct(s);
@@ -433,7 +433,7 @@ function buildUVPool(m, limit){
       if(!v.forms) return;
       forms.forEach(w=>all.push(bDisc(v,w,disc,sufs[w])));
     });
-    const getS=q=>window.SD?.globalPresetStats?.wordStats?.[q.statKey];
+    const getS=q=>presetStatStore(IRREGULAR_PRESET_ID)?.[q.statKey];   // Stand des Trainings-Decks
     return weightedPickUnique(all, getS, limit);
   }
   // Slot-Runde (EIN Teil einer Waffe): window._uvStar = {which, slot, discipline, suf}.
@@ -1226,7 +1226,7 @@ function handlePronounceCorrect() { handleCorrect(); }
 // ── Stat Recording ──
 function recordStatSchnell(q) {
   if(!q||!q.statKey) return;
-  const store = q._presetId ? window.SD.globalPresetStats.wordStats : window.SD.wordStats;
+  const store = q._presetId ? presetStatStore(q._presetId) : window.SD.wordStats;
   if(!store[q.statKey]) store[q.statKey]={asked:0,correct:0,wrong:0};
   const s=store[q.statKey];
   if(Math.floor(s.asked)<3){s.asked=3;s.correct=3;}
@@ -1240,7 +1240,7 @@ function recordStatSchnell(q) {
 function recordStat(q, ok) {
   if(!q||!q.statKey) return;
   const inc=window.isRetryPhase?0.5:1;
-  const store = q._presetId ? window.SD.globalPresetStats.wordStats : window.SD.wordStats;
+  const store = q._presetId ? presetStatStore(q._presetId) : window.SD.wordStats;
   if(!store[q.statKey]) store[q.statKey]={asked:0,correct:0,wrong:0,recent:''};
   const s=store[q.statKey];
   s.asked+=inc;
@@ -1525,7 +1525,10 @@ function saveProgress() {
     window.SD.totalPoints+=window.points;
     if(window.points>window.SD.highscore) window.SD.highscore=window.points;
     persist();
-    if(window.currentUser){ markDirty('global_preset'); markDirty('profile'); }
+    if(window.currentUser){
+      markDirty('global_preset'); markDirty('profile');
+      if(window._uvTrain) markDirty('word_stats', window._uvTrain.deckId);   // Stand liegt im Trainings-Deck
+    }
     return;
   }
   const deck = activeDeck();

@@ -7,7 +7,7 @@ import { persist } from './storage.js';
 //  UTILS
 // ────────────────────────────────────────────────
 
-function isUUID(str) {
+export function isUUID(str) {
   return typeof str === 'string' &&
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
 }
@@ -28,6 +28,7 @@ const EMPTY_CAT = {
 // handleLogout (false) — sonst nirgends getoggelt.
 let _cloudConfirmed = false;
 export function setCloudConfirmed(v) { _cloudConfirmed = !!v; }
+export function isCloudConfirmed() { return _cloudConfirmed; }
 
 // Sync-Signatur des zuletzt GELADENEN (oder selbst geschriebenen) Cloud-Stands.
 // Nur für den Minuten-Check „hat ein anderes Gerät geschrieben?" — reine Warnung,
@@ -399,8 +400,9 @@ export async function deleteCloudWordStats(deckId, userId) {
   if (!isUUID(deckId)) return;
   const { error } = await supabase
     .from('word_stats').delete().eq('deck_id', deckId).eq('user_id', userId);
-  if (error) console.error('[sync] deleteCloudWordStats:', error.message);
-  else console.log('[sync] deleteCloudWordStats OK:', deckId);
+  // Wirft bei Fehler — die Offline-Queue ('word_stats_delete') holt es dann nach.
+  if (error) throw new Error('[sync] deleteCloudWordStats: ' + error.message);
+  console.log('[sync] deleteCloudWordStats OK:', deckId);
 }
 
 export async function deleteCloudPresetStats(statKeys, presetIds, userId) {
@@ -623,6 +625,8 @@ export async function flushPendingSync() {
         await saveGlobalPresetStats(sd.globalPresetStats, userId);
       } else if (item.type === 'preset_delete' && item.keys?.length) {
         await deleteCloudPresetStats(item.keys, [], userId);
+      } else if (item.type === 'word_stats_delete' && item.deckId) {
+        await deleteCloudWordStats(item.deckId, userId);   // Trainings-Deck zurückgesetzt
       }
       // 'exam': wird direkt in saveExam() gespeichert, nicht via Queue
     } catch(e) {

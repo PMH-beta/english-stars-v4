@@ -84,9 +84,13 @@ export function uvFormPracticed(v, which, minAsked = 2) {
     const s = ws[statKeyFor(v.de, v.en, _slotSuf(which, i), IRREGULAR_PRESET_ID)];
     if (s && Math.floor(s.asked || 0) >= minAsked) return true;
   }
-  for (const disc in UV_TRAIN_SUF) {
-    const s = ws[statKeyFor(v.de, v.en, UV_TRAIN_SUF[disc][which], IRREGULAR_PRESET_ID)];
-    if (s && Math.floor(s.asked || 0) >= minAsked) return true;
+  // Trainingsplatz: der Stand liegt je Deck (deck.wordStats).
+  for (const deck of Object.values(window.SD?.decks || {})) {
+    if (deck.mode !== 'training' || !deck.wordStats) continue;
+    for (const disc in UV_TRAIN_SUF) {
+      const s = deck.wordStats[statKeyFor(v.de, v.en, UV_TRAIN_SUF[disc][which], IRREGULAR_PRESET_ID)];
+      if (s && Math.floor(s.asked || 0) >= minAsked) return true;
+    }
   }
   return false;
 }
@@ -104,8 +108,8 @@ function _itemScore(s) {
 
 // Fortschritt eines Slots als SCORE (Teilpunkte je Verb aus dem EMA) — EXAKT die
 // Rechnung wie der In-Game-Balken, damit Übersicht und Spiel denselben % zeigen.
-function _slotScore(verbs, suf) {
-  const ws = _ws(); let score = 0, mastered = 0;
+function _slotScore(verbs, suf, ws = _ws()) {
+  let score = 0, mastered = 0;
   for (const v of verbs) {
     const r = _itemScore(ws[statKeyFor(v.de, v.en, suf, IRREGULAR_PRESET_ID)]);
     score += r.score; if (r.mastered) mastered++;
@@ -215,7 +219,10 @@ export function uvTeilMeldung() {
 }
 
 // ── Trainingsplatz: eine Disziplin über ALLE Verben eines Trainings-Decks ────
-// (eigene _tr_-Stats — der Schmiede-Fortschritt bleibt unberührt).
+// (eigene _tr_-Stats — der Schmiede-Fortschritt bleibt unberührt). Seit 28.10.2026
+// liegen sie JE DECK in deck.wordStats (Cloud: word_stats mit deck_id), nicht mehr
+// global — ein neues Deck startet bei 0, Löschen/Zurücksetzen trifft nur dieses Deck.
+function _trWs(deck) { return (deck && deck.wordStats) || {}; }
 // Deck.vocab hält nur {de,en}; die Formen kommen aus IRREGULAR_VERBS (verbsByEns).
 // deck.uvForms steuert die geübten Formen: 'past' = nur Simple Past, 'pp' = nur
 // Past Participle, 'both' = beide, 'open' = nach Reset noch nicht gewählt,
@@ -260,9 +267,10 @@ export function uvTrainProgress(deck, disc) {
   const sufs = UV_TRAIN_SUF[disc];
   const forms = uvTrainForms(deck);
   const verbs = verbsByEns(((deck && deck.vocab) || []).map((v) => v.en));
+  const ws = _trWs(deck);
   let score = 0, mastered = 0, total = 0;
   for (const w of forms) {
-    const r = _slotScore(verbs, sufs[w]);
+    const r = _slotScore(verbs, sufs[w], ws);
     score += r.score; mastered += r.mastered; total += r.total;
   }
   return { score, mastered, total };
@@ -272,7 +280,7 @@ export function uvTrainProgress(deck, disc) {
 // (Teilpunkte, wie die Vokabel-Wortliste den Balken füllt) + gemeisterte Disziplinen
 // (Erkennen/Schmieden/Verzaubern) über die gewählten Formen je Verb als x/y-Text.
 export function uvTrainWords(deck) {
-  const ws = _ws();
+  const ws = _trWs(deck);
   const forms = uvTrainForms(deck);
   const verbs = verbsByEns(((deck && deck.vocab) || []).map((v) => v.en));
   const discs = Object.keys(FORGE_DISC);
@@ -290,44 +298,51 @@ export function uvTrainWords(deck) {
   });
 }
 
-// Ein Trainings-Deck fasst genau so viele Verben. Vorher waren 1–15 erlaubt.
-export const UV_TRAIN_SIZE = 10;
+// Ein Trainings-Deck braucht MINDESTENS so viele Verben, nach oben offen (Wunsch
+// 28.10.2026 — vorher genau 10). Weniger ginge zu leicht: jedes Deck bringt je
+// Disziplin einen Taler.
+export const UV_TRAIN_MIN = 10;
 
 /**
- * Bestehende Trainings-Decks auf UV_TRAIN_SIZE Verben kürzen.
+ * Einmal-Umstellung: Trainings-Stände von global (SD.globalPresetStats) in die
+ * Decks (deck.wordStats) kopieren — eigener Stand je Deck.
  *
- * Was dabei NICHT verloren geht:
- * - Taler: liegen in SD.campaign.claimed als deckId|disziplin und werden dort nur
- *   angehängt, nie entfernt (campaign.js refreshClaimedTaler). Ein einmal
- *   freigespielter Taler bleibt also, auch wenn das Deck kleiner wird.
- * - Fortschritt: die Verb-Stände hängen NICHT am Deck, sondern global pro Verb in
- *   SD.globalPresetStats (Schlüssel verb+suffix). Ein entferntes Verb behält seinen
- *   Stand — taucht es später in einem anderen Deck auf, ist er wieder da.
- * - Prozente: uvTrainProgress rechnet live über deck.vocab, passt sich also von
- *   selbst auf die 10 verbleibenden Verben an. Nichts umzurechnen.
+ * - Jedes Deck bekommt den bisherigen Stand seiner Verben × gewählten Formen.
+ *   Steckt ein Verb in zwei Decks, bekommen beide ihn (nichts geht verloren).
+ * - Decks im Zustand 'open' (nach Zurücksetzen) bekommen nichts — sie stehen auf 0.
+ * - Nur Decks von VOR der Umstellung: ein später neu angelegtes Deck startet bei 0,
+ *   auch wenn ein Gerät mit alter App-Version die globalen Keys zurückschreibt.
+ * - Schon vorhandene Deck-Stände werden nie überschrieben → beliebig oft ausführbar.
+ * - Die globalen _tr_-Keys löscht diese Funktion NICHT; das macht der Aufrufer erst,
+ *   wenn die Deck-Stände sicher in der Cloud sind (ui.js _uvTrainStatsUmziehen).
  *
- * Welche fliegen raus: die am wenigsten geübten. Der Nutzer sagte "egal welche" —
- * so bleibt aber das Geschaffte erhalten statt weggeworfen zu werden.
- * Decks mit 10 oder weniger Verben bleiben unangetastet (nicht aufgefüllt).
- *
- * Rückgabe: Ids der geänderten Decks (leer = nichts zu tun).
+ * Rückgabe: { decks: Ids der Decks mit neu kopierten Ständen, globalKeys: alle
+ * globalen _tr_-Keys (zum späteren Löschen) }.
  */
-export function migrateUvTrainSize(sd) {
+const _TR_GLOBAL = '|' + IRREGULAR_PRESET_ID + '_tr_';
+const _TR_JE_DECK_SEIT = Date.UTC(2026, 9, 29);   // 29.10.2026
+export function migrateUvTrainStats(sd) {
   sd = sd || window.SD;
-  const changed = [];
+  const gws = (sd && sd.globalPresetStats && sd.globalPresetStats.wordStats) || {};
+  const globalKeys = Object.keys(gws).filter((k) => k.includes(_TR_GLOBAL));
+  const decks = [];
+  if (!globalKeys.length) return { decks, globalKeys };
   for (const deck of Object.values((sd && sd.decks) || {})) {
-    if ((deck.mode || 'free') !== 'training') continue;
-    const vocab = deck.vocab || [];
-    if (vocab.length <= UV_TRAIN_SIZE) continue;
-    const score = new Map(uvTrainWords(deck).map((w) => [w.en, w.score]));
-    const keep = new Set([...vocab]
-      .sort((a, b) => (score.get(b.en) || 0) - (score.get(a.en) || 0))
-      .slice(0, UV_TRAIN_SIZE)
-      .map((v) => v.en));
-    deck.vocab = vocab.filter((v) => keep.has(v.en));   // Originalreihenfolge behalten
-    changed.push(deck.id);
+    if ((deck.mode || 'free') !== 'training' || deck.uvForms === 'open') continue;
+    if ((deck.createdAt || 0) >= _TR_JE_DECK_SEIT) continue;
+    if (!deck.wordStats) deck.wordStats = {};
+    let n = 0;
+    for (const v of verbsByEns((deck.vocab || []).map((x) => x.en))) {
+      for (const disc in UV_TRAIN_SUF) {
+        for (const w of uvTrainForms(deck)) {
+          const key = statKeyFor(v.de, v.en, UV_TRAIN_SUF[disc][w], IRREGULAR_PRESET_ID);
+          if (gws[key] && !deck.wordStats[key]) { deck.wordStats[key] = { ...gws[key] }; n++; }
+        }
+      }
+    }
+    if (n) decks.push(deck.id);
   }
-  return changed;
+  return { decks, globalKeys };
 }
 
 // ── Live-Fortschritt im Spiel (progressForCurrentMode in game.js) ────────────
@@ -338,8 +353,9 @@ export function uvProgress() {
   if (tr && UV_TRAIN_SUF[tr.disc]) {   // Trainingsplatz: die gewählten Formen der Disziplin
     const sufs = UV_TRAIN_SUF[tr.disc];
     let score = 0, mastered = 0, total = 0;
+    const ws = _trWs(window.SD?.decks?.[tr.deckId]);   // Stand des Trainings-Decks
     for (const w of (tr.forms || ['past', 'pp'])) {
-      const r = _slotScore(verbs, sufs[w]);
+      const r = _slotScore(verbs, sufs[w], ws);
       score += r.score; mastered += r.mastered; total += r.total;
     }
     return { score, mastered, total };

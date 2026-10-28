@@ -269,12 +269,10 @@ export function verbsByEns(ens) {
   return (ens || []).map((en) => _byEn.get(en)).filter(Boolean);
 }
 
-// ALLE Verben (fürs Trainings-Deck frei wählbar), sortiert wie uvAvailableVerbs.
+// ALLE Verben (fürs Trainings-Deck frei wählbar), alphabetisch nach englischer
+// Grundform (Wunsch 28.10.2026, vorher nach Stufe). Die Stufe steht als Badge dabei.
 export function allVerbsSorted() {
-  return IRREGULAR_VERBS
-    .map((v, i) => [v, i])
-    .sort((a, b) => (a[0].tier - b[0].tier) || (a[1] - b[1]))
-    .map(([v]) => v);
+  return IRREGULAR_VERBS.slice().sort((a, b) => a.en.localeCompare(b.en, 'en'));
 }
 
 // Aktuelle Befüllungen (en-Listen je Sternbild) aus dem Spielstand. Robust gegen

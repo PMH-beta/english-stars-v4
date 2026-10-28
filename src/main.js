@@ -9,7 +9,7 @@ import { buildPool, toggleSchnell, syncSchnellForMode, startGame, confirmHome, g
 import { syncMirrorFromActiveDeck, activeDeck, switchDeck, createDeck, deleteDeck, renameDeck, deckProgress, renderDecks, toggleDeck, activateDeck, startGameWithDeck, newDeckPrompt, renameDeckPrompt, confirmDeleteDeck, resetDeckProgress, vmDeleteWord, vmEditWord, vmAddManual, openDeckStats } from './modules/decks.js';
 import { charReiter, charOption, charSchritt, charFarbe } from './modules/avatar.js';
 import { tourAnsehen } from './modules/tour.js';
-import { showScreen, saveName, showMenu, showProfile, editPlayerName, showCharacter, showCharacterOnboarding, finishCharacterOnboarding, closeCharacter, charSpeichern, charNameBearbeiten, charZurSchmiede, showStats, showFriendStats, closeFriendStats, confirmReset, showFeedback, hideFeedback, exportData, importData, showAuth, authToggleMode, authSubmit, authResend, authLogout, authGoogleSignIn, handleLogin, handleLogout, showPasswordReset, submitPasswordReset, showNewPasswordScreen, submitNewPassword, cancelNewPassword, setActiveMode, renderModeContent, openProbetestPicker, toggleProbetestHistory, deleteProbetestEntry, uvFlip, uvSlide, uvSetForm, uvInfo, uvWaffenInfo, uvOpenFill, uvTestForge, uvTestForgeRandom, toggleUvTraining, uvTrainOpenCreate, uvTrainDelete, uvTrainToggleDeck, uvTrainChooseForms, uvTrainReset, uvTrainOpenStats, onAppResume, checkForRemoteChange, softRefresh } from './modules/ui.js';
+import { showScreen, saveName, showMenu, showProfile, editPlayerName, showCharacter, showCharacterOnboarding, finishCharacterOnboarding, closeCharacter, charSpeichern, charNameBearbeiten, charZurSchmiede, showStats, showFriendStats, closeFriendStats, confirmReset, showFeedback, hideFeedback, exportData, importData, showAuth, authToggleMode, authSubmit, authResend, authLogout, authGoogleSignIn, handleLogin, handleLogout, showPasswordReset, submitPasswordReset, showNewPasswordScreen, submitNewPassword, cancelNewPassword, setActiveMode, renderModeContent, openProbetestPicker, toggleProbetestHistory, deleteProbetestEntry, uvFlip, uvSlide, uvSetForm, uvInfo, uvWaffenInfo, uvOpenFill, uvTestForge, uvTestForgeRandom, toggleUvTraining, uvTrainOpenCreate, uvTrainDelete, uvTrainToggleDeck, uvTrainChooseForms, uvTrainReset, uvTrainOpenStats, uvTrainRename, onAppResume, checkForRemoteChange, softRefresh } from './modules/ui.js';
 import { pwaInstall } from './modules/pwa.js';
 import { startConstellationStar, startConstellationForm, startUvTraining, uvProgress, uvTeilMeldung } from './modules/irregular-game.js';
 import { openVocabManager, openPresetDeckStats, vmTab, renderVocabList, parsePastedText, onScanFile, showReview, renderReviewList, removeReviewItem, addReviewItem, rescanReview, confirmAddVocab, renderPresetsTab, togglePresetCategory, vmBack, vmRenameActiveDeck, newDeckFlow, newDeckPreset, newDeckCustom, confirmAbortDraft } from './modules/vocab.js';
@@ -187,6 +187,7 @@ window.uvTrainToggleDeck = uvTrainToggleDeck;
 window.uvTrainChooseForms = uvTrainChooseForms;
 window.uvTrainReset = uvTrainReset;
 window.uvTrainOpenStats = uvTrainOpenStats;
+window.uvTrainRename = uvTrainRename;
 window.startUvTraining = startUvTraining;
 window.showAuth = showAuth;
 window.authToggleMode = authToggleMode;

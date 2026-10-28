@@ -1,16 +1,16 @@
 // src/modules/ui.js
 import { persist, freshData, clearStorage } from './storage.js';
 import { effectivePct, statKeyFor, wortScore } from './stats.js';
-import { syncMirrorFromActiveDeck, deckProgress, presetProgressPct, renderDecks, renderModeSubBy, migrateStatKeys, migrateDeckModes, deckMode, activeDeckIdForMode, createDeck, deleteDeck, tourAufgeklappt, _modusZeile } from './decks.js';
+import { syncMirrorFromActiveDeck, deckProgress, presetProgressPct, renderDecks, renderModeSubBy, migrateStatKeys, migrateDeckModes, deckMode, activeDeckIdForMode, createDeck, deleteDeck, tourAufgeklappt, _modusZeile, renameDeck } from './decks.js';
 import { getPresetCategories } from './vocab.js';
 import { releaseMicStream, stopVisualizer, voskStop, speakWord } from './speech.js';
 import { signIn, signUp, signOut, resendConfirmation, requestPasswordReset, updatePassword, signInWithGoogle } from './auth.js';
-import { cloudLoad, cloudReset, saveDeck, saveWordStats, saveExam, markDirty, flushPendingSync, setCloudConfirmed, getPendingCount, setKnownSig, cloudChangedRemotely, queuePresetStatDelete, deleteProbetest } from './sync.js';
+import { cloudLoad, cloudReset, saveDeck, saveWordStats, saveExam, markDirty, flushPendingSync, setCloudConfirmed, getPendingCount, setKnownSig, cloudChangedRemotely, queuePresetStatDelete, deleteProbetest, isUUID, isCloudConfirmed } from './sync.js';
 import { commitDirty } from './dialog.js';
 import { setGrundton, clearGrundton } from './screen-shell.js';
 import { weichUmbauen } from './klapp-anim.js';
 import { iconHTML } from './pixel-icons.js';
-import { uvMap, uvLernstand, constellationWords, FORGE_DISC, SLOTS_PER_FORM, uvTrainProgress, uvTrainForms, uvTrainWords, uvPruneOrphanSlotStats, UV_TRAIN_SIZE, migrateUvTrainSize } from './irregular-game.js';
+import { uvMap, uvLernstand, constellationWords, FORGE_DISC, SLOTS_PER_FORM, uvTrainProgress, uvTrainForms, uvTrainWords, uvPruneOrphanSlotStats, UV_TRAIN_MIN, migrateUvTrainStats } from './irregular-game.js';
 import { raumMalen } from './raum.js';
 import { renderAvatarInto, renderCharacter, resetCharacterFeature, setCharacterCompanion, stageHTMLFor, charEditorOeffnen, charEditorGeaendert, charEditorUebernehmen, charAenderungenFragen } from './avatar.js';
 import { paintStages } from './hero.js';
@@ -462,8 +462,8 @@ function renderStudentMode() {
 // Vokabeln: Erkennen · Rechtschreibung · Aussprache (TP_DISZ); die Schmiede behält
 // Erkennen · Schmieden · Verzaubern.
 // Achtung: mode 'training' (nicht 'student') — migrateDeckModes räumt 'student' weg.
-// Deckgröße: UV_TRAIN_SIZE (irregular-game.js), genau so viele Verben — nicht mehr
-// "bis zu 15". Bestehende Decks kürzt migrateUvTrainSize beim Login.
+// Deckgröße: mindestens UV_TRAIN_MIN (irregular-game.js), nach oben offen — weniger
+// nur als Rest-Deck (alle übrigen Verben des Topfs). Fortschritt je Deck in deck.wordStats.
 export const TP_DISZ = {
   erkennen:   { name: 'Erkennen',        icon: 'target' },
   schmieden:  { name: 'Rechtschreibung', icon: 'pencil' },
@@ -573,7 +573,7 @@ function _trainDeckCardHtml(deck) {
       ${zeile('verzaubern', 'aussprache', per[2])}
     </div>
     <div class="p-aktionen">
-      <button class="p-aktion" onclick="uvTrainOpenStats('${id}')">Statistik</button>
+      <button class="p-aktion" onclick="uvTrainOpenStats('${id}')">Info</button>
       <button class="p-aktion" onclick="uvTrainReset('${id}')">Zurücksetzen</button>
       <button class="p-aktion p-aktion--gefahr" onclick="uvTrainDelete('${id}')">Löschen</button>
     </div>` : ''}
@@ -587,7 +587,7 @@ export function renderUvTrainingSection() {
   const open = _uvTrainExpanded;
   const sub = decks.length
     ? decks.length + ' Deck' + (decks.length === 1 ? '' : 's') + ' · zum Aufklappen tippen'
-    : `Eigene Übungsdecks aus genau ${UV_TRAIN_SIZE} Verben`;
+    : `Eigene Übungsdecks ab ${UV_TRAIN_MIN} Verben`;
   // Zeilenkarte wie in 5.1 (einklappbar, Frage F-50). Die Klasse is-offen
   // wirkt nur auf den eigenen Kopf — die Deck-Karten klappen einzeln auf.
   let html =
@@ -608,8 +608,8 @@ export function renderUvTrainingSection() {
   el.innerHTML = html;
 }
 
-// Popup: Name + Formen-Vorauswahl (Simple Past / Participle / Beide) + bis zu
-// Genau UV_TRAIN_SIZE Verben ankreuzen (alle 151, sortiert nach Stufe). Die Sperre gilt JE TOPF:
+// Popup: Name + Formen-Vorauswahl (Simple Past / Participle / Beide) + mindestens
+// UV_TRAIN_MIN Verben ankreuzen (alle 151, alphabetisch). Die Sperre gilt JE TOPF:
 // ausgegraut (nicht mehr klickbar) ist ein Verb nur, wenn es schon in einem
 // anderen Deck MIT DERSELBEN Auswahl steckt — SP, PP und Beide zählen getrennt.
 // Beim Umschalten der Auswahl slidet die ganze Wortliste links raus und kommt
@@ -636,7 +636,7 @@ export function uvTrainOpenCreate() {
       <div class="uv-form-choice">
         ${_uvFormChipsHtml((f) => `data-forms="${f}"${f === 'both' ? ' data-sel="1"' : ''}`)}
       </div>
-      <div class="tp-kicker-zeile"><div class="tp-kicker">Verben</div><span class="uv-fill-count"><span id="uv-train-n">0</span>/${UV_TRAIN_SIZE}</span></div>
+      <div class="tp-kicker-zeile"><div class="tp-kicker">Verben</div><span class="uv-fill-count"><span id="uv-train-n">0</span> · mind. <span id="uv-train-min">${UV_TRAIN_MIN}</span></span></div>
     </div>
     <div class="uv-fill-list">
       <div class="uv-fill-slide" id="uv-train-slide">
@@ -653,18 +653,29 @@ export function uvTrainOpenCreate() {
       <button class="uv-fill-cancel" id="uv-train-cancel">Abbrechen</button>
       <button class="uv-fill-ok" id="uv-train-ok" disabled>Anlegen</button>
     </div>
-    <div class="tp-neu-hinweis">Anlegen erst bei genau ${UV_TRAIN_SIZE}</div>
+    <div class="tp-neu-hinweis" id="uv-train-hinweis"></div>
   </div>`;
   overlay.querySelector('[data-sel]').classList.add('sel');
   const slide = overlay.querySelector('#uv-train-slide');
   const nEl = overlay.querySelector('#uv-train-n');
   const okBtn = overlay.querySelector('#uv-train-ok');
+  const minEl = overlay.querySelector('#uv-train-min');
+  const hinweisEl = overlay.querySelector('#uv-train-hinweis');
   overlay.querySelector('#uv-train-cancel').addEventListener('click', close);
+  // Mindestens UV_TRAIN_MIN, nach oben offen (weniger = zu schnell Taler). Ausnahme
+  // Rest-Deck: sind im gewählten Topf nur noch weniger frei, geht es, wenn ALLE
+  // übrigen angekreuzt sind. Angekreuzt sein können nur freie (applyLocks), also
+  // heißt sel.size === frei: alle übrigen.
+  const freiImTopf = () => all.filter((v) => !isLocked(v.en, formsSel)).length;
+  const kannAnlegen = () => sel.size >= UV_TRAIN_MIN || (sel.size > 0 && sel.size === freiImTopf());
   const updateCount = () => {
+    const frei = freiImTopf();
     nEl.textContent = String(sel.size);
-    // Genau UV_TRAIN_SIZE — nicht weniger. Mehr lässt der Klick-Handler unten gar
-    // nicht erst zu, der Zähler zeigt also immer n/10.
-    okBtn.disabled = sel.size !== UV_TRAIN_SIZE;
+    minEl.textContent = String(Math.min(UV_TRAIN_MIN, frei));
+    hinweisEl.textContent = frei >= UV_TRAIN_MIN ? `Anlegen ab ${UV_TRAIN_MIN} Verben`
+      : frei ? `Nur noch ${frei} ${frei === 1 ? 'Verb' : 'Verben'} frei – alle ankreuzen`
+      : 'Alle Verben sind schon vergeben';
+    okBtn.disabled = !kannAnlegen();
   };
   // Grau-Zustand aller Zeilen für die aktuelle Auswahl setzen; angekreuzte
   // Verben, die dabei gesperrt werden, fliegen aus der Auswahl.
@@ -701,14 +712,13 @@ export function uvTrainOpenCreate() {
     const cb = row.querySelector('.uv-fill-cb');
     const en = row.getAttribute('data-en');
     cb.addEventListener('change', () => {
-      if (cb.checked && sel.size >= UV_TRAIN_SIZE) { cb.checked = false; return; }
       if (cb.checked) { sel.add(en); row.classList.add('sel'); }
       else { sel.delete(en); row.classList.remove('sel'); }
       updateCount();
     });
   });
   okBtn.addEventListener('click', () => {
-    if (sel.size !== UV_TRAIN_SIZE) return;
+    if (!kannAnlegen()) return;
     const name = (overlay.querySelector('#uv-train-name').value || '').trim() || defName;
     close();
     _uvTrainCreate(name, [...sel], formsSel);
@@ -762,10 +772,11 @@ export async function uvTrainReset(id) {
       for (const w of forms) {
         const key = statKeyFor(v.de, v.en, UV_TRAIN_SUF[disc][w], IRREGULAR_PRESET_ID);
         statKeys.push(key);
-        delete ws[key];
+        delete ws[key];   // alte globale Stände (vor 29.10.2026), falls noch da
       }
     }
   }
+  deck.wordStats = {};   // Stand liegt je Deck
   deck.uvForms = 'open';
   persist(window.SD);
   renderUvTrainingSection();
@@ -773,6 +784,7 @@ export async function uvTrainReset(id) {
     // Über die Offline-Queue: schlägt der Delete fehl, wird er beim nächsten
     // Flush nachgeholt (sonst blieben gemeisterte Stände in der Cloud stehen).
     queuePresetStatDelete(statKeys);
+    markDirty('word_stats_delete', id);
     markDirty('deck', id);
     commitDirty();
   }
@@ -787,11 +799,9 @@ export async function uvTrainDelete(id) {
     ok: 'Löschen', cancel: 'Behalten', danger: true,
   });
   if (!ok) return;
-  // Übungs-Fortschritt der geübten Formen mitlöschen (lokal + Cloud) — sonst
-  // zeigt ein späteres Deck mit denselben Verben alten Stand. Wie beim Reset
-  // nur die eigenen Formen: ein SP-Deck lässt PP-Stände anderer Decks stehen.
-  // (Teilt ein Beide-Deck ein Verb mit einem SP-Deck, hängt der Past-Stand an
-  // demselben globalen Key — der geht dann mit. Bewusster Trade-off.)
+  // Der Stand liegt im Deck (deck.wordStats) — die Cloud löscht ihn mit dem Deck
+  // (word_stats ON DELETE CASCADE). Zusätzlich alte globale Stände (vor 29.10.2026)
+  // der geübten Formen wegräumen, falls die Umstellung sie noch nicht entfernt hat.
   const ws = window.SD.globalPresetStats?.wordStats || {};
   const forms = uvTrainForms(deck);
   const statKeys = [];
@@ -825,12 +835,12 @@ export function uvTrainOpenStats(id) {
   // Aufruf wieder den Grundton des Verwaltens).
   setGrundton('lila', document.getElementById('scan-screen'));
   const title = document.getElementById('vm-title');
-  if (title) title.textContent = 'Statistik';
+  if (title) title.textContent = 'Info';
   const ic = document.getElementById('vm-title-icon');
   if (ic) ic.style.display = 'none';
-  // Kopf wie 5.5: nur „Statistik", der Name steht in der Übersichtskarte.
+  // Kopf: „Info" + Name mit Stift zum Umbenennen (wie bei eigenen Sammlungen).
   const dn = document.getElementById('vm-deck-name');
-  if (dn) dn.textContent = '';
+  if (dn) dn.innerHTML = _uvTrainNameHtml(deck);
   const ba = document.getElementById('vm-back-area');
   if (ba) ba.innerHTML = '<button class="p-back" onclick="showMenu()"><canvas data-icon="back" width="14" height="14" style="width:28px;height:28px;image-rendering:pixelated;flex:none"></canvas></button>';
   const tabsEl = document.querySelector('.vm-tabs');
@@ -848,7 +858,7 @@ export function uvTrainOpenStats(id) {
   pane.style.display = 'block';
 
   const verbs = verbsByEns((deck.vocab || []).map((v) => v.en));
-  const ws = window.SD.globalPresetStats?.wordStats || {};
+  const ws = deck.wordStats || {};   // Stand je Deck
   const forms = uvTrainForms(deck);
 
   // Gesamtfortschritt-Kachel — 1:1 die Vorlagen-Kachel der Vokabel-Statistik
@@ -895,6 +905,27 @@ export function uvTrainOpenStats(id) {
   pane.innerHTML = verbs.length
     ? tileHtml + ['erkennen', 'schmieden', 'verzaubern'].map(makeTable).join('')
     : '<div class="vm-empty">Keine Verben.</div>';
+}
+
+function _uvTrainNameHtml(deck) {
+  return '<div>' + window.escHtml(deck.name) + '</div>'
+    + `<button class="vm-rename-btn" onclick="uvTrainRename('${deck.id}')">` + iconHTML('pencil', 14) + 'Umbenennen</button>';
+}
+
+// Trainings-Deck umbenennen (Info-Seite): Kopf, Übersichtskarte und Deck-Liste.
+export function uvTrainRename(id) {
+  const deck = window.SD?.decks?.[id];
+  if (!deck) return;
+  window.esPrompt({ icon: '✏️', title: 'Trainings-Deck umbenennen', value: deck.name, ok: 'Speichern' }).then((name) => {
+    if (!name || !name.trim()) return;
+    renameDeck(id, name.trim());
+    const d = window.SD.decks[id] || deck;
+    const dn = document.getElementById('vm-deck-name');
+    if (dn) dn.innerHTML = _uvTrainNameHtml(d);
+    const gn = document.querySelector('#vm-pane-deck-stats .vm-gesamt-name');
+    if (gn) gn.textContent = d.name;
+    renderUvTrainingSection();
+  });
 }
 
 // ── Probetest: ephemerer Misch-Test über bis zu 2 Vokabelsammlungen ──
@@ -1916,13 +1947,10 @@ export async function showFriendStats(friendId) {
   _friendSDBackup = window.SD;
   _statsFriendMode = true;
   window.SD = _friendState(state);
-  // Anzeige angleichen: der Freund hat sich seit der Umstellung auf UV_TRAIN_SIZE
-  // vielleicht noch nicht angemeldet, dann stehen in SEINER Cloud noch 15 Verben —
-  // und die Freund-Seite zeigte entsprechend "15 Verben", während die eigene Seite
-  // längst 10 anzeigt. Erst NACH dem Setzen von window.SD, damit die Auswahl der
-  // behaltenen Verben auf seinen Ständen rechnet und nicht auf meinen.
+  // Anzeige angleichen: hat sich der Freund seit der Umstellung auf Stände je
+  // Trainings-Deck (29.10.2026) noch nicht angemeldet, liegen seine noch global.
   // Rein lokal auf der Anzeige-Kopie — in fremde Daten wird NICHTS geschrieben.
-  migrateUvTrainSize(window.SD);
+  migrateUvTrainStats(window.SD);
   await showStats();
 }
 export function closeFriendStats() {
@@ -2736,19 +2764,36 @@ function adoptCloudState(state, signature) {
   syncMirrorFromActiveDeck();
 }
 
+// Trainings-Stände je Deck (29.10.2026): einmal von global in die Decks kopieren.
+// Hier, weil diese Stelle Online- und Offline-Weg abdeckt. Die globalen _tr_-Keys
+// fliegen erst raus, wenn ALLE Deck-Stände sicher in der Cloud sind — offline, bei
+// Fehler oder solange ein Deck noch keine Cloud-Id hat bleiben sie, und die
+// Umstellung läuft beim nächsten Login erneut (kopiert nur Fehlendes).
+async function _uvTrainStatsUmziehen() {
+  const { decks, globalKeys } = migrateUvTrainStats();
+  if (!globalKeys.length) return;
+  if (decks.length) persist(window.SD);
+  const uid = window.currentUser?.id;
+  if (!uid || !isCloudConfirmed()) return;
+  const trainingIds = Object.values(window.SD.decks || {}).filter((d) => d.mode === 'training').map((d) => d.id);
+  if (!trainingIds.every(isUUID)) return;
+  try {
+    for (const id of decks) await saveWordStats(id, window.SD.decks[id].wordStats, uid);
+  } catch (e) {
+    console.warn('[Migration] Trainings-Stände: Upload fehlgeschlagen, nächstes Mal erneut —', e.message);
+    return;
+  }
+  const gws = window.SD.globalPresetStats?.wordStats || {};
+  globalKeys.forEach((k) => { delete gws[k]; });
+  persist(window.SD);
+  queuePresetStatDelete(globalKeys);
+  commitDirty();
+  console.log('[Migration] Trainings-Stände je Deck:', decks.length, 'Decks, global entfernt:', globalKeys.length);
+}
+
 function _finishLoginUI() {
   if (migrateStatKeys()) persist(window.SD);
-  // Trainings-Decks auf UV_TRAIN_SIZE Verben kürzen. Hier und nicht in
-  // adoptCloudState, weil diese Stelle BEIDE Wege abdeckt: nach erfolgreichem
-  // Cloud-Load (läuft danach) und im Offline-Fall, wo cloudLoad 'failed' liefert
-  // und mit dem lokalen Stand weitergemacht wird. Die gekürzten Decks müssen
-  // zurück in die Cloud, sonst stellt der nächste harte Load die alte Größe wieder her.
-  const trimmed = migrateUvTrainSize();
-  if (trimmed.length) {
-    persist(window.SD);
-    console.log('[Migration] Trainings-Decks auf', UV_TRAIN_SIZE, 'Verben gekürzt:', trimmed.length);
-    if (window.currentUser) { trimmed.forEach((id) => markDirty('deck', id)); commitDirty(); }
-  }
+  _uvTrainStatsUmziehen();
   console.log('[handleLogin] SD bereit:', window.SD?.playerName, window.SD?.highscore);
   subscribeFriendRealtime();   // Freundschaftsanfragen live empfangen (WebSocket statt Polling)
   if (!window.SD?.playerName) showScreen('name-screen');
