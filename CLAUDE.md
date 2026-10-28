@@ -33,6 +33,18 @@ Google angewiesen sein — E-Mail-Weg muss immer Alternative bleiben.
 - Sind NICHT in git (lokal, gitignored). Nur auf ausdrückliche
   Ansage anfassen — kein automatisches Mitpflegen.
 
+## Werkzeuge (selbstständig nutzen, wenn es passt)
+Skills liegen lokal in `.claude/skills/` (gitignored, nur Windows-Rechner).
+- Sichtbare Änderung an Screens/Spielen → danach selbst prüfen mit
+  Skill `app-im-browser-pruefen` (Playwright-MCP, Supabase gesperrt).
+- Gespeicherte Daten/Felder/Migration → vor dem Bauen `speicherfeld-pruefen`.
+- SQL, RLS, Tabellen → `supabase-postgres-best-practices` bzw. `supabase`.
+- Daten echter Konten lesen/korrigieren → `db-korrektur`.
+- Ladezeit, Barrierefreiheit (Kontrast, Tippflächen) → `performance`,
+  `accessibility`, `web-quality-audit` — nur als Prüfung; Vorschläge,
+  die das Aussehen ändern, erst fragen (Pastell-Design ist festgelegt).
+- Vor größeren Pushes: `/code-review` bzw. `/security-review` anbieten.
+
 
 ---
 
