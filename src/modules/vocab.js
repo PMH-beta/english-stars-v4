@@ -9,6 +9,8 @@ import { effectivePct, statKeyFor, wortScore, spellingStand, SP_TEILE } from './
 import { MAX_PRESET_CATEGORIES } from './config.js';
 import { iconHTML } from './pixel-icons.js';
 import { ensureTesseract } from './lazyload.js';
+import { vokabelZeilen } from './scan-bild.js';
+import { zuschnittOeffnen, zuschnittSchliessen, zuschnittDrehen, zuschnittBild } from './scan-zuschnitt.js';
 
 function _vmDeck() { return window._draftDeck || activeDeck(); }
 
@@ -43,6 +45,7 @@ window._reviewItems = [];
 let _lastOCRText = '';
 
 export function openVocabManager(deckId) {
+  zuschnittSchliessen();
   if (deckId && !window._draftDeck) switchDeck(deckId);
   showScreen('scan-screen');
   const deck = _vmDeck();
@@ -421,17 +424,25 @@ export function parsePastedText() {
 
 export function onScanFile(event) {
   const file = event.target.files[0];
-  if (!file) return;
-  const preview = document.getElementById('scan-preview');
-  const reader = new FileReader();
-  reader.onload = e => {
-    preview.src = e.target.result;
-    preview.style.display = 'block';
-    startScan(e.target.result, file);
-  };
-  reader.readAsDataURL(file);
   event.target.value = '';
+  if (!file) return;
+  const status = document.getElementById('scan-status');
+  status.innerHTML = '';
+  zuschnittOeffnen(file).catch(e => {
+    console.warn('[scan] Bild nicht lesbar:', e?.message);
+    zuschnittSchliessen();
+    status.innerHTML = _scanFehler('Bild konnte nicht geöffnet werden.');
+  });
 }
+
+// Zuschnitt (Knöpfe unter dem Foto): drehen, neues Foto, zuschneiden & erkennen.
+export function scanZsDrehen() { zuschnittDrehen(); }
+export function scanZsNeu() {
+  zuschnittSchliessen();
+  document.getElementById('scan-status').innerHTML = '';
+  document.getElementById('scan-file').click();
+}
+export function scanZsLos() { startScan(); }
 
 // Zustandszeile unter der Scan-Fläche (3.4): gelbe Pille mit drei Punkten,
 // solange es läuft; rosa Pille mit Kreuz bei einem Fehler.
@@ -445,26 +456,43 @@ function _scanFehler(text) {
   return `<div class="scan-zustand scan-zustand--fehler"><span class="scan-kreuz">${iconHTML('close', 14)}</span><span>${text}</span></div>`;
 }
 
-async function startScan(dataUrl, file) {
+let _scanAktiv = false;
+async function startScan() {
+  if (_scanAktiv) return;
   const status = document.getElementById('scan-status');
+  const knoepfe = document.querySelectorAll('#scan-zuschnitt button');
   window._reviewItems = [];
   _lastOCRText = '';
+  _scanAktiv = true;
+  knoepfe.forEach(b => b.disabled = true);
+  try { await _scanLauf(status); }
+  finally { _scanAktiv = false; knoepfe.forEach(b => b.disabled = false); }
+}
 
+async function _scanLauf(status) {
   status.innerHTML = _scanLaeuft('Bild wird vorbereitet', 'a', true);
+  // Zeichnen lassen, bevor das Rechnen den Hauptthread blockiert.
+  await new Promise(r => setTimeout(r, 30));
 
-  let imgInput = file;
+  let bild = null;
   try {
-    const blob = await _preprocessImage(dataUrl);
-    if (blob) imgInput = blob;
-  } catch(e) {}
+    const px = zuschnittBild();
+    if (px) {
+      bild = document.createElement('canvas');
+      bild.width = px.width; bild.height = px.height;
+      bild.getContext('2d').putImageData(new ImageData(px.data, px.width, px.height), 0, 0);
+    }
+  } catch(e) { console.warn('[scan] Zuschnitt fehlgeschlagen:', e?.message); }
+  if (!bild) { status.innerHTML = _scanFehler('Bild konnte nicht vorbereitet werden.'); return; }
 
   status.innerHTML = _scanLaeuft('Text wird erkannt', 'b', true);
 
-  let rawText = '';
+  let rawText = '', woerter = [];
+  let worker = null;
   try {
     // OCR-Library erst hier laden (vorher blockierte sie jeden App-Start)
     await ensureTesseract();
-    const result = await Tesseract.recognize(imgInput, 'eng+deu', {
+    worker = await Tesseract.createWorker('eng+deu', 1, {
       logger: m => {
         if (m.status === 'recognizing text') {
           const pct = Math.round((m.progress || 0) * 100);
@@ -472,11 +500,17 @@ async function startScan(dataUrl, file) {
         }
       }
     });
-    rawText = result.data.text;
+    // Seitenlayout automatisch (PSM 3): erkennt die Spalten der Vokabelliste.
+    await worker.setParameters({ tessedit_pageseg_mode: '3' });
+    const { data } = await worker.recognize(bild);
+    rawText = data.text || '';
+    woerter = (data.words || []).map(w => ({ text: w.text, bbox: w.bbox }));
   } catch(e) {
     console.warn('[scan] Texterkennung fehlgeschlagen:', e?.message);
     status.innerHTML = _scanFehler('Texterkennung fehlgeschlagen');
     return;
+  } finally {
+    worker?.terminate().catch(() => {});
   }
 
   if (!rawText || rawText.trim().length < 5) {
@@ -484,7 +518,11 @@ async function startScan(dataUrl, file) {
     return;
   }
 
-  const items = parseVocabFromOCR(rawText);
+  // Erst über die Lage der Wörter (Spalten Englisch | Deutsch), sonst wie bisher.
+  let items = [];
+  try { const zeilen = vokabelZeilen(woerter); if (zeilen) items = parseVocabFromOCR(zeilen); }
+  catch(e) { console.warn('[scan] Spaltenerkennung fehlgeschlagen:', e?.message); }
+  if (items.length === 0) items = parseVocabFromOCR(rawText);
   const existing = new Set(window.VOCAB.map(v => v.en.toLowerCase()));
   window._reviewItems = items.filter(i => i.de && i.en).map((i, idx) => ({
     id: idx, de: i.de.trim(), en: i.en.trim(),
@@ -503,34 +541,6 @@ async function startScan(dataUrl, file) {
   }
   status.innerHTML = '';
   showReview();
-}
-
-function _preprocessImage(dataUrl) {
-  return new Promise(resolve => {
-    const img = new Image();
-    img.onload = () => {
-      try {
-        const c = document.createElement('canvas');
-        const maxW = 2000, scale = Math.min(1, maxW / img.width);
-        c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
-        const ctx = c.getContext('2d');
-        ctx.drawImage(img, 0, 0, c.width, c.height);
-        const data = ctx.getImageData(0, 0, c.width, c.height), d = data.data;
-        for (let i = 0; i < d.length; i += 4) {
-          const g = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2];
-          let v;
-          if (g < 100) v = Math.max(0, g * 0.55);
-          else if (g > 175) v = Math.min(255, g * 1.18);
-          else v = g;
-          d[i] = d[i+1] = d[i+2] = v;
-        }
-        ctx.putImageData(data, 0, 0);
-        c.toBlob(b => resolve(b || null), 'image/png');
-      } catch(e) { resolve(null); }
-    };
-    img.onerror = () => resolve(null);
-    img.src = dataUrl;
-  });
 }
 
 function parseVocabFromOCR(rawText) {

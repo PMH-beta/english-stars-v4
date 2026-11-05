@@ -57,7 +57,8 @@ const PRECACHE = [
   './src/modules/klapp-anim.js', './src/modules/unschaerfe.js', './src/modules/bilder-wache.js',
   // App-Tour (Phase 7b) — ui.js importiert sie statisch.
   './src/modules/tour.js',
-  './src/modules/pwa.js', './src/modules/screen-shell.js',
+  './src/modules/pwa.js', './src/modules/scan-bild.js', './src/modules/scan-zuschnitt.js',
+  './src/modules/screen-shell.js',
   './src/modules/speech.js', './src/modules/startup.js', './src/modules/stats.js',
   './src/modules/storage.js', './src/modules/supabase.js', './src/modules/sync.js',
   './src/modules/ui.js', './src/modules/vocab.js',

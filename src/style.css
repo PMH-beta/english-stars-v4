@@ -3055,6 +3055,24 @@ button.p-chip{ cursor:pointer; }
   padding:5px 10px; font:800 10px var(--p-font); color:var(--p-ink); white-space:nowrap;
 }
 .scan-hinweis{ font:700 11px/1.5 var(--p-font); color:var(--p-text-2); margin-top:12px; }
+/* Zuschnitt nach dem Foto: Bild mit vier ziehbaren Ecken, darunter die Knöpfe. */
+.scan-zuschnitt{ width:100%; }
+.scan-zs-text{ font:700 11px/1.5 var(--p-font); color:var(--p-text-2); margin-bottom:9px; }
+.scan-zs-flaeche{
+  position:relative; width:100%; display:flex; justify-content:center;
+  touch-action:none; user-select:none; -webkit-user-select:none;
+}
+#scan-zs-bild{ display:block; border:var(--p-rahmen); border-radius:12px; }
+.scan-zs-griff{
+  position:absolute; width:28px; height:28px; margin:-14px 0 0 -14px; z-index:2;
+  border:var(--p-rahmen); border-radius:50%; background:var(--p-gold);
+  touch-action:none; cursor:grab;
+}
+.scan-zs-griff::before{ content:''; position:absolute; inset:-10px; border-radius:50%; }
+.scan-zs-knoepfe{ display:flex; gap:10px; margin-top:12px; }
+.scan-zs-knoepfe .p-btn{ flex:1; }
+.scan-zs-los{ margin-top:10px; }
+.scan-zuschnitt .p-btn:disabled{ opacity:.6; cursor:default; }
 
 /* Wortliste: Zeile wie 3.1, jede Zeile mit vollem Rahmen. */
 .vm-row{ gap:12px; border-radius:18px; }

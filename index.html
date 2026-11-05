@@ -414,6 +414,19 @@
       <div class="scan-zone-titel">Bild auswählen oder Kamera öffnen</div>
       <div class="scan-zone-sub">JPG, PNG — Tesseract-OCR (offline)</div>
     </div>
+    <!-- Zuschnitt nach dem Foto: vier Ecken ziehen, drehen, dann erkennen. -->
+    <div id="scan-zuschnitt" class="scan-zuschnitt" style="display:none">
+      <div class="scan-zs-text">Ziehe die vier Ecken auf den Rand der Vokabelliste.</div>
+      <div id="scan-zs-flaeche" class="scan-zs-flaeche">
+        <canvas id="scan-zs-bild"></canvas>
+        <div class="scan-zs-griff" data-ecke="0"></div><div class="scan-zs-griff" data-ecke="1"></div><div class="scan-zs-griff" data-ecke="2"></div><div class="scan-zs-griff" data-ecke="3"></div>
+      </div>
+      <div class="scan-zs-knoepfe">
+        <button class="p-btn p-btn--sekundaer" onclick="scanZsDrehen()"><canvas data-icon="refresh" width="14" height="14" style="width:14px;height:14px;image-rendering:pixelated;flex:none"></canvas>Drehen</button>
+        <button class="p-btn p-btn--sekundaer" onclick="scanZsNeu()"><canvas data-icon="scan" width="14" height="14" style="width:14px;height:14px;image-rendering:pixelated;flex:none"></canvas>Neues Foto</button>
+      </div>
+      <button class="p-btn p-btn--primaer scan-zs-los" onclick="scanZsLos()"><canvas data-icon="check" width="14" height="14" style="width:14px;height:14px;image-rendering:pixelated;flex:none"></canvas>Zuschneiden &amp; erkennen</button>
+    </div>
     <input type="file" id="scan-file" accept="image/*" capture="environment" style="display:none" onchange="onScanFile(event)">
     <div id="scan-status" style="width:100%;"></div>
     <div class="scan-hinweis">Nach dem Erkennen geht es weiter zu „Vokabeln prüfen".</div>
