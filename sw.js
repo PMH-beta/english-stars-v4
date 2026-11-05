@@ -15,7 +15,9 @@ const CACHE = 'english-stars-' + VERSION;
 // ACHTUNG: Wird vendor/vosk.js je neu gevendort, muss STATIC_CACHE umbenannt
 // werden — sonst bleibt die alte Kopie ewig liegen.
 const STATIC_CACHE = 'english-stars-static-v1';
-const STATIC_RE = /\/(models|music)\/|\/vendor\/vosk\.js$/;
+// Texterkennung (Scan): vendor/ort-<version>/ und models/paddle-v5/ — Ordner tragen
+// die Version, beim Wechsel also neuen Ordnernamen nehmen.
+const STATIC_RE = /\/(models|music)\/|\/vendor\/vosk\.js$|\/vendor\/ort-/;
 
 // ── App-Shell ──
 // ALLES was zum Starten nötig ist. Vorher standen hier nur HTML/Manifest/Icons und
@@ -57,7 +59,7 @@ const PRECACHE = [
   './src/modules/klapp-anim.js', './src/modules/unschaerfe.js', './src/modules/bilder-wache.js',
   // App-Tour (Phase 7b) — ui.js importiert sie statisch.
   './src/modules/tour.js',
-  './src/modules/pwa.js', './src/modules/scan-bild.js', './src/modules/scan-zuschnitt.js',
+  './src/modules/pwa.js', './src/modules/scan-bild.js', './src/modules/scan-zuschnitt.js', './src/modules/scan-paddle.js',
   './src/modules/screen-shell.js',
   './src/modules/speech.js', './src/modules/startup.js', './src/modules/stats.js',
   './src/modules/storage.js', './src/modules/supabase.js', './src/modules/sync.js',
@@ -152,7 +154,7 @@ self.addEventListener('fetch', e => {
   // Network-first NUR für same-origin App-Code/Shell (HTML, JS, CSS, manifest, JSON):
   // damit Deploy-Updates online sofort ankommen — kein Boot-Cache-Wipe mehr nötig.
   // Cross-Origin (CDN-Libs), vendor/ + große statische Assets bleiben cache-first.
-  const networkFirst = sameOrigin && !CACHE_FIRST_RE.test(url.pathname) && !VENDOR_RE.test(url.pathname);
+  const networkFirst = sameOrigin && !CACHE_FIRST_RE.test(url.pathname) && !VENDOR_RE.test(url.pathname) && !STATIC_RE.test(url.pathname);
 
   if (networkFirst) {
     e.respondWith(appCodeResponse(e.request));

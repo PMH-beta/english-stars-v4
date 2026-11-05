@@ -206,12 +206,15 @@ export function vokabelZeilen(woerter) {
     if (best) best.push(w); else zeilen.push([w]);
   }
 
-  // 1) Textstücke: Zeilen an großen Lücken auftrennen.
+  // 1) Textstücke: Zeilen an großen Lücken auftrennen. Wörter aus derselben
+  //    erkannten Textzeile (Feld „zeile“, PaddleOCR) dürfen weiter auseinander stehen.
   const stuecke = [];
   for (const ws of zeilen) {
     let akt = [];
     for (const w of ws) {
-      if (akt.length && w.bbox.x0 - akt[akt.length - 1].bbox.x1 > 0.9 * hMed) { stuecke.push(akt); akt = []; }
+      const vor = akt[akt.length - 1];
+      const grenze = (vor && w.zeile != null && w.zeile === vor.zeile ? 2 : 0.9) * hMed;
+      if (akt.length && w.bbox.x0 - vor.bbox.x1 > grenze) { stuecke.push(akt); akt = []; }
       akt.push(w);
     }
     if (akt.length) stuecke.push(akt);

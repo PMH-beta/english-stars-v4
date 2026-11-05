@@ -9,6 +9,7 @@ import { effectivePct, statKeyFor, wortScore, spellingStand, SP_TEILE } from './
 import { MAX_PRESET_CATEGORIES } from './config.js';
 import { iconHTML } from './pixel-icons.js';
 import { ensureTesseract } from './lazyload.js';
+import { paddleLaden, paddleErkennen } from './scan-paddle.js';
 import { vokabelZeilen } from './scan-bild.js';
 import { zuschnittOeffnen, zuschnittSchliessen, zuschnittDrehen, zuschnittBild } from './scan-zuschnitt.js';
 
@@ -226,6 +227,7 @@ export function vmTab(tabName) {
     if (el) el.style.display = (name === tabName) ? 'block' : 'none';
   });
   if (tabName === 'list') renderVocabList();
+  if (tabName === 'scan') _paddleVorbereiten().catch(() => {});
   if (tabName === 'presets') renderPresetsTab();
   if (tabName === 'deck-stats') _renderDeckStatsPane();
   _updateVmCount();
@@ -456,6 +458,38 @@ function _scanFehler(text) {
   return `<div class="scan-zustand scan-zustand--fehler"><span class="scan-kreuz">${iconHTML('close', 14)}</span><span>${text}</span></div>`;
 }
 
+// PaddleOCR (PP-OCRv5) lokal aus vendor/ und models/: wird beim ersten Öffnen des
+// Scan-Tabs im Hintergrund geladen; der Service Worker hält die Dateien danach
+// dauerhaft (STATIC_CACHE). Klappt das nicht (z. B. Browser ohne WASM-SIMD),
+// erkennt Tesseract wie bisher.
+const _PADDLE = {
+  ort: 'vendor/ort-1.31.1/ort.wasm.bundle.min.mjs',
+  wasm: 'vendor/ort-1.31.1/ort-wasm-simd-threaded.wasm',
+  det: 'models/paddle-v5/ch_PP-OCRv5_det_mobile.onnx',
+  rec: 'models/paddle-v5/latin_PP-OCRv5_rec_mobile.onnx',
+  zeichen: 'models/paddle-v5/latin_PP-OCRv5_rec_mobile.dict.json',
+};
+let _paddleLaeuft = null;
+function _paddleVorbereiten() {
+  if (!_paddleLaeuft) {
+    const url = p => new URL(p, document.baseURI).href;
+    const holen = async p => { const r = await fetch(url(p)); if (!r.ok) throw new Error(p + ': ' + r.status); return r; };
+    _paddleLaeuft = (async () => {
+      const ort = await import(url(_PADDLE.ort));
+      ort.env.wasm.numThreads = 1;
+      ort.env.wasm.wasmPaths = { wasm: url(_PADDLE.wasm) };
+      const [det, rec, zeichen] = await Promise.all([
+        holen(_PADDLE.det).then(r => r.arrayBuffer()),
+        holen(_PADDLE.rec).then(r => r.arrayBuffer()),
+        holen(_PADDLE.zeichen).then(r => r.json()),
+      ]);
+      await paddleLaden(ort, { det: new Uint8Array(det), rec: new Uint8Array(rec) }, zeichen);
+    })();
+    _paddleLaeuft.catch(e => { console.warn('[scan] PaddleOCR nicht verfügbar:', e?.message); _paddleLaeuft = null; });
+  }
+  return _paddleLaeuft;
+}
+
 let _scanAktiv = false;
 async function startScan() {
   if (_scanAktiv) return;
@@ -474,9 +508,9 @@ async function _scanLauf(status) {
   // Zeichnen lassen, bevor das Rechnen den Hauptthread blockiert.
   await new Promise(r => setTimeout(r, 30));
 
-  let bild = null;
+  let bild = null, px = null;
   try {
-    const px = zuschnittBild();
+    px = zuschnittBild();
     if (px) {
       bild = document.createElement('canvas');
       bild.width = px.width; bild.height = px.height;
@@ -488,8 +522,23 @@ async function _scanLauf(status) {
   status.innerHTML = _scanLaeuft('Text wird erkannt', 'b', true);
 
   let rawText = '', woerter = [];
-  let worker = null;
+  // Erst PaddleOCR; beim allerersten Scan werden hier ggf. noch die Modelle geladen.
   try {
+    status.innerHTML = _scanLaeuft('Texterkennung wird geladen', 'b', true);
+    await _paddleVorbereiten();
+    const erg = await paddleErkennen(px, async anteil => {
+      status.innerHTML = _scanLaeuft(`Texterkennung: ${Math.round(anteil * 100)} %`, 'b', false);
+      await new Promise(r => setTimeout(r, 0));
+    });
+    rawText = erg.text || '';
+    woerter = erg.woerter;
+  } catch(e) {
+    console.warn('[scan] PaddleOCR fehlgeschlagen, nehme Tesseract:', e?.message);
+    rawText = ''; woerter = [];
+  }
+
+  let worker = null;
+  if (!rawText) try {
     // OCR-Library erst hier laden (vorher blockierte sie jeden App-Start)
     await ensureTesseract();
     worker = await Tesseract.createWorker('eng+deu', 1, {
@@ -548,10 +597,11 @@ function parseVocabFromOCR(rawText) {
 
   function clean(s) {
     return s
+      .replace(/[’‘´`]/g, "'")
       .replace(/\s*[\[|({]\s*[^\]\|)}]{1,40}[\]|)}]\s*/g, ' ')
       .replace(/\s*\([^)]*\)\s*/g, ' ')
       .replace(/^[•·\-\*~«»"""'„_—–]+\s*/, '')
-      .replace(/[•·~«»"""'„_]+/g, ' ')
+      .replace(/[•·~«»"""„_]+|'(?![A-Za-z])|(?<![A-Za-z])'/g, ' ')
       .replace(/[;,/].*$/, '')
       .replace(/\s{2,}/g, ' ')
       .replace(/^\s*\d+\s*/, '')
