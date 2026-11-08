@@ -246,8 +246,10 @@ export function vokabelZeilen(woerter) {
     const s = st[k], start = spalteVon(s.x0);
     const at = s.ws.findIndex((w, i) => i > 0 && kraeftig(spalteVon(w.bbox.x0)) && spalteVon(w.bbox.x0) !== start);
     if (at > 0) {
-      const rest = s.ws.splice(at);
-      st.push({ ws: rest, x0: rest[0].bbox.x0, y0: Math.min(...rest.map(w => w.bbox.y0)), y1: Math.max(...rest.map(w => w.bbox.y1)) });
+      const vor = s.ws[at - 1], rest = s.ws.splice(at);
+      // kopf: Teil davor, wenn beide aus derselben erkannten Textzeile stammen.
+      const kopf = vor.zeile != null && vor.zeile === rest[0].zeile ? s : null;
+      st.push({ ws: rest, kopf, x0: rest[0].bbox.x0, y0: Math.min(...rest.map(w => w.bbox.y0)), y1: Math.max(...rest.map(w => w.bbox.y1)) });
       s.y0 = Math.min(...s.ws.map(w => w.bbox.y0)); s.y1 = Math.max(...s.ws.map(w => w.bbox.y1));
     }
   }
@@ -274,7 +276,7 @@ export function vokabelZeilen(woerter) {
     const out = [];
     for (const w of s.ws) {
       if (en && w.bbox.x1 < enX - 0.3 * hMed) continue;
-      if (en && _istLautschrift(w.text)) break;
+      if (en && _istLautschrift(w.text)) { s.laut = true; break; }
       let t = w.text;
       if (!en) {
         t = t.replace(/^[‘’'"`´*+!\\|§&]+|[‘’'"`´*+!\\|§&]+$/g, '').replace(/ii/g, 'ü');
@@ -284,10 +286,18 @@ export function vokabelZeilen(woerter) {
     }
     return out.join(' ').trim();
   };
+  const texte = new Map();
+  for (const s of st) if (s.sp === best || s.sp === deSp) texte.set(s, text(s, s.sp === best));
+  // Beispielsätze: Läuft eine englische Zeile ohne Lautschrift in einem Stück
+  // (eine erkannte Textzeile) bis in die Deutsch-Spalte, ist es ein Satz, keine
+  // Vokabel. Nur auf Seiten, deren Vokabeln überwiegend Lautschrift haben.
+  const enSt = st.filter(s => s.sp === best && texte.get(s));
+  if (enSt.filter(s => s.laut).length >= 0.5 * enSt.length) {
+    for (const s of st) if (s.sp === deSp && s.kopf && s.kopf.sp === best && !s.kopf.laut) { texte.delete(s); texte.delete(s.kopf); }
+  }
   const reihen = [];
   for (const s of st) {
-    if (s.sp !== best && s.sp !== deSp) continue;
-    const t = text(s, s.sp === best);
+    const t = texte.get(s);
     if (!t) continue;
     let r = reihen.find(r => ueberlapp(r, s));
     if (!r) { r = { y0: s.y0, y1: s.y1, en: [], de: [] }; reihen.push(r); }
