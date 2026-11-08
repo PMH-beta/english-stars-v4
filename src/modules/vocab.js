@@ -469,8 +469,22 @@ const _PADDLE = {
   rec: 'models/paddle-v5/latin_PP-OCRv5_rec_mobile.onnx',
   zeichen: 'models/paddle-v5/latin_PP-OCRv5_rec_mobile.dict.json',
 };
+// Englische Wortliste (ENABLE, gemeinfrei): korrigiert unsichere Buchstaben.
+// Optional — fehlt sie, läuft der Scan ohne Korrektur.
+const _WOERTER = 'models/englisch-enable1/woerter.txt';
+let _woerterLaeuft = null;
+function _woerterbuch() {
+  if (!_woerterLaeuft) {
+    _woerterLaeuft = fetch(new URL(_WOERTER, document.baseURI).href)
+      .then(r => { if (!r.ok) throw new Error(_WOERTER + ': ' + r.status); return r.text(); })
+      .then(t => new Set(t.split(/\r?\n/)))
+      .catch(e => { console.warn('[scan] Wortliste nicht verfügbar:', e?.message); _woerterLaeuft = null; return null; });
+  }
+  return _woerterLaeuft;
+}
 let _paddleLaeuft = null;
 function _paddleVorbereiten() {
+  _woerterbuch();
   if (!_paddleLaeuft) {
     const url = p => new URL(p, document.baseURI).href;
     const holen = async p => { const r = await fetch(url(p)); if (!r.ok) throw new Error(p + ': ' + r.status); return r; };
@@ -569,7 +583,7 @@ async function _scanLauf(status) {
 
   // Erst über die Lage der Wörter (Spalten Englisch | Deutsch), sonst wie bisher.
   let items = [];
-  try { const zeilen = vokabelZeilen(woerter); if (zeilen) items = parseVocabFromOCR(zeilen); }
+  try { const zeilen = vokabelZeilen(woerter, await _woerterbuch()); if (zeilen) items = parseVocabFromOCR(zeilen); }
   catch(e) { console.warn('[scan] Spaltenerkennung fehlgeschlagen:', e?.message); }
   if (items.length === 0) items = parseVocabFromOCR(rawText);
   const existing = new Set(window.VOCAB.map(v => v.en.toLowerCase()));

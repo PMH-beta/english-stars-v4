@@ -6,7 +6,7 @@
 
 const MAX_SEITE = 2000;                               // RapidOCR Global.max_side_len
 const DET = { minSeite: 736, schwelle: 0.3, kastenSchwelle: 0.5, aufweiten: 1.6, maxKaesten: 1000 };
-const REC = { h: 48, w: 320, stapel: 6, minWert: 0.5 };
+const REC = { h: 48, w: 320, stapel: 6, minWert: 0.5, unsicher: 0.9, zweitMin: 0.1 };
 
 let _ort = null, _det = null, _rec = null, _zeichen = null;
 
@@ -174,17 +174,23 @@ function _ausschnitt(g, w, h, p) {
 }
 
 function _lesen(ausgabe, i, T, C) {
-  const zeichen = [], spalten = [], werte = [];
+  const zeichen = [], spalten = [], werte = [], zweit = [];
   let vor = -1;
   for (let t = 0; t < T; t++) {
     const o = (i * T + t) * C;
     let bi = 0, bv = ausgabe[o];
     for (let c = 1; c < C; c++) if (ausgabe[o + c] > bv) { bv = ausgabe[o + c]; bi = c; }
-    if (bi !== 0 && bi !== vor) { zeichen.push(_zeichen[bi] ?? ''); spalten.push(t); werte.push(bv); }
+    if (bi !== 0 && bi !== vor) {
+      zeichen.push(_zeichen[bi] ?? ''); spalten.push(t); werte.push(bv);
+      // Zweite Wahl (kein Leerzeichen/CTC-Leerstelle) bei unsicheren Zeichen.
+      let zi = 0, zv = 0;
+      if (bv < REC.unsicher) for (let c = 1; c < C; c++) if (c !== bi && ausgabe[o + c] > zv) { zv = ausgabe[o + c]; zi = c; }
+      zweit.push(zv >= REC.zweitMin && _zeichen[zi]?.trim() ? [_zeichen[zi], bv, zv] : null);
+    }
     vor = bi;
   }
   const wert = werte.length ? werte.reduce((a, b) => a + b, 0) / werte.length : 0;
-  return { zeichen, spalten, wert };
+  return { zeichen, spalten, wert, zweit };
 }
 
 /**
@@ -228,7 +234,7 @@ export async function paddleErkennen(px, fortschritt = () => {}) {
   const woerter = [], text = [];
   const zurueck = 1 / r;
   zeilen.forEach((t, zi) => {
-    const { zeichen, spalten, wert } = t.les;
+    const { zeichen, spalten, wert, zweit } = t.les;
     if (wert < REC.minWert || !zeichen.length) return;
     text.push({ y: t.k.p[0][1], s: zeichen.join('').trim() });
     const p = t.k.p, spB = t.bw / t.T, skal = t.a.w / t.rw;
@@ -247,7 +253,9 @@ export async function paddleErkennen(px, fortschritt = () => {}) {
         pts.push([mx - (u[0] - k[0]) / l * hk, my - (u[1] - k[1]) / l * hk], [mx + (u[0] - k[0]) / l * hk, my + (u[1] - k[1]) / l * hk]);
       }
       const xs = pts.map(q => q[0] * zurueck), ys = pts.map(q => q[1] * zurueck);
-      woerter.push({ text: wort.map(i => zeichen[i]).join(''), confidence: wert * 100, zeile: zi,
+      // alt: [Stelle im Wort, zweite Wahl, Wert erste, Wert zweite] für unsichere Zeichen.
+      const alt = wort.map((i, k) => zweit[i] && [k, ...zweit[i]]).filter(Boolean);
+      woerter.push({ text: wort.map(i => zeichen[i]).join(''), confidence: wert * 100, zeile: zi, alt,
         bbox: { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys) } });
       wort = [];
     };

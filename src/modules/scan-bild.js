@@ -150,6 +150,30 @@ function _istLautschrift(t) {
   return /\w:\w/.test(t);
 }
 
+/**
+ * Englisches Wort mit unsicheren Zeichen gegen die Wortliste prüfen: Ist es
+ * kein Wort, aber eine Mischung mit den zweiten Wahlen schon („girifriend“ →
+ * „girlfriend“), die wahrscheinlichste solche Mischung nehmen.
+ */
+function _wortKorrigieren(w, wb) {
+  if (!wb || !w.alt?.length) return w.text;
+  const m = /^([^A-Za-z]*)([A-Za-z]+)([^A-Za-z]*)$/.exec(w.text);
+  if (!m || m[2].length < 2 || wb.has(m[2].toLowerCase())) return w.text;
+  const a0 = m[1].length, kern = [...m[2]];
+  const alt = w.alt.filter(([k, z]) => k >= a0 && k < a0 + kern.length && /^[A-Za-z]$/.test(z))
+    .sort((a, b) => b[3] - a[3]).slice(0, 6);
+  let best = null, bestP = -Infinity;
+  for (let maske = 1; maske < 1 << alt.length; maske++) {
+    const k2 = [...kern];
+    let p = 0;
+    alt.forEach(([k, z, p1, p2], j) => {
+      if (maske & (1 << j)) { k2[k - a0] = z; p += Math.log(p2); } else p += Math.log(p1);
+    });
+    if (p > bestP && wb.has(k2.join('').toLowerCase())) { bestP = p; best = k2.join(''); }
+  }
+  return best ? m[1] + best + m[3] : w.text;
+}
+
 function _median(a) {
   if (!a.length) return 0;
   const s = [...a].sort((x, y) => x - y);
@@ -164,7 +188,7 @@ function _median(a) {
  * und weitere Spalten (Beispielsätze) fallen weg; zweizeilige Einträge werden
  * zusammengezogen.
  */
-export function vokabelZeilen(woerter) {
+export function vokabelZeilen(woerter, woerterbuch = null) {
   let alle = woerter.filter(w => w.text && w.text.trim());
   if (!alle.length) return '';
   const hMed = _median(alle.map(w => w.bbox.y1 - w.bbox.y0)) || 20;
@@ -277,7 +301,7 @@ export function vokabelZeilen(woerter) {
     for (const w of s.ws) {
       if (en && w.bbox.x1 < enX - 0.3 * hMed) continue;
       if (en && _istLautschrift(w.text)) { s.laut = true; break; }
-      let t = w.text;
+      let t = en ? _wortKorrigieren(w, woerterbuch) : w.text;
       if (!en) {
         t = t.replace(/^[‘’'"`´*+!\\|§&]+|[‘’'"`´*+!\\|§&]+$/g, '').replace(/ii/g, 'ü');
         if (!/[a-zA-ZäöüÄÖÜß]/.test(t) && !/^[\/;,-]+$/.test(t)) continue;
