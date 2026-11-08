@@ -213,7 +213,8 @@ export function vokabelZeilen(woerter) {
     let akt = [];
     for (const w of ws) {
       const vor = akt[akt.length - 1];
-      const grenze = (vor && w.zeile != null && w.zeile === vor.zeile ? 2 : 0.9) * hMed;
+      // Getrennte Kästen: 1,5 — PaddleOCR teilt Ausdrücke wie „sich | beeilen“ in zwei Kästen.
+      const grenze = (vor && w.zeile != null && w.zeile === vor.zeile ? 2 : 1.5) * hMed;
       if (akt.length && w.bbox.x0 - vor.bbox.x1 > grenze) { stuecke.push(akt); akt = []; }
       akt.push(w);
     }
@@ -315,5 +316,6 @@ export function vokabelZeilen(woerter) {
     }
     letzteY = r.y1;
   }
-  return paare.map(p => `${p.en}\t${p.de}`).join('\n');
+  // Ein Strich am Ende ohne Folgezeile ist eine Stiftmarke („Tante -“).
+  return paare.map(p => `${p.en}\t${p.de.replace(/\s*-$/, '')}`).join('\n');
 }
