@@ -93,7 +93,7 @@ function _renderVmTabsForMode() {
         <button class="vm-tab" data-tab="add" onclick="vmTab('add')">Hinzufügen</button>
         <button class="vm-tab" data-tab="list" onclick="vmTab('list')">Liste<span id="vm-count" class="vm-count">0</span></button>
       `;
-      vmTab('add');
+      vmTab('scan');   // Startreiter Scan (10.11.2026)
     } else {
       tabsEl.innerHTML = '';
     }
@@ -105,7 +105,7 @@ function _renderVmTabsForMode() {
       <button class="vm-tab" data-tab="add" onclick="vmTab('add')">Hinzufügen</button>
       <button class="vm-tab" data-tab="list" onclick="vmTab('list')">Liste<span id="vm-count" class="vm-count">0</span></button>
     `;
-    vmTab('add');
+    vmTab('scan');   // Startreiter Scan (10.11.2026)
   }
   _updateVmCount();
   // Umbenennen sitzt direkt unter dem Sammlungsnamen (siehe openVocabManager).
