@@ -44,6 +44,18 @@ export async function pruefePaar(de, en) {
   return { en: r.en, de: r.de };
 }
 
+// Live beim Tippen: Seite `seite` ('de'|'en') hat jetzt `text`, die andere Seite `gegen`.
+// → null (nicht prüfbar) oder { passt: 'exakt'|'unterwegs'|false, neu, fehler }
+//   neu = Übersetzung für die andere Seite (nur wenn sie nicht passt),
+//   fehler = Wortfehler dieser Seite (leer, solange sie „unterwegs“ zu einer Übersetzung ist).
+export async function liveUebersetzen(seite, text, gegen) {
+  const r = await _frage({ art: 'live', seite, text: text || '', gegen: gegen || '' });
+  if (r.fehler) { console.warn('[pruefen] Live-Übersetzung übersprungen:', r.fehler); return null; }
+  // Steht die Eingabe im Wörterbuch (passt oder ist übersetzbar), ist sie ein Wort.
+  const fehler = r.passt || r.neu ? [] : r.pruef.fehler.filter(f => f.grund !== 'leer');
+  return { passt: r.passt, neu: r.neu, fehler };
+}
+
 // Sichtbare Namen (Spielername, Deck-Namen). → { ok, treffer }
 export async function pruefeNamen(name) {
   const r = await _frage({ art: 'name', name: name || '' });
@@ -58,7 +70,6 @@ const _SPRACHE = { de: 'deutsches', en: 'englisches' };
 export function fehlerSatz(seite, f) {
   if (f.grund === 'zahl') return 'Zahlen gehören nicht in eine Vokabel.';
   if (f.grund === 'leer') return 'Bitte ein Wort eingeben.';
-  if (f.vorschlaege?.length) return `„${f.wort}“ – meintest du:`;
   return `„${f.wort}“ ist kein ${_SPRACHE[seite]} Wort.`;
 }
 
@@ -82,10 +93,7 @@ export async function pruefeEintrag(de, en) {
 // Text für eine Fehlermeldung im Dialog (Bearbeiten, Hinzufügen).
 export function eintragFehlerText(e) {
   const zeilen = [];
-  for (const s of ['de', 'en']) for (const f of e.seiten[s].fehler) {
-    const satz = fehlerSatz(s, f);
-    zeilen.push(f.vorschlaege?.length ? satz + ' ' + f.vorschlaege.join(', ') + '?' : satz);
-  }
+  for (const s of ['en', 'de']) for (const f of e.seiten[s].fehler) zeilen.push(fehlerSatz(s, f));
   return zeilen.join('\n');
 }
 

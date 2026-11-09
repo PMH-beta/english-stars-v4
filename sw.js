@@ -63,7 +63,7 @@ const PRECACHE = [
   './src/modules/screen-shell.js',
   // Wort- und Namensprüfung beim Anlegen (Wortlisten unter models/woerter-v1/).
   './src/modules/pruefen.js', './src/modules/wortpruefung.js', './src/modules/wortpruefung-daten.js',
-  './src/modules/wortpruefung-worker.js', './src/modules/namenpruefung.js',
+  './src/modules/wortpruefung-worker.js', './src/modules/namenpruefung.js', './src/modules/uebersetzung.js',
   './src/modules/speech.js', './src/modules/startup.js', './src/modules/stats.js',
   './src/modules/storage.js', './src/modules/supabase.js', './src/modules/sync.js',
   './src/modules/ui.js', './src/modules/vocab.js',

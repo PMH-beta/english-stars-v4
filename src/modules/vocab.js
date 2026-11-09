@@ -11,8 +11,8 @@ import { iconHTML } from './pixel-icons.js';
 import { ensureTesseract } from './lazyload.js';
 import { paddleLaden, paddleErkennen } from './scan-paddle.js';
 import { vokabelZeilen } from './scan-bild.js';
-import { MAX_BILDER, bilder, aktiverIndex, beiAenderung, bilderHinzufuegen, zuschnittAnzeigen, bildWaehlen, bildEntfernen, bilderVerwerfen, zuschnittDrehen, zuschnittBild } from './scan-zuschnitt.js';
-import { vorwaermen, pruefeEintrag, fehlerSatz, namenPrompt, nameErlaubt } from './pruefen.js';
+import { MAX_BILDER, bilder, aktiverIndex, beiAenderung, bilderHinzufuegen, zuschnittAnzeigen, bildWaehlen, bildEntfernen, bilderVerwerfen, zuschnittBild } from './scan-zuschnitt.js';
+import { vorwaermen, pruefeEintrag, fehlerSatz, namenPrompt, nameErlaubt, liveUebersetzen } from './pruefen.js';
 
 function _vmDeck() { return window._draftDeck || activeDeck(); }
 
@@ -88,9 +88,9 @@ function _renderVmTabsForMode() {
       vmTab('presets');
     } else if (dp === 'custom') {
       tabsEl.innerHTML = `
-        <button class="vm-tab" data-tab="add" onclick="vmTab('add')">Hinzufügen</button>
-        <button class="vm-tab" data-tab="paste" onclick="vmTab('paste')">Text</button>
         <button class="vm-tab" data-tab="scan" onclick="vmTab('scan')">Scan</button>
+        <button class="vm-tab" data-tab="paste" onclick="vmTab('paste')">Text</button>
+        <button class="vm-tab" data-tab="add" onclick="vmTab('add')">Hinzufügen</button>
         <button class="vm-tab" data-tab="list" onclick="vmTab('list')">Liste<span id="vm-count" class="vm-count">0</span></button>
       `;
       vmTab('add');
@@ -98,11 +98,11 @@ function _renderVmTabsForMode() {
       tabsEl.innerHTML = '';
     }
   } else {
-    // Schülermodus: nur Custom-Decks. Scan-Tab zwischen „Text" und „Liste".
+    // Schülermodus: nur Custom-Decks. Reihenfolge Scan, Text, Hinzufügen, Liste.
     tabsEl.innerHTML = `
-      <button class="vm-tab" data-tab="add" onclick="vmTab('add')">Hinzufügen</button>
-      <button class="vm-tab" data-tab="paste" onclick="vmTab('paste')">Text</button>
       <button class="vm-tab" data-tab="scan" onclick="vmTab('scan')">Scan</button>
+      <button class="vm-tab" data-tab="paste" onclick="vmTab('paste')">Text</button>
+      <button class="vm-tab" data-tab="add" onclick="vmTab('add')">Hinzufügen</button>
       <button class="vm-tab" data-tab="list" onclick="vmTab('list')">Liste<span id="vm-count" class="vm-count">0</span></button>
     `;
     vmTab('add');
@@ -141,24 +141,33 @@ function _renderVmTabsForMode() {
   });
   row.appendChild(abortBtn);
   bottomArea.appendChild(row);
-  // „Bestätigen" schwebt seit 14.10.2026 unten mittig (style.css .vm-confirm--schwebt),
-  // „Abbrechen" bleibt unter dem Inhalt; darunter Platz zum Ausscrollen.
-  confirmBtn.classList.add('vm-confirm--schwebt');
-  bottomArea.appendChild(confirmBtn);
-  const platz = document.createElement('div');
-  platz.className = 'vm-schwebe-platz';
-  bottomArea.appendChild(platz);
+  if (_vmDeck()?.deckPath !== 'preset') {
+    // Eigene Sammlung (10.11.2026): „Abbrechen | Bestätigen“ nebeneinander unter der
+    // Liste, nur im Reiter Liste (vmTab blendet sie sonst aus), nichts schwebt.
+    row.classList.add('vm-bottom-bar--zwei');
+    row.appendChild(confirmBtn);
+  } else {
+    // Vorlagen: „Bestätigen" schwebt seit 14.10.2026 unten mittig (style.css
+    // .vm-confirm--schwebt), „Abbrechen" bleibt unter dem Inhalt; darunter Platz zum Ausscrollen.
+    confirmBtn.classList.add('vm-confirm--schwebt');
+    bottomArea.appendChild(confirmBtn);
+    const platz = document.createElement('div');
+    platz.className = 'vm-schwebe-platz';
+    bottomArea.appendChild(platz);
+  }
   _syncDraftConfirm();
 }
 
 // Bestätigen-Button im Draft ausgrauen, solange noch kein Wort/Vorlage drin ist.
-// Bleibt klickbar (kein disabled-Attribut) → der Klick zeigt dann den Hinweis.
+// Vorlagen: bleibt klickbar → der Klick zeigt den Hinweis. Eigene Sammlung:
+// wirklich gesperrt, bis mindestens 1 Wort drin ist.
 function _syncDraftConfirm() {
   const btn = document.getElementById('vm-draft-confirm');
   if (!btn) return;
   const d = _vmDeck();
   const ready = !!d && (d.vocab?.length || 0) >= 1;
   btn.classList.toggle('is-disabled', !ready);
+  if (!btn.classList.contains('vm-confirm--schwebt')) btn.disabled = !ready;
 }
 
 // „Abbrechen" / Android-Zurück im Draft: erst nachfragen, dann verwerfen.
@@ -232,6 +241,9 @@ export function vmTab(tabName) {
   if (tabName === 'add' || tabName === 'paste' || tabName === 'scan') vorwaermen();
   if (tabName === 'presets') renderPresetsTab();
   if (tabName === 'deck-stats') _renderDeckStatsPane();
+  // Entwurf einer eigenen Sammlung: Abbrechen/Bestätigen nur im Reiter Liste.
+  const unten = document.getElementById('vm-bottom-area');
+  if (unten) unten.style.display = window._draftDeck && _vmDeck()?.deckPath !== 'preset' && tabName !== 'list' ? 'none' : '';
   _updateVmCount();
 }
 
@@ -269,10 +281,10 @@ function _wordTablesHtml(deck) {
       const rf = gefragt
         ? `<span class="vm-st-rf">${Math.floor(s.correct || 0)} / ${Math.floor(s.wrong || 0)}</span>`
         : '<span class="vm-st-rf is-leer">– / –</span>';
-      return `<div class="vm-st-zeile"><span class="vm-st-de">${window.escHtml(v.de)}</span><span class="vm-st-en">${window.escHtml(v.en)}</span><span>${stand}</span>${rf}</div>`;
+      return `<div class="vm-st-zeile"><span class="vm-st-en">${window.escHtml(v.en)}</span><span class="vm-st-de">${window.escHtml(v.de)}</span><span>${stand}</span>${rf}</div>`;
     }).join('');
     return `<div class="vm-st-kicker">${iconHTML(icon, 14)}<div>${title}</div></div>
-<div class="vm-st-karte"><div class="vm-st-kopf"><span>Deutsch</span><span>Englisch</span><span>Stand</span><span>R / F</span></div>${rows}</div>`;
+<div class="vm-st-karte"><div class="vm-st-kopf"><span>Englisch</span><span>Deutsch</span><span>Stand</span><span>R / F</span></div>${rows}</div>`;
   }
   return makeTable('_mc', 'book', 'Vokabeln') + makeTable('_sp', 'pencil', 'Rechtschreibung') + makeTable('_pr', 'mic', 'Aussprache');
 }
@@ -432,13 +444,16 @@ export function parsePastedText() {
 // Bild liegt die Bildleiste; „+“ klappt Kamera/Galerie auf. Erkannt werden nur
 // Bilder, die neu sind oder seit dem letzten Erkennen verändert wurden; ihre
 // Wörter ersetzen in der Prüfliste nur die Wörter desselben Bildes.
+// Weg für „+“: id des Datei-Felds, mit dem das erste Bild kam (Kamera bleibt Kamera,
+// Galerie bleibt Galerie).
+let _plusWeg = 'scan-file';
 export async function onScanFile(event) {
   const files = Array.from(event.target.files || []);
   event.target.value = '';
   if (!files.length) return;
+  if (!bilder().length) _plusWeg = event.target.id === 'scan-file-galerie' ? 'scan-file-galerie' : 'scan-file';
   const status = document.getElementById('scan-status');
   status.innerHTML = '';
-  _plusZu();
   const { neu, zuviel, fehler } = await bilderHinzufuegen(files);
   _scanAnsicht();
   if (!neu) status.innerHTML = _scanFehler(fehler > 1 ? 'Bilder konnten nicht geöffnet werden.' : 'Bild konnte nicht geöffnet werden.');
@@ -487,8 +502,10 @@ function _losText() {
   return offen.length === 1 ? 'Bild erkennen' : `${offen.length} Bilder erkennen`;
 }
 
-// Bildleiste: kleine Vorschau je Bild (aktives umrahmt), Zustand als Abzeichen,
-// „+“-Kachel solange weniger als 5 Bilder da sind.
+// Bildleiste: kleine Vorschau je Bild (aktives umrahmt, erkannte zusätzlich mit
+// grünem Ring), Zustand als Abzeichen, „✕“ zum Entfernen, „+“-Kachel solange
+// weniger als 5 Bilder da sind. „+“ öffnet direkt Kamera bzw. Galerie — das
+// „scan-file“ im onclick lässt main.js den Klick ohne Verzögerung durch (Nutzergeste).
 // Wortzahl als Abzeichen; 0 (alles doppelt oder gelöscht) neutral statt grün.
 function _standZahl(n) { return `<span class="scan-kachel-stand ${n ? 'is-ok' : 'is-leer'}">${n}</span>`; }
 function _leisteHTML(ort) {
@@ -499,41 +516,34 @@ function _leisteHTML(ort) {
       : b.stand === 'ok' && b.geaendert ? `<span class="scan-kachel-stand is-geaendert">${iconHTML('refresh', 14)}</span>`
       : b.stand === 'ok' ? _standZahl(window._reviewItems.filter(it => it.bild === b.id).length) : '';
     const ist = ort === 'scan' && i === aktiv;
-    return `<button class="scan-kachel${ist ? ' is-aktiv' : ''}" onclick="${ort === 'scan' ? 'scanBildTipp' : 'rvBildOeffnen'}(${i})"`
+    const erkannt = b.stand === 'ok' && !b.geaendert;
+    return `<span class="scan-kachel-platz"><button class="scan-kachel${ist ? ' is-aktiv' : ''}${erkannt ? ' is-erkannt' : ''}" onclick="${ort === 'scan' ? 'scanBildTipp' : 'rvBildOeffnen'}(${i})"`
       + ` aria-label="Bild ${i + 1}${ist ? ' (ausgewählt)' : ''}"${ist ? ' aria-current="true"' : ''}>`
-      + `<img src="${b.vorschau}" alt=""><span class="scan-kachel-nr">${i + 1}</span>${stand}</button>`;
+      + `<img src="${b.vorschau}" alt=""><span class="scan-kachel-nr">${i + 1}</span>${stand}</button>`
+      + `<button class="scan-kachel-weg" onclick="scanBildWeg(${i},'${ort}')" aria-label="Bild ${i + 1} entfernen">${iconHTML('close', 14)}</button></span>`;
   }).join('');
   const plus = liste.length < MAX_BILDER
-    ? `<button class="scan-kachel scan-kachel--plus" onclick="${ort === 'scan' ? 'scanPlus()' : 'rvBildPlus()'}" aria-label="Weiteres Bild hinzufügen">${iconHTML('plus', 28)}</button>`
+    ? `<button class="scan-kachel scan-kachel--plus" onclick="${ort === 'scan' ? 'scanPlus' : 'rvBildPlus'}('${_plusWeg}')" aria-label="Weiteres Bild hinzufügen">${iconHTML('plus', 28)}</button>`
     : '';
   return kacheln + plus;
 }
 
 export function scanBildTipp(i) {
   if (_scanAktiv) return;
-  _plusZu();
   bildWaehlen(i);
   _scanTeileAuffrischen();
 }
-// „+“ klappt die zwei Wege (Kamera / Galerie) unter der Leiste auf und wieder zu.
-export function scanPlus() {
-  const w = document.getElementById('scan-plus-wahl');
-  if (!w) return;
-  const auf = w.style.display === 'none';
-  w.style.display = auf ? '' : 'none';
-  document.querySelector('#scan-leiste .scan-kachel--plus')?.classList.toggle('is-offen', auf);
-  if (auf) w.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-}
-function _plusZu() {
-  const w = document.getElementById('scan-plus-wahl');
-  if (w) w.style.display = 'none';
+// „+“: gleich Kamera bzw. Galerie öffnen (weg = id des Datei-Felds).
+export function scanPlus(weg) {
+  if (_scanAktiv) return;
+  document.getElementById(weg === 'scan-file-galerie' ? 'scan-file-galerie' : 'scan-file')?.click();
 }
 
-// Zuschnitt (Knöpfe über dem Foto): drehen, Bild entfernen; unten erkennen.
-export function scanZsDrehen() { if (!_scanAktiv) zuschnittDrehen(); }
-export async function scanZsEntfernen() {
+// „✕“ an der Kachel: Bild entfernen. Stehen von ihm schon Wörter in der Prüfliste,
+// erst nachfragen. ort: 'scan' oder 'review' (dort die Liste neu zeichnen).
+export async function scanBildWeg(i, ort) {
   if (_scanAktiv) return;
-  const i = aktiverIndex(), b = bilder()[i];
+  const b = bilder()[i];
   if (!b) return;
   const woerter = window._reviewItems.filter(it => it.bild === b.id).length;
   if (woerter) {
@@ -545,11 +555,13 @@ export async function scanZsEntfernen() {
   bildEntfernen(i);
   window._reviewItems = window._reviewItems.filter(it => it.bild !== b.id).map((it, idx) => ({ ...it, id: idx }));
   document.getElementById('scan-status').innerHTML = '';
-  _scanAnsicht();
+  if (ort === 'review') {
+    if (!bilder().length && !window._reviewItems.length) { rvZurueck(); return; }
+    renderReviewList();
+  } else _scanAnsicht();
 }
 export function scanZsLos() {
   if (_scanAktiv) return;
-  _plusZu();
   if (!_offeneBilder().length) { showReview(); return; }
   startScan();
 }
@@ -562,10 +574,10 @@ export function rvBildOeffnen(i) {
   _scanTeileAuffrischen();
   document.getElementById('scan-zuschnitt')?.scrollIntoView({ block: 'start' });
 }
-export function rvBildPlus() {
+export function rvBildPlus(weg) {
   showScreen('scan-screen');
   vmTab('scan');
-  scanPlus();
+  scanPlus(weg);
 }
 // Zurück aus der Prüfliste: Scan-Fläche neu zeichnen (war ausgeblendet).
 export function rvZurueck() {
@@ -906,24 +918,21 @@ function _rvZaehler() {
     + (_rvLaeuft ? ' · wird geprüft …' : offen ? ` · ${offen} prüfen` : '');
 }
 
-// Meldungen unter einer Zeile: rot (gesperrt), mint (korrigiert), gelb (Hinweis).
+// Meldungen unter einer Zeile: rot (gesperrt), mint (korrigiert). Keine Auswahl
+// „meintest du …“ mehr — beim Tippen übersetzt die andere Seite live (10.11.2026).
 function _rvMeldungen(item, i) {
   const pr = item.pr;
   if (!pr) return '';
   const h = [];
-  const chips = (s, wort, liste) => liste.map(v =>
-    `<button class="rv-chip" onclick="rvVorschlag(${i},'${s}',${_js(wort)},${_js(v)})">${window.escHtml(v)}</button>`).join('');
-  for (const s of ['de', 'en']) {
+  for (const s of ['en', 'de']) {
     const x = pr[s];
     if (!x) continue;
-    for (const f of x.fehler) h.push(`<div class="rv-meldung rv-meldung--fehler"><span>${window.escHtml(fehlerSatz(s, f))}</span>${chips(s, f.wort, f.vorschlaege || [])}</div>`);
+    for (const f of x.fehler) h.push(`<div class="rv-meldung rv-meldung--fehler"><span>${window.escHtml(fehlerSatz(s, f))}</span></div>`);
     if (x.fehler.length) continue;
     for (const k of x.korr) h.push(`<div class="rv-meldung rv-meldung--korr"><span>korrigiert: ${window.escHtml(k.von)} → <b>${window.escHtml(k.zu)}</b></span><button class="rv-chip" onclick="rvRueckgaengig(${i},'${s}')">Rückgängig</button></div>`);
-    for (const t of x.hinweise) h.push(`<div class="rv-meldung rv-meldung--hinweis"><span>„${window.escHtml(t.wort)}“ – meintest du:</span>${chips(s, t.wort, t.vorschlaege)}</div>`);
   }
   return h.join('');
 }
-const _js = v => window.escHtml(JSON.stringify(v));
 
 function _rvZeile(item, i) {
   const feld = s => {
@@ -933,22 +942,13 @@ function _rvZeile(item, i) {
       + ` oninput="rvEingabe(${i},'${s}',this)" onchange="rvGeaendert(${i})" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}">${window.escHtml(item[s])}</textarea></label>`;
   };
   return `<div class="review-item${item.isDuplicate ? ' is-doppelt' : ''}${_rvFehler(item) ? ' is-fehler' : ''}" id="ritem-${i}">
-      <div class="rv-felder">${feld('de')}${feld('en')}</div>
+      <div class="rv-felder">${feld('en')}${feld('de')}</div>
       <div class="rv-rechts">
-        ${_rvBildNr(item)}
         ${item.isDuplicate ? `<span class="review-doppelt" title="Bereits vorhanden">${iconHTML('check', 14)}</span>` : ''}
         <button class="review-del" onclick="removeReviewItem(${i})" title="Entfernen">${iconHTML('trash', 14)}</button>
       </div>
       <div class="rv-meldungen">${_rvMeldungen(item, i)}</div>
     </div>`;
-}
-
-// Kleine Bild-Nummer an der Zeile (nur bei mehr als einem Bild).
-function _rvBildNr(item) {
-  const liste = bilder();
-  if (liste.length < 2 || !item.bild) return '';
-  const nr = liste.findIndex(b => b.id === item.bild) + 1;
-  return nr ? `<span class="rv-bild-nr" title="Von Bild ${nr}">${nr}</span>` : '';
 }
 
 function _rvHoehe(el) { el.style.height = 'auto'; el.style.height = (el.scrollHeight + el.offsetHeight - el.clientHeight) + 'px'; }
@@ -969,27 +969,60 @@ function _rvZeileAktualisieren(item) {
   _rvZaehler();
 }
 
+// ── Live-Übersetzung beim Tippen (10.11.2026) ──
+// Kurz nach dem Tippen auf einer Seite: Passt die andere Seite schon (oder ist die
+// Eingabe Buchstabe für Buchstabe auf dem Weg zu einer ihrer Übersetzungen), bleibt
+// sie stehen; sonst kommt die beste Übersetzung aus dem Wörterbuch hinein. Was kein
+// Wort ist, wird rot. Beim Tippen wird nichts automatisch korrigiert — das gibt es
+// nur beim ersten Prüfen nach dem Scan.
+const LIVE_MS = 600;
+function _rvLivePlanen(item, s) {
+  if (item._lt && item._ls !== s) _rvLive(item);   // andere Seite noch offen → zuerst
+  clearTimeout(item._lt);
+  item._ls = s;
+  item._lt = setTimeout(() => _rvLive(item), LIVE_MS);
+}
+function _rvLive(item) {
+  clearTimeout(item._lt); item._lt = 0;
+  const s = item._ls;
+  if (!s) return;
+  item._ls = null;
+  const t = s === 'de' ? 'en' : 'de';
+  item._nr = (item._nr || 0) + 1;                    // laufende Gesamtprüfung verwerfen
+  const ln = item._ln ||= {}, nr = ln[s] = (ln[s] || 0) + 1;
+  const lp = item._lp ||= {};
+  const text = (item[s] || '').trim(), alt = item[t] || '';
+  const pr = item.pr ||= {};
+  if (!text) { pr[s] = null; lp[s] = null; item._p = Promise.all([lp.de, lp.en]); _rvZeileAktualisieren(item); return; }
+  _rvLaeuft++;
+  _rvZaehler();
+  lp[s] = liveUebersetzen(s, text, alt).then(r => {
+    if (nr !== ln[s]) return;
+    if (!r) { pr[s] = null; return; }
+    pr[s] = r.fehler.length ? { fehler: r.fehler, hinweise: [], korr: [] } : null;
+    if (r.neu && item[t] === alt) {
+      item[t] = r.neu; pr[t] = null;
+      if (item.vorher) delete item.vorher[t];
+      // Steht der Cursor schon im anderen Feld (noch unverändert), auch dort einsetzen.
+      const ta = document.querySelector(`#ritem-${window._reviewItems.indexOf(item)} textarea[data-s="${t}"]`);
+      if (ta && ta === document.activeElement && ta.value === alt) { ta.value = r.neu; _rvHoehe(ta); }
+    }
+  }).finally(() => { _rvLaeuft--; _rvZeileAktualisieren(item); });
+  item._p = Promise.all([lp.de, lp.en]);
+}
+
 export function rvEingabe(i, s, el) {
   const item = window._reviewItems[i];
   if (!item) return;
   item[s] = el.value.replace(/\n/g, ' ');
   _rvHoehe(el);
-  // Alte Meldung dieser Seite weg, geprüft wird beim Verlassen des Felds.
-  if (item.pr?.[s]) { item.pr[s] = null; item._nr = (item._nr || 0) + 1; _rvZeileAktualisieren(item); }
   if (item.vorher) delete item.vorher[s];
+  _rvLivePlanen(item, s);
 }
-export async function rvGeaendert(i) {
+// Feld verlassen: nicht erst auf die Tipp-Pause warten.
+export function rvGeaendert(i) {
   const item = window._reviewItems[i];
-  if (!item) return;
-  await _rvPruefen(item);
-  _rvZeileAktualisieren(item);
-}
-export async function rvVorschlag(i, s, wort, neu) {
-  const item = window._reviewItems[i];
-  if (!item) return;
-  item[s] = item[s].replace(wort, neu);
-  await _rvPruefen(item);
-  _rvZeileAktualisieren(item);
+  if (item?._lt) _rvLive(item);
 }
 export function rvRueckgaengig(i, s) {
   const item = window._reviewItems[i];
@@ -1010,7 +1043,7 @@ export function renderReviewList() {
     return;
   }
   // Zeilen als Karten wie in 3.6; die Felder bleiben direkt bearbeitbar (F-39).
-  // Deutsch und Englisch untereinander, lange Einträge brechen um.
+  // Englisch und Deutsch untereinander, lange Einträge brechen um.
   list.innerHTML = window._reviewItems.map(_rvZeile).join('');
   list.querySelectorAll('textarea').forEach(_rvHoehe);
   // Kopfzeile kurz wie 3.6 (F-42); bereits vorhandene Wörter bleiben grau.
@@ -1034,19 +1067,9 @@ export function addReviewItem() {
   row?.querySelector('textarea')?.focus();
 }
 
-// „Neu scannen" (3.6, F-40): die noch nicht gespeicherte Liste verwerfen, zurück
-// in den Scan-Reiter und gleich die Kamera öffnen (in derselben Geste).
-export function rescanReview() {
-  window._reviewItems = [];
-  bilderVerwerfen();
-  document.getElementById('scan-status').innerHTML = '';
-  showScreen('scan-screen');
-  vmTab('scan');
-  document.getElementById('scan-file')?.click();
-}
-
 export async function confirmAddVocab() {
   // Erst die Wortprüfung abwarten (Feld eben verlassen, Liste lädt noch).
+  for (const i of window._reviewItems) if (i._lt) _rvLive(i);
   const offen = window._reviewItems.filter(i => (i.de || '').trim() && (i.en || '').trim() && (i._p === undefined || i._p));
   for (const i of offen) { if (i._p === undefined) _rvPruefen(i); }
   await Promise.all(offen.map(i => i._p));

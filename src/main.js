@@ -6,13 +6,13 @@ import { _initTTS, speakWord, speakWordOnce, ensureMicStream, releaseMicStream, 
 import { _trackUrl, _discoverTracks, _playNext, _initAudio, startMusic, startMusicSync, stopMusic, setMusicVolume, _setMusicBtns, toggleMusic, toggleVolPopup } from './modules/audio.js';
 import { effectivePct, isMastered } from './modules/stats.js';
 import { buildPool, toggleSchnell, syncSchnellForMode, startGame, confirmHome, goHomeSaving, nextQuestion, restartSame, checkMC, submitType, checkOrder, showSelfRateButtons, retryPronounce, evaluateWithClaude, setMicFinalStatus, _sfx, playSfx } from './modules/game.js';
-import { syncMirrorFromActiveDeck, activeDeck, switchDeck, createDeck, deleteDeck, renameDeck, deckProgress, renderDecks, toggleDeck, activateDeck, startGameWithDeck, newDeckPrompt, renameDeckPrompt, confirmDeleteDeck, resetDeckProgress, vmDeleteWord, vmEditWord, vmAddManual, vmAddVorschlag, vmAddRueckgaengig, openDeckStats } from './modules/decks.js';
+import { syncMirrorFromActiveDeck, activeDeck, switchDeck, createDeck, deleteDeck, renameDeck, deckProgress, renderDecks, toggleDeck, activateDeck, startGameWithDeck, newDeckPrompt, renameDeckPrompt, confirmDeleteDeck, resetDeckProgress, vmDeleteWord, vmEditWord, vmAddManual, vmAddEingabe, vmAddVerlassen, vmAddRueckgaengig, openDeckStats } from './modules/decks.js';
 import { charReiter, charOption, charSchritt, charFarbe } from './modules/avatar.js';
 import { tourAnsehen } from './modules/tour.js';
 import { showScreen, saveName, showMenu, showProfile, editPlayerName, showCharacter, showCharacterOnboarding, finishCharacterOnboarding, closeCharacter, charSpeichern, charNameBearbeiten, charZurSchmiede, showStats, showFriendStats, closeFriendStats, confirmReset, showFeedback, hideFeedback, exportData, importData, showAuth, authToggleMode, authSubmit, authResend, authLogout, authGoogleSignIn, handleLogin, handleLogout, showPasswordReset, submitPasswordReset, showNewPasswordScreen, submitNewPassword, cancelNewPassword, setActiveMode, renderModeContent, openProbetestPicker, toggleProbetestHistory, deleteProbetestEntry, uvFlip, uvSlide, uvSetForm, uvInfo, uvWaffenInfo, uvOpenFill, uvTestForge, uvTestForgeRandom, toggleUvTraining, uvTrainOpenCreate, uvTrainDelete, uvTrainToggleDeck, uvTrainChooseForms, uvTrainReset, uvTrainOpenStats, uvTrainRename, onAppResume, checkForRemoteChange, softRefresh } from './modules/ui.js';
 import { pwaInstall } from './modules/pwa.js';
 import { startConstellationStar, startConstellationForm, startUvTraining, uvProgress, uvTeilMeldung } from './modules/irregular-game.js';
-import { openVocabManager, openPresetDeckStats, vmTab, renderVocabList, parsePastedText, onScanFile, scanZsDrehen, scanZsEntfernen, scanZsLos, scanBildTipp, scanPlus, rvBildOeffnen, rvBildPlus, rvZurueck, showReview, renderReviewList, removeReviewItem, addReviewItem, rescanReview, confirmAddVocab, rvEingabe, rvGeaendert, rvVorschlag, rvRueckgaengig, renderPresetsTab, togglePresetCategory, vmBack, vmRenameActiveDeck, newDeckFlow, newDeckPreset, newDeckCustom, confirmAbortDraft } from './modules/vocab.js';
+import { openVocabManager, openPresetDeckStats, vmTab, renderVocabList, parsePastedText, onScanFile, scanBildWeg, scanZsLos, scanBildTipp, scanPlus, rvBildOeffnen, rvBildPlus, rvZurueck, showReview, renderReviewList, removeReviewItem, addReviewItem, confirmAddVocab, rvEingabe, rvGeaendert, rvRueckgaengig, renderPresetsTab, togglePresetCategory, vmBack, vmRenameActiveDeck, newDeckFlow, newDeckPreset, newDeckCustom, confirmAbortDraft } from './modules/vocab.js';
 import { onFriendSearchInput, onFriendSearchEnter, sendFriendRequest, respondFriendRequest, cancelFriendRequest, confirmRemoveFriend, openFriendStats, refreshFriendBadge, refreshFriendsLive } from './modules/friends.js';
 import { startCampaignRun, campaignNode, campPotionInfo, talerTest, talerDeckTest } from './modules/campaign.js';
 import './modules/dialog.js'; // registriert window.esAlert/esConfirm/esPrompt (App-Overlays statt nativer Dialoge)
@@ -122,7 +122,8 @@ window.resetDeckProgress = resetDeckProgress;
 window.vmDeleteWord = vmDeleteWord;
 window.vmEditWord = vmEditWord;
 window.vmAddManual = vmAddManual;
-window.vmAddVorschlag = vmAddVorschlag;
+window.vmAddEingabe = vmAddEingabe;
+window.vmAddVerlassen = vmAddVerlassen;
 window.vmAddRueckgaengig = vmAddRueckgaengig;
 
 // UI via window für Legacy-Code
@@ -219,8 +220,7 @@ window.vmTab = vmTab;
 window.renderVocabList = renderVocabList;
 window.parsePastedText = parsePastedText;
 window.onScanFile = onScanFile;
-window.scanZsDrehen = scanZsDrehen;
-window.scanZsEntfernen = scanZsEntfernen;
+window.scanBildWeg = scanBildWeg;
 window.scanBildTipp = scanBildTipp;
 window.scanPlus = scanPlus;
 window.rvBildOeffnen = rvBildOeffnen;
@@ -231,11 +231,9 @@ window.showReview = showReview;
 window.renderReviewList = renderReviewList;
 window.removeReviewItem = removeReviewItem;
 window.addReviewItem = addReviewItem;
-window.rescanReview = rescanReview;
 window.confirmAddVocab = confirmAddVocab;
 window.rvEingabe = rvEingabe;
 window.rvGeaendert = rvGeaendert;
-window.rvVorschlag = rvVorschlag;
 window.rvRueckgaengig = rvRueckgaengig;
 window.renderPresetsTab = renderPresetsTab;
 window.togglePresetCategory = togglePresetCategory;

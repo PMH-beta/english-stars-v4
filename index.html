@@ -381,9 +381,9 @@
   <div class="p-blatt">
   <!-- Tabs -->
   <div class="vm-tabs">
-    <button class="vm-tab" data-tab="add" onclick="vmTab('add')">Hinzufügen</button>
-    <button class="vm-tab" data-tab="paste" onclick="vmTab('paste')">Text</button>
     <button class="vm-tab" data-tab="scan" onclick="vmTab('scan')">Scan</button>
+    <button class="vm-tab" data-tab="paste" onclick="vmTab('paste')">Text</button>
+    <button class="vm-tab" data-tab="add" onclick="vmTab('add')">Hinzufügen</button>
     <button class="vm-tab active" data-tab="list" onclick="vmTab('list')">Liste<span id="vm-count" class="vm-count">0</span></button>
   </div>
 
@@ -399,13 +399,15 @@
   <div class="vm-pane" id="vm-pane-add" style="display:none;">
     <div class="vm-karte vm-karte--neu">
       <div class="vm-neu-text">Neue Vokabel direkt zur Sammlung hinzufügen:</div>
-      <input type="text" id="vm-add-de" class="p-feld vm-neu-feld" placeholder="Deutsch (z.B. Apfel)">
-      <input type="text" id="vm-add-en" class="p-feld vm-neu-feld" placeholder="Englisch (z.B. apple)">
+      <input type="text" id="vm-add-en" class="p-feld vm-neu-feld" placeholder="Englisch (z.B. apple)" oninput="vmAddEingabe('en')" onblur="vmAddVerlassen()">
+      <input type="text" id="vm-add-de" class="p-feld vm-neu-feld" placeholder="Deutsch (z.B. Apfel)" oninput="vmAddEingabe('de')" onblur="vmAddVerlassen()">
       <div id="vm-add-pruef" class="rv-meldungen"></div>
       <button onclick="vmAddManual()" class="p-btn p-btn--akzent vm-neu-knopf">+ Vokabel hinzufügen</button>
     </div>
     <!-- Herkunft der Wortlisten für die Wortprüfung (Lizenzpflicht SCOWL, CC BY 4.0) -->
     <a class="vm-lizenz" href="models/woerter-v1/LIZENZEN.txt" target="_blank" rel="noopener">Wortprüfung mit SCOWL, enz und LDNOOBW – Lizenzen</a>
+    <!-- Live-Übersetzung: Wörterbuch aus WikDict (CC BY-SA 4.0, Hinweispflicht) -->
+    <a class="vm-lizenz" href="models/woerterbuch-v1/LIZENZ.txt" target="_blank" rel="noopener">Übersetzung mit WikDict (CC BY-SA 4.0) – Lizenz</a>
   </div>
 
   <!-- Tab: Scannen (3.4) -->
@@ -425,8 +427,6 @@
     <div id="scan-zuschnitt" class="scan-zuschnitt" style="display:none">
       <div class="scan-zs-kopf">
         <div class="scan-zs-titel" id="scan-zs-titel">Dein Bild</div>
-        <button class="scan-zs-mini" onclick="scanZsDrehen()" aria-label="Bild drehen" title="Drehen"><canvas data-icon="refresh" width="14" height="14" style="width:14px;height:14px;image-rendering:pixelated;flex:none"></canvas></button>
-        <button class="scan-zs-mini scan-zs-mini--weg" onclick="scanZsEntfernen()" aria-label="Bild entfernen" title="Entfernen"><canvas data-icon="trash" width="14" height="14" style="width:14px;height:14px;image-rendering:pixelated;flex:none"></canvas></button>
       </div>
       <div class="scan-zs-text">Ziehe die gelben Ecken auf den Rand der Vokabelliste.</div>
       <div id="scan-zs-flaeche" class="scan-zs-flaeche">
@@ -435,12 +435,8 @@
       </div>
       <div class="scan-leiste" id="scan-leiste"></div>
       <div class="scan-leiste-info" id="scan-leiste-info"></div>
-      <!-- „+“ klappt die zwei Wege für eine weitere Seite auf. -->
-      <div class="scan-plus-wahl" id="scan-plus-wahl" style="display:none">
-        <button class="p-btn p-btn--sekundaer" onclick="document.getElementById('scan-file').click()"><canvas data-icon="kamera" width="14" height="14" style="width:14px;height:14px;image-rendering:pixelated;flex:none"></canvas>Foto aufnehmen</button>
-        <button class="p-btn p-btn--sekundaer" onclick="document.getElementById('scan-file-galerie').click()"><canvas data-icon="bilder" width="14" height="14" style="width:14px;height:14px;image-rendering:pixelated;flex:none"></canvas>Bilder wählen</button>
-      </div>
-      <button class="p-btn p-btn--primaer scan-zs-los" onclick="scanZsLos()"><canvas data-icon="check" width="14" height="14" style="width:14px;height:14px;image-rendering:pixelated;flex:none"></canvas><span id="scan-zs-los-text">Bild erkennen</span></button>
+      <!-- Hauptknopf in Mint wie „Zur Vokabelliste hinzufügen“ (Wunsch 10.11.2026). -->
+      <button class="p-btn rv-ok scan-zs-los" onclick="scanZsLos()"><canvas data-icon="check" width="14" height="14" style="width:14px;height:14px;image-rendering:pixelated;flex:none"></canvas><span id="scan-zs-los-text">Bild erkennen</span></button>
     </div>
     <input type="file" id="scan-file" accept="image/*" capture="environment" style="display:none" onchange="onScanFile(event)">
     <input type="file" id="scan-file-galerie" accept="image/*" multiple style="display:none" onchange="onScanFile(event)">
@@ -482,10 +478,9 @@
     <div class="rv-sub">Erkannte Wörter prüfen, ergänzen oder löschen</div>
   </div>
   <div class="p-blatt">
-    <!-- Kopfzeile der Liste nach 3.6: „N erkannt", rechts „Neu scannen" (F-40, F-42) -->
+    <!-- Kopfzeile der Liste nach 3.6: „N erkannt" (F-42); „Neu scannen" entfällt seit 10.11.2026 -->
     <div class="rv-leiste">
       <div id="review-count" class="rv-zaehler"></div>
-      <button class="rv-neu-scannen" onclick="rescanReview()"><canvas data-icon="scan" width="14" height="14" style="width:14px;height:14px;image-rendering:pixelated;flex:none"></canvas>Neu scannen</button>
     </div>
     <!-- Bilder dieses Scans: antippen = Ecken anpassen und neu erkennen. -->
     <div class="rv-bilder" id="rv-bilder" style="display:none">

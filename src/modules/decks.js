@@ -4,7 +4,7 @@ import { markDirty, deleteCloudDeck, deleteCloudWordStats, deleteCloudPresetStat
 import { commitDirty } from './dialog.js';
 import { iconHTML } from './pixel-icons.js';
 import { weichUmbauen } from './klapp-anim.js';
-import { namenPrompt, pruefeEintrag, eintragFehlerText, fehlerSatz } from './pruefen.js';
+import { namenPrompt, pruefeEintrag, eintragFehlerText, fehlerSatz, liveUebersetzen } from './pruefen.js';
 
 // ────────────────────────────────────────────────
 //  UI STATE
@@ -639,7 +639,7 @@ export function vmDeleteWord(idx) {
   const deck = window._draftDeck || activeDeck();
   const v = deck.vocab[idx];
   if (!v) return;
-  window.esConfirm({ icon: '🗑️', title: 'Wort löschen?', body: '"' + v.de + ' → ' + v.en + '" wirklich löschen?', ok: 'Löschen', danger: true }).then(ok => {
+  window.esConfirm({ icon: '🗑️', title: 'Wort löschen?', body: '"' + v.en + ' → ' + v.de + '" wirklich löschen?', ok: 'Löschen', danger: true }).then(ok => {
     if (!ok) return;
     deck.vocab.splice(idx, 1);
     if (!window._draftDeck) {
@@ -665,13 +665,14 @@ export function vmEditWord(idx, vorgabe) {
   const oldDe = v.de, oldEn = v.en;
   window.esPrompt2({
     icon: '✏️', title: 'Wort bearbeiten', ok: 'Speichern',
-    label1: 'Deutsch', value1: vorgabe ? vorgabe.de : oldDe,
-    label2: 'Englisch', value2: vorgabe ? vorgabe.en : oldEn,
+    label1: 'Englisch', value1: vorgabe ? vorgabe.en : oldEn,
+    label2: 'Deutsch', value2: vorgabe ? vorgabe.de : oldDe,
   }).then(async res => {
     if (!res) return;
-    let de = (res.de || '').trim();
-    let en = (res.en || '').trim();
-    if (!de || !en) { window.esAlert({ icon: '⚠️', title: 'Eingabe fehlt', body: 'Bitte Deutsch UND Englisch eingeben.' }); return; }
+    // esPrompt2 gibt Feld 1 als .de, Feld 2 als .en zurück — hier steht Englisch oben.
+    let de = (res.en || '').trim();
+    let en = (res.de || '').trim();
+    if (!de || !en) { window.esAlert({ icon: '⚠️', title: 'Eingabe fehlt', body: 'Bitte Englisch UND Deutsch eingeben.' }); return; }
     // Wortprüfung nur, wenn sich etwas geändert hat (alte Wörter bleiben unangetastet).
     if (de !== oldDe || en !== oldEn) {
       const e = await pruefeEintrag(de, en);
@@ -815,7 +816,6 @@ function _vmSpeichern(deck) {
 function _vmMeldung(klasse, text, knoepfe = '') {
   return `<div class="rv-meldung rv-meldung--${klasse}"><span>${text}</span>${knoepfe}</div>`;
 }
-const _jsA = v => window.escHtml(JSON.stringify(v));
 
 export async function vmAddManual() {
   const btn = window.event?.target?.closest?.('button');
@@ -823,7 +823,8 @@ export async function vmAddManual() {
   const box = document.getElementById('vm-add-pruef');
   let de = (deIn?.value || '').trim();
   let en = (enIn?.value || '').trim();
-  if (!de || !en) { window.esAlert({ icon: '⚠️', title: 'Eingabe fehlt', body: 'Bitte Deutsch UND Englisch eingeben.' }); return; }
+  if (!de || !en) { window.esAlert({ icon: '⚠️', title: 'Eingabe fehlt', body: 'Bitte Englisch UND Deutsch eingeben.' }); return; }
+  _vmLiveStopp();
   const deck = window._draftDeck || activeDeck();
   const schonDa = w => deck.vocab.some(v => v.en.toLowerCase() === w.toLowerCase());
   if (schonDa(en)) {
@@ -836,13 +837,12 @@ export async function vmAddManual() {
   if (btn) btn.disabled = true;
   let e;
   try { e = await pruefeEintrag(de, en); } finally { if (btn) btn.disabled = false; }
-  // Gesperrt: rot markieren, Vorschläge als Chips — nichts wird hinzugefügt.
+  // Gesperrt: rot markieren — nichts wird hinzugefügt.
   if (e && !e.ok) {
     const h = [];
-    for (const s of ['de', 'en']) for (const f of e.seiten[s].fehler) {
+    for (const s of ['en', 'de']) for (const f of e.seiten[s].fehler) {
       (s === 'de' ? deIn : enIn).classList.add('is-fehler');
-      h.push(_vmMeldung('fehler', window.escHtml(fehlerSatz(s, f)), (f.vorschlaege || []).map(v =>
-        `<button class="rv-chip" onclick="vmAddVorschlag('${s}',${_jsA(f.wort)},${_jsA(v)})">${window.escHtml(v)}</button>`).join('')));
+      h.push(_vmMeldung('fehler', window.escHtml(fehlerSatz(s, f))));
     }
     if (box) box.innerHTML = h.join('');
     return;
@@ -856,50 +856,69 @@ export async function vmAddManual() {
   deck.vocab.push(v);
   _vmSpeichern(deck);
   window.renderVocabList();
-  // Korrekturen und Hinweise bleiben unter den Feldern stehen, bis zum nächsten Wort.
+  // Korrekturen bleiben unter den Feldern stehen, bis zum nächsten Wort.
   if (e && box) {
     _vmLetzter = { v, deck, vorher: {} };
     const h = [];
-    for (const s of ['de', 'en']) {
+    for (const s of ['en', 'de']) {
       const x = e.seiten[s];
       if (x.korr.length) {
         _vmLetzter.vorher[s] = x.vorher;
         for (const k of x.korr) h.push(_vmMeldung('korr', `korrigiert: ${window.escHtml(k.von)} → <b>${window.escHtml(k.zu)}</b>`,
           `<button class="rv-chip" onclick="vmAddRueckgaengig('${s}')">Rückgängig</button>`));
       }
-      for (const t of x.hinweise) h.push(_vmMeldung('hinweis', `„${window.escHtml(t.wort)}“ – meintest du:`, t.vorschlaege.map(n =>
-        `<button class="rv-chip" onclick="vmAddVorschlag('${s}',${_jsA(t.wort)},${_jsA(n)})">${window.escHtml(n)}</button>`).join('')));
     }
     box.innerHTML = h.join('');
   }
   deIn.value = '';
   enIn.value = '';
-  deIn.focus();
+  enIn.focus();
   if (btn) {
     const orig = btn.textContent;
-    btn.textContent = '✅ Hinzugefügt: ' + de + ' → ' + en;
+    btn.textContent = '✅ Hinzugefügt: ' + en + ' → ' + de;
     setTimeout(() => { btn.textContent = orig; }, 1400);
   }
 }
 
-// Vorschlag-Chip: vor dem Hinzufügen ins Feld, danach direkt ins eben hinzugefügte Wort.
-export function vmAddVorschlag(s, wort, neu) {
-  const box = document.getElementById('vm-add-pruef');
-  if (_vmLetzter) {
-    const { v, deck } = _vmLetzter;
-    v[s] = v[s].replace(wort, neu);
-    _vmSpeichern(deck);
-    window.renderVocabList();
-    _vmLetzter = null;
-    if (box) box.innerHTML = '';
-    return;
+// Live-Übersetzung im Hinzufügen-Reiter (wie in der Prüfliste, vocab.js _rvLive):
+// kurz nach dem Tippen die andere Seite aus dem Wörterbuch füllen, wenn sie nicht
+// schon passt; was kein Wort ist, wird rot.
+const _VM_LIVE_MS = 600;
+let _vmLt = 0, _vmLs = null, _vmLnr = 0;
+const _vmLiveFehler = { de: [], en: [] };
+function _vmLiveStopp() { clearTimeout(_vmLt); _vmLt = 0; _vmLs = null; _vmLnr++; }
+export function vmAddEingabe(s) {
+  if (_vmLt && _vmLs !== s) _vmAddLive();
+  clearTimeout(_vmLt);
+  _vmLs = s;
+  _vmLt = setTimeout(_vmAddLive, _VM_LIVE_MS);
+}
+// Feld verlassen: nicht auf die Tipp-Pause warten.
+export function vmAddVerlassen() { if (_vmLt) _vmAddLive(); }
+async function _vmAddLive() {
+  clearTimeout(_vmLt); _vmLt = 0;
+  const s = _vmLs; _vmLs = null;
+  if (!s) return;
+  const t = s === 'de' ? 'en' : 'de';
+  const quelle = document.getElementById('vm-add-' + s), ziel = document.getElementById('vm-add-' + t);
+  if (!quelle || !ziel) return;
+  const nr = ++_vmLnr;
+  const text = quelle.value.trim(), alt = ziel.value;
+  let r = null;
+  if (text) r = await liveUebersetzen(s, text, alt);
+  if (nr !== _vmLnr) return;
+  _vmLiveFehler[s] = r ? r.fehler : [];
+  quelle.classList.toggle('is-fehler', !!_vmLiveFehler[s].length);
+  if (r?.neu && ziel.value === alt) {
+    ziel.value = r.neu;
+    _vmLiveFehler[t] = [];
+    ziel.classList.remove('is-fehler');
   }
-  const feld = document.getElementById(s === 'de' ? 'vm-add-de' : 'vm-add-en');
-  if (!feld) return;
-  feld.value = feld.value.replace(wort, neu);
-  feld.classList.remove('is-fehler');
-  if (box) box.innerHTML = '';
-  feld.focus();
+  const box = document.getElementById('vm-add-pruef');
+  if (box) {
+    _vmLetzter = null;
+    box.innerHTML = ['en', 'de'].flatMap(x => _vmLiveFehler[x].map(f => _vmMeldung('fehler', window.escHtml(fehlerSatz(x, f))))).join('');
+  }
 }
 
 export function vmAddRueckgaengig(s) {

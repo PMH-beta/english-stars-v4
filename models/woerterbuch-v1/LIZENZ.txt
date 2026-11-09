@@ -1,0 +1,14 @@
+Wörterbuch für die Live-Übersetzung Deutsch ↔ Englisch
+=====================================================
+
+de-en.txt und en-de.txt stammen aus WikDict (https://www.wikdict.com),
+Stand der Daten: 23.06.2026. WikDict gewinnt seine Daten aus dem Wiktionary
+(https://www.wiktionary.org) über DBnary (http://kaiko.getalp.org/about-dbnary/).
+
+Lizenz: Creative Commons Namensnennung – Weitergabe unter gleichen Bedingungen 4.0
+(CC BY-SA 4.0), https://creativecommons.org/licenses/by-sa/4.0/
+
+Bearbeitung: auf Einzelwörter und kurze Wendungen zugeschnitten, je Stichwort
+höchstens 12 Übersetzungen, neu sortiert und als Textdatei umgepackt
+(scripts/woerterbuch-bauen.py). Die bearbeiteten Dateien stehen ebenfalls unter
+CC BY-SA 4.0.
