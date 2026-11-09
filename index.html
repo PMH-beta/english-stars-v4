@@ -401,8 +401,11 @@
       <div class="vm-neu-text">Neue Vokabel direkt zur Sammlung hinzufügen:</div>
       <input type="text" id="vm-add-de" class="p-feld vm-neu-feld" placeholder="Deutsch (z.B. Apfel)">
       <input type="text" id="vm-add-en" class="p-feld vm-neu-feld" placeholder="Englisch (z.B. apple)">
+      <div id="vm-add-pruef" class="rv-meldungen"></div>
       <button onclick="vmAddManual()" class="p-btn p-btn--akzent vm-neu-knopf">+ Vokabel hinzufügen</button>
     </div>
+    <!-- Herkunft der Wortlisten für die Wortprüfung (Lizenzpflicht SCOWL, CC BY 4.0) -->
+    <a class="vm-lizenz" href="models/woerter-v1/LIZENZEN.txt" target="_blank" rel="noopener">Wortprüfung mit SCOWL, enz und LDNOOBW – Lizenzen</a>
   </div>
 
   <!-- Tab: Scannen (3.4) -->
@@ -412,7 +415,7 @@
       <img id="scan-preview" class="scan-preview" alt="Vorschau">
       <canvas data-icon="scan" width="14" height="14" style="width:56px;height:56px;image-rendering:pixelated;flex:none"></canvas>
       <div class="scan-zone-titel">Bild auswählen oder Kamera öffnen</div>
-      <div class="scan-zone-sub">JPG, PNG — Tesseract-OCR (offline)</div>
+      <div class="scan-zone-sub">JPG, PNG — Erkennung auf dem Gerät</div>
     </div>
     <!-- Zuschnitt nach dem Foto: vier Ecken ziehen, drehen, dann erkennen. -->
     <div id="scan-zuschnitt" class="scan-zuschnitt" style="display:none">

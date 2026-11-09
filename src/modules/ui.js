@@ -10,6 +10,7 @@ import { commitDirty } from './dialog.js';
 import { setGrundton, clearGrundton } from './screen-shell.js';
 import { weichUmbauen } from './klapp-anim.js';
 import { iconHTML } from './pixel-icons.js';
+import { namenPrompt, nameErlaubt } from './pruefen.js';
 import { uvMap, uvLernstand, constellationWords, FORGE_DISC, SLOTS_PER_FORM, uvTrainProgress, uvTrainForms, uvTrainWords, uvPruneOrphanSlotStats, UV_TRAIN_MIN, migrateUvTrainStats } from './irregular-game.js';
 import { raumMalen } from './raum.js';
 import { renderAvatarInto, renderCharacter, resetCharacterFeature, setCharacterCompanion, stageHTMLFor, charEditorOeffnen, charEditorGeaendert, charEditorUebernehmen, charAenderungenFragen } from './avatar.js';
@@ -344,6 +345,7 @@ function _hideExitToast() {
 export async function saveName() {
   const v = document.getElementById('name-input').value.trim();
   if (!v) { document.getElementById('name-input').style.borderColor = 'var(--red)'; return; }
+  if (!await nameErlaubt(v)) { document.getElementById('name-input').style.borderColor = 'var(--red)'; return; }
   window.SD.playerName = v;
   persist(window.SD);
   if (window.currentUser) { markDirty('profile'); await commitDirty(); }
@@ -1900,9 +1902,7 @@ export async function charZurSchmiede() {
 
 export function editPlayerName() {
   const cur = window.SD.playerName || '';
-  window.esPrompt({ icon: '✏️', title: 'Dein Name', value: cur, ok: 'Speichern' }).then(async nn => {
-    if (nn === null) return;
-    const trimmed = nn.trim();
+  namenPrompt({ icon: '✏️', title: 'Dein Name', value: cur, ok: 'Speichern' }).then(async trimmed => {
     if (!trimmed) return;
     window.SD.playerName = trimmed;
     persist(window.SD);

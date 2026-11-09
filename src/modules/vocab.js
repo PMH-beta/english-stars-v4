@@ -12,6 +12,7 @@ import { ensureTesseract } from './lazyload.js';
 import { paddleLaden, paddleErkennen } from './scan-paddle.js';
 import { vokabelZeilen } from './scan-bild.js';
 import { zuschnittOeffnen, zuschnittSchliessen, zuschnittDrehen, zuschnittBild } from './scan-zuschnitt.js';
+import { vorwaermen, pruefeEintrag, fehlerSatz, namenPrompt, nameErlaubt } from './pruefen.js';
 
 function _vmDeck() { return window._draftDeck || activeDeck(); }
 
@@ -32,11 +33,11 @@ function _vmTitel(text, mitSymbol) {
 export function vmRenameActiveDeck() {
   const id = window.SD?.activeDeckId;
   if (!id || !window.SD.decks[id]) return;
-  window.esPrompt({ icon: '✏️', title: 'Sammlung umbenennen', value: window.SD.decks[id].name, ok: 'Speichern' }).then(name => {
-    if (!name || !name.trim()) return;
-    window.renameDeck(id, name.trim());
+  namenPrompt({ icon: '✏️', title: 'Sammlung umbenennen', value: window.SD.decks[id].name, ok: 'Speichern' }).then(name => {
+    if (!name) return;
+    window.renameDeck(id, name);
     const dn = document.getElementById('vm-deck-name');
-    if (dn) dn.innerHTML = _deckNameWithRename(name.trim());
+    if (dn) dn.innerHTML = _deckNameWithRename(name);
     window.renderDecks();
   });
 }
@@ -228,6 +229,7 @@ export function vmTab(tabName) {
   });
   if (tabName === 'list') renderVocabList();
   if (tabName === 'scan') _paddleVorbereiten().catch(() => {});
+  if (tabName === 'add' || tabName === 'paste' || tabName === 'scan') vorwaermen();
   if (tabName === 'presets') renderPresetsTab();
   if (tabName === 'deck-stats') _renderDeckStatsPane();
   _updateVmCount();
@@ -469,16 +471,18 @@ const _PADDLE = {
   rec: 'models/paddle-v5/latin_PP-OCRv5_rec_mobile.onnx',
   zeichen: 'models/paddle-v5/latin_PP-OCRv5_rec_mobile.dict.json',
 };
-// Englische Wortliste (ENABLE, gemeinfrei): korrigiert unsichere Buchstaben.
+// Englische Wortliste (SCOWL, wie die Wortprüfung): korrigiert unsichere Buchstaben.
 // Optional — fehlt sie, läuft der Scan ohne Korrektur.
-const _WOERTER = 'models/englisch-enable1/woerter.txt';
 let _woerterLaeuft = null;
 function _woerterbuch() {
   if (!_woerterLaeuft) {
-    _woerterLaeuft = fetch(new URL(_WOERTER, document.baseURI).href)
-      .then(r => { if (!r.ok) throw new Error(_WOERTER + ': ' + r.status); return r.text(); })
-      .then(t => new Set(t.split(/\r?\n/)))
-      .catch(e => { console.warn('[scan] Wortliste nicht verfügbar:', e?.message); _woerterLaeuft = null; return null; });
+    _woerterLaeuft = (async () => {
+      const { WOERTER_ORDNER, entpacken } = await import('./wortpruefung-daten.js');
+      const datei = WOERTER_ORDNER + 'en.txt';
+      const r = await fetch(new URL(datei, document.baseURI).href);
+      if (!r.ok) throw new Error(datei + ': ' + r.status);
+      return new Set(entpacken(await r.text(), true).woerter.map(w => w.toLowerCase()));
+    })().catch(e => { console.warn('[scan] Wortliste nicht verfügbar:', e?.message); _woerterLaeuft = null; return null; });
   }
   return _woerterLaeuft;
 }
@@ -685,6 +689,142 @@ function parseVocabFromOCR(rawText) {
 export function showReview() {
   showScreen('review-screen');
   renderReviewList();
+  _rvAllePruefen();
+}
+
+// ── Wortprüfung in der Prüfliste ────────────────────────────────────────────
+// Jede Zeile wird im Hintergrund geprüft (pruefen.js). Eindeutige Tippfehler werden
+// korrigiert und markiert (rückgängig machbar), Unsinn wird rot markiert und
+// blockiert „Zur Vokabelliste hinzufügen“. Hinweise (deutsche Zusammensetzungen)
+// sperren nicht. Lassen sich die Wortlisten nicht laden, wird nichts gesperrt.
+let _rvLaeuft = 0;
+function _rvPruefen(item) {
+  const de = (item.de || '').trim(), en = (item.en || '').trim();
+  const nr = item._nr = (item._nr || 0) + 1;
+  if (!de || !en) { item.pr = null; item._p = null; return Promise.resolve(); }
+  _rvLaeuft++;
+  item._p = pruefeEintrag(de, en).then(e => {
+    if (nr !== item._nr) return;
+    if (!e) { item.pr = null; return; }
+    const pr = {};
+    for (const s of ['de', 'en']) {
+      const x = e.seiten[s], wert = s === 'de' ? de : en;
+      if (item.frei?.[s] === wert) { pr[s] = null; continue; }      // „rückgängig“: so gewollt
+      pr[s] = { fehler: x.fehler, hinweise: x.hinweise, korr: x.korr };
+      if (!x.fehler.length && e[s] !== wert) {
+        if (x.korr.length) (item.vorher ||= {})[s] = wert;
+        item[s] = e[s];
+      }
+    }
+    item.pr = pr;
+  }).finally(() => { _rvLaeuft--; });
+  return item._p;
+}
+function _rvFehler(item) { return !!item.pr && ['de', 'en'].some(s => item.pr[s]?.fehler.length); }
+
+async function _rvAllePruefen() {
+  const items = window._reviewItems;
+  _rvZaehler();
+  for (const item of items) {
+    if (window._reviewItems !== items) return;
+    await _rvPruefen(item);
+    _rvZeileAktualisieren(item);
+  }
+  _rvZaehler();
+}
+
+function _rvZaehler() {
+  const count = document.getElementById('review-count');
+  if (!count || !window._reviewItems.length) return;
+  const offen = window._reviewItems.filter(_rvFehler).length;
+  count.textContent = `${window._reviewItems.length} erkannt`
+    + (_rvLaeuft ? ' · wird geprüft …' : offen ? ` · ${offen} prüfen` : '');
+}
+
+// Meldungen unter einer Zeile: rot (gesperrt), mint (korrigiert), gelb (Hinweis).
+function _rvMeldungen(item, i) {
+  const pr = item.pr;
+  if (!pr) return '';
+  const h = [];
+  const chips = (s, wort, liste) => liste.map(v =>
+    `<button class="rv-chip" onclick="rvVorschlag(${i},'${s}',${_js(wort)},${_js(v)})">${window.escHtml(v)}</button>`).join('');
+  for (const s of ['de', 'en']) {
+    const x = pr[s];
+    if (!x) continue;
+    for (const f of x.fehler) h.push(`<div class="rv-meldung rv-meldung--fehler"><span>${window.escHtml(fehlerSatz(s, f))}</span>${chips(s, f.wort, f.vorschlaege || [])}</div>`);
+    if (x.fehler.length) continue;
+    for (const k of x.korr) h.push(`<div class="rv-meldung rv-meldung--korr"><span>korrigiert: ${window.escHtml(k.von)} → <b>${window.escHtml(k.zu)}</b></span><button class="rv-chip" onclick="rvRueckgaengig(${i},'${s}')">Rückgängig</button></div>`);
+    for (const t of x.hinweise) h.push(`<div class="rv-meldung rv-meldung--hinweis"><span>„${window.escHtml(t.wort)}“ – meintest du:</span>${chips(s, t.wort, t.vorschlaege)}</div>`);
+  }
+  return h.join('');
+}
+const _js = v => window.escHtml(JSON.stringify(v));
+
+function _rvZeile(item, i) {
+  const feld = s => {
+    const fehler = item.pr?.[s]?.fehler.length;
+    return `<label class="rv-feld-zeile"><span class="rv-sprache">${s.toUpperCase()}</span>`
+      + `<textarea rows="1" class="rv-feld${fehler ? ' is-fehler' : ''}" data-s="${s}" placeholder="${s === 'de' ? 'Deutsch' : 'Englisch'}"`
+      + ` oninput="rvEingabe(${i},'${s}',this)" onchange="rvGeaendert(${i})" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}">${window.escHtml(item[s])}</textarea></label>`;
+  };
+  return `<div class="review-item${item.isDuplicate ? ' is-doppelt' : ''}${_rvFehler(item) ? ' is-fehler' : ''}" id="ritem-${i}">
+      <div class="rv-felder">${feld('de')}${feld('en')}</div>
+      <div class="rv-rechts">
+        ${item.isDuplicate ? `<span class="review-doppelt" title="Bereits vorhanden">${iconHTML('check', 14)}</span>` : ''}
+        <button class="review-del" onclick="removeReviewItem(${i})" title="Entfernen">${iconHTML('trash', 14)}</button>
+      </div>
+      <div class="rv-meldungen">${_rvMeldungen(item, i)}</div>
+    </div>`;
+}
+
+function _rvHoehe(el) { el.style.height = 'auto'; el.style.height = (el.scrollHeight + el.offsetHeight - el.clientHeight) + 'px'; }
+
+// Nur Meldungen, Rahmen und Feldwerte einer Zeile neu setzen — das Feld mit dem
+// Cursor bleibt erhalten.
+function _rvZeileAktualisieren(item) {
+  const i = window._reviewItems.indexOf(item);
+  const row = document.getElementById('ritem-' + i);
+  if (!row) return;
+  row.classList.toggle('is-fehler', _rvFehler(item));
+  row.querySelectorAll('textarea').forEach(ta => {
+    const s = ta.dataset.s;
+    if (ta.value !== item[s] && document.activeElement !== ta) { ta.value = item[s]; _rvHoehe(ta); }
+    ta.classList.toggle('is-fehler', !!item.pr?.[s]?.fehler.length);
+  });
+  row.querySelector('.rv-meldungen').innerHTML = _rvMeldungen(item, i);
+  _rvZaehler();
+}
+
+export function rvEingabe(i, s, el) {
+  const item = window._reviewItems[i];
+  if (!item) return;
+  item[s] = el.value.replace(/\n/g, ' ');
+  _rvHoehe(el);
+  // Alte Meldung dieser Seite weg, geprüft wird beim Verlassen des Felds.
+  if (item.pr?.[s]) { item.pr[s] = null; item._nr = (item._nr || 0) + 1; _rvZeileAktualisieren(item); }
+  if (item.vorher) delete item.vorher[s];
+}
+export async function rvGeaendert(i) {
+  const item = window._reviewItems[i];
+  if (!item) return;
+  await _rvPruefen(item);
+  _rvZeileAktualisieren(item);
+}
+export async function rvVorschlag(i, s, wort, neu) {
+  const item = window._reviewItems[i];
+  if (!item) return;
+  item[s] = item[s].replace(wort, neu);
+  await _rvPruefen(item);
+  _rvZeileAktualisieren(item);
+}
+export function rvRueckgaengig(i, s) {
+  const item = window._reviewItems[i];
+  if (!item?.vorher?.[s]) return;
+  item[s] = item.vorher[s];
+  (item.frei ||= {})[s] = item[s];
+  delete item.vorher[s];
+  if (item.pr) item.pr[s] = null;
+  _rvZeileAktualisieren(item);
 }
 
 export function renderReviewList() {
@@ -696,17 +836,11 @@ export function renderReviewList() {
     return;
   }
   // Zeilen als Karten wie in 3.6; die Felder bleiben direkt bearbeitbar (F-39).
-  list.innerHTML = window._reviewItems.map((item, i) => `
-    <div class="review-item${item.isDuplicate ? ' is-doppelt' : ''}" id="ritem-${i}">
-      <input value="${window.escHtml(item.de)}" placeholder="Deutsch" onchange="_reviewItems[${i}].de=this.value">
-      <span class="sep">→</span>
-      <input value="${window.escHtml(item.en)}" placeholder="Englisch" onchange="_reviewItems[${i}].en=this.value">
-      ${item.isDuplicate ? `<span class="review-doppelt" title="Bereits vorhanden">${iconHTML('check', 14)}</span>` : ''}
-      <button class="review-del" onclick="removeReviewItem(${i})" title="Entfernen">${iconHTML('trash', 14)}</button>
-    </div>
-  `).join('');
+  // Deutsch und Englisch untereinander, lange Einträge brechen um.
+  list.innerHTML = window._reviewItems.map(_rvZeile).join('');
+  list.querySelectorAll('textarea').forEach(_rvHoehe);
   // Kopfzeile kurz wie 3.6 (F-42); bereits vorhandene Wörter bleiben grau.
-  count.textContent = `${window._reviewItems.length} erkannt`;
+  _rvZaehler();
 }
 
 export function removeReviewItem(i) {
@@ -723,7 +857,7 @@ export function addReviewItem() {
   renderReviewList();
   const row = document.getElementById('review-list').lastElementChild;
   row?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  row?.querySelector('input')?.focus();
+  row?.querySelector('textarea')?.focus();
 }
 
 // „Neu scannen" (3.6, F-40): die noch nicht gespeicherte Liste verwerfen, zurück
@@ -735,7 +869,18 @@ export function rescanReview() {
   document.getElementById('scan-file')?.click();
 }
 
-export function confirmAddVocab() {
+export async function confirmAddVocab() {
+  // Erst die Wortprüfung abwarten (Feld eben verlassen, Liste lädt noch).
+  const offen = window._reviewItems.filter(i => (i.de || '').trim() && (i.en || '').trim() && (i._p === undefined || i._p));
+  for (const i of offen) { if (i._p === undefined) _rvPruefen(i); }
+  await Promise.all(offen.map(i => i._p));
+  window._reviewItems.forEach(_rvZeileAktualisieren);
+  const erster = window._reviewItems.findIndex(_rvFehler);
+  if (erster >= 0) {
+    document.getElementById('ritem-' + erster)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    window.esAlert({ icon: '⚠️', title: 'Bitte noch prüfen', body: 'Rot markierte Wörter gibt es so nicht. Bitte korrigieren oder die Zeile löschen.' });
+    return;
+  }
   // Bereits vorhandene Wörter kommen nicht doppelt hinein — auch nicht aus
   // einer von Hand ergänzten Zeile (die wird erst beim Hinzufügen geprüft).
   const vorhanden = new Set(window.VOCAB.map(v => v.en.toLowerCase()));
@@ -1091,9 +1236,11 @@ function _showCustomNameDialog(draft) {
   const input = overlay.querySelector('#_cnd-name');
   input.focus();
   overlay.querySelector('#_cnd-cancel').addEventListener('click', () => overlay.remove());
-  overlay.querySelector('#_cnd-ok').addEventListener('click', () => {
+  overlay.querySelector('#_cnd-ok').addEventListener('click', async () => {
     const name = input.value.trim();
     if (!name) { input.style.borderColor = 'var(--red)'; return; }
+    if (!await nameErlaubt(name)) { input.style.borderColor = 'var(--red)'; input.focus(); return; }
+    if (!overlay.isConnected) return;
     overlay.remove();
     _confirmDraftDeck(draft, name);
   });

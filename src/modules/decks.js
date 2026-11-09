@@ -4,6 +4,7 @@ import { markDirty, deleteCloudDeck, deleteCloudWordStats, deleteCloudPresetStat
 import { commitDirty } from './dialog.js';
 import { iconHTML } from './pixel-icons.js';
 import { weichUmbauen } from './klapp-anim.js';
+import { namenPrompt, pruefeEintrag, eintragFehlerText, fehlerSatz } from './pruefen.js';
 
 // ────────────────────────────────────────────────
 //  UI STATE
@@ -495,9 +496,9 @@ export function startGameWithDeck(deckId, modeName) {
 }
 
 export function newDeckPrompt() {
-  window.esPrompt({ icon: '📚', title: 'Neue Vokabelsammlung', placeholder: 'Name der Sammlung', ok: 'Erstellen' }).then(name => {
-    if (!name || !name.trim()) return;
-    const id = createDeck(name.trim());
+  namenPrompt({ icon: '📚', title: 'Neue Vokabelsammlung', placeholder: 'Name der Sammlung', ok: 'Erstellen' }).then(name => {
+    if (!name) return;
+    const id = createDeck(name);
     if (window.currentUser) { markDirty('deck', id); commitDirty(); }
     _expandedDeckId = id;
     switchDeck(id);
@@ -529,9 +530,9 @@ export function openDeckStats(id) {
 export function renameDeckPrompt(id) {
   const cur = window.SD.decks[id];
   if (!cur) return;
-  window.esPrompt({ icon: '✏️', title: 'Sammlung umbenennen', value: cur.name, ok: 'Speichern' }).then(name => {
-    if (!name || !name.trim()) return;
-    renameDeck(id, name.trim());
+  namenPrompt({ icon: '✏️', title: 'Sammlung umbenennen', value: cur.name, ok: 'Speichern' }).then(name => {
+    if (!name) return;
+    renameDeck(id, name);
     renderDecks();
   });
 }
@@ -657,20 +658,37 @@ export function vmDeleteWord(idx) {
 // Wort bearbeiten (eigene Vokabel, kein _presetId). Zieht die wordStats aller drei
 // Modi auf die neuen Keys um, damit der Fortschritt — auch der „fertig"-Status —
 // erhalten bleibt (statKeyFor hängt an de+en, ändert sich also beim Umbenennen).
-export function vmEditWord(idx) {
+export function vmEditWord(idx, vorgabe) {
   const deck = window._draftDeck || activeDeck();
   const v = deck.vocab[idx];
   if (!v) return;
   const oldDe = v.de, oldEn = v.en;
   window.esPrompt2({
     icon: '✏️', title: 'Wort bearbeiten', ok: 'Speichern',
-    label1: 'Deutsch', value1: oldDe,
-    label2: 'Englisch', value2: oldEn,
-  }).then(res => {
+    label1: 'Deutsch', value1: vorgabe ? vorgabe.de : oldDe,
+    label2: 'Englisch', value2: vorgabe ? vorgabe.en : oldEn,
+  }).then(async res => {
     if (!res) return;
-    const de = (res.de || '').trim();
-    const en = (res.en || '').trim();
+    let de = (res.de || '').trim();
+    let en = (res.en || '').trim();
     if (!de || !en) { window.esAlert({ icon: '⚠️', title: 'Eingabe fehlt', body: 'Bitte Deutsch UND Englisch eingeben.' }); return; }
+    // Wortprüfung nur, wenn sich etwas geändert hat (alte Wörter bleiben unangetastet).
+    if (de !== oldDe || en !== oldEn) {
+      const e = await pruefeEintrag(de, en);
+      if (e && !e.ok) {
+        await window.esAlert({ icon: '⚠️', title: 'Bitte noch prüfen', body: eintragFehlerText(e) });
+        vmEditWord(idx, { de, en });
+        return;
+      }
+      if (e) {
+        const korr = ['de', 'en'].filter(s => e.seiten[s].korr.length);
+        if (korr.length) {
+          const passt = await window.esConfirm({ icon: '💡', title: 'Tippfehler korrigiert',
+            body: korr.map(s => `„${e.seiten[s].vorher}“ → „${e[s]}“`).join('\n'), ok: 'Passt', cancel: 'Rückgängig' });
+          if (passt) { de = e.de; en = e.en; }
+        } else { de = e.de; en = e.en; }
+      }
+    }
     if (deck.vocab.some((w, i) => i !== idx && w.en.toLowerCase() === en.toLowerCase())) {
       window.esAlert({ icon: 'ℹ️', title: 'Schon vorhanden', body: '"' + en + '" ist bereits in der Sammlung.' });
       return;
@@ -784,27 +802,113 @@ export function migrateDeckModes(sd) {
   return changed;
 }
 
-export function vmAddManual() {
-  const de = (document.getElementById('vm-add-de')?.value || '').trim();
-  const en = (document.getElementById('vm-add-en')?.value || '').trim();
+// Letztes von Hand hinzugefügtes Wort (für „Rückgängig“ und Vorschläge danach).
+let _vmLetzter = null;
+
+function _vmSpeichern(deck) {
+  if (window._draftDeck) return;
+  syncMirrorFromActiveDeck();
+  window.persist();
+  if (window.currentUser) { markDirty('deck', deck.id); commitDirty(); }
+}
+
+function _vmMeldung(klasse, text, knoepfe = '') {
+  return `<div class="rv-meldung rv-meldung--${klasse}"><span>${text}</span>${knoepfe}</div>`;
+}
+const _jsA = v => window.escHtml(JSON.stringify(v));
+
+export async function vmAddManual() {
+  const btn = window.event?.target?.closest?.('button');
+  const deIn = document.getElementById('vm-add-de'), enIn = document.getElementById('vm-add-en');
+  const box = document.getElementById('vm-add-pruef');
+  let de = (deIn?.value || '').trim();
+  let en = (enIn?.value || '').trim();
   if (!de || !en) { window.esAlert({ icon: '⚠️', title: 'Eingabe fehlt', body: 'Bitte Deutsch UND Englisch eingeben.' }); return; }
   const deck = window._draftDeck || activeDeck();
-  if (deck.vocab.some(v => v.en.toLowerCase() === en.toLowerCase())) {
+  const schonDa = w => deck.vocab.some(v => v.en.toLowerCase() === w.toLowerCase());
+  if (schonDa(en)) {
     window.esAlert({ icon: 'ℹ️', title: 'Schon vorhanden', body: '"' + en + '" ist bereits in der Sammlung.' });
     return;
   }
-  deck.vocab.push({de, en});
-  if (!window._draftDeck) {
-    syncMirrorFromActiveDeck();
-    window.persist();
-    if (window.currentUser) { markDirty('deck', deck.id); commitDirty(); }
+  _vmLetzter = null;
+  if (box) box.innerHTML = '';
+  deIn.classList.remove('is-fehler'); enIn.classList.remove('is-fehler');
+  if (btn) btn.disabled = true;
+  let e;
+  try { e = await pruefeEintrag(de, en); } finally { if (btn) btn.disabled = false; }
+  // Gesperrt: rot markieren, Vorschläge als Chips — nichts wird hinzugefügt.
+  if (e && !e.ok) {
+    const h = [];
+    for (const s of ['de', 'en']) for (const f of e.seiten[s].fehler) {
+      (s === 'de' ? deIn : enIn).classList.add('is-fehler');
+      h.push(_vmMeldung('fehler', window.escHtml(fehlerSatz(s, f)), (f.vorschlaege || []).map(v =>
+        `<button class="rv-chip" onclick="vmAddVorschlag('${s}',${_jsA(f.wort)},${_jsA(v)})">${window.escHtml(v)}</button>`).join('')));
+    }
+    if (box) box.innerHTML = h.join('');
+    return;
   }
+  if (e) { de = e.de; en = e.en; }
+  if (schonDa(en)) {
+    window.esAlert({ icon: 'ℹ️', title: 'Schon vorhanden', body: '"' + en + '" ist bereits in der Sammlung.' });
+    return;
+  }
+  const v = { de, en };
+  deck.vocab.push(v);
+  _vmSpeichern(deck);
   window.renderVocabList();
-  document.getElementById('vm-add-de').value = '';
-  document.getElementById('vm-add-en').value = '';
-  document.getElementById('vm-add-de').focus();
-  const btn = event.target;
-  const orig = btn.textContent;
-  btn.textContent = '✅ Hinzugefügt: ' + de + ' → ' + en;
-  setTimeout(() => { btn.textContent = orig; }, 1400);
+  // Korrekturen und Hinweise bleiben unter den Feldern stehen, bis zum nächsten Wort.
+  if (e && box) {
+    _vmLetzter = { v, deck, vorher: {} };
+    const h = [];
+    for (const s of ['de', 'en']) {
+      const x = e.seiten[s];
+      if (x.korr.length) {
+        _vmLetzter.vorher[s] = x.vorher;
+        for (const k of x.korr) h.push(_vmMeldung('korr', `korrigiert: ${window.escHtml(k.von)} → <b>${window.escHtml(k.zu)}</b>`,
+          `<button class="rv-chip" onclick="vmAddRueckgaengig('${s}')">Rückgängig</button>`));
+      }
+      for (const t of x.hinweise) h.push(_vmMeldung('hinweis', `„${window.escHtml(t.wort)}“ – meintest du:`, t.vorschlaege.map(n =>
+        `<button class="rv-chip" onclick="vmAddVorschlag('${s}',${_jsA(t.wort)},${_jsA(n)})">${window.escHtml(n)}</button>`).join('')));
+    }
+    box.innerHTML = h.join('');
+  }
+  deIn.value = '';
+  enIn.value = '';
+  deIn.focus();
+  if (btn) {
+    const orig = btn.textContent;
+    btn.textContent = '✅ Hinzugefügt: ' + de + ' → ' + en;
+    setTimeout(() => { btn.textContent = orig; }, 1400);
+  }
+}
+
+// Vorschlag-Chip: vor dem Hinzufügen ins Feld, danach direkt ins eben hinzugefügte Wort.
+export function vmAddVorschlag(s, wort, neu) {
+  const box = document.getElementById('vm-add-pruef');
+  if (_vmLetzter) {
+    const { v, deck } = _vmLetzter;
+    v[s] = v[s].replace(wort, neu);
+    _vmSpeichern(deck);
+    window.renderVocabList();
+    _vmLetzter = null;
+    if (box) box.innerHTML = '';
+    return;
+  }
+  const feld = document.getElementById(s === 'de' ? 'vm-add-de' : 'vm-add-en');
+  if (!feld) return;
+  feld.value = feld.value.replace(wort, neu);
+  feld.classList.remove('is-fehler');
+  if (box) box.innerHTML = '';
+  feld.focus();
+}
+
+export function vmAddRueckgaengig(s) {
+  if (!_vmLetzter?.vorher[s]) return;
+  const { v, deck } = _vmLetzter;
+  v[s] = _vmLetzter.vorher[s];
+  delete _vmLetzter.vorher[s];
+  _vmSpeichern(deck);
+  window.renderVocabList();
+  const box = document.getElementById('vm-add-pruef');
+  if (box) box.innerHTML = '';
 }
