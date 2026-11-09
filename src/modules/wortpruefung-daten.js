@@ -12,11 +12,12 @@ export function entpacken(text, mitRang = false) {
   const n = text.length;
   while (i < n) {
     let e = text.indexOf('\n', i); if (e < 0) e = n;
-    if (e > i) {
+    const ende = e > i && text.charCodeAt(e - 1) === 13 ? e - 1 : e;   // CRLF (Windows-Checkout)
+    if (ende > i) {
       const p = text.charCodeAt(i) - 48;
       let a = i + 1, r = 0;
       if (mitRang) { r = text.charCodeAt(a) - 48; a++; }
-      const w = vor.slice(0, p) + text.slice(a, e);
+      const w = vor.slice(0, p) + text.slice(a, ende);
       woerter.push(w);
       if (mitRang) { const k = w.toLowerCase(), alt = rang.get(k); if (alt === undefined || r < alt) rang.set(k, r); }
       vor = w;
