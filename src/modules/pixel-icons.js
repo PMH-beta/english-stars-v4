@@ -224,6 +224,18 @@ export const ICONS = {
     '.....F...','....FF...','..FFFYF..','..FFYFF..','...FFF...','.........','NNNNNNNNN','.NNNNNNN.'] },
   campfireL:{ rows:[
     '...F.....','...FF....','..FYFFF..','..FFYFF..','...FFF...','.........','NNNNNNNNN','.NNNNNNN.'] },
+
+  // ── Scan mit mehreren Bildern (09.11.2026, eigener Entwurf im Stil oben) ──
+  // Kamera: Stahlgehäuse, Linse blau mit Glanzpunkt, gelber Blitz.
+  kamera:{ rows:[
+    '...DDDD.....','GGGGGGGGGGGG','GGGGKKKKGGAG','GGGKSSSSKGGG','GGGKSWSSKGGG','GGGKSSSSKGGG',
+    'GGGGKKKKGGGG','GGGGGGGGGGGG','DDDDDDDDDDDD'] },
+  // Bilder: Foto mit Himmel, Sonne und Hügel, dahinter ein zweites Blatt.
+  bilder:{ noOutline:true, rows:[
+    '...KKKKKKKKK','...KWWWWWWWK','KKKKKKKKKKWK','KSSSSSSSSKWK','KSSSSSAASKWK','KSSSSSAASKWK',
+    'KSSMSSSSSKKK','KSMMMSSMSK..','KMMMMMMMMK..','KKKKKKKKKK..'] },
+  plus:{ noOutline:true, rows:[
+    '...KK...','...KK...','...KK...','KKKKKKKK','KKKKKKKK','...KK...','...KK...','...KK...'] },
 };
 
 export const ICON_NAMES = Object.keys(ICONS);

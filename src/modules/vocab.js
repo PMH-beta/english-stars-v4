@@ -11,7 +11,7 @@ import { iconHTML } from './pixel-icons.js';
 import { ensureTesseract } from './lazyload.js';
 import { paddleLaden, paddleErkennen } from './scan-paddle.js';
 import { vokabelZeilen } from './scan-bild.js';
-import { zuschnittOeffnen, zuschnittSchliessen, zuschnittDrehen, zuschnittBild } from './scan-zuschnitt.js';
+import { MAX_BILDER, bilder, aktiverIndex, beiAenderung, bilderHinzufuegen, zuschnittAnzeigen, bildWaehlen, bildEntfernen, bilderVerwerfen, zuschnittDrehen, zuschnittBild } from './scan-zuschnitt.js';
 import { vorwaermen, pruefeEintrag, fehlerSatz, namenPrompt, nameErlaubt } from './pruefen.js';
 
 function _vmDeck() { return window._draftDeck || activeDeck(); }
@@ -47,7 +47,7 @@ window._reviewItems = [];
 let _lastOCRText = '';
 
 export function openVocabManager(deckId) {
-  zuschnittSchliessen();
+  bilderVerwerfen();
   if (deckId && !window._draftDeck) switchDeck(deckId);
   showScreen('scan-screen');
   const deck = _vmDeck();
@@ -228,7 +228,7 @@ export function vmTab(tabName) {
     if (el) el.style.display = (name === tabName) ? 'block' : 'none';
   });
   if (tabName === 'list') renderVocabList();
-  if (tabName === 'scan') _paddleVorbereiten().catch(() => {});
+  if (tabName === 'scan') { _paddleVorbereiten().catch(() => {}); _scanAnsicht(); }
   if (tabName === 'add' || tabName === 'paste' || tabName === 'scan') vorwaermen();
   if (tabName === 'presets') renderPresetsTab();
   if (tabName === 'deck-stats') _renderDeckStatsPane();
@@ -413,6 +413,7 @@ export function parsePastedText() {
   const text = (ta && ta.value || '').trim();
   if (!text) { window.esAlert({ icon: '⚠️', title: 'Kein Text', body: 'Bitte erst Text einfügen.' }); return; }
   window._reviewItems = []; _lastOCRText = text;
+  bilderVerwerfen();   // eingefügter Text ersetzt eine Liste aus Bildern
   const items = parseVocabFromOCR(text);
   const existing = new Set(window.VOCAB.map(v => v.en.toLowerCase()));
   window._reviewItems = items.filter(i => i.de && i.en).map((i, idx) => ({
@@ -426,27 +427,151 @@ export function parsePastedText() {
   showReview();
 }
 
-export function onScanFile(event) {
-  const file = event.target.files[0];
+// ── Scan mit 1 bis 5 Bildern ─────────────────────────────────────────────────
+// Kamera (ein Foto je Druck) oder Galerie (mehrere auf einmal). Unter dem aktiven
+// Bild liegt die Bildleiste; „+“ klappt Kamera/Galerie auf. Erkannt werden nur
+// Bilder, die neu sind oder seit dem letzten Erkennen verändert wurden; ihre
+// Wörter ersetzen in der Prüfliste nur die Wörter desselben Bildes.
+export async function onScanFile(event) {
+  const files = Array.from(event.target.files || []);
   event.target.value = '';
-  if (!file) return;
+  if (!files.length) return;
   const status = document.getElementById('scan-status');
   status.innerHTML = '';
-  zuschnittOeffnen(file).catch(e => {
-    console.warn('[scan] Bild nicht lesbar:', e?.message);
-    zuschnittSchliessen();
-    status.innerHTML = _scanFehler('Bild konnte nicht geöffnet werden.');
-  });
+  _plusZu();
+  const { neu, zuviel, fehler } = await bilderHinzufuegen(files);
+  _scanAnsicht();
+  if (!neu) status.innerHTML = _scanFehler(fehler > 1 ? 'Bilder konnten nicht geöffnet werden.' : 'Bild konnte nicht geöffnet werden.');
+  else if (zuviel) status.innerHTML = _scanInfo(`Höchstens ${MAX_BILDER} Bilder – ${zuviel} ${zuviel === 1 ? 'Bild wurde' : 'Bilder wurden'} nicht übernommen.`);
+  else if (fehler) status.innerHTML = _scanFehler(`${fehler} ${fehler === 1 ? 'Bild konnte' : 'Bilder konnten'} nicht geöffnet werden.`);
 }
 
-// Zuschnitt (Knöpfe unter dem Foto): drehen, neues Foto, zuschneiden & erkennen.
-export function scanZsDrehen() { zuschnittDrehen(); }
-export function scanZsNeu() {
-  zuschnittSchliessen();
-  document.getElementById('scan-status').innerHTML = '';
-  document.getElementById('scan-file').click();
+// Zuschnitt neu zeichnen und Kopf, Leisten und Knopf auffrischen.
+function _scanAnsicht() {
+  zuschnittAnzeigen();
+  _scanTeileAuffrischen();
 }
-export function scanZsLos() { startScan(); }
+function _scanTeileAuffrischen() {
+  const liste = bilder(), i = aktiverIndex();
+  const titel = document.getElementById('scan-zs-titel');
+  if (titel && liste.length) titel.textContent = liste.length === 1 ? 'Dein Bild' : `Bild ${i + 1} von ${liste.length}`;
+  const leiste = document.getElementById('scan-leiste');
+  if (leiste) leiste.innerHTML = _leisteHTML('scan');
+  const info = document.getElementById('scan-leiste-info');
+  if (info) info.textContent = liste.length < MAX_BILDER
+    ? `${liste.length} von ${MAX_BILDER} · weitere Seite mit „+“`
+    : `${MAX_BILDER} von ${MAX_BILDER} · Bild antippen zum Anpassen`;
+  const los = document.getElementById('scan-zs-los-text');
+  if (los) los.textContent = _losText();
+  const rv = document.getElementById('rv-bilder');
+  if (rv) {
+    rv.style.display = liste.length ? '' : 'none';
+    const rl = document.getElementById('rv-leiste-bilder');
+    if (rl) rl.innerHTML = _leisteHTML('review');
+  }
+}
+beiAenderung(_scanTeileAuffrischen);
+
+// Bilder, die (neu) erkannt werden müssen.
+function _offeneBilder() { return bilder().filter(b => b.stand !== 'ok' || b.geaendert); }
+
+function _losText() {
+  const liste = bilder(), offen = _offeneBilder();
+  if (_scanAktiv) return 'Erkennung läuft …';
+  if (!offen.length) return 'Weiter zur Prüfliste';
+  const schonErkannt = liste.some(b => b.stand === 'ok' || b.stand === 'fehler');
+  if (offen.length === 1 && (schonErkannt || liste.length > 1)) {
+    const nr = liste.indexOf(offen[0]) + 1;
+    return offen[0].stand === 'neu' ? `Bild ${nr} erkennen` : `Bild ${nr} neu erkennen`;
+  }
+  return offen.length === 1 ? 'Bild erkennen' : `${offen.length} Bilder erkennen`;
+}
+
+// Bildleiste: kleine Vorschau je Bild (aktives umrahmt), Zustand als Abzeichen,
+// „+“-Kachel solange weniger als 5 Bilder da sind.
+// Wortzahl als Abzeichen; 0 (alles doppelt oder gelöscht) neutral statt grün.
+function _standZahl(n) { return `<span class="scan-kachel-stand ${n ? 'is-ok' : 'is-leer'}">${n}</span>`; }
+function _leisteHTML(ort) {
+  const liste = bilder(), aktiv = aktiverIndex();
+  const kacheln = liste.map((b, i) => {
+    const stand = b.stand === 'laeuft' ? '<span class="scan-kachel-stand is-laeuft"><span class="scan-dots" data-ui="dots">…</span></span>'
+      : b.stand === 'fehler' && !b.geaendert ? `<span class="scan-kachel-stand is-fehler">${iconHTML('close', 14)}</span>`
+      : b.stand === 'ok' && b.geaendert ? `<span class="scan-kachel-stand is-geaendert">${iconHTML('refresh', 14)}</span>`
+      : b.stand === 'ok' ? _standZahl(window._reviewItems.filter(it => it.bild === b.id).length) : '';
+    const ist = ort === 'scan' && i === aktiv;
+    return `<button class="scan-kachel${ist ? ' is-aktiv' : ''}" onclick="${ort === 'scan' ? 'scanBildTipp' : 'rvBildOeffnen'}(${i})"`
+      + ` aria-label="Bild ${i + 1}${ist ? ' (ausgewählt)' : ''}"${ist ? ' aria-current="true"' : ''}>`
+      + `<img src="${b.vorschau}" alt=""><span class="scan-kachel-nr">${i + 1}</span>${stand}</button>`;
+  }).join('');
+  const plus = liste.length < MAX_BILDER
+    ? `<button class="scan-kachel scan-kachel--plus" onclick="${ort === 'scan' ? 'scanPlus()' : 'rvBildPlus()'}" aria-label="Weiteres Bild hinzufügen">${iconHTML('plus', 28)}</button>`
+    : '';
+  return kacheln + plus;
+}
+
+export function scanBildTipp(i) {
+  if (_scanAktiv) return;
+  _plusZu();
+  bildWaehlen(i);
+  _scanTeileAuffrischen();
+}
+// „+“ klappt die zwei Wege (Kamera / Galerie) unter der Leiste auf und wieder zu.
+export function scanPlus() {
+  const w = document.getElementById('scan-plus-wahl');
+  if (!w) return;
+  const auf = w.style.display === 'none';
+  w.style.display = auf ? '' : 'none';
+  document.querySelector('#scan-leiste .scan-kachel--plus')?.classList.toggle('is-offen', auf);
+  if (auf) w.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+function _plusZu() {
+  const w = document.getElementById('scan-plus-wahl');
+  if (w) w.style.display = 'none';
+}
+
+// Zuschnitt (Knöpfe über dem Foto): drehen, Bild entfernen; unten erkennen.
+export function scanZsDrehen() { if (!_scanAktiv) zuschnittDrehen(); }
+export async function scanZsEntfernen() {
+  if (_scanAktiv) return;
+  const i = aktiverIndex(), b = bilder()[i];
+  if (!b) return;
+  const woerter = window._reviewItems.filter(it => it.bild === b.id).length;
+  if (woerter) {
+    const ok = await window.esConfirm({ icon: '🗑️', title: `Bild ${i + 1} entfernen?`,
+      body: `${woerter} ${woerter === 1 ? 'Wort' : 'Wörter'} von diesem Bild ${woerter === 1 ? 'wird' : 'werden'} aus der Prüfliste genommen.`,
+      ok: 'Entfernen', cancel: 'Behalten', danger: true });
+    if (!ok) return;
+  }
+  bildEntfernen(i);
+  window._reviewItems = window._reviewItems.filter(it => it.bild !== b.id).map((it, idx) => ({ ...it, id: idx }));
+  document.getElementById('scan-status').innerHTML = '';
+  _scanAnsicht();
+}
+export function scanZsLos() {
+  if (_scanAktiv) return;
+  _plusZu();
+  if (!_offeneBilder().length) { showReview(); return; }
+  startScan();
+}
+
+// Aus der Prüfliste: Bild antippen → Zuschnitt dieses Bildes; „+“ → weitere Seite.
+export function rvBildOeffnen(i) {
+  showScreen('scan-screen');
+  vmTab('scan');
+  bildWaehlen(i);
+  _scanTeileAuffrischen();
+  document.getElementById('scan-zuschnitt')?.scrollIntoView({ block: 'start' });
+}
+export function rvBildPlus() {
+  showScreen('scan-screen');
+  vmTab('scan');
+  scanPlus();
+}
+// Zurück aus der Prüfliste: Scan-Fläche neu zeichnen (war ausgeblendet).
+export function rvZurueck() {
+  showScreen('scan-screen');
+  if (document.getElementById('vm-pane-scan')?.style.display !== 'none') _scanAnsicht();
+}
 
 // Zustandszeile unter der Scan-Fläche (3.4): gelbe Pille mit drei Punkten,
 // solange es läuft; rosa Pille mit Kreuz bei einem Fehler.
@@ -458,6 +583,10 @@ function _scanLaeuft(text, muster, wartet) {
 }
 function _scanFehler(text) {
   return `<div class="scan-zustand scan-zustand--fehler"><span class="scan-kreuz">${iconHTML('close', 14)}</span><span>${text}</span></div>`;
+}
+// Neutraler Hinweis (gelbe Pille ohne Punkte), z. B. „höchstens 5 Bilder“.
+function _scanInfo(text) {
+  return `<div class="scan-zustand scan-zustand--info"><span>${text}</span></div>`;
 }
 
 // PaddleOCR (PP-OCRv5) lokal aus vendor/ und models/: wird beim ersten Öffnen des
@@ -513,39 +642,94 @@ async function startScan() {
   if (_scanAktiv) return;
   const status = document.getElementById('scan-status');
   const knoepfe = document.querySelectorAll('#scan-zuschnitt button');
-  window._reviewItems = [];
-  _lastOCRText = '';
+  const liste = bilder();
+  // Erster Lauf dieser Bilder: Prüfliste neu (wie bisher). Danach ersetzt jedes
+  // Bild nur seine eigenen Wörter.
+  if (!liste.some(b => b.stand === 'ok' || b.stand === 'fehler')) { window._reviewItems = []; _lastOCRText = ''; }
+  const offen = _offeneBilder();
   _scanAktiv = true;
   knoepfe.forEach(b => b.disabled = true);
-  try { await _scanLauf(status); }
-  finally { _scanAktiv = false; knoepfe.forEach(b => b.disabled = false); }
+  let letzterRoh = '', fehlerText = '';
+  try {
+    for (const b of offen) {
+      b.stand = 'laeuft';
+      _scanTeileAuffrischen();
+      document.querySelectorAll('#scan-zuschnitt button').forEach(k => k.disabled = true);
+      const vor = offen.length > 1 || liste.length > 1 ? `Bild ${liste.indexOf(b) + 1}: ` : '';
+      const erg = await _bildLauf(b, (text, muster, wartet) => { status.innerHTML = _scanLaeuft(vor + text, muster, wartet); });
+      b.geaendert = false;
+      if (erg.fehler) { b.stand = 'fehler'; b.anzahl = 0; fehlerText = erg.fehler; }
+      else { b.stand = 'ok'; b.anzahl = _bildWoerterEinsetzen(b, erg.items); }
+      if (erg.roh) { letzterRoh = erg.roh; _lastOCRText = erg.roh; }
+    }
+  } finally {
+    _scanAktiv = false;
+    _scanTeileAuffrischen();
+    document.querySelectorAll('#scan-zuschnitt button').forEach(k => k.disabled = false);
+  }
+  if (window._reviewItems.length) { status.innerHTML = ''; showReview(); return; }
+  // Gar keine Wörter: Hinweis wie bisher, mit Rohtext des letzten Bildes.
+  if (!letzterRoh || letzterRoh.trim().length < 5) {
+    status.innerHTML = _scanFehler(fehlerText || 'Kein Text erkannt. Bitte ein klareres Foto versuchen.');
+    return;
+  }
+  status.innerHTML = _scanFehler('Keine Vokabeln automatisch erkannt.') + `
+      <div class="scan-tipp">Tipps: Foto gerade halten, gute Beleuchtung, klare Schrift.</div>
+      <details class="scan-roh">
+        <summary>${iconHTML('lupe', 14)}Erkannter Rohtext anzeigen</summary>
+        <pre>${letzterRoh.slice(0, 1500).replace(/&/g, '&amp;').replace(/</g, '&lt;')}</pre>
+      </details>
+      <button onclick="_reviewItems=[];showReview()" class="scan-manuell">${iconHTML('pencil', 14)}Wörter manuell eingeben</button>`;
 }
 
-async function _scanLauf(status) {
-  status.innerHTML = _scanLaeuft('Bild wird vorbereitet', 'a', true);
+// Setzt die Wörter von Bild b in die Prüfliste: alte Wörter dieses Bildes raus,
+// Wörter, die schon von einem anderen Bild drinstehen, nicht doppelt. Reihenfolge
+// wie die Bilder, von Hand ergänzte Zeilen bleiben am Ende. Liefert die Anzahl.
+function _bildWoerterEinsetzen(b, items) {
+  const andere = window._reviewItems.filter(i => i.bild !== b.id);
+  const schon = new Set(andere.map(i => (i.en || '').trim().toLowerCase()));
+  const existing = new Set(window.VOCAB.map(v => v.en.toLowerCase()));
+  const neu = [];
+  for (const i of items) {
+    if (!i.de || !i.en) continue;
+    const en = i.en.trim(), k = en.toLowerCase();
+    if (schon.has(k)) continue;
+    schon.add(k);
+    neu.push({ de: i.de.trim(), en, bild: b.id, isDuplicate: existing.has(k) });
+  }
+  const ids = bilder().map(x => x.id);
+  const liste = [];
+  for (const id of ids) liste.push(...(id === b.id ? neu : andere.filter(i => i.bild === id)));
+  liste.push(...andere.filter(i => !ids.includes(i.bild)));
+  liste.forEach((it, idx) => { it.id = idx; });
+  window._reviewItems = liste;
+  return neu.length;
+}
+
+// Ein Bild erkennen. Liefert { items, roh } oder { fehler, roh }.
+async function _bildLauf(b, melden) {
+  melden('Bild wird vorbereitet', 'a', true);
   // Zeichnen lassen, bevor das Rechnen den Hauptthread blockiert.
   await new Promise(r => setTimeout(r, 30));
 
   let bild = null, px = null;
   try {
-    px = zuschnittBild();
+    px = await zuschnittBild(b);
     if (px) {
       bild = document.createElement('canvas');
       bild.width = px.width; bild.height = px.height;
       bild.getContext('2d').putImageData(new ImageData(px.data, px.width, px.height), 0, 0);
     }
   } catch(e) { console.warn('[scan] Zuschnitt fehlgeschlagen:', e?.message); }
-  if (!bild) { status.innerHTML = _scanFehler('Bild konnte nicht vorbereitet werden.'); return; }
-
-  status.innerHTML = _scanLaeuft('Text wird erkannt', 'b', true);
+  if (!bild) return { fehler: 'Bild konnte nicht vorbereitet werden.' };
 
   let rawText = '', woerter = [];
   // Erst PaddleOCR; beim allerersten Scan werden hier ggf. noch die Modelle geladen.
   try {
-    status.innerHTML = _scanLaeuft('Texterkennung wird geladen', 'b', true);
+    melden('Texterkennung wird geladen', 'b', true);
     await _paddleVorbereiten();
     const erg = await paddleErkennen(px, async anteil => {
-      status.innerHTML = _scanLaeuft(`Texterkennung: ${Math.round(anteil * 100)} %`, 'b', false);
+      melden(`Texterkennung: ${Math.round(anteil * 100)} %`, 'b', false);
       await new Promise(r => setTimeout(r, 0));
     });
     rawText = erg.text || '';
@@ -563,7 +747,7 @@ async function _scanLauf(status) {
       logger: m => {
         if (m.status === 'recognizing text') {
           const pct = Math.round((m.progress || 0) * 100);
-          status.innerHTML = _scanLaeuft(`Texterkennung: ${pct} %`, 'b', false);
+          melden(`Texterkennung: ${pct} %`, 'b', false);
         }
       }
     });
@@ -574,40 +758,20 @@ async function _scanLauf(status) {
     woerter = (data.words || []).map(w => ({ text: w.text, bbox: w.bbox }));
   } catch(e) {
     console.warn('[scan] Texterkennung fehlgeschlagen:', e?.message);
-    status.innerHTML = _scanFehler('Texterkennung fehlgeschlagen');
-    return;
+    return { fehler: 'Texterkennung fehlgeschlagen' };
   } finally {
     worker?.terminate().catch(() => {});
   }
 
-  if (!rawText || rawText.trim().length < 5) {
-    status.innerHTML = _scanFehler('Kein Text erkannt. Bitte ein klareres Foto versuchen.');
-    return;
-  }
+  if (!rawText || rawText.trim().length < 5) return { fehler: 'Kein Text erkannt. Bitte ein klareres Foto versuchen.', roh: rawText };
 
   // Erst über die Lage der Wörter (Spalten Englisch | Deutsch), sonst wie bisher.
   let items = [];
   try { const zeilen = vokabelZeilen(woerter, await _woerterbuch()); if (zeilen) items = parseVocabFromOCR(zeilen); }
   catch(e) { console.warn('[scan] Spaltenerkennung fehlgeschlagen:', e?.message); }
   if (items.length === 0) items = parseVocabFromOCR(rawText);
-  const existing = new Set(window.VOCAB.map(v => v.en.toLowerCase()));
-  window._reviewItems = items.filter(i => i.de && i.en).map((i, idx) => ({
-    id: idx, de: i.de.trim(), en: i.en.trim(),
-    isDuplicate: existing.has(i.en.toLowerCase())
-  }));
-  _lastOCRText = rawText;
-  if (items.length === 0) {
-    status.innerHTML = _scanFehler('Keine Vokabeln automatisch erkannt.') + `
-      <div class="scan-tipp">Tipps: Foto gerade halten, gute Beleuchtung, klare Schrift.</div>
-      <details class="scan-roh">
-        <summary>${iconHTML('lupe', 14)}Erkannter Rohtext anzeigen</summary>
-        <pre>${(rawText || '').slice(0, 1500).replace(/&/g, '&amp;').replace(/</g, '&lt;')}</pre>
-      </details>
-      <button onclick="_reviewItems=[];showReview()" class="scan-manuell">${iconHTML('pencil', 14)}Wörter manuell eingeben</button>`;
-    return;
-  }
-  status.innerHTML = '';
-  showReview();
+  if (items.length === 0) return { fehler: 'Keine Vokabeln automatisch erkannt.', roh: rawText };
+  return { items, roh: rawText };
 }
 
 function parseVocabFromOCR(rawText) {
@@ -688,6 +852,7 @@ function parseVocabFromOCR(rawText) {
 
 export function showReview() {
   showScreen('review-screen');
+  _scanTeileAuffrischen();
   renderReviewList();
   _rvAllePruefen();
 }
@@ -770,11 +935,20 @@ function _rvZeile(item, i) {
   return `<div class="review-item${item.isDuplicate ? ' is-doppelt' : ''}${_rvFehler(item) ? ' is-fehler' : ''}" id="ritem-${i}">
       <div class="rv-felder">${feld('de')}${feld('en')}</div>
       <div class="rv-rechts">
+        ${_rvBildNr(item)}
         ${item.isDuplicate ? `<span class="review-doppelt" title="Bereits vorhanden">${iconHTML('check', 14)}</span>` : ''}
         <button class="review-del" onclick="removeReviewItem(${i})" title="Entfernen">${iconHTML('trash', 14)}</button>
       </div>
       <div class="rv-meldungen">${_rvMeldungen(item, i)}</div>
     </div>`;
+}
+
+// Kleine Bild-Nummer an der Zeile (nur bei mehr als einem Bild).
+function _rvBildNr(item) {
+  const liste = bilder();
+  if (liste.length < 2 || !item.bild) return '';
+  const nr = liste.findIndex(b => b.id === item.bild) + 1;
+  return nr ? `<span class="rv-bild-nr" title="Von Bild ${nr}">${nr}</span>` : '';
 }
 
 function _rvHoehe(el) { el.style.height = 'auto'; el.style.height = (el.scrollHeight + el.offsetHeight - el.clientHeight) + 'px'; }
@@ -864,6 +1038,8 @@ export function addReviewItem() {
 // in den Scan-Reiter und gleich die Kamera öffnen (in derselben Geste).
 export function rescanReview() {
   window._reviewItems = [];
+  bilderVerwerfen();
+  document.getElementById('scan-status').innerHTML = '';
   showScreen('scan-screen');
   vmTab('scan');
   document.getElementById('scan-file')?.click();

@@ -35,3 +35,6 @@ SVG/
 # Nachtrag an Claude Design: Ist-Screenshots (11 MB) bleiben lokal,
 # NACHTRAG.md und START-HERE.md liegen IM Repo.
 design_handoff_nachtrag/screens/
+
+# Bug-Meldungen (Videos/Bilder vom Handy) bleiben lokal
+bugs/

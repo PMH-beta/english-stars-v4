@@ -410,27 +410,40 @@
 
   <!-- Tab: Scannen (3.4) -->
   <div class="vm-pane" id="vm-pane-scan" style="display:none;">
-    <div class="scan-zone" id="scan-zone" onclick="document.getElementById('scan-file').click()">
+    <!-- Start: noch kein Bild. Zwei Wege — Kamera (ein Foto) oder Galerie (1–5). -->
+    <div class="scan-zone" id="scan-zone">
       <div class="scan-linie" data-ui="scan" data-a="276" data-c="24"></div>
-      <img id="scan-preview" class="scan-preview" alt="Vorschau">
       <canvas data-icon="scan" width="14" height="14" style="width:56px;height:56px;image-rendering:pixelated;flex:none"></canvas>
-      <div class="scan-zone-titel">Bild auswählen oder Kamera öffnen</div>
-      <div class="scan-zone-sub">JPG, PNG — Erkennung auf dem Gerät</div>
+      <div class="scan-zone-titel">Vokabelliste fotografieren</div>
+      <div class="scan-zone-sub">1 bis 5 Seiten · Erkennung auf dem Gerät</div>
+      <div class="scan-wahl">
+        <button class="scan-wahl-knopf scan-wahl-knopf--kamera" onclick="document.getElementById('scan-file').click()"><canvas data-icon="kamera" width="14" height="14" style="width:28px;height:28px;image-rendering:pixelated;flex:none"></canvas><span>Foto aufnehmen</span></button>
+        <button class="scan-wahl-knopf" onclick="document.getElementById('scan-file-galerie').click()"><canvas data-icon="bilder" width="14" height="14" style="width:28px;height:28px;image-rendering:pixelated;flex:none"></canvas><span>Bilder wählen</span></button>
+      </div>
     </div>
-    <!-- Zuschnitt nach dem Foto: vier Ecken ziehen, drehen, dann erkennen. -->
+    <!-- Zuschnitt: aktives Bild mit vier Ecken, darunter die Bildleiste und EIN Hauptknopf. -->
     <div id="scan-zuschnitt" class="scan-zuschnitt" style="display:none">
-      <div class="scan-zs-text">Ziehe die vier Ecken auf den Rand der Vokabelliste.</div>
+      <div class="scan-zs-kopf">
+        <div class="scan-zs-titel" id="scan-zs-titel">Dein Bild</div>
+        <button class="scan-zs-mini" onclick="scanZsDrehen()" aria-label="Bild drehen" title="Drehen"><canvas data-icon="refresh" width="14" height="14" style="width:14px;height:14px;image-rendering:pixelated;flex:none"></canvas></button>
+        <button class="scan-zs-mini scan-zs-mini--weg" onclick="scanZsEntfernen()" aria-label="Bild entfernen" title="Entfernen"><canvas data-icon="trash" width="14" height="14" style="width:14px;height:14px;image-rendering:pixelated;flex:none"></canvas></button>
+      </div>
+      <div class="scan-zs-text">Ziehe die gelben Ecken auf den Rand der Vokabelliste.</div>
       <div id="scan-zs-flaeche" class="scan-zs-flaeche">
         <canvas id="scan-zs-bild"></canvas>
         <div class="scan-zs-griff" data-ecke="0"></div><div class="scan-zs-griff" data-ecke="1"></div><div class="scan-zs-griff" data-ecke="2"></div><div class="scan-zs-griff" data-ecke="3"></div>
       </div>
-      <div class="scan-zs-knoepfe">
-        <button class="p-btn p-btn--sekundaer" onclick="scanZsDrehen()"><canvas data-icon="refresh" width="14" height="14" style="width:14px;height:14px;image-rendering:pixelated;flex:none"></canvas>Drehen</button>
-        <button class="p-btn p-btn--sekundaer" onclick="scanZsNeu()"><canvas data-icon="scan" width="14" height="14" style="width:14px;height:14px;image-rendering:pixelated;flex:none"></canvas>Neues Foto</button>
+      <div class="scan-leiste" id="scan-leiste"></div>
+      <div class="scan-leiste-info" id="scan-leiste-info"></div>
+      <!-- „+“ klappt die zwei Wege für eine weitere Seite auf. -->
+      <div class="scan-plus-wahl" id="scan-plus-wahl" style="display:none">
+        <button class="p-btn p-btn--sekundaer" onclick="document.getElementById('scan-file').click()"><canvas data-icon="kamera" width="14" height="14" style="width:14px;height:14px;image-rendering:pixelated;flex:none"></canvas>Foto aufnehmen</button>
+        <button class="p-btn p-btn--sekundaer" onclick="document.getElementById('scan-file-galerie').click()"><canvas data-icon="bilder" width="14" height="14" style="width:14px;height:14px;image-rendering:pixelated;flex:none"></canvas>Bilder wählen</button>
       </div>
-      <button class="p-btn p-btn--primaer scan-zs-los" onclick="scanZsLos()"><canvas data-icon="check" width="14" height="14" style="width:14px;height:14px;image-rendering:pixelated;flex:none"></canvas>Zuschneiden &amp; erkennen</button>
+      <button class="p-btn p-btn--primaer scan-zs-los" onclick="scanZsLos()"><canvas data-icon="check" width="14" height="14" style="width:14px;height:14px;image-rendering:pixelated;flex:none"></canvas><span id="scan-zs-los-text">Bild erkennen</span></button>
     </div>
     <input type="file" id="scan-file" accept="image/*" capture="environment" style="display:none" onchange="onScanFile(event)">
+    <input type="file" id="scan-file-galerie" accept="image/*" multiple style="display:none" onchange="onScanFile(event)">
     <div id="scan-status" style="width:100%;"></div>
     <div class="scan-hinweis">Nach dem Erkennen geht es weiter zu „Vokabeln prüfen".</div>
   </div>
@@ -463,7 +476,7 @@
   <!-- Kopf nach 3.6: Zurück und Titel links, darunter der Hinweis. -->
   <div class="p-kopf">
     <div class="rv-kopf">
-      <button class="p-back" onclick="showScreen('scan-screen')"><canvas data-icon="back" width="14" height="14" style="width:28px;height:28px;image-rendering:pixelated;flex:none"></canvas></button>
+      <button class="p-back" onclick="rvZurueck()"><canvas data-icon="back" width="14" height="14" style="width:28px;height:28px;image-rendering:pixelated;flex:none"></canvas></button>
       <div class="rv-titel">Vokabeln prüfen</div>
     </div>
     <div class="rv-sub">Erkannte Wörter prüfen, ergänzen oder löschen</div>
@@ -473,6 +486,11 @@
     <div class="rv-leiste">
       <div id="review-count" class="rv-zaehler"></div>
       <button class="rv-neu-scannen" onclick="rescanReview()"><canvas data-icon="scan" width="14" height="14" style="width:14px;height:14px;image-rendering:pixelated;flex:none"></canvas>Neu scannen</button>
+    </div>
+    <!-- Bilder dieses Scans: antippen = Ecken anpassen und neu erkennen. -->
+    <div class="rv-bilder" id="rv-bilder" style="display:none">
+      <div class="rv-bilder-text">Bild antippen zum Anpassen und neu Erkennen</div>
+      <div class="scan-leiste" id="rv-leiste-bilder"></div>
     </div>
     <div id="review-list" class="review-list"></div>
     <!-- Neue leere Zeile (F-41) -->
