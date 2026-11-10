@@ -142,10 +142,14 @@ function _renderVmTabsForMode() {
   row.appendChild(abortBtn);
   bottomArea.appendChild(row);
   if (_vmDeck()?.deckPath !== 'preset') {
-    // Eigene Sammlung (10.11.2026): „Abbrechen | Bestätigen“ nebeneinander unter der
-    // Liste, nur im Reiter Liste (vmTab blendet sie sonst aus), nichts schwebt.
-    row.classList.add('vm-bottom-bar--zwei');
+    // Eigene Sammlung (10.11.2026): „Abbrechen | Bestätigen“ nebeneinander, fest am
+    // unteren Rand (style.css .unten-fest), nur im Reiter Liste (vmTab blendet den
+    // Bereich sonst aus). Darunter im Inhalt Platz zum Ausscrollen.
+    row.classList.add('vm-bottom-bar--zwei', 'unten-fest');
     row.appendChild(confirmBtn);
+    const platz = document.createElement('div');
+    platz.className = 'unten-fest-platz';
+    bottomArea.appendChild(platz);
   } else {
     // Vorlagen: „Bestätigen" schwebt seit 14.10.2026 unten mittig (style.css
     // .vm-confirm--schwebt), „Abbrechen" bleibt unter dem Inhalt; darunter Platz zum Ausscrollen.
@@ -383,19 +387,13 @@ function _wortStand(deck, v) {
 export function renderVocabList() {
   const listEl = document.getElementById('vm-list');
   if (!listEl) return;
-  const search = (document.getElementById('vm-search')?.value || '').toLowerCase().trim();
   const deck = _vmDeck();
   const isPresetPath = deck.deckPath === 'preset' && (window.SD?.activeMode || 'free') === 'free';
   const vocabToShow = isPresetPath ? deck.vocab : deck.vocab.filter(v => !v._presetId);
-  const items = vocabToShow.filter(v => {
-    if (!search) return true;
-    return v.de.toLowerCase().includes(search) || v.en.toLowerCase().includes(search);
-  });
+  const items = vocabToShow;   // Suchfeld entfällt seit 10.11.2026
   _updateVmCount();
   if (items.length === 0) {
-    const emptyMsg = search
-      ? 'Keine Treffer für "' + window.escHtml(search) + '"'
-      : isPresetPath ? 'Noch keine Vorlage aktiv. Wähle eine im Vorlagen-Tab.' : 'Noch keine Vokabeln. Füge welche hinzu.';
+    const emptyMsg = isPresetPath ? 'Noch keine Vorlage aktiv. Wähle eine im Vorlagen-Tab.' : 'Noch keine Vokabeln. Füge welche hinzu.';
     listEl.innerHTML = '<div class="vm-empty">' + emptyMsg + '</div>';
     return;
   }
@@ -519,7 +517,7 @@ function _leisteHTML(ort) {
     const erkannt = b.stand === 'ok' && !b.geaendert;
     return `<span class="scan-kachel-platz"><button class="scan-kachel${ist ? ' is-aktiv' : ''}${erkannt ? ' is-erkannt' : ''}" onclick="${ort === 'scan' ? 'scanBildTipp' : 'rvBildOeffnen'}(${i})"`
       + ` aria-label="Bild ${i + 1}${ist ? ' (ausgewählt)' : ''}"${ist ? ' aria-current="true"' : ''}>`
-      + `<img src="${b.vorschau}" alt=""><span class="scan-kachel-nr">${i + 1}</span>${stand}</button>`
+      + `<img src="${b.vorschau}" alt="">${stand}</button>`
       + `<button class="scan-kachel-weg" onclick="scanBildWeg(${i},'${ort}')" aria-label="Bild ${i + 1} entfernen">${iconHTML('close', 14)}</button></span>`;
   }).join('');
   const plus = liste.length < MAX_BILDER

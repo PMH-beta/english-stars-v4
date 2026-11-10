@@ -281,11 +281,7 @@ h1{
   width:30px;height:120px;cursor:pointer;
 }
 body.in-game .music-vol-wrap.open{display:none;}
-/* Im Spiel: kein Music-Button in der Score-Bar - der globale unten reicht */
-/* Im Spiel: globalen Music-Button + Vol-Button sichtbar lassen (statt verstecken) */
-body.in-game .music-btn-global{display:flex !important;}
-body.in-game .music-vol-btn{display:flex !important;}
-body.in-game .music-vol-wrap.open{display:flex !important;}
+/* Musik- und Lautstärke-Knopf gibt es seit 10.11.2026 nur im Hauptmenü (ui.js showScreen). */
 
 /* Mobile (Touch-Geräte): Lautstärke-Regler komplett aus - User regelt am Gerät */
 @media (pointer:coarse), (max-width:599px){
@@ -2099,6 +2095,7 @@ button.p-chip{ cursor:pointer; }
 .vm-list{
   background:none; border:0; border-radius:0; box-shadow:none; padding:0;
   display:flex; flex-direction:column; gap:9px;
+  max-height:none; overflow:visible;   /* kein eigener Scrollkasten — die Seite scrollt unter die festen Knöpfe */
 }
 .vm-row{
   border:var(--p-rahmen); border-radius:var(--p-r-btn); background:var(--p-karte);
@@ -3120,12 +3117,6 @@ button.p-chip{ cursor:pointer; }
   display:flex; align-items:center; justify-content:center;
 }
 .scan-kachel-weg::before{ content:''; position:absolute; inset:-8px; }   /* Tippfläche 38 px */
-.scan-kachel-nr{
-  position:absolute; z-index:1; left:-4px; top:-4px; min-width:20px; height:20px; padding:0 4px;
-  border:var(--p-rahmen); border-radius:999px; background:var(--p-karte-hell);
-  font:900 10px/16px var(--p-font); color:var(--p-ink); text-align:center;
-}
-.scan-kachel.is-aktiv .scan-kachel-nr{ background:var(--p-gold); }
 .scan-kachel-stand{
   position:absolute; z-index:1; right:-5px; bottom:-5px; min-width:22px; height:22px; padding:0 4px;
   border:var(--p-rahmen); border-radius:999px;
@@ -3189,6 +3180,18 @@ button.p-chip{ cursor:pointer; }
 /* Entwurf: Abbrechen / Bestätigen unter der Liste (3.2), 52 + Rahmen. */
 .vm-bottom-bar{ margin:14px 0 0; }
 .vm-bottom-bar--zwei{ display:flex; gap:10px; }   /* eigene Sammlung: Abbrechen | Bestätigen */
+/* Feste Knöpfe am unteren Rand (10.11.2026): keine Leiste, kein Rahmen — der
+   Inhalt läuft in einem Verlauf zur Blattfarbe weich darunter aus. Der Verlauf
+   lässt Tipps durch, nur die Knöpfe fangen sie. Breite wie .p-screen/.p-blatt. */
+.unten-fest{
+  position:fixed; z-index:400; left:0; right:0; bottom:0; margin:0 auto; max-width:768px;
+  padding:28px 4% calc(26px + env(safe-area-inset-bottom,0px));   /* Versionszeile bleibt darunter lesbar */
+  background:linear-gradient(to bottom, transparent, var(--p-blatt) 28px);
+  pointer-events:none;
+}
+.unten-fest > *{ pointer-events:auto; }
+.unten-fest .rv-ok{ margin-top:0; width:100%; }
+.unten-fest-platz{ height:calc(94px + env(safe-area-inset-bottom,0px)); }
 .vm-confirm:disabled{ cursor:default; }
 .vm-abbrechen, .vm-confirm{
   flex:1; height:56px; border:var(--p-rahmen); border-radius:18px; box-shadow:none; cursor:pointer;
@@ -3886,8 +3889,8 @@ body.p-app .music-vol-btn{ bottom:calc(88px + env(safe-area-inset-bottom,0px)); 
   font:800 8.5px var(--p-font); text-transform:uppercase; letter-spacing:.1em;
   color:var(--p-text-akzent); margin-top:4px;
 }
-/* Blatt 16 px unter dem Kopf; unten Platz für den schwebenden Musikknopf (wie im Menü). */
-#stats-screen .p-blatt{ margin-top:16px; padding-bottom:calc(80px + env(safe-area-inset-bottom,0px)); }
+/* Blatt 16 px unter dem Kopf. */
+#stats-screen .p-blatt{ margin-top:16px; }
 
 .fs-abschnitt{ display:flex; align-items:center; gap:9px; margin-top:24px; }
 #profile-decks-summary > .fs-abschnitt:first-child{ margin-top:0; }
@@ -4060,8 +4063,6 @@ body.p-app .music-vol-btn{ bottom:calc(88px + env(safe-area-inset-bottom,0px)); 
 .pf-kopf-text{ flex:1; min-width:0; }
 .pf-name{ font:900 24px var(--p-font); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .pf-seit{ font:700 11px var(--p-font); color:var(--p-text-3); }
-/* Unten Platz für den schwebenden Musikknopf (wie im Menü). */
-#profile-screen .p-blatt{ padding-bottom:calc(80px + env(safe-area-inset-bottom,0px)); }
 
 .pf-abschnitt{ display:flex; align-items:center; gap:9px; }
 .pf-abschnitt-titel{ font:900 17px var(--p-font); }
@@ -4823,7 +4824,4 @@ body.tour-aktiv #menu-screen{ pointer-events:none; }
   border:var(--p-rahmen); border-radius:var(--p-r-chip); background:var(--p-karte-hell);
   font:800 12px var(--p-font); color:var(--p-ink);
 }
-/* Der schwebende Musikknopf darf „Zur Vokabelliste hinzufügen“ und die letzten
-   Zeilen nicht verdecken. */
-#review-screen .p-blatt, #scan-screen .p-blatt{ padding-bottom:calc(84px + env(safe-area-inset-bottom,0px)); }
 .vm-lizenz{ display:block; margin-top:12px; text-align:center; font:700 11px var(--p-font); color:var(--p-text-2); }

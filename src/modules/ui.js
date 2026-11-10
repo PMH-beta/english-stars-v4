@@ -98,11 +98,17 @@ export function showScreen(id) {
   document.body.classList.toggle('schnell-active', !!window.isSchnellModus && !_noDark);
   const ft = document.getElementById('menu-footer');
   if (ft) ft.style.display = (id === 'menu-screen') ? 'flex' : 'none';
-  const isLoading = id === 'loading-screen';
+  // Musik- und Lautstärke-Knopf nur im Hauptmenü (Wunsch 10.11.2026) — in
+  // Untermenüs, Spiel und Kampf stören sie die festen Knöpfe unten.
+  const imMenu = id === 'menu-screen';
   const musicBtnGlobal = document.getElementById('music-btn-global');
   const musicVolBtn = document.getElementById('music-vol-btn');
-  if (musicBtnGlobal) musicBtnGlobal.style.display = isLoading ? 'none' : '';
-  if (musicVolBtn) musicVolBtn.style.display = isLoading ? 'none' : '';
+  if (musicBtnGlobal) musicBtnGlobal.style.display = imMenu ? '' : 'none';
+  if (musicVolBtn) musicVolBtn.style.display = imMenu ? '' : 'none';
+  if (!imMenu) {
+    document.getElementById('music-vol-wrap')?.classList.remove('open');
+    musicVolBtn?.classList.remove('active');
+  }
   // Screens mit eigener Versionszeile (.p-version) zeigen das globale Etikett
   // nicht — sonst stand die Nummer dort doppelt (N54, Wunsch des Nutzers).
   const versionBadge = document.getElementById('version-badge');
