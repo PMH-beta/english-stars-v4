@@ -882,12 +882,16 @@ export async function vmAddManual() {
 
 // Live-Übersetzung im Hinzufügen-Reiter (wie in der Prüfliste, vocab.js _rvLive):
 // kurz nach dem Tippen die andere Seite aus dem Wörterbuch füllen, wenn sie nicht
-// schon passt; was kein Wort ist, wird rot.
+// schon passt; was kein Wort ist, wird rot. Gefüllt wird die andere Seite nur, wenn
+// sie leer ist, selbst aus der Übersetzung stammt (_vmAuto) oder rot markiert ist —
+// was getippt wurde, bleibt stehen (sonst überschrieben sich „well“ und „nun“ endlos).
 const _VM_LIVE_MS = 600;
 let _vmLt = 0, _vmLs = null, _vmLnr = 0;
 const _vmLiveFehler = { de: [], en: [] };
-function _vmLiveStopp() { clearTimeout(_vmLt); _vmLt = 0; _vmLs = null; _vmLnr++; }
+const _vmAuto = { de: null, en: null };
+function _vmLiveStopp() { clearTimeout(_vmLt); _vmLt = 0; _vmLs = null; _vmLnr++; _vmAuto.de = _vmAuto.en = null; }
 export function vmAddEingabe(s) {
+  _vmAuto[s] = null;   // selbst getippt: wird nicht mehr überschrieben
   if (_vmLt && _vmLs !== s) _vmAddLive();
   clearTimeout(_vmLt);
   _vmLs = s;
@@ -909,8 +913,10 @@ async function _vmAddLive() {
   if (nr !== _vmLnr) return;
   _vmLiveFehler[s] = r ? r.fehler : [];
   quelle.classList.toggle('is-fehler', !!_vmLiveFehler[s].length);
-  if (r?.neu && ziel.value === alt) {
+  const darf = !alt.trim() || _vmAuto[t] === alt || !!_vmLiveFehler[t].length;
+  if (r?.neu && darf && ziel.value === alt) {
     ziel.value = r.neu;
+    _vmAuto[t] = r.neu;
     _vmLiveFehler[t] = [];
     ziel.classList.remove('is-fehler');
   }

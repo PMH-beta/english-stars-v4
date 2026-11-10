@@ -973,6 +973,10 @@ function _rvZeileAktualisieren(item) {
 // sie stehen; sonst kommt die beste Übersetzung aus dem Wörterbuch hinein. Was kein
 // Wort ist, wird rot. Beim Tippen wird nichts automatisch korrigiert — das gibt es
 // nur beim ersten Prüfen nach dem Scan.
+// Schutz (10.11.2026): Die andere Seite wird nur gefüllt, wenn sie leer ist, selbst
+// aus der Übersetzung stammt (item.auto) oder rot markiert ist. Was aus dem Scan
+// kommt oder getippt wurde, gilt — das Buch übersetzt oft anders als das Wörterbuch
+// („well | nun“), und zwei solche Seiten überschrieben sich sonst gegenseitig.
 const LIVE_MS = 600;
 function _rvLivePlanen(item, s) {
   if (item._lt && item._ls !== s) _rvLive(item);   // andere Seite noch offen → zuerst
@@ -998,8 +1002,10 @@ function _rvLive(item) {
     if (nr !== ln[s]) return;
     if (!r) { pr[s] = null; return; }
     pr[s] = r.fehler.length ? { fehler: r.fehler, hinweise: [], korr: [] } : null;
-    if (r.neu && item[t] === alt) {
+    const darf = !alt.trim() || item.auto?.[t] === alt || !!pr[t]?.fehler.length;
+    if (r.neu && darf && item[t] === alt) {
       item[t] = r.neu; pr[t] = null;
+      (item.auto ||= {})[t] = r.neu;
       if (item.vorher) delete item.vorher[t];
       // Steht der Cursor schon im anderen Feld (noch unverändert), auch dort einsetzen.
       const ta = document.querySelector(`#ritem-${window._reviewItems.indexOf(item)} textarea[data-s="${t}"]`);
@@ -1015,6 +1021,7 @@ export function rvEingabe(i, s, el) {
   item[s] = el.value.replace(/\n/g, ' ');
   _rvHoehe(el);
   if (item.vorher) delete item.vorher[s];
+  if (item.auto) delete item.auto[s];   // selbst getippt: wird nicht mehr überschrieben
   _rvLivePlanen(item, s);
 }
 // Feld verlassen: nicht erst auf die Tipp-Pause warten.
@@ -1101,6 +1108,9 @@ export async function confirmAddVocab() {
   window.esAlert({ icon: '✅', title: 'Hinzugefügt', body: `${toAdd.length} neue Vokabel${toAdd.length === 1 ? '' : 'n'} zur Lernliste hinzugefügt!` }).then(() => {
     window._reviewItems = [];
     openVocabManager();
+    // In den Reiter Liste (10.11.2026): dort stehen die neuen Wörter und im Entwurf
+    // „Bestätigen“ — im Startreiter Scan sah man beides nicht.
+    if (document.querySelector('.vm-tab[data-tab="list"]')) vmTab('list');
   });
 }
 
