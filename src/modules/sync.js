@@ -302,6 +302,7 @@ function _campaignFrom(profile) {
 
 export async function saveProfile(sd, userId) {
   if (sd?._tourDemo) return;   // App-Tour: Demo-Stand nie in die Cloud
+  if (sd?._freundAnsicht) return;   // Freundes-Ansicht: fremder Stand nie ins eigene Profil (D-4)
   // Empty-Write-Schutz: kein Profil-Write, bevor der Cloud-Stand bestätigt ist.
   if (!_cloudConfirmed) { console.warn('[sync] saveProfile übersprungen — Cloud-Stand noch nicht bestätigt'); return; }
   // updated_at NICHT mitschicken — DB-Trigger setzt es serverseitig (now()).
@@ -608,6 +609,7 @@ export async function flushPendingSync() {
   const userId = window.currentUser.id;
   const sd = window.SD;
   if (window._tourDemoAktiv || sd?._tourDemo) return;   // App-Tour: nie den Demo-Stand hochladen
+  if (sd?._freundAnsicht) return;   // Freundes-Ansicht (D-4): Merkliste bleibt, läuft nach der Rückkehr
   const failed = [];
 
   for (const item of pending) {

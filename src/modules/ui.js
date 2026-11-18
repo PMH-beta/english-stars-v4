@@ -1947,10 +1947,17 @@ export function wordStatus(stat, minAsked) {
 // Fortschritt eines Freundes (schreibgeschützt): fremden Stand temporär als window.SD
 // setzen und die normale Fortschritt-Seite rendern. showScreen holt den eigenen Stand
 // beim Verlassen zurück (auch bei Hardware-Zurück). Zurück-Button → Profil.
+// K1: Ein Doppeltipp startete zwei Aufrufe; der zweite sicherte den schon getauschten
+// Freundes-Stand als „eigenen“ und beim Verlassen blieb der Freund als window.SD stehen.
+// Darum: Sperre gegen den Doppelaufruf und die Sicherung nur aus dem eigenen Stand.
+let _friendStatsLaedt = false;
 export async function showFriendStats(friendId) {
-  const state = await friendProgress(friendId);
+  if (_friendStatsLaedt) return;
+  _friendStatsLaedt = true;
+  let state;
+  try { state = await friendProgress(friendId); } finally { _friendStatsLaedt = false; }
   if (!state) { window.esAlert({ icon: '⚠️', title: 'Nicht verfügbar', body: 'Der Fortschritt konnte nicht geladen werden.' }); return; }
-  _friendSDBackup = window.SD;
+  if (!_statsFriendMode && !window.SD?._freundAnsicht) _friendSDBackup = window.SD;
   _statsFriendMode = true;
   window.SD = _friendState(state);
   // Anzeige angleichen: hat sich der Freund seit der Umstellung auf Stände je
@@ -1966,6 +1973,7 @@ export function closeFriendStats() {
 function _friendState(s) {
   return {
     _version: 4,
+    _freundAnsicht: true,   // Marker: storage.persist und sync speichern diesen Stand nie (K1/D-4)
     playerName: s.playerName || 'Freund',
     highscore: s.highscore || 0,
     totalPoints: s.totalPoints || 0,

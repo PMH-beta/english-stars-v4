@@ -943,10 +943,19 @@ function _einreihen(ctx, schlag) {
   ctx.angriffe.push(schlag);
   if (ctx.angriffe.length === 1) schlag();
 }
+// Der Folgeschritt läuft erst im nächsten Durchlauf (K3): _naechsterSchlag kommt aus dem
+// onEnd des letzten Schlags, und direkt danach schaltet SpritePlayer den Angreifer selbst
+// auf 'idle' — ein sofort gestarteter Folgeschlag desselben Angreifers wurde dadurch
+// abgebrochen, sein Treffer kam nie an und der Kampf stand still (wie in _endScreen).
+// Der fertige Schlag bleibt bis dahin vorn in der Schlange, damit ein in der Lücke
+// eingereihter Schlag nicht schon von _einreihen gestartet wird (sonst liefe er doppelt).
 function _naechsterSchlag(ctx) {
-  ctx.angriffe.shift();
-  if (ctx.angriffe.length) ctx.angriffe[0]();
-  else if (ctx.nachAngriffen) { const w = ctx.nachAngriffen; ctx.nachAngriffen = null; w(); }
+  setTimeout(() => {
+    if (_ctx !== ctx || ctx.vorbei) return;
+    ctx.angriffe.shift();
+    if (ctx.angriffe.length) ctx.angriffe[0]();
+    else if (ctx.nachAngriffen) { const w = ctx.nachAngriffen; ctx.nachAngriffen = null; w(); }
+  }, 0);
 }
 
 function _tfTreffer(teile) {
