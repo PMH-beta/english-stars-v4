@@ -3,7 +3,7 @@ import { QPERROUND, EXAM_QUESTIONS, calcGrade, gradeText, UV_LVL } from './confi
 import { effectivePct, isMastered, statKeyFor, getVocabStat, SP_TEILE, spWort, spKurz, spellingStand, wortScore, presetStatStore } from './stats.js';
 import { activeDeck, syncMirrorFromActiveDeck } from './decks.js';
 import { showScreen, showMenu, hideFeedback, showFeedback, TP_DISZ } from './ui.js';
-import { ensureMicStream, releaseMicStream, voskStop, stopVisualizer, speakWord, speakWordOnce, startVoskRecognition, startRecording, _shouldUseVosk, warmAudio, warmIosMic, micZustand, gehoert } from './speech.js';
+import { ensureMicStream, releaseMicStream, voskStop, stopVisualizer, speakWord, speakWordOnce, startVoskRecognition, startRecording, _shouldUseVosk, warmAudio, warmIosMic, micZustand, gehoert, aufnahmeBeenden } from './speech.js';
 import { persist } from './storage.js';
 import { markDirty, saveExam, saveProbetest } from './sync.js';
 import { commitDirty } from './dialog.js';
@@ -654,6 +654,11 @@ function _launchGame(m) {
 export async function goHomeSaving() {
   saveProgress();
   hideFeedback();
+  // Laufende Aufnahme samt Timern beenden und die Frage sperren, solange gespeichert
+  // wird (bis 5 s) — sonst wertet ein später Rückruf im nächsten Spiel (T1/H2).
+  window.answered=true;
+  aufnahmeBeenden();
+  try{ stopVisualizer(); }catch(e){}
   try{ releaseMicStream(); }catch(e){}
   try{ if(window.speechSynthesis) window.speechSynthesis.cancel(); }catch(e){}
   if(window.currentUser) await commitProgress();   // Regel 2: warten bis bestätigt, DANN Menü
@@ -674,6 +679,7 @@ export function confirmHome() {
 }
 
 function showQuestion() {
+  aufnahmeBeenden();   // Aufnahme der vorigen Frage gilt nicht mehr (T1/H2)
   window.answered=false;
   hideFeedback();
   window._spokenForQuestion=false;
@@ -1046,7 +1052,7 @@ export function submitType() {
 }
 
 export function showSelfRateButtons() {
-  if(window.answered) return;
+  if(window.answered || window.currentQ?.type!=='pronounce') return;
   const card=document.getElementById('game-card');
   if(!card) return;
   const old=document.getElementById('self-rate-wrap');
@@ -1061,8 +1067,7 @@ export function showSelfRateButtons() {
     <div class="sr-knoepfe"><button class="sr-knopf sr-knopf--ja">${iconHTML('check',28)}Hatte ich richtig</button><button class="sr-knopf sr-knopf--nein">${iconHTML('close',28)}Daneben</button></div>`;
   const listenBtn=wrap.querySelector('.sr-hoeren');
   listenBtn.onclick=()=>{
-    try{ voskStop(); }catch(e){}
-    if(window._activeVoskTimeout){ clearTimeout(window._activeVoskTimeout); window._activeVoskTimeout=null; }
+    aufnahmeBeenden();
     try{ stopVisualizer(); }catch(e){}
     try{ speakWord(ans); }catch(e){ console.warn('speakWord:',e); }
     window._spokenForQuestion=true;
@@ -1084,9 +1089,9 @@ export function retryPronounce() {
   if(wrap) wrap.remove();
   const result=document.getElementById('pronounce-result');
   const btn=document.getElementById('mic-btn');
+  aufnahmeBeenden();   // voriger Versuch endet, auch sein 6-s-Timer
   try{ releaseMicStream(); }catch(e){}
   try{ stopVisualizer(); }catch(e){}
-  try{ voskStop(); }catch(e){}
   // Wie startRecording: alle Mobile inkl. iOS → startVoskRecognition (regelt Warten/
   // Status selbst); nur Desktop bleibt im Web-Speech-Pfad.
   if(_shouldUseVosk() || window._webSpeechFailed){
@@ -1103,6 +1108,7 @@ export function retryPronounce() {
 function selfRate(ok) {
   if(window.answered) return;
   window.answered=true;
+  aufnahmeBeenden();
   try{ if(window.speechSynthesis) window.speechSynthesis.cancel(); }catch(e){}
   try{ stopVisualizer(); }catch(e){}
   const wrap=document.getElementById('self-rate-wrap');
@@ -1170,7 +1176,7 @@ export async function evaluateWithClaude(recognizedText, targetWord) {
     }
     return false;
   });
-  if(window.answered) return;
+  if(window.answered || window.currentQ?.type!=='pronounce') return;
   // Erster Fehlversuch (F-48, Fragment 4.10): noch nicht werten — das Kind
   // bekommt „Nochmal versuchen", gewertet wird erst der zweite Versuch.
   if(!ok && !window._pronounceAttempts){

@@ -3,7 +3,7 @@ import { persist, freshData, clearStorage } from './storage.js';
 import { effectivePct, statKeyFor, wortScore } from './stats.js';
 import { syncMirrorFromActiveDeck, deckProgress, presetProgressPct, renderDecks, renderModeSubBy, migrateStatKeys, migrateDeckModes, deckMode, activeDeckIdForMode, createDeck, deleteDeck, tourAufgeklappt, _modusZeile, renameDeck } from './decks.js';
 import { getPresetCategories } from './vocab.js';
-import { releaseMicStream, stopVisualizer, voskStop, speakWord } from './speech.js';
+import { releaseMicStream, stopVisualizer, voskStop, speakWord, aufnahmeBeenden } from './speech.js';
 import { signIn, signUp, signOut, resendConfirmation, requestPasswordReset, updatePassword, signInWithGoogle } from './auth.js';
 import { cloudLoad, cloudReset, saveDeck, saveWordStats, saveExam, markDirty, flushPendingSync, setCloudConfirmed, getPendingCount, setKnownSig, cloudChangedRemotely, queuePresetStatDelete, deleteProbetest, isUUID, isCloudConfirmed } from './sync.js';
 import { commitDirty } from './dialog.js';
@@ -72,7 +72,7 @@ export function showScreen(id) {
   }
   // Mic/Audio-Session freigeben wenn Spieler den Game-Screen verlässt (z.B. ← Zurück)
   if (id !== 'game-screen' && document.body.classList.contains('in-game')) {
-    try { voskStop(); } catch(e) {}
+    try { aufnahmeBeenden(); } catch(e) {}   // beendet auch Vosk und seine Timer (T1/H2)
     try { stopVisualizer(); } catch(e) {}
   }
   ['loading-screen','name-screen','menu-screen','game-screen','end-screen','stats-screen','profile-screen','character-screen','scan-screen','review-screen','auth-screen','email-confirm-screen','password-reset-screen','password-reset-sent-screen','new-password-screen'].forEach(s => {

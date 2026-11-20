@@ -313,6 +313,19 @@ let _activeSR = null;    // aktive SpeechRecognition-Instanz — für abort() be
 
 const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
 
+// Jede Aufnahme gehört zu einem Versuch. Endet er (neue Frage, neuer Versuch,
+// Spiel verlassen), ignorieren alle späten Rückrufe ihr Ergebnis — sonst tauchen
+// Selbstbewertung bzw. Wertung in der nächsten Frage oder im nächsten Spiel auf (T1/H2).
+let _versuch = 0;
+export function aufnahmeBeenden() {
+  _versuch++;
+  if (window._activeVoskTimeout) { clearTimeout(window._activeVoskTimeout); window._activeVoskTimeout = null; }
+  if (_micTimeout) { clearTimeout(_micTimeout); _micTimeout = null; }
+  if (_activePreviewCleanup) { try { _activePreviewCleanup(); } catch(e) {} _activePreviewCleanup = null; }
+  if (_activeSR) { const sr = _activeSR; _activeSR = null; try { sr.abort(); } catch(e) {} }
+  try { voskStop(); } catch(e) {}
+}
+
 function _isIOS() {
   const ua = navigator.userAgent || '';
   return /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -493,7 +506,7 @@ export async function warmIosMic() {
 // ════════════════════════════════════════════════
 //  VOSK — Offline-Spracherkennung
 // ════════════════════════════════════════════════
-export async function voskStart(onResult, onError) {
+export async function voskStart(onResult, onError, istVeraltet) {
   try {
     if (!window._voskModel) {
       if (window._voskStatus !== 'loading' && window._voskStatus !== 'ready') {
@@ -506,10 +519,13 @@ export async function voskStart(onResult, onError) {
       }
       if (!window._voskModel) throw new Error('Vosk timeout');
     }
+    if (istVeraltet && istVeraltet()) return false;
     const stream = await navigator.mediaDevices.getUserMedia({
       video: false,
       audio: {echoCancellation:false, noiseSuppression:false, autoGainControl:false, channelCount:1, sampleRate:16000}
     });
+    // Versuch inzwischen vorbei (Frage/Spiel verlassen): Mikrofon gleich wieder zu.
+    if (istVeraltet && istVeraltet()) { try { stream.getTracks().forEach(t => t.stop()); } catch(e) {} return false; }
     _micActive = true;
     // Geteilter persistenter Context (resume() falls suspendiert) statt pro Aufnahme
     // ein neuer — der hängende/suspendierte Neu-Context war auf Android der Grund,
@@ -608,7 +624,9 @@ export function _shouldUseVosk() {
 
 export function startRecording() {
   console.log('[startRecording] call — answered:', window.answered, 'currentQ:', window.currentQ?.answer);
-  try { voskStop(); } catch(e) {}
+  aufnahmeBeenden();   // voriger Versuch endet, auch seine Timer
+  const nr = _versuch;
+  const veraltet = () => nr !== _versuch;
   try { stopVisualizer(); } catch(e) {}
   try { releaseMicStream(); } catch(e) {}
   document.getElementById('self-rate-wrap')?.remove();
@@ -656,6 +674,7 @@ export function startRecording() {
   function setTG() {
     clearTG();
     _micTimeout = setTimeout(() => {
+      if (veraltet()) return;
       if (!window.answered) {
         clearTG(); stopVisualizer();
         if (typeof _bestAlts !== 'undefined' && _bestAlts.length > 0) {
@@ -680,6 +699,7 @@ export function startRecording() {
   }
 
   ensureMicStream().then(async stream => {
+    if (veraltet()) return;
     if (!stream && !_isIOS()) {
       gehoert(result, 'Mikrofon-Zugriff verweigert. Bitte in den Browser-Einstellungen erlauben.', 'status');
       return;
@@ -696,6 +716,7 @@ export function startRecording() {
         _vizStream = s;
         stream = s;
       } catch(e) {} // Visualizer ist optional, Erkennung läuft ohne
+      if (veraltet()) return;
     }
 
     startVisualizer(stream);
@@ -716,7 +737,7 @@ export function startRecording() {
       let _lastAlts = [];
       let _finished = false;
       sr.onresult = (e) => {
-        if (_finished) return;
+        if (_finished || veraltet()) return;
         const alts = [];
         for (let r = 0; r < e.results.length; r++) {
           for (let a = 0; a < e.results[r].length; a++) {
@@ -745,7 +766,8 @@ export function startRecording() {
       };
 
       sr.onerror = (e) => {
-        _activeSR = null; // zuerst nullen, damit releaseMicStream kein abort() mehr macht
+        if (_activeSR === sr) _activeSR = null; // zuerst nullen, damit releaseMicStream kein abort() mehr macht
+        if (veraltet()) return;   // Abbruch beim Verlassen ist kein Erkennungsfehler (H2)
         clearTG(); stopVisualizer(); resetBtn();
         if (e.error === 'not-allowed') {
           gehoert(result, 'Mikrofon-Zugriff verweigert. Bitte in den Browser-Einstellungen erlauben.', 'status');
@@ -767,7 +789,8 @@ export function startRecording() {
       };
 
       sr.onend = () => {
-        _activeSR = null;
+        if (_activeSR === sr) _activeSR = null;
+        if (veraltet()) return;
         clearTG(); stopVisualizer(); // Immer cleanup — iOS hält Audio-Session sonst
         if (!window.answered) {
           if (_lastAlts.length > 0) {
@@ -795,6 +818,7 @@ export function startRecording() {
 
 export function startVoskRecognition(targetWord, resultEl, btn) {
   if (!targetWord) return;
+  const nr = _versuch;
   // Vosk noch nicht bereit (Hintergrund-Load läuft)? Freundlich warten und automatisch
   // starten, sobald bereit — statt die App zu blockieren oder einfach fehlzuschlagen.
   if (!window._voskModel) {
@@ -825,7 +849,7 @@ export function startVoskRecognition(targetWord, resultEl, btn) {
     const _waitStart = Date.now();
     _poll = setInterval(() => {
       // Abbrechen, wenn Frage beantwortet oder Spiel-Screen verlassen wurde
-      if (window.answered || !document.body.classList.contains('in-game')) { _stopPreview(); return; }
+      if (nr !== _versuch || window.answered || !document.body.classList.contains('in-game')) { _stopPreview(); return; }
       if (window._voskModel) {
         _stopPreview(); // Preview-Mic/Visualizer abbauen, bevor _beginVosk eigenen Mic öffnet
         if (btn) btn.disabled = false;
@@ -843,11 +867,13 @@ export function startVoskRecognition(targetWord, resultEl, btn) {
 }
 
 function _beginVosk(targetWord, resultEl, btn) {
+  const nr = _versuch;
+  const veraltet = () => nr !== _versuch;
   let _voskAlts = [];
   let _voskTimeout = null;
   window._activeVoskTimeout = null;
   function finishVosk() {
-    if (window.answered) return;
+    if (veraltet() || window.answered) return;
     if (_voskTimeout) { clearTimeout(_voskTimeout); _voskTimeout = null; }
     window._activeVoskTimeout = null;
     voskStop();
@@ -873,7 +899,7 @@ function _beginVosk(targetWord, resultEl, btn) {
     btn.onclick = () => finishVosk();
   }
   voskStart((text, isFinal) => {
-    if (!text || window.answered) return;
+    if (!text || veraltet() || window.answered) return;
     const clean = text.toLowerCase().trim().replace(/[.,!?;:"]/g, '');
     if (!clean) return;
     if (_voskAlts.indexOf(clean) < 0) _voskAlts.push(clean);
@@ -885,11 +911,12 @@ function _beginVosk(targetWord, resultEl, btn) {
       finishVosk();
     }
   }, (err) => {
+    if (veraltet()) return;
     voskStop();
     if (btn && !btn.disabled) { micZustand(btn, 'nochmal'); btn.onclick = window.startRecording; }
     gehoert(resultEl, 'Offline-Erkennung fehlgeschlagen', 'status');
     window.showSelfRateButtons();
-  });
+  }, veraltet);
   _voskTimeout = setTimeout(() => finishVosk(), 6000);
   window._activeVoskTimeout = _voskTimeout;
 }
