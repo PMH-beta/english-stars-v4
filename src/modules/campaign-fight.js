@@ -343,7 +343,9 @@ function _lettersMs(en) {
 function _timeLimit(item) {
   let ms = _lettersMs(item.en);
   const s = _statOf(item);
-  const weak = !s || Math.floor(s.asked || 0) < 3 || effectivePct(s) < WEAK_EMA;
+  // K-12 (24.11.2026): auch der Kampf-Lernstand zählt — wer das Wort im Kampf gelernt
+  // hat, bekommt keinen Bonus mehr (sonst hatten Vorlagen-Wörter ihn fast immer).
+  const weak = !_learned(item) && (!s || Math.floor(s.asked || 0) < 3 || effectivePct(s) < WEAK_EMA);
   if (weak) ms = Math.round(ms * (1 + WEAK_TIME_BONUS));
   return ms;
 }
@@ -1012,6 +1014,7 @@ function _startWave() {
       return { de: it.de, en: wrong || right, ok: oks[i] || !wrong };
     });
     _ctx.tfPaare = pairs.length;
+    _ctx.tfHeld = 0; _ctx.tfGegner = 0;   // K-4: Zähler der Teilschläge dieser Welle
     _ctx.tf = { items, pairs };
     _ctx.mg = startTrueFalse({ host, pairs, timeLimitMs: zeit(TF_TIME_MS),
       onMiss: (i) => { _tfBuche(i, false); _tfSchlag(pairs.length); },
@@ -1035,9 +1038,9 @@ function _startWave() {
 // Schaden des Helden: Waffe + Formen-Bonus (Stahl=past / Gold=pp) + Typ-Vorteil
 // (Speer vs Boss, Axt vs Elite, Hammer verdoppelt Welle 1) + 💪 Krafttrank;
 // 🧿 Talisman: ×1.5 an 🌀-Knoten. teile > 1 = Teilangriff bei Richtig/Falsch: der
-// volle Schaden geteilt und aufgerundet (keine halben Punkte). Alle Zusatz-Effekte
+// k-te von teile Schlägen bekommt seinen Anteil (_anteil). Alle Zusatz-Effekte
 // stehen als Pixel-Icons in der Schadenszahl über dem Gegner.
-function _heroDmg(teile = 1) {
+function _heroDmg(teile = 1, k = 0) {
   const { run, node, weapon, eff } = _ctx;
   const f = run.fight;
   const bonus = _ctx.waveForm && weapon.which === _ctx.waveForm ? FORM_BONUS : 0;
@@ -1050,7 +1053,7 @@ function _heroDmg(teile = 1) {
   if (hammer) dmg *= PERK_HAMMER_MULT;
   const tali = node.type === 'irregular' && eff.talisman;
   if (tali) dmg = Math.round(dmg * (eff.talismanMult || TALISMAN_MULT));   // Sonnen-Talisman stärker (F-100)
-  if (teile > 1) dmg = Math.ceil(dmg / teile);
+  if (teile > 1) dmg = _anteil(dmg, teile, k);
   return { dmg, html: '−' + dmg + (bonus ? iconHTML('star', 14) : '') + (hammer ? iconHTML('hammer', 14) : '') + (tali ? iconHTML('orb', 14) : '') + (feuer ? iconHTML('flame', 14) : '') };
 }
 
@@ -1091,13 +1094,19 @@ function _tfBuche(i, ok) {
   else if (!ok) _record(tf.items[i], false, null);
 }
 
+// K-4 (24.11.2026): Teilschläge bei Richtig/Falsch ergeben zusammen genau einen
+// vollen Angriff, der Rest liegt auf dem letzten (Faust 4 → 1 + 1 + 2). Nie 0.
+function _anteil(dmg, teile, k) {
+  return Math.max(1, Math.floor(dmg * (k + 1) / teile) - Math.floor(dmg * k / teile));
+}
+
 function _tfTreffer(teile) {
   const ctx = _ctx;
   if (!ctx) return;
   _einreihen(ctx, () => {
     if (_ctx !== ctx || ctx.vorbei) return;
     const f = ctx.run.fight;
-    const { dmg, html } = _heroDmg(teile);
+    const { dmg, html } = _heroDmg(teile, (ctx.tfHeld = (ctx.tfHeld || 0) + 1) - 1);
     _strike('hero', html, '#c084fc',
       () => {
         f.enemyHp = Math.max(0, f.enemyHp - dmg);
@@ -1126,7 +1135,7 @@ function _tfSchlag(teile) {
   ctx.waveMiss = true;
   _einreihen(ctx, () => {
     if (_ctx !== ctx || ctx.vorbei) return;
-    const dmg = Math.ceil(ctx.enemy.dmg / teile);
+    const dmg = _anteil(ctx.enemy.dmg, teile, (ctx.tfGegner = (ctx.tfGegner || 0) + 1) - 1);
     _strike('enemy', '−' + dmg, '#ff8787',
       () => {
         ctx.run.hp = Math.max(0, ctx.run.hp - dmg);

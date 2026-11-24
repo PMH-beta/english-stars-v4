@@ -10,7 +10,7 @@
 // Tränke (💎 Schatz): 3 zufällige zur Wahl, run-gebunden (run.potions), im
 // Kampf spielbar — Definitionen hier, Kampf-Logik in campaign-fight.js.
 
-import { HP_MAX, FIST_DMG, WEAPON_BASE_DMG, WEAPON_GOLD_BONUS, EQUIP_EFFECT, TALISMAN_MULT, TALISMAN_MULT_GOLD, RING_POTION_BONUS, RING_POTION_BONUS_GOLD, COMPANION_GUARDS, WEAPON_PERK, PERK_SCHWERT_DMG, PERK_DOLCH_DODGE, PERK_SPEER_BOSS, PERK_AXT_ELITE, PERK_HAMMER_MULT, PERK_STAB_MS, PERK_BOGEN_FIGHT, PERK_KOLBEN_GUARD, POTION_CHOICES, POTION_HEAL, POTION_POWER, POTION_TIME_MS, POTION_TIME_WAVES } from './campaign-balance.js';
+import { HP_MAX, FIST_DMG, WEAPON_BASE_DMG, WEAPON_GOLD_BONUS, EQUIP_EFFECT, TALISMAN_MULT, TALISMAN_MULT_GOLD, RING_POTION_BONUS, RING_POTION_BONUS_GOLD, RING_GOLD_NEHMEN, COMPANION_GUARDS, WEAPON_PERK, PERK_SCHWERT_DMG, PERK_DOLCH_DODGE, PERK_SPEER_BOSS, PERK_AXT_ELITE, PERK_HAMMER_MULT, PERK_STAB_MS, PERK_BOGEN_FIGHT, PERK_KOLBEN_GUARD, POTION_CHOICES, POTION_HEAL, POTION_POWER, POTION_TIME_MS, POTION_TIME_WAVES } from './campaign-balance.js';
 import { getConstellations, forgeObject, objektName } from './irregular-verbs.js';
 import { starLit, SLOTS_PER_FORM } from './irregular-game.js';
 import { stageHTMLFor, petSVG, ensureAvatar } from './avatar.js';
@@ -33,7 +33,7 @@ export const SLOTS = {
   legs:      { icon: '🥾', px: 'boots',  name: 'Stiefel',     kurz: 'Stiefel',  mehrzahl: 'Stiefel',    desc: 'Chance auszuweichen' },
   talisman:  { icon: '🧿', px: 'orb',    name: 'Talisman',    kurz: 'Talisman', mehrzahl: 'Talismane',  desc: `+${Math.round((TALISMAN_MULT - 1) * 100)} % Schaden an Formen-Knoten (Gold +${Math.round((TALISMAN_MULT_GOLD - 1) * 100)} %)` },
   ring1:     { icon: '💍', px: 'ring',   name: 'Ring',        kurz: 'Ring',     mehrzahl: 'Ringe',      desc: 'mehr Trank-Auswahl am Schatz' },
-  companion: { icon: '🐾', px: 'paw',    name: 'Gefährte',    kurz: 'Gefährte', mehrzahl: 'Gefährten',  desc: 'fängt Fehlgriffe pro Kampf ab' },
+  companion: { icon: '🐾', px: 'paw',    name: 'Gefährte',    kurz: 'Gefährte', mehrzahl: 'Gefährten',  desc: 'fängt Fehlgriffe im Buchstabensturm ab' },
 };
 const SLOT_TYPE = { ring1: 'ring' };   // sonst = Slot-Key selbst
 
@@ -72,8 +72,8 @@ export function objectInfoRows(type, which, fertig) {
     if (ob.slot === 'arms') return `+${_equipVal('arms', it) / 1000} s Zeit`;
     if (ob.slot === 'legs') return `+${Math.round(_equipVal('legs', it) * 100)} % Ausweichen`;
     if (ob.slot === 'talisman') return _formenText(w === 'pp' ? TALISMAN_MULT_GOLD : TALISMAN_MULT);
-    if (ob.slot === 'ring') return _trankText(w === 'pp' ? RING_POTION_BONUS_GOLD : RING_POTION_BONUS);
-    if (ob.slot === 'companion') return `fängt ${COMPANION_GUARDS[w === 'past' ? 'stahl' : 'gold']} Fehler pro Kampf`;
+    if (ob.slot === 'ring') return _ringText({ which: w });
+    if (ob.slot === 'companion') return _gefaehrteText(COMPANION_GUARDS[w === 'past' ? 'stahl' : 'gold']);
     return '';
   };
   const rows = [{ px: SLOTS[slotKey]?.px || 'star', label: 'Wirkung', wert: wert(which), sub: bald }];
@@ -173,12 +173,16 @@ const _taliMult = (it) => (it.which === 'pp' ? TALISMAN_MULT_GOLD : TALISMAN_MUL
 const _ringBonus = (it) => (it.which === 'pp' ? RING_POTION_BONUS_GOLD : RING_POTION_BONUS);
 const _formenText = (mult) => `+${Math.round((mult - 1) * 100)} % Schaden an Formen-Knoten`;
 const _trankText = (n) => `+${n} ${n === 1 ? 'Trank' : 'Tränke'} zur Wahl`;
+const _ringNehmen = (it) => (it.which === 'pp' ? RING_GOLD_NEHMEN : 1);
+const _ringText = (it) => _trankText(_ringBonus(it)) + (_ringNehmen(it) > 1 ? `, ${_ringNehmen(it)} nehmen` : '');
+// K-6 (24.11.2026): der Gefährte fängt nur im Buchstabensturm — der Text sagt es jetzt.
+const _gefaehrteText = (n) => `fängt ${n} Fehler pro Kampf im Buchstabensturm`;
 function _effectsOf(equipment) {
   const get = (k) => {
     const it = _itemById(equipment[k]);
     return (it && it.slot === (SLOT_TYPE[k] || k)) ? it : null;
   };
-  const eff = { hpBonus: 0, timeBonusMs: 0, dodge: 0, headGuards: 0, talisman: false, talismanMult: 1, companionGuards: 0, potionBonus: 0 };
+  const eff = { hpBonus: 0, timeBonusMs: 0, dodge: 0, headGuards: 0, talisman: false, talismanMult: 1, companionGuards: 0, potionBonus: 0, potionNehmen: 1 };
   const head = get('head'); if (head) eff.headGuards = _equipVal('head', head);
   const body = get('body'); if (body) eff.hpBonus = _equipVal('body', body);
   const arms = get('arms'); if (arms) eff.timeBonusMs = _equipVal('arms', arms);
@@ -189,7 +193,7 @@ function _effectsOf(equipment) {
   const comp = get('companion');
   if (comp) eff.companionGuards = COMPANION_GUARDS[comp.which === 'past' ? 'stahl' : 'gold'] || 0;
   const ring = get('ring1');
-  if (ring) eff.potionBonus += _ringBonus(ring);
+  if (ring) { eff.potionBonus += _ringBonus(ring); eff.potionNehmen = _ringNehmen(ring); }
   // Waffen-Typ-Vorteile, die wie Ausrüstung wirken (Dolch/Stab/Streitkolben).
   const w = _weaponOf(equipment);
   if (w.type === 'dolch') eff.dodge += PERK_DOLCH_DODGE;
@@ -228,13 +232,18 @@ export function potionStacks(list) {
   return out;
 }
 
-// 💎 Schatz: Wahl-Overlay mit 3 (+ Ring-Bonus) zufälligen Tränken. onPick(key)
-// bekommt die Wahl — Zustand (run.potions) verwaltet der Aufrufer (campaign.js).
+// 💎 Schatz: Wahl-Overlay mit 3 (+ Ring-Bonus) zufälligen Tränken. onPick(keys)
+// bekommt die Wahl als Liste — Zustand (run.potions) verwaltet der Aufrufer (campaign.js).
+// Mit dem Kronenring nimmt man 2 (K-2): beide sind gewählt, ein Tipp auf einen
+// anderen ersetzt den zuerst gewählten.
 export function openPotionChoice({ onPick }) {
   const keys = Object.keys(POTIONS);
   for (let i = keys.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [keys[i], keys[j]] = [keys[j], keys[i]]; }
-  const n = Math.min(keys.length, POTION_CHOICES + equipEffects().potionBonus);
+  const eff = equipEffects();
+  const n = Math.min(keys.length, POTION_CHOICES + eff.potionBonus);
+  const nehmen = Math.max(1, Math.min(n, eff.potionNehmen || 1));
   const choices = keys.slice(0, n);
+  const gewaehlt = choices.slice(0, nehmen);   // Reihenfolge = wann gewählt
   // Fragment 6.6 (F-33): Antippen wählt aus (Gold + Haken, der erste ist
   // vorgewählt), erst „Nehmen“ nimmt den Trank — ein versehentlicher Tipp nimmt
   // so nicht gleich den falschen.
@@ -244,9 +253,9 @@ export function openPotionChoice({ onPick }) {
   ov.innerHTML = `<div class="p-dlg-karte p-schatz-karte">
     <div class="p-schatz-emblem">${iconHTML('box', 42)}</div>
     <div class="p-schatz-titel">Schatz gefunden!</div>
-    <div class="p-schatz-sub">Wähle einen Trank für diesen Lauf</div>
+    <div class="p-schatz-sub">${nehmen > 1 ? 'Wähle zwei Tränke für diesen Lauf' : 'Wähle einen Trank für diesen Lauf'}</div>
     <div class="p-schatz-liste">
-    ${choices.map((k, i) => `<button class="p-schatz-zeile${i === 0 ? ' is-gewaehlt' : ''}" data-potion="${k}">
+    ${choices.map((k, i) => `<button class="p-schatz-zeile${i < nehmen ? ' is-gewaehlt' : ''}" data-potion="${k}">
       <span class="p-schatz-kachel" style="background:${POTION_TON[k]}">${iconHTML('potion', 28)}</span>
       <span class="p-wachs"><span class="p-schatz-name">${POTIONS[k].name}</span><span class="p-schatz-text">${POTIONS[k].desc}</span></span>
       <span class="p-schatz-haken">${iconHTML('check', 14)}</span>
@@ -257,14 +266,15 @@ export function openPotionChoice({ onPick }) {
   ov.addEventListener('click', (e) => {
     const b = e.target.closest('[data-potion]');
     if (b) {
-      ov.querySelectorAll('.p-schatz-zeile').forEach((z) => z.classList.toggle('is-gewaehlt', z === b));
+      const k = b.dataset.potion;
+      if (!gewaehlt.includes(k)) { gewaehlt.push(k); if (gewaehlt.length > nehmen) gewaehlt.shift(); }
+      ov.querySelectorAll('.p-schatz-zeile').forEach((z) => z.classList.toggle('is-gewaehlt', gewaehlt.includes(z.dataset.potion)));
       return;
     }
     if (!e.target.closest('.p-schatz-nehmen')) return;
-    const sel = ov.querySelector('.p-schatz-zeile.is-gewaehlt');
-    if (!sel) return;
+    if (!gewaehlt.length) return;
     ov.remove();
-    onPick(sel.dataset.potion);
+    onPick(gewaehlt.slice());
   });
   document.body.appendChild(ov);
 }
@@ -427,8 +437,8 @@ function _itemBonuses(it) {
   if (it.slot === 'arms') return [{ px: 'glove', text: `+${_equipVal('arms', it) / 1000} s Zeit` }];
   if (it.slot === 'legs') return [{ px: 'boots', text: `+${Math.round(_equipVal('legs', it) * 100)} % Ausweichen` }];
   if (it.slot === 'talisman') return [{ px: 'orb', text: _formenText(_taliMult(it)) }];
-  if (it.slot === 'ring') return [{ px: 'potion', text: _trankText(_ringBonus(it)) }];
-  if (it.slot === 'companion') return [{ px: 'paw', text: `fängt ${COMPANION_GUARDS[it.which === 'past' ? 'stahl' : 'gold']} Fehler pro Kampf` }];
+  if (it.slot === 'ring') return [{ px: 'potion', text: _ringText(it) }];
+  if (it.slot === 'companion') return [{ px: 'paw', text: _gefaehrteText(COMPANION_GUARDS[it.which === 'past' ? 'stahl' : 'gold']) }];
   return [];
 }
 

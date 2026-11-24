@@ -3,6 +3,7 @@ import { effectivePct, statKeyFor, wortScore } from './stats.js';
 import { markDirty, deleteCloudDeck, deleteCloudWordStats, deleteCloudPresetStats, saveDeck } from './sync.js';
 import { commitDirty } from './dialog.js';
 import { iconHTML } from './pixel-icons.js';
+import { TALER_MIN_WOERTER } from './campaign-balance.js';
 import { weichUmbauen } from './klapp-anim.js';
 import { namenPrompt, pruefeEintrag, eintragFehlerText, fehlerSatz, liveUebersetzen } from './pruefen.js';
 
@@ -173,13 +174,14 @@ export function talerGeholt(key) {
   return (window.SD?.campaign?.claimed || []).includes(key);
 }
 
-export function _modusZeile(name, mod, klasse, onclick, geholt = false) {
+// zuKlein (W-3): Sammlung unter TALER_MIN_WOERTER — der Chip sagt „Taler ab 10 Wörtern".
+export function _modusZeile(name, mod, klasse, onclick, geholt = false, zuKlein = false) {
   const total = mod.total || 0;
   const pct = total > 0 ? Math.min(100, Math.round((mod.score / total) * 100)) : 0;
-  const verdient = geholt || (total > 0 && mod.mastered === total);
+  const verdient = geholt || (!zuKlein && total > 0 && mod.mastered === total);
   const chip = verdient
     ? `<span class="p-chip p-chip--gold p-chip--icon" style="flex:none">${iconHTML('coin', 14)}+1 Taler</span>`
-    : `<span class="p-chip p-chip--unverdient p-chip--icon" style="flex:none">${iconHTML('coinOff', 14)}+1 Taler</span>`;
+    : `<span class="p-chip p-chip--unverdient p-chip--icon" style="flex:none">${iconHTML('coinOff', 14)}${zuKlein ? `Taler ab ${TALER_MIN_WOERTER} Wörtern` : '+1 Taler'}</span>`;
   return `<button class="p-moduszeile p-moduszeile--${klasse}" onclick="${onclick}">
     <span class="p-moduszeile-kopf">
       <span class="p-moduszeile-name">${name}</span><span class="p-moduszeile-pct">${pct}%</span>
@@ -264,8 +266,9 @@ export function renderDecks(mode) {
     const deck = SD.decks[id];
     const p = deckProgress(deck);
     // Freigespielte Taler dieses Decks (MC/Schreiben/Sprechen je 100 %).
+    const zuKlein = deck.vocab.length < TALER_MIN_WOERTER;   // W-3: keine Taler unter 10 Wörtern
     const talerEarned = [[p.perMode.vocab, 'mc'], [p.perMode.spelling, 'sp'], [p.perMode.pronounce, 'pr']]
-      .filter(([m, k]) => talerGeholt(id + '|' + k) || (m.total > 0 && m.mastered === m.total)).length;
+      .filter(([m, k]) => talerGeholt(id + '|' + k) || (!zuKlein && m.total > 0 && m.mastered === m.total)).length;
     const isActive = id === SD.activeDeckId;
     const isExpanded = id === _expandedDeckId;
     const dt = new Date(deck.createdAt);
@@ -278,7 +281,9 @@ export function renderDecks(mode) {
       : deck.deckPath === 'custom' ? '<span class="p-chip p-chip--eigene">Eigene</span>' : '';
     const talerChip = talerEarned === 3
       ? `<span class="p-chip p-chip--gold p-chip--icon">${iconHTML('coin', 14)}3/3 Taler</span>`
-      : `<span class="p-chip p-chip--unverdient p-chip--icon">${iconHTML('coinOff', 14)}${talerEarned}/3 Taler</span>`;
+      : zuKlein && !talerEarned
+        ? `<span class="p-chip p-chip--unverdient p-chip--icon">${iconHTML('coinOff', 14)}Taler ab ${TALER_MIN_WOERTER} Wörtern</span>`
+        : `<span class="p-chip p-chip--unverdient p-chip--icon">${iconHTML('coinOff', 14)}${talerEarned}/3 Taler</span>`;
     card.innerHTML = `
       <div class="p-sammlung-kopf">
         <div class="p-wachs">
@@ -294,9 +299,9 @@ export function renderDecks(mode) {
       <div class="p-balken"><i style="width:${p.overallPct}%"></i></div>
       ${isExpanded ? `
       <div class="p-modi">
-        ${_modusZeile('Vokabeln', p.perMode.vocab, 'vokabeln', `startGameWithDeck('${id}','vocab')`, talerGeholt(id + '|mc'))}
-        ${_modusZeile('Rechtschreibung', p.perMode.spelling, 'rechtschreibung', `startGameWithDeck('${id}','spelling')`, talerGeholt(id + '|sp'))}
-        ${_modusZeile('Aussprache', p.perMode.pronounce, 'aussprache', `startGameWithDeck('${id}','pronounce')`, talerGeholt(id + '|pr'))}
+        ${_modusZeile('Vokabeln', p.perMode.vocab, 'vokabeln', `startGameWithDeck('${id}','vocab')`, talerGeholt(id + '|mc'), zuKlein)}
+        ${_modusZeile('Rechtschreibung', p.perMode.spelling, 'rechtschreibung', `startGameWithDeck('${id}','spelling')`, talerGeholt(id + '|sp'), zuKlein)}
+        ${_modusZeile('Aussprache', p.perMode.pronounce, 'aussprache', `startGameWithDeck('${id}','pronounce')`, talerGeholt(id + '|pr'), zuKlein)}
         ${deck.deckPath !== 'preset' ? `<button class="p-moduszeile p-moduszeile--verwalten" onclick="openVocabManager('${id}')">
           <span class="p-moduszeile-name" style="display:block">Vokabeln verwalten</span>
           <span class="p-zeilensub" style="display:block;font-size:10px;margin-top:1px;color:var(--p-text-3)">Hinzufügen, scannen, löschen</span>

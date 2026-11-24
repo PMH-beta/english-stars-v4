@@ -20,7 +20,7 @@ import { commitDirty } from './dialog.js';
 import { iconHTML } from './pixel-icons.js';
 import { startFunkenTakt, feuerWuerfeln, feuerChip, FEUER_ARTEN } from './campaign-feuer.js';
 import { playSfx } from './game.js';
-import { HP_MAX, REST_HEAL, FEUER_REIHEN, FUNKEN_ANZAHL, FUNKEN_ZIEL, BOSS_WIN_TALER, BOSS_NOCHMAL_TALER, scaledEnemy, roundTimeFactor, STORM_BASE_MS } from './campaign-balance.js';
+import { HP_MAX, REST_HEAL, FEUER_REIHEN, FUNKEN_ANZAHL, FUNKEN_ZIEL, BOSS_WIN_TALER, BOSS_NOCHMAL_TALER, TALER_MIN_WOERTER, scaledEnemy, roundTimeFactor, STORM_BASE_MS } from './campaign-balance.js';
 import { enemyCombatSheet, SpritePlayer } from './pixel-anim.js';
 import { pickEnemyKey, enemyBattleSVG } from './enemies.js';
 import { openFight, fightPoolReady, verbsReady, loadPresetSupply } from './campaign-fight.js';
@@ -150,7 +150,7 @@ export async function talerDeckTest(n = 4) {
   for (const id in decks) {
     if (done.length >= n) break;
     const deck = decks[id];
-    if ((deck.mode || 'free') !== 'free' || !deck.vocab?.length) continue;
+    if ((deck.mode || 'free') !== 'free' || (deck.vocab?.length || 0) < TALER_MIN_WOERTER) continue;
     if (!deck.wordStats) deck.wordStats = {};
     for (const m of TALER_MODES) {
       if (done.length >= n) break;
@@ -226,6 +226,7 @@ export async function refreshClaimedTaler() {
       // Schnellmodus bringt keine Taler (F-30): solange er läuft, stehen in den
       // Decks nur die vorläufigen Schnell-Stände — nichts davon wird eingelöst.
       if (window.schnellByMode && window.schnellByMode.free) continue;
+      if (deck.vocab.length < TALER_MIN_WOERTER) continue;   // W-3: zu klein für Taler (schon Geholtes bleibt)
       const pm = deckProgress(deck).perMode;
       for (const m of TALER_MODES) {
         if (!isModeComplete(m.prog(pm))) continue;
@@ -529,12 +530,12 @@ export function campaignNode(id) {
     _saveCampaign();
     renderCampaign();
     openPotionChoice({
-      onPick: (key) => {
+      onPick: (keys) => {
         if (!Array.isArray(run.potions)) run.potions = [];
-        run.potions.push(key);
+        run.potions.push(...keys);
         _saveCampaign();
         renderCampaign();   // sonst zeigt die Kopfzeile den neuen Trank erst beim nächsten Klick
-        window.esToast?.(`${POTIONS[key].name} eingesteckt!`);
+        window.esToast?.(`${keys.map((k) => POTIONS[k].name).join(' und ')} eingesteckt!`);
       },
     });
     return;

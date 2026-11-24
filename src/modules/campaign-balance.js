@@ -177,8 +177,15 @@ export const EQUIP_EFFECT = {
 };
 export const TALISMAN_MULT = 1.5;          // Waffenschaden ×1.5 an 🌀-Knoten (Silber-Talisman)
 export const TALISMAN_MULT_GOLD = 1.75;    // Sonnen-Talisman ×1.75 — Gold wirkt stärker (F-100)
+// W-3 (24.11.2026): Vokabel-Sammlungen bringen erst ab so vielen Wörtern Taler —
+// sonst gäbe eine 1-Wort-Sammlung schnell 3 Taler. Kleinere bleiben übbar.
+export const TALER_MIN_WOERTER = 10;
+
 export const RING_POTION_BONUS = 1;        // 💍 Silber-Ring: +1 Trank-Auswahl am 💎 (3→4)
-export const RING_POTION_BONUS_GOLD = 2;   // Kronenring: +2 (3→5, F-100)
+// K-2 (24.11.2026): mehr als 4 Sorten gibt es nicht — der Kronenring zeigt darum wie
+// Silber 4 zur Wahl, dafür nimmt man 2 davon (vorher +2 = 5, wirkte wie Silber).
+export const RING_POTION_BONUS_GOLD = 1;   // Kronenring: +1 Trank-Auswahl (3→4)
+export const RING_GOLD_NEHMEN = 2;         // Kronenring: so viele Tränke nimmt man am 💎
 // 🐾 gefangene Fehlgriffe pro Kampf — nach Material (Gold besser als Stahl).
 export const COMPANION_GUARDS = { stahl: 1, gold: 2 };
 
