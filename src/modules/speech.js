@@ -695,6 +695,7 @@ export function startRecording() {
 
   if (!navigator.mediaDevices) {
     gehoert(result, 'Mikrofon nicht verfügbar. Bitte Chrome verwenden.', 'status');
+    window.showSelfRateButtons();   // B-05: ohne Mikrofon trotzdem weiter
     return;
   }
 
@@ -702,6 +703,7 @@ export function startRecording() {
     if (veraltet()) return;
     if (!stream && !_isIOS()) {
       gehoert(result, 'Mikrofon-Zugriff verweigert. Bitte in den Browser-Einstellungen erlauben.', 'status');
+      window.showSelfRateButtons();   // B-05
       return;
     }
 
@@ -771,6 +773,7 @@ export function startRecording() {
         clearTG(); stopVisualizer(); resetBtn();
         if (e.error === 'not-allowed') {
           gehoert(result, 'Mikrofon-Zugriff verweigert. Bitte in den Browser-Einstellungen erlauben.', 'status');
+          window.showSelfRateButtons();   // B-05
         } else if (e.error === 'network' || e.error === 'service-not-allowed') {
           window._webSpeechFailed = true;
           gehoert(result, 'Lade Offline-Spracherkennung … (beim ersten Mal ~40 MB Download, danach offline)', 'status');

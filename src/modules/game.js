@@ -647,6 +647,7 @@ export function startGame(m) {
   window.questionPool=buildPool(m);
   window.questionIndex=0;window.answered=false;
   window.wrongQueue=[];window.isRetryPhase=false;window.isFreePlay=false;window._progressSaved=false;
+  window._ersterDurchgang=null;   // B-04: Stand vor der Wiederholung
   window.schnellDone=new Set();
   if(window.questionPool.length===0){
     // Modus gemeistert → optionale Runde ohne Wertung. Bestätigung asynchron,
@@ -729,6 +730,8 @@ function showQuestion() {
   if(window.questionIndex>=window.questionPool.length){
     if(!window.isUV&&!window.isFreePlay&&!window.isRetryPhase&&!window.isExamMode&&window.wrongQueue.length>0){
       window.isRetryPhase=true;
+      // B-04: Lob/Sterne zählen den ersten Durchgang, „gespielt“ alle Fragen.
+      window._ersterDurchgang={ fragen: window.questionIndex, richtig: window.totalCorrect };
       window.questionPool=window.wrongQueue.slice();
       window.wrongQueue=[];
       window.questionIndex=0;
@@ -1562,6 +1565,9 @@ function updateModeProgress(animate) {
   window._lastModePct=pct;
 }
 
+// Gespielte Fragen der Runde: erster Durchgang + Wiederholung (B-04).
+function _gespielt(){ return (window._ersterDurchgang?.fragen||0) + window.questionIndex; }
+
 function _updateGlobalPresetCategoryProgress(deck) {
   if (!deck?.presetCategories?.length || !window.SD.globalPresetStats) return;
   for (const presetId of deck.presetCategories) {
@@ -1569,7 +1575,7 @@ function _updateGlobalPresetCategoryProgress(deck) {
       window.SD.globalPresetStats.categoryProgress[presetId] = { played: 0, correct: 0, bestStreak: 0 };
     }
     const gcp = window.SD.globalPresetStats.categoryProgress[presetId];
-    gcp.played += window.questionIndex;
+    gcp.played += _gespielt();
     gcp.correct += window.totalCorrect;
     if (window.bestStreak > gcp.bestStreak) gcp.bestStreak = window.bestStreak;
   }
@@ -1611,7 +1617,7 @@ function saveProgress() {
   const cp=window.SD.categoryProgress[window.mode];
   if(cp&&window.questionIndex>0){
     _updateGlobalPresetCategoryProgress(deck);
-    cp.played+=window.questionIndex;
+    cp.played+=_gespielt();
     cp.correct+=window.totalCorrect;
     if(window.bestStreak>cp.bestStreak) cp.bestStreak=window.bestStreak;
     window.SD.totalPoints+=window.points;
@@ -1702,7 +1708,8 @@ function showEnd() {
   { const rb=document.getElementById('end-restart-btn'); if(rb) rb.style.display=''; }
   _endeZahlen(window.points, window.totalCorrect, window.bestStreak, false);
   document.getElementById('end-hs-msg').innerHTML=newHS?_hsChip():'';
-  const pct=window.totalCorrect/Math.max(1,window.questionIndex);
+  const erst=window._ersterDurchgang;
+  const pct=erst ? erst.richtig/Math.max(1,erst.fragen) : window.totalCorrect/Math.max(1,window.questionIndex);
   // Pokal und Sterne als Pixelgrafik. Die Zahl der Sterne traegt die Aussage,
   // das Symbol im Kreis bleibt dasselbe — so wie im Entwurf.
   let sym,title,sterne;
