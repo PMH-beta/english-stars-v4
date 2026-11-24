@@ -119,6 +119,7 @@ export function showScreen(id) {
     try { localStorage.setItem('es_last_screen', id); } catch(e) {}
   }
   _currentScreen = id; // aktuellen Screen merken (Android-Back-Layer)
+  if (id === 'menu-screen') resumeNachholen();   // D-6
   if (id === 'game-screen') _spielWaechterAn(); else _spielWaechterAus();
   // Echte VORWÄRTS-Navigation zu einem In-App-Screen (nicht Menü, nicht Pre-Login)
   // bekommt einen eigenen History-Eintrag, damit der Zurück erst zum Menü navigiert
@@ -2904,9 +2905,21 @@ let _resumeInFlight = false;
 // Menü — dann darf der Stand nicht unter der Hand getauscht werden (der Kampf
 // schriebe weiter ins alte run-Objekt). main.js setzt html.popup-offen dafür.
 function _overlayOffen() { return document.documentElement.classList.contains('popup-offen'); }
+// D-6 (24.11.2026): Kam die App nach > 2 Min auf einem anderen Screen oder über
+// einem Overlay zurück, blieb der alte Stand im Speicher; das nächste Rundenende
+// lud ganze Töpfe mit alten Werten hoch und überschrieb, was inzwischen auf einem
+// anderen Gerät gespielt wurde. Jetzt wird das Laden nachgeholt, sobald das Menü
+// wieder frei sichtbar ist (loadFromCloud schiebt vorher die eigene Merkliste hoch).
+let _resumeOffen = false;
+export function resumeNachholen() {
+  if (!_resumeOffen || _currentScreen !== 'menu-screen' || _overlayOffen()) return;
+  _resumeOffen = false;
+  setTimeout(() => { onAppResume().catch(() => {}); }, 0);
+}
 export async function onAppResume() {
   if (!window.currentUser || _loginInFlight || _resumeInFlight) return;
-  if (_currentScreen !== 'menu-screen' || _overlayOffen()) return;
+  if (_currentScreen !== 'menu-screen' || _overlayOffen()) { _resumeOffen = true; return; }
+  _resumeOffen = false;
   _resumeInFlight = true;
   try {
     showMenuSkeleton();

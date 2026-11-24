@@ -9,7 +9,7 @@ import { buildPool, toggleSchnell, syncSchnellForMode, startGame, confirmHome, g
 import { syncMirrorFromActiveDeck, activeDeck, switchDeck, createDeck, deleteDeck, renameDeck, deckProgress, renderDecks, deckIdGetauscht, toggleDeck, activateDeck, startGameWithDeck, newDeckPrompt, renameDeckPrompt, confirmDeleteDeck, resetDeckProgress, vmDeleteWord, vmEditWord, vmAddManual, vmAddEingabe, vmAddVerlassen, vmAddRueckgaengig, openDeckStats } from './modules/decks.js';
 import { charReiter, charOption, charSchritt, charFarbe } from './modules/avatar.js';
 import { tourAnsehen } from './modules/tour.js';
-import { showScreen, saveName, showMenu, showProfile, editPlayerName, showCharacter, showCharacterOnboarding, finishCharacterOnboarding, closeCharacter, charSpeichern, charNameBearbeiten, charZurSchmiede, showStats, showFriendStats, closeFriendStats, confirmReset, showFeedback, hideFeedback, exportData, importData, showAuth, authToggleMode, authSubmit, authResend, authLogout, authGoogleSignIn, handleLogin, handleLogout, showPasswordReset, submitPasswordReset, showNewPasswordScreen, submitNewPassword, cancelNewPassword, setActiveMode, renderModeContent, openProbetestPicker, toggleProbetestHistory, deleteProbetestEntry, uvFlip, uvSlide, uvSetForm, uvInfo, uvWaffenInfo, uvOpenFill, uvTestForge, uvTestForgeRandom, toggleUvTraining, uvTrainOpenCreate, uvTrainDelete, uvTrainToggleDeck, uvTrainChooseForms, uvTrainReset, uvTrainOpenStats, uvTrainRename, onAppResume, checkForRemoteChange, softRefresh } from './modules/ui.js';
+import { showScreen, saveName, showMenu, showProfile, editPlayerName, showCharacter, showCharacterOnboarding, finishCharacterOnboarding, closeCharacter, charSpeichern, charNameBearbeiten, charZurSchmiede, showStats, showFriendStats, closeFriendStats, confirmReset, showFeedback, hideFeedback, exportData, importData, showAuth, authToggleMode, authSubmit, authResend, authLogout, authGoogleSignIn, handleLogin, handleLogout, showPasswordReset, submitPasswordReset, showNewPasswordScreen, submitNewPassword, cancelNewPassword, setActiveMode, renderModeContent, openProbetestPicker, toggleProbetestHistory, deleteProbetestEntry, uvFlip, uvSlide, uvSetForm, uvInfo, uvWaffenInfo, uvOpenFill, uvTestForge, uvTestForgeRandom, toggleUvTraining, uvTrainOpenCreate, uvTrainDelete, uvTrainToggleDeck, uvTrainChooseForms, uvTrainReset, uvTrainOpenStats, uvTrainRename, onAppResume, resumeNachholen, checkForRemoteChange, softRefresh } from './modules/ui.js';
 import { pwaInstall } from './modules/pwa.js';
 import { startConstellationStar, startConstellationForm, startUvTraining, uvProgress, uvTeilMeldung } from './modules/irregular-game.js';
 import { openVocabManager, openPresetDeckStats, vmTab, renderVocabList, parsePastedText, onScanFile, scanBildWeg, scanZsLos, scanBildTipp, scanPlus, rvBildOeffnen, rvBildPlus, rvZurueck, showReview, renderReviewList, removeReviewItem, addReviewItem, confirmAddVocab, rvEingabe, rvGeaendert, rvRueckgaengig, renderPresetsTab, togglePresetCategory, vmBack, vmRenameActiveDeck, newDeckFlow, newDeckPreset, newDeckCustom, confirmAbortDraft } from './modules/vocab.js';
@@ -298,7 +298,10 @@ startBilderWache();   // nach der Rückkehr in die App: verworfene Symbole/Figur
 // werden die direkten Kinder von body mit Abdunklung bzw. Vollbild.
 (function scrollSperre() {
   const SEL = 'body > .p-dlg-grund, body > .uv-fill-overlay, body > .rest-ov, body > .p-sperrt';
-  const pruefe = () => document.documentElement.classList.toggle('popup-offen', !!document.querySelector(SEL));
+  const pruefe = () => {
+    const offen = document.documentElement.classList.toggle('popup-offen', !!document.querySelector(SEL));
+    if (!offen) resumeNachholen();   // D-6: nach dem Overlay das verschobene Laden nachholen
+  };
   new MutationObserver(pruefe).observe(document.body, { childList: true });
   pruefe();
 })();
