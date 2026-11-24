@@ -17,7 +17,7 @@ const CACHE = 'english-stars-' + VERSION;
 const STATIC_CACHE = 'english-stars-static-v1';
 // Texterkennung (Scan): vendor/ort-<version>/ und models/paddle-v5/ — Ordner tragen
 // die Version, beim Wechsel also neuen Ordnernamen nehmen.
-const STATIC_RE = /\/(models|music)\/|\/vendor\/vosk\.js$|\/vendor\/ort-/;
+const STATIC_RE = /\/(models|music|arena)\/|\/vendor\/vosk\.js$|\/vendor\/ort-/;
 
 // ── App-Shell ──
 // ALLES was zum Starten nötig ist. Vorher standen hier nur HTML/Manifest/Icons und
@@ -67,9 +67,15 @@ const PRECACHE = [
   './src/modules/speech.js', './src/modules/startup.js', './src/modules/stats.js',
   './src/modules/storage.js', './src/modules/supabase.js', './src/modules/sync.js',
   './src/modules/ui.js', './src/modules/vocab.js',
-  // Kampfplätze als fertige Bilder (Update 1, zusammen 1,7 MB) — vorher kamen sie
-  // aus pixel-world-fine.js und waren damit immer offline da. Bilder laufen sonst
-  // cache-first im Versions-Cache, der bei jedem Deploy geleert wird.
+];
+
+// Kampfplätze als fertige Bilder (Update 1, zusammen 1,7 MB) — vorher kamen sie
+// aus pixel-world-fine.js und waren damit immer offline da. Rang 9 (24.11.2026):
+// Sie lagen im Versions-Cache und wurden so bei jedem Deploy neu geholt; hatte der
+// Browser seinen HTTP-Cache geleert (iOS, knapper Speicher), waren das jedes Mal
+// 1,7 MB. Jetzt liegen sie im STATIC_CACHE, und install fragt nur nach, ob sich die
+// Datei geändert hat (ETag) — ein neu gezeichnetes Bild kommt trotzdem an.
+const PRECACHE_DAUERHAFT = [
   './arena/A_wiese.png', './arena/A_abend.png', './arena/A_kerker.png',
   './arena/A_kristall.png', './arena/A_vulkan.png', './arena/A_friedhof.png',
 ];
@@ -93,31 +99,39 @@ self.addEventListener('install', e => {
   // scheitern — der alte SW bleibt samt Cache, der Browser versucht es beim
   // nächsten Start erneut. Eine Datei, die der Server dauerhaft nicht hat (HTTP-
   // Fehler), blockiert das Update dagegen nicht, sonst hinge die App ewig fest.
-  e.waitUntil(caches.open(CACHE).then(async c => {
-    const hole = async (u) => {
+  e.waitUntil(Promise.all([caches.open(CACHE), caches.open(STATIC_CACHE)]).then(async ([c, sc]) => {
+    const hole = async (u, dauerhaft) => {
       const ab = new AbortController();
       const t = setTimeout(() => ab.abort(), PRECACHE_TIMEOUT);
       // 'no-cache' statt 'reload': beides fragt beim Server nach (keine stale Datei
       // im Precache), aber 'no-cache' erlaubt ein 304. Mit 'reload' lud der neue SW
       // bei JEDEM Versionssprung alle 42 Dateien komplett neu — obwohl die Seite sie
       // Sekunden vorher schon geholt hatte. Gemessen: jede Shell-Datei zweimal.
+      // Dauerhafte Dateien: selbst nachfragen (If-None-Match aus dem STATIC_CACHE),
+      // dann reicht der Browser das 304 durch und nichts wird neu übertragen.
       try {
-        const r = await fetch(new Request(u, { cache: 'no-cache', signal: ab.signal }));
+        const alt = dauerhaft ? await sc.match(u) : null;
+        const etag = alt && alt.headers.get('ETag'), lm = alt && alt.headers.get('Last-Modified');
+        const headers = etag ? { 'If-None-Match': etag } : lm ? { 'If-Modified-Since': lm } : {};
+        const r = await fetch(new Request(u, { cache: alt ? 'no-store' : 'no-cache', headers, signal: ab.signal }));
+        if (alt && r.status === 304) return;
         if (!r.ok) { const f = new Error(u + ' → HTTP ' + r.status); f.dauerhaft = true; throw f; }
-        await c.put(u, r);
+        await (dauerhaft ? sc : c).put(u, r);
       } finally { clearTimeout(t); }
     };
-    const results = await Promise.allSettled(PRECACHE.map(async u => {
-      try { await hole(u); }
-      catch (err) { if (err && err.dauerhaft) throw err; await hole(u); }   // ein zweiter Versuch
+    const results = await Promise.allSettled([
+      ...PRECACHE.map(u => [u, false]), ...PRECACHE_DAUERHAFT.map(u => [u, true]),
+    ].map(async ([u, d]) => {
+      try { await hole(u, d); }
+      catch (err) { if (err && err.dauerhaft) throw err; await hole(u, d); }   // ein zweiter Versuch
     }));
     const failed = results.filter(r => r.status === 'rejected');
     const netz = failed.filter(f => !(f.reason && f.reason.dauerhaft));
     if (netz.length) {
-      throw new Error('[SW] Precache abgebrochen (' + netz.length + '/' + PRECACHE.length + ' ohne Netz) — alter Stand bleibt');
+      throw new Error('[SW] Precache abgebrochen (' + netz.length + '/' + (PRECACHE.length + PRECACHE_DAUERHAFT.length) + ' ohne Netz) — alter Stand bleibt');
     }
     if (failed.length) {
-      console.warn('[SW] Precache unvollständig (' + failed.length + '/' + PRECACHE.length + '):',
+      console.warn('[SW] Precache unvollständig (' + failed.length + '/' + (PRECACHE.length + PRECACHE_DAUERHAFT.length) + '):',
         failed.map(f => f.reason && f.reason.message));
     } else {
       console.log('[SW] Precache vollständig:', PRECACHE.length, 'Dateien —', CACHE);
