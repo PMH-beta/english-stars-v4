@@ -24,7 +24,7 @@
 // jsonb mit) → Reload mitten im Kampf verliert nichts; nur das aktuelle Wort der
 // Welle wird neu gezogen.
 
-import { scaledEnemy, roundTimeFactor, FORM_BONUS, TALISMAN_MULT, PERK_DOLCH_DODGE, STORM_BASE_MS, STORM_PER_LETTER_MS, STORM_MISS_DMG, WEAK_TIME_BONUS, WEAK_EMA, METEOR_FALL_MS, METEOR_COUNT, ECHO_TIME_MS, ECHO_CHOICES, TF_PAIRS, TF_TIME_MS, PERK_SPEER_BOSS, PERK_AXT_ELITE, PERK_HAMMER_MULT, PERK_BOGEN_FIGHT, POTION_HEAL, POTION_POWER, POTION_TIME_MS, POTION_TIME_WAVES, BOSS_WIN_TALER, BOSS_NOCHMAL_TALER, CF_MIN_ASKED, CF_MASTER, CF_NO_REPEAT, CF_SEEN_MIN, CF_LEARNED_WEIGHT, CF_TOPF_MIX, CF_BOGEN_FRUEH_C, CF_BOGEN_SPAET_C, CF_BOGEN_SPAET_W, CF_STUFE_FENSTER, CF_STUFE_HOCH, CF_STUFE_RUNTER, CF_STUFE_MAX, CF_NEU_OFFEN, CF_ABSTAND, CF_W_FAELLIG, CF_W_NICHT_FAELLIG, CF_W_GEUEBT, CF_GEUEBT_TAGE, VERB_OWN_SEEN_MIN, VERB_BOGEN_BIS, VERB_TIER_SPREAD, VERB_TIER_FLOOR, VERB_FILLED_BONUS } from './campaign-balance.js';
+import { scaledEnemy, roundTimeFactor, FORM_BONUS, TALISMAN_MULT, PERK_DOLCH_DODGE, STORM_BASE_MS, STORM_PER_LETTER_MS, STORM_MISS_DMG, WEAK_TIME_BONUS, WEAK_EMA, METEOR_FALL_MS, METEOR_MIN_MS, METEOR_COUNT, ECHO_TIME_MS, ECHO_CHOICES, TF_PAIRS, TF_TIME_MS, PERK_SPEER_BOSS, PERK_AXT_ELITE, PERK_HAMMER_MULT, PERK_BOGEN_FIGHT, POTION_HEAL, POTION_POWER, POTION_TIME_MS, POTION_TIME_WAVES, BOSS_WIN_TALER, BOSS_NOCHMAL_TALER, CF_MIN_ASKED, CF_MASTER, CF_NO_REPEAT, CF_SEEN_MIN, CF_LEARNED_WEIGHT, CF_TOPF_MIX, CF_BOGEN_FRUEH_C, CF_BOGEN_SPAET_C, CF_BOGEN_SPAET_W, CF_STUFE_FENSTER, CF_STUFE_HOCH, CF_STUFE_RUNTER, CF_STUFE_MAX, CF_NEU_OFFEN, CF_ABSTAND, CF_W_FAELLIG, CF_W_NICHT_FAELLIG, CF_W_GEUEBT, CF_GEUEBT_TAGE, VERB_OWN_SEEN_MIN, VERB_BOGEN_BIS, VERB_TIER_SPREAD, VERB_TIER_FLOOR, VERB_FILLED_BONUS } from './campaign-balance.js';
 import { startLetterstorm, stormTarget } from './minigame-letterstorm.js';
 import { startMeteors } from './minigame-meteors.js';
 import { startEcho } from './minigame-echo.js';
@@ -955,6 +955,8 @@ function _startWave() {
   // Grundzeit schrumpft je Runde (F-102), die Boni bleiben voll.
   const tf = roundTimeFactor(_ctx.round);
   const zeit = (ms) => Math.round(ms * tf) + tBonus;
+  // K-11: Meteoriten fallen nie schneller als METEOR_MIN_MS (vorher 5,4 s ab Runde 9).
+  const fallZeit = () => Math.max(METEOR_MIN_MS, Math.round(METEOR_FALL_MS * tf)) + tBonus;
   const guards = Math.max(0, (eff.companionGuards || 0) - (f.guardsUsed || 0));
   const onGuardUsed = () => {
     f.guardsUsed = (f.guardsUsed || 0) + 1; _ctx.save();
@@ -975,13 +977,13 @@ function _startWave() {
     const head = frageForm(v.en, which);   // „go → [Simple Past]" (F.8, F.9)
     if (type === 'verbmeteors') {
       const choices = _shuffle([_displayEn(raw), ..._verbDistractors(v, which, METEOR_COUNT - 1)]);
-      _ctx.mg = startMeteors({ host, de: v.de, answer: _displayEn(raw), choices, prompt: head, fallMs: zeit(METEOR_FALL_MS), onMiss: _onMiss, onResult: _onWave });
+      _ctx.mg = startMeteors({ host, de: v.de, answer: _displayEn(raw), choices, prompt: head, fallMs: fallZeit(), onMiss: _onMiss, onResult: _onWave });
     } else if (type === 'verbecho') {
       // Gehört wird die FORM — die Frage ist also nicht „welches Wort", sondern
       // welche Form dieses Verbs; die Auswahl sind lauter Verbformen.
       const choices = _shuffle([_displayEn(raw), ..._verbDistractors(v, which, ECHO_CHOICES - 1)]);
       _ctx.mg = startEcho({ host, answer: _displayEn(raw), speakText: _displayEn(raw), choices,
-        verb: v.en, timeLimitMs: zeit(ECHO_TIME_MS), onMiss: _onMiss, onResult: _onWave });
+        prompt: head, timeLimitMs: zeit(ECHO_TIME_MS), onMiss: _onMiss, onResult: _onWave });
     } else {
       _ctx.mg = startLetterstorm({
         host, de: v.de, en: raw, prompt: head,
@@ -1017,12 +1019,12 @@ function _startWave() {
     const item = _ctx.cfItem = _pickItem(stock);
     const answer = _displayEn(item.en);
     const choices = _shuffle([answer, ..._distractors(pool, answer, METEOR_COUNT - 1)]);
-    _ctx.mg = startMeteors({ host, de: item.de, answer, choices, fallMs: zeit(METEOR_FALL_MS), onMiss: _onMiss, onResult: _onWave });
+    _ctx.mg = startMeteors({ host, de: item.de, answer, choices, fallMs: fallZeit(), onMiss: _onMiss, onResult: _onWave });
   } else if (type === 'echo') {
     const item = _ctx.cfItem = _pickItem(stock);
     const answer = _displayEn(item.en);
     const choices = _shuffle([answer, ..._distractors(pool, answer, ECHO_CHOICES - 1)]);
-    _ctx.mg = startEcho({ host, answer, speakText: answer, choices, timeLimitMs: zeit(ECHO_TIME_MS), onMiss: _onMiss, onResult: _onWave });
+    _ctx.mg = startEcho({ host, de: item.de, answer, speakText: answer, choices, timeLimitMs: zeit(ECHO_TIME_MS), onMiss: _onMiss, onResult: _onWave });
   } else {
     const item = _ctx.cfItem = _pickItem(stock);
     _ctx.mg = startLetterstorm({ host, de: item.de, en: item.en, timeLimitMs: zeit(_timeLimit(item)), guards, onGuardUsed, onMiss: _onMiss, onResult: _onWave });

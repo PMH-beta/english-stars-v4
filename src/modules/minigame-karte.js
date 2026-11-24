@@ -13,11 +13,11 @@ const ART = {
   sturm:   { icon: 'pencil', ton: 'var(--p-pfirsich)' },
   meteore: { icon: 'target', ton: 'var(--p-pfirsich)' },
   richtig: { icon: 'target', ton: 'var(--p-blau)' },
+  echo:    { icon: 'speaker', ton: 'var(--p-blau)' },   // K-9: kein Hör-Knopf mehr, das Wort kommt am Ende
 };
 
 // Unregelmäßige und Boss tragen ihre eigene Kachel (F.8, F.9, F.11) — gesetzt vom
-// Kampf je Welle, gilt für alle Arten außer Echo (dort ist die Kachel der
-// Hör-Knopf, F.5/F.10).
+// Kampf je Welle, gilt für alle Arten (Echo seit K-9 ohne eigenen Hör-Knopf).
 let _knotenKachel = null;
 /** @param {{icon:string, ton:string}|null} k */
 export function setKnotenKachel(k) { _knotenKachel = k; }

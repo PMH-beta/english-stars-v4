@@ -16,7 +16,7 @@
 // Aufrufer entscheidet, was ein Fehlklick zusätzlich zur Zeitstrafe kostet.
 
 import { playSfx } from './game.js';
-import { STORM_PENALTY_MS } from './campaign-balance.js';
+import { STORM_PENALTY_MS, STORM_VORGABE_AB, STORM_VORGABE } from './campaign-balance.js';
 import { aufgabeKarte, frageDE, sekText, steinHTML, passeAufgabe, innenBreite } from './minigame-karte.js';
 import { iconHTML } from './pixel-icons.js';
 
@@ -126,7 +126,11 @@ export function startLetterstorm({ host, de, en, prompt, timeLimitMs, guards = 0
   let endAt = Date.now() + timeLimitMs;
 
   // Leerzeichen (Mehrwort-Antworten) sind in der Leiste vorgegeben — kein Tile.
-  const tappable = chars.map((ch, i) => ({ ch, i })).filter(x => x.ch !== ' ');
+  const alleBuchst = chars.map((ch, i) => ({ ch, i })).filter(x => x.ch !== ' ');
+  // LU-20: ab STORM_VORGABE_AB Buchstaben sind die ersten STORM_VORGABE vorgegeben
+  // (stehen schon in der Leiste, kein Stein dafuer).
+  const vorgabe = alleBuchst.length >= STORM_VORGABE_AB ? alleBuchst.slice(0, STORM_VORGABE) : [];
+  const tappable = alleBuchst.slice(vorgabe.length);
   // Wortleiste: jedes Wort als eigene Gruppe — umgebrochen wird nur zwischen den
   // Wörtern, nie mitten im Wort.
   const woerter = target.split(' ');
@@ -253,6 +257,11 @@ export function startLetterstorm({ host, de, en, prompt, timeLimitMs, guards = 0
       }
     };
     field.appendChild(btn);
+  });
+  vorgabe.forEach((v) => {
+    const slot = host.querySelector(`.cf-slot[data-i="${v.i}"]`);
+    if (slot) { slot.textContent = v.ch; slot.classList.add('cf-filled'); }
+    advance();
   });
   markDran();
 

@@ -80,6 +80,10 @@ export function feuerMult(runde) { return runde >= 8 ? 3 : runde >= 4 ? 2 : 1; }
 export const STORM_BASE_MS = 20000;        // Grundzeit
 export const STORM_PER_LETTER_MS = 2000;   // +2 s je Buchstabe ab dem 6.
 export const STORM_PENALTY_MS = 2000;      // Zeitstrafe bei falschem Buchstaben
+// LU-20 (24.11.2026): sehr lange Woerter im Sturm sind zaeh statt schwer -> ab
+// STORM_VORGABE_AB Buchstaben stehen die ersten STORM_VORGABE schon in der Wortleiste.
+export const STORM_VORGABE_AB = 12;
+export const STORM_VORGABE = 2;
 // HP-Verlust je Fehlgriff — gilt in JEDEM Minispiel (falscher Buchstabe, falscher
 // Meteor, falsches Echo-Wort, Fehlurteil): ein Fehler beendet die Welle nicht mehr,
 // er kostet Leben und das Minispiel läuft weiter.
@@ -89,6 +93,7 @@ export const WEAK_EMA = 0.5;               // „unsicher" = EMA darunter (oder 
 
 // Wort-Meteoriten (Minispiel).
 export const METEOR_FALL_MS = 9000;        // Fallzeit des richtigen Meteoriten
+export const METEOR_MIN_MS = 7000;         // K-11: Untergrenze der Fallzeit (Rundenkuerzung), Boni kommen oben drauf
 export const METEOR_COUNT = 4;             // 1 richtig + 3 falsch
 
 // Echo-Fang (Minispiel).
