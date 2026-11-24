@@ -4889,3 +4889,6 @@ body.tour-aktiv #menu-screen{ pointer-events:none; }
 /* Fortschritt-Seite */
 .lw-kacheln{ grid-template-columns:repeat(2,minmax(0,1fr)); }
 .lw-fs-woche .lw-balken{ margin-top:0; }
+/* LU-16: Tageszahl unter dem Wochentag, Vorwoche darunter */
+.lw-tag-n{ font:900 11px var(--p-font); color:var(--p-ink); font-variant-numeric:tabular-nums; min-height:14px; }
+.lw-letzte{ text-align:center; margin-top:11px; }

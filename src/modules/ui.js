@@ -22,7 +22,7 @@ import { renderFriendsSection, refreshFriendBadge, friendProgress, subscribeFrie
 import { renderCampaign, renderCampaignDemo, updateTalerBadge, refreshClaimedTaler } from './campaign.js';
 import { tourStarten, tourLaeuft, tourZurueck, tourAbbrechen, TOUR_SCHRITTE } from './tour.js';
 import { itemTag, forgeTag, forgeGrauTag, PART_ANIM } from './world.js';
-import { wochenStand, wochenBannerHTML, wochenHinweisText, wochenHinweisAus, wochenHinweisWeg, wochenTageHTML, wochenBalkenHTML, lernTageFrom, frischGeschafftAbholen, WOCHE_TALER } from './lernwoche.js';
+import { wochenStand, wochenBannerHTML, wochenHinweisText, wochenHinweisAus, wochenHinweisWeg, wochenTageHTML, wochenBalkenHTML, wochenLetzteHTML, lernTageFrom, frischGeschafftAbholen, WOCHE_TALER } from './lernwoche.js';
 
 // ────────────────────────────────────────────────
 //  AUTH UI STATE
@@ -2168,7 +2168,7 @@ function _wocheBlock() {
   return `<div class="fs-kacheln lw-kacheln">`
     + kachel(st.ok ? 'check' : 'calendar', `${st.summe}/${st.ziel}`, 'Diese Woche', st.ok, du && `du ${du.summe}/${du.ziel}`)
     + kachel('trophy', `${st.geschafftGesamt}×`, 'Geschafft', false, du && `du ${du.geschafftGesamt}×`)
-    + `</div><div class="fs-lauf lw-fs-woche">${wochenBalkenHTML(st)}${wochenTageHTML(st)}</div>`;
+    + `</div><div class="fs-lauf lw-fs-woche">${wochenBalkenHTML(st)}${wochenTageHTML(st, true)}${wochenLetzteHTML(st)}</div>`;
 }
 
 // Kampagne nach 8.3: Rekord-Karte, sechs Kennzahlen, aktueller Lauf.

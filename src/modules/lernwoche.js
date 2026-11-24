@@ -82,7 +82,17 @@ export function wochenStand(sd = window.SD, jetzt = new Date()) {
     tage.push({ kurz: WOCHENTAGE[i], n, gearbeitet: n >= TAG_SCHWELLE, heute: k === heuteKey, zukunft: k > heuteKey });
   }
   const geschafftGesamt = Object.values(lt.wochen).filter((x) => x.ok).length;
+  // LU-16: Vorwoche (die Tage reichen 14 Tage zurück, also immer ganz da).
+  const vorMo = new Date(mo); vorMo.setDate(mo.getDate() - 7);
+  let letzte = 0, letzteDaten = !!lt.wochen[_tagKey(vorMo)];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(vorMo); d.setDate(vorMo.getDate() + i);
+    const n = lt.tage[_tagKey(d)];
+    if (n) { letzte += n; letzteDaten = true; }
+  }
+  const vw = lt.wochen[_tagKey(vorMo)];
   return {
+    letzte, letzteDaten, letzteOk: !!(vw && vw.ok),
     summe, ziel, ok: !!(w && w.ok) || summe >= ziel,
     fehlt: Math.max(0, ziel - summe),
     restTage: 7 - heuteIdx,                  // inkl. heute (So = 1)
@@ -164,12 +174,19 @@ export function wochenHinweisAus() {
 }
 
 // Sieben Tagesfelder Mo–So (Wochenkarte, Fortschritt-Seite).
-export function wochenTageHTML(st) {
+// mitZahl (LU-16, Fortschritt): unter jedem Tag die richtigen Antworten des Tages.
+export function wochenTageHTML(st, mitZahl = false) {
   return `<div class="lw-tage">` + st.tage.map((t) => {
     const cls = 'lw-tag' + (t.gearbeitet ? ' is-ja' : '') + (t.heute ? ' is-heute' : '') + (t.zukunft ? ' is-zukunft' : '');
     return `<div class="${cls}"><span class="lw-tag-k">${t.gearbeitet ? iconHTML('check', 14) : ''}</span>`
-      + `<span class="lw-tag-l">${t.kurz}</span></div>`;
+      + `<span class="lw-tag-l">${t.kurz}</span>`
+      + (mitZahl ? `<span class="lw-tag-n">${t.zukunft ? '' : Number(t.n) || 0}</span>` : '') + `</div>`;
   }).join('') + `</div>`;
+}
+// LU-16: „Letzte Woche: 85 richtig · geschafft“ — leer, solange es keine Vorwoche gibt.
+export function wochenLetzteHTML(st) {
+  if (!st.letzteDaten) return '';
+  return `<div class="lw-unter lw-letzte">Letzte Woche: ${Number(st.letzte) || 0} richtig${st.letzteOk ? ' · geschafft' : ''}</div>`;
 }
 export function wochenBalkenHTML(st) {
   const pct = Math.min(100, Math.round((st.summe / Math.max(1, st.ziel)) * 100));
