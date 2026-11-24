@@ -81,47 +81,55 @@ export const ECHO_CHOICES = 5;             // 1 richtig + 4 falsch
 export const TF_PAIRS = 3;
 export const TF_TIME_MS = 22000;
 
-// ── Wortauswahl im Kampf: Vorrat mit fester Grundzahl ──
+// ── Wortauswahl im Kampf: drei Töpfe + Fälligkeit (LU-04, Konzept 19.11.) ──
 // Der Kampf führt einen EIGENEN Lernstand je Wort (Stat-Suffix _cf) — getrennt von
 // den Vokabel-Stats, ohne Einfluss auf Taler, Deck-Prozente oder Statistik-Seiten.
 // Ein Wort gilt als „gelernt", wenn es CF_MIN_ASKED-mal dran war und sein EMA über
 // CF_MASTER liegt.
-// Im Vorrat stehen immer CF_POOL_OPEN OFFENE Wörter — ungefähr so viele, wie man
-// beim Freischalten (2 Taler) selbst geübt hat. Zuerst zählen die eigenen Deck-Wörter;
-// erst wenn die nicht reichen, füllen Vorlagen-Wörter auf. Wird ein Wort gelernt, wird
-// sein Platz in derselben Reihenfolge nachbesetzt — eigene zuerst, Vorlagen nur als
-// Auffüllung.
-// Eigene Wörter kommen zudem erst in den Kampf, wenn sie im normalen Deck-Üben
-// mindestens CF_SEEN_MIN-mal dran waren (in EINER der drei Arten) — der Kampf ist
-// Wiederholung, keine Erstbegegnung. Neue Decks/Wörter rutschen dadurch auch mitten
-// im Lauf nach, sobald sie zweimal dran waren.
+// Eigene Wörter kommen erst in den Kampf, wenn sie im normalen Deck-Üben mindestens
+// CF_SEEN_MIN-mal dran waren (in EINER der Arten) — der Kampf ist Wiederholung.
 export const CF_MIN_ASKED = 3;
 export const CF_MASTER = 0.9;
-export const CF_POOL_OPEN = 20;
 export const CF_NO_REPEAT = 6;             // so viele zuletzt gezogene Wörter bleiben gesperrt
 export const CF_SEEN_MIN = 2;
 export const CF_LEARNED_WEIGHT = 0.35;     // gelernte Wörter: seltener, aber nie ganz weg
-export const CF_OWN_SHARE = 0.2;           // jede 5. Welle garantiert ein eigenes Deck-Wort
-// Wiederholungs-Anteil als FESTE Quote statt über das Gewicht: sonst wächst er mit der
-// Zahl gelernter Wörter mit (bei 300 gelernten wären 75 % der Wellen Wiederholung).
-export const CF_REVIEW_SHARE = 0.2;
 
-// 🌀-Verben, Schritt 1: zuerst die EIGENEN, schon geübten Verben — die aus den
-// Schmiede-Aufträgen und den Trainingsplatz-Decks. Genau wie bei den Wörtern ist
-// der Kampf hier Wiederholung: eine Form zählt erst als „geübt", wenn sie in der
-// Schmiede/im Training mindestens VERB_OWN_SEEN_MIN-mal dran war.
-// Der Anteil sinkt pro Runde — danach übernimmt die Stufen-Glocke unten und die
-// Wellen werden Runde für Runde schwerer (fremde und höhere Stufen).
-export const VERB_OWN_SHARE_START = 0.85;
-export const VERB_OWN_SHARE_PER_ROUND = 0.10;
-export const VERB_OWN_SHARE_MIN = 0.30;
+// Drei Töpfe je Art. Wörter: A = selbst angelegte Deck-Wörter, B = übernommene und
+// geübte Vorlagen-Wörter, C = Vorlagen, die das Kind noch nie genutzt hat. Verben:
+// A = in Schmiede/Training geübt, B = schon im Kampf dran, C = noch nie dran.
+// Anteil je Welle nach Runde (Runde 1 = erste Karte); ein leerer Topf gibt seinen
+// Anteil an die anderen ab.
+export const CF_TOPF_MIX = [
+  { bis: 3,        a: 0.70, b: 0.20, c: 0.10 },
+  { bis: 9,        a: 0.60, b: 0.25, c: 0.15 },
+  { bis: Infinity, a: 0.50, b: 0.30, c: 0.20 },
+];
+// Spannungsbogen je Karte: im ersten Drittel der Reihen kommt nur die Hälfte von C
+// (der Rest geht an A), im letzten Drittel bekommt C 10 % von A, und Fälliges und
+// Schwaches wiegt dort CF_BOGEN_SPAET_W-fach.
+export const CF_BOGEN_FRUEH_C = 0.5;
+export const CF_BOGEN_SPAET_C = 0.10;
+export const CF_BOGEN_SPAET_W = 1.5;
+// Topf C (Wörter): leichte Sammlungen immer, mittlere ab Runde 4, schwere ab Runde 10.
+// Höchstens CF_NEU_OFFEN angefangene, noch nicht gelernte neue Wörter gleichzeitig —
+// erst wenn eins sitzt, kommt ein weiteres neues dazu.
+export const CF_NEU_MITTEL_AB = 4;
+export const CF_NEU_SCHWER_AB = 10;
+export const CF_NEU_OFFEN = 12;
+// Fälligkeit: Abstand bis zum nächsten Mal im Kampf, je Stufe (box). Richtig an einem
+// neuen Tag → eine Stufe höher, falsch → zurück auf Stufe 0 (1 Tag).
+export const CF_ABSTAND = [1, 3, 7, 14, 30];
+export const CF_W_FAELLIG = 3;             // fällig oder noch nie im Kampf dran: hoch
+export const CF_W_NICHT_FAELLIG = 0.15;    // gerade im Kampf dran, noch nicht fällig: sehr niedrig
+export const CF_W_GEUEBT = 3;              // in den letzten CF_GEUEBT_TAGE Tagen geübt, im Kampf seitdem nicht dran: wie fällig × 3
+export const CF_GEUEBT_TAGE = 2;
+
+// 🌀-Verben: eine Form zählt erst als „geübt" (Topf A), wenn sie in der Schmiede/im
+// Training mindestens VERB_OWN_SEEN_MIN-mal dran war. Topf C: höchstens eine Stufe
+// über dem höchsten geübten Verb; der Schwerpunkt der Stufe wandert bis Runde
+// VERB_BOGEN_BIS von 1 auf 5 (Glocke — leichte Stufen bleiben immer möglich).
 export const VERB_OWN_SEEN_MIN = 2;
-
-// 🌀-Verben, Schritt 2: der Schwerpunkt der Stufe (tier 1–5) wandert pro abgeschlossener
-// Runde nach oben. Bewusst als Glockenkurve statt als Schwelle — leichte Stufen bleiben
-// immer möglich, die Steigerung ist stetig statt sprunghaft.
-export const VERB_TIER_START = 1.0;
-export const VERB_TIER_PER_ROUND = 0.45;
+export const VERB_BOGEN_BIS = 16;
 export const VERB_TIER_SPREAD = 1.6;       // Breite der Glocke (größer = flacher)
 export const VERB_TIER_FLOOR = 0.08;       // Mindestgewicht: leichte Stufen fallen nie ganz weg
 export const VERB_FILLED_BONUS = 1.6;      // selbst befüllte Sternbild-Verben bevorzugt

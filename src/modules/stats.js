@@ -110,3 +110,41 @@ export function statKeyFor(de, en, suffix, presetId = null) {
   const base = normStatDE(de) + '|' + normStatEN(en);
   return presetId ? base + '|' + presetId + suffix : base + suffix;
 }
+
+// ── Tage und „zuletzt geübt" (LU-04, Wortwahl im Kampf) ──
+// Tag = Tage seit 1970 in Ortszeit (Mitternacht zählt, nicht 24 Stunden).
+export function heuteTag() {
+  const d = new Date();
+  return Math.floor((d.getTime() - d.getTimezoneOffset() * 60000) / 86400000);
+}
+// Kurzer Schlüssel (FNV-1a, Basis 36) für die Zeit-Maps in SD.campaign — die reiten
+// bei jedem Speichern im profiles.campaign-jsonb mit und sollen klein bleiben.
+export function kurzSchluessel(s) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+  return (h >>> 0).toString(36);
+}
+// Stat-Schlüssel ohne Suffix (alles ab dem ersten „_" hinter dem letzten „|").
+export function statBasis(statKey) {
+  const i = statKey.lastIndexOf('|');
+  const j = statKey.indexOf('_', i);
+  return j < 0 ? statKey : statKey.slice(0, j);
+}
+// Normales Üben (Vokabeln, Schmiede, Training) merkt sich den Tag je Wort, damit der
+// Kampf frisch Geübtes bevorzugen kann. Nur die letzten Tage werden gebraucht —
+// Älteres fliegt beim Schreiben raus.
+const GEUEBT_HALTEN = 3;
+export function merkeGeuebt(statKey) {
+  const sd = window.SD;
+  if (!statKey || !sd || sd._tourDemo || sd._freundAnsicht) return;
+  if (!sd.campaign || typeof sd.campaign !== 'object') return;
+  const c = sd.campaign;
+  if (!c.geuebt || typeof c.geuebt !== 'object' || Array.isArray(c.geuebt)) c.geuebt = {};
+  const heute = heuteTag();
+  for (const k in c.geuebt) if (!(c.geuebt[k] >= heute - GEUEBT_HALTEN)) delete c.geuebt[k];
+  c.geuebt[kurzSchluessel(statBasis(statKey))] = heute;
+}
+export function geuebtTag(basisKey) {
+  const t = window.SD?.campaign?.geuebt?.[kurzSchluessel(basisKey)];
+  return typeof t === 'number' ? t : null;
+}

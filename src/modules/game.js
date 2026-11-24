@@ -1,6 +1,6 @@
 // src/modules/game.js
 import { QPERROUND, EXAM_QUESTIONS, calcGrade, gradeText, UV_LVL, UV_MASTERY_MIN_ATTEMPTS, MASTERY_THRESHOLD } from './config.js';
-import { effectivePct, isMastered, statKeyFor, getVocabStat, SP_TEILE, spWort, spKurz, spellingStand, wortScore, presetStatStore } from './stats.js';
+import { effectivePct, isMastered, statKeyFor, getVocabStat, SP_TEILE, spWort, spKurz, spellingStand, wortScore, presetStatStore, merkeGeuebt } from './stats.js';
 import { activeDeck, syncMirrorFromActiveDeck } from './decks.js';
 import { showScreen, showMenu, hideFeedback, showFeedback, TP_DISZ } from './ui.js';
 import { ensureMicStream, releaseMicStream, voskStop, stopVisualizer, speakWord, speakWordOnce, startVoskRecognition, startRecording, _shouldUseVosk, warmAudio, warmIosMic, micZustand, gehoert, aufnahmeBeenden } from './speech.js';
@@ -1305,6 +1305,7 @@ function recordStatSchnell(q) {
   const s=store[q.statKey];
   if(Math.floor(s.asked)<3){s.asked=3;s.correct=3;}
   else{s.asked+=1;s.correct+=1;}
+  merkeGeuebt(q.statKey);   // LU-04: Kampf bevorzugt frisch Geübtes
   // window.persist() (Default = window.SD) statt bare persist() → speichert NICHT
   // versehentlich `undefined`. Der echte Stand liegt im dauerhaften Backup (Key
   // es_schnell_backup), siehe toggleSchnell + Boot-Recovery in index.html.
@@ -1321,6 +1322,7 @@ function recordStat(q, ok) {
   if(ok) s.correct+=inc; else s.wrong+=inc;
   if(!s.recent) s.recent='';
   s.recent=(s.recent+(ok?'1':'0')).slice(-8);
+  merkeGeuebt(q.statKey);   // LU-04: Kampf bevorzugt frisch Geübtes
   try{persist();}catch(e){}
 }
 

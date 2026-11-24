@@ -290,6 +290,9 @@ function _campaignFrom(profile) {
       // App-Tour gesehen (F-14). Fehlt das Feld (ältere Stände), gilt die Tour als
       // gesehen; false heißt: neuer Spielstand, Tour steht noch aus (tour.js).
       tourSeen:   typeof c.tourSeen === 'boolean' ? c.tourSeen : undefined,
+      // Wortwahl im Kampf (LU-04): Tag+Stufe je Kampf-Wort und Tag des letzten Übens.
+      cfZeit:     (c.cfZeit && typeof c.cfZeit === 'object' && !Array.isArray(c.cfZeit)) ? c.cfZeit : {},
+      geuebt:     (c.geuebt && typeof c.geuebt === 'object' && !Array.isArray(c.geuebt)) ? c.geuebt : {},
     };
   }
   return { claimed: [], talerSpent: 0, run: null, equipment: {}, bossWins: 0, round: 0, stats: {}, freeStart: false, carryPotions: null, runLen: 0 };

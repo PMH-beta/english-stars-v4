@@ -24,7 +24,7 @@
 // jsonb mit) → Reload mitten im Kampf verliert nichts; nur das aktuelle Wort der
 // Welle wird neu gezogen.
 
-import { scaledEnemy, roundTimeFactor, FORM_BONUS, TALISMAN_MULT, PERK_DOLCH_DODGE, STORM_BASE_MS, STORM_PER_LETTER_MS, STORM_MISS_DMG, WEAK_TIME_BONUS, WEAK_EMA, METEOR_FALL_MS, METEOR_COUNT, ECHO_TIME_MS, ECHO_CHOICES, TF_PAIRS, TF_TIME_MS, PERK_SPEER_BOSS, PERK_AXT_ELITE, PERK_HAMMER_MULT, PERK_BOGEN_FIGHT, POTION_HEAL, POTION_POWER, POTION_TIME_MS, POTION_TIME_WAVES, BOSS_WIN_TALER, CF_MIN_ASKED, CF_MASTER, CF_POOL_OPEN, CF_NO_REPEAT, CF_SEEN_MIN, CF_LEARNED_WEIGHT, CF_OWN_SHARE, CF_REVIEW_SHARE, VERB_OWN_SHARE_START, VERB_OWN_SHARE_PER_ROUND, VERB_OWN_SHARE_MIN, VERB_OWN_SEEN_MIN, VERB_TIER_START, VERB_TIER_PER_ROUND, VERB_TIER_SPREAD, VERB_TIER_FLOOR, VERB_FILLED_BONUS } from './campaign-balance.js';
+import { scaledEnemy, roundTimeFactor, FORM_BONUS, TALISMAN_MULT, PERK_DOLCH_DODGE, STORM_BASE_MS, STORM_PER_LETTER_MS, STORM_MISS_DMG, WEAK_TIME_BONUS, WEAK_EMA, METEOR_FALL_MS, METEOR_COUNT, ECHO_TIME_MS, ECHO_CHOICES, TF_PAIRS, TF_TIME_MS, PERK_SPEER_BOSS, PERK_AXT_ELITE, PERK_HAMMER_MULT, PERK_BOGEN_FIGHT, POTION_HEAL, POTION_POWER, POTION_TIME_MS, POTION_TIME_WAVES, BOSS_WIN_TALER, CF_MIN_ASKED, CF_MASTER, CF_NO_REPEAT, CF_SEEN_MIN, CF_LEARNED_WEIGHT, CF_TOPF_MIX, CF_BOGEN_FRUEH_C, CF_BOGEN_SPAET_C, CF_BOGEN_SPAET_W, CF_NEU_MITTEL_AB, CF_NEU_SCHWER_AB, CF_NEU_OFFEN, CF_ABSTAND, CF_W_FAELLIG, CF_W_NICHT_FAELLIG, CF_W_GEUEBT, CF_GEUEBT_TAGE, VERB_OWN_SEEN_MIN, VERB_BOGEN_BIS, VERB_TIER_SPREAD, VERB_TIER_FLOOR, VERB_FILLED_BONUS } from './campaign-balance.js';
 import { startLetterstorm, stormTarget } from './minigame-letterstorm.js';
 import { startMeteors } from './minigame-meteors.js';
 import { startEcho } from './minigame-echo.js';
@@ -39,7 +39,7 @@ import { ensureAvatar } from './avatar.js';
 import { heroCombatSheet, enemyCombatSheet, SpritePlayer, ProjectileLayer } from './pixel-anim.js';
 import { gearFor, createPetPlayer, petKind, petColorHex } from './hero.js';
 import { playSfx } from './game.js';
-import { effectivePct, statKeyFor } from './stats.js';
+import { effectivePct, statKeyFor, heuteTag, kurzSchluessel, statBasis, geuebtTag } from './stats.js';
 import { getConstellations, IRREGULAR_VERBS, IRREGULAR_PRESET_ID, verbsByEns } from './irregular-verbs.js';
 import { uvFormPracticed } from './irregular-game.js';
 import { getPresetCategories } from './vocab.js';
@@ -141,7 +141,7 @@ export async function loadPresetSupply() {
       const key = (w.en || '').trim().toLowerCase();
       if (!w.de || !key || seen.has(key)) continue;
       seen.add(key);
-      out.push({ de: w.de, en: w.en, _presetId: c.id, _deck: null });
+      out.push({ de: w.de, en: w.en, _presetId: c.id, _deck: null, _diff: c.difficulty || 'mittel' });
     }
   }
   if (out.length) _supply = out;   // leer = nicht cachen, nächster Versuch lädt neu
@@ -183,6 +183,7 @@ function _record(item, ok, suf) {
   s.asked += 1;
   if (ok) s.correct += 1; else s.wrong += 1;
   s.recent = ((s.recent || '') + (ok ? '1' : '0')).slice(-8);
+  _merkeZeit(item, ok, suf);
   if (item._presetId) _ctx.cfPreset = true;
   else if (item._deck) _ctx.cfDecks.add(item._deck.id);
 }
@@ -194,30 +195,91 @@ function _markCfDirty() {
   for (const id of _ctx.cfDecks) markDirty('word_stats', id);
 }
 
-// ── Vorrat = eigene Wörter, mit Vorlagen aufgefüllt ──────────────────────────
-// Feste Grundzahl OFFENER Wörter (CF_POOL_OPEN) — hoch genug, dass sich die Ziehung
-// zufällig anfühlt. Die Plätze bekommen zuerst die eigenen Deck-Wörter (Deck-, dann
-// Wortreihenfolge), der Überhang wartet als Reserve; erst wenn keine eigenen mehr da
-// sind, füllen Vorlagen-Wörter auf. Ist ein Wort im Kampf gelernt, gibt es seinen
-// Platz frei und die Reserve rückt in derselben Reihenfolge nach — gelernte Wörter
-// bleiben aber im Vorrat, damit die Wiederholungs-Quote sie noch ziehen kann.
+// ── Fälligkeit je Kampf-Wort (LU-04) ─────────────────────────────────────────
+// SD.campaign.cfZeit: kurzer Schlüssel des _cf-Stats → tag*8 + box. box 0–4 steht für
+// den Abstand CF_ABSTAND[box] in Tagen bis zum nächsten Mal. Liegt im campaign-jsonb
+// (reitet mit dem Kampf-Speichern mit) statt in den Stat-Einträgen — deren Upload
+// kennt nur asked/correct/wrong/recent.
+function _zeitKey(item, suf) { return kurzSchluessel(_cfKey(item, suf)); }
+function _zeit(item, suf) {
+  const v = window.SD?.campaign?.cfZeit?.[_zeitKey(item, suf)];
+  return typeof v === 'number' ? { tag: Math.floor(v / 8), box: v % 8 } : null;
+}
+function _merkeZeit(item, ok, suf) {
+  const c = window.SD?.campaign;
+  if (!c || typeof c !== 'object') return;
+  if (!c.cfZeit || typeof c.cfZeit !== 'object' || Array.isArray(c.cfZeit)) c.cfZeit = {};
+  const heute = heuteTag();
+  const alt = _zeit(item, suf);
+  let box = 0;   // falsch → zurück auf 1 Tag; erstes Mal richtig → 1 Tag
+  if (ok && alt) box = alt.tag < heute ? Math.min(CF_ABSTAND.length - 1, alt.box + 1) : alt.box;
+  c.cfZeit[_zeitKey(item, suf)] = heute * 8 + box;
+}
+// Zeit-Faktor fürs Gewicht: fällig bzw. nie im Kampf dran = hoch, gerade dran = sehr
+// niedrig. Frisch geübt (Vokabeln/Schmiede/Training) und im Kampf seitdem nicht dran
+// = zusätzlich hoch.
+function _zeitFaktor(item, suf) {
+  const heute = heuteTag();
+  const z = _zeit(item, suf);
+  const faellig = !z || heute - z.tag >= CF_ABSTAND[Math.min(z.box, CF_ABSTAND.length - 1)];
+  let f = faellig ? CF_W_FAELLIG : CF_W_NICHT_FAELLIG;
+  const g = geuebtTag(statBasis(statKeyFor(item.de, item.en, '', item._presetId || null)));
+  if (g != null && heute - g <= CF_GEUEBT_TAGE && (!z || z.tag < g)) f = CF_W_FAELLIG * CF_W_GEUEBT;
+  return { f, faellig };
+}
+
+// ── Drei Töpfe (LU-04) ───────────────────────────────────────────────────────
+// A = selbst angelegte Deck-Wörter, B = übernommene und geübte Vorlagen-Wörter,
+// C = Vorlagen aus Sammlungen, die in keinem Deck stehen (Nachschub). In C sind
+// leichte Sammlungen immer erlaubt, mittlere ab Runde CF_NEU_MITTEL_AB, schwere ab
+// CF_NEU_SCHWER_AB; schon angefangene C-Wörter bleiben unabhängig davon drin. Neue
+// C-Wörter kommen nur, solange weniger als CF_NEU_OFFEN angefangen und nicht gelernt
+// sind. `pool` (A+B+angefangene C, bei Bedarf mit neuen C aufgefüllt) liefert die
+// Falschantworten und entscheidet, welche Wellenarten genug Wörter haben.
+function _runde() { return Math.max(0, _ctx?.round || 0) + 1; }
 function _stock() {
-  const supply = _supply || [];
-  const own = [];
-  let open = 0;
-  for (const v of _pool()) {
-    // Gelernte bleiben im Vorrat (Wiederholungs-Quote), belegen aber keinen Platz.
-    if (_learned(v)) { own.push(v); continue; }
-    if (open >= CF_POOL_OPEN) continue;   // Rest wartet als Reserve auf einen freien Platz
-    own.push(v);
-    open++;
+  const a = [], b = [];
+  for (const v of _pool()) (v._presetId ? b : a).push(v);
+  const inDeck = new Set();
+  const decks = window.SD?.decks || {};
+  for (const id in decks) for (const v of (decks[id].vocab || [])) if (v._presetId) inDeck.add(v._presetId);
+  const runde = _runde();
+  const erlaubt = (d) => d === 'leicht' || (d === 'schwer' ? runde >= CF_NEU_SCHWER_AB : runde >= CF_NEU_MITTEL_AB);
+  const begonnen = [], neu = [];
+  let offen = 0;
+  for (const v of (_supply || [])) {
+    if (inDeck.has(v._presetId)) continue;
+    const st = _cfStat(v);
+    if (st && (st.asked || 0) > 0) { begonnen.push(v); if (!_learned(v)) offen++; }
+    else if (erlaubt(v._diff)) neu.push(v);
   }
-  let take = 0;
-  while (open < CF_POOL_OPEN && take < supply.length) {
-    if (!_learned(supply[take])) open++;
-    take++;
-  }
-  return { own, preset: supply.slice(0, take) };
+  const c = offen < CF_NEU_OFFEN ? begonnen.concat(neu) : begonnen;
+  const pool = a.concat(b, begonnen);
+  for (let i = 0; pool.length < 20 && i < neu.length; i++) pool.push(neu[i]);
+  return { a, b, c, pool };
+}
+
+// Anteile der Töpfe für die aktuelle Welle: nach Runde (CF_TOPF_MIX) und Spannungsbogen
+// je Karte (erstes Drittel der Reihen: weniger Neues, letztes Drittel: mehr Neues,
+// Fälliges und Schwaches wiegt mehr).
+function _topfMix() {
+  const runde = _runde();
+  const m = CF_TOPF_MIX.find((x) => runde <= x.bis) || CF_TOPF_MIX[CF_TOPF_MIX.length - 1];
+  let { a, b, c } = m;
+  const rows = _ctx?.run?.map?.rows || 0, row = _ctx?.node?.row ?? 0;
+  let phase = 'mitte';
+  if (rows) phase = row < rows / 3 ? 'frueh' : (row >= rows * 2 / 3 ? 'spaet' : 'mitte');
+  if (phase === 'frueh') { const d = c * (1 - CF_BOGEN_FRUEH_C); c -= d; a += d; }
+  else if (phase === 'spaet') { const d = Math.min(a, CF_BOGEN_SPAET_C); a -= d; c += d; }
+  return { a, b, c, spaet: phase === 'spaet' };
+}
+// Topf auswürfeln; leere Töpfe geben ihren Anteil an die anderen ab.
+function _waehleTopf(toepfe, mix) {
+  const keys = ['a', 'b', 'c'].filter((k) => toepfe[k].length);
+  if (!keys.length) return [];
+  let r = Math.random() * keys.reduce((sum, k) => sum + mix[k], 0);
+  for (const k of keys) { r -= mix[k]; if (r < 0) return toepfe[k]; }
+  return toepfe[keys[keys.length - 1]];
 }
 
 // Kurzzeit-Gedächtnis über Kampfgrenzen hinweg (nur Sitzung, nichts gespeichert):
@@ -656,18 +718,26 @@ function _onMiss() {
 }
 
 
-// Gewichtsleiter wie in weightedPickUnique (game.js), damit sich die Auswahl gleich
-// anfühlt — mit zwei Zusätzen: gelernte Wörter fallen auf CF_LEARNED_WEIGHT, und
-// gezählt wird der Kampf-Stat; solange der leer ist, hilft der Vokabel-Stat aus.
-function _weightOf(item) {
-  if (_learned(item)) return CF_LEARNED_WEIGHT;
-  const s = _cfStat(item) || _statOf(item);
+// Gewicht = Schwäche × Zeit. Schwäche wie die Leiter in weightedPickUnique (game.js):
+// gezählt wird der Kampf-Stat, solange der leer ist, hilft der Vokabel-Stat aus;
+// gelernte Wörter fallen auf CF_LEARNED_WEIGHT. Zeit siehe _zeitFaktor. Im letzten
+// Drittel der Karte zählen Fälliges und Schwaches CF_BOGEN_SPAET_W-fach.
+function _schwaeche(item, suf) {
+  if (_learned(item, suf)) return CF_LEARNED_WEIGHT;
+  const s = _cfStat(item, suf) || (suf ? null : _statOf(item));
   if (!s || (s.asked || 0) < 3) return 3;
   const ep = effectivePct(s);
   if (ep >= 0.9) return 1;
   if (ep >= 0.7) return 3;
   if (ep >= 0.4) return 4;
   return 5;
+}
+function _weightOf(item, suf, spaet) {
+  const base = _schwaeche(item, suf);
+  const { f, faellig } = _zeitFaktor(item, suf);
+  let w = base * f;
+  if (spaet && (faellig || base >= 4)) w *= CF_BOGEN_SPAET_W;
+  return w;
 }
 
 // Gewichtete Ziehung nach demselben Verfahren wie weightedPickUnique (kleinster
@@ -683,19 +753,12 @@ function _pickWeighted(list, weightFn) {
   return best;
 }
 
-// Ein Wort aus dem Vorrat ziehen, die zuletzt gezogenen aussparen (_fresh). Zwei feste
-// Quoten davor, damit weder die eigenen Wörter noch der Stoff von gestern verschwinden:
-// jede fünfte Welle zieht aus dem eigenen Deck, und von den übrigen ist jede fünfte
-// eine Wiederholung eines schon gelernten Wortes.
+// Ein Wort ziehen: erst den Topf (_topfMix), darin gewichtet (_weightOf), die zuletzt
+// gezogenen ausgespart (_fresh).
 function _pickItem(stock) {
-  const all = stock.own.concat(stock.preset);
-  const done = all.filter((v) => _learned(v));
-  const open = all.filter((v) => !_learned(v));
-  let list;
-  if (stock.own.length && stock.preset.length && Math.random() < CF_OWN_SHARE) list = stock.own;
-  else if (done.length && open.length && Math.random() < CF_REVIEW_SHARE) list = done;
-  else list = open.length ? open : all;
-  const item = _pickWeighted(_fresh(list, _recent), _weightOf);
+  const mix = _topfMix();
+  const list = _waehleTopf(stock, mix);
+  const item = _pickWeighted(_fresh(list, _recent), (v) => _weightOf(v, null, mix.spaet));
   _remember(_recent, item && item.en);
   return item;
 }
@@ -730,35 +793,41 @@ function _pickForm() {
   return Math.random() < 0.5 ? 'past' : 'pp';
 }
 
-// 🌀-Verb ziehen — zwei Stufen:
-// 1. Zuerst die EIGENEN, schon geübten Verben (Anteil VERB_OWN_SHARE_*, sinkt pro
-//    Runde). Darin zählt nur der Kampf-Lernstand: offene Formen zuerst, gelernte
-//    seltener — genau wie bei den Deck-Wörtern.
-// 2. Sonst (und ab höheren Runden immer öfter) aus ALLEN Verben des Datensatzes,
-//    mit wanderndem Stufen-Schwerpunkt (Glockenkurve → es wird Runde für Runde
-//    schwerer, leichte Stufen bleiben aber immer möglich).
+// 🌀-Verb ziehen — dieselben drei Töpfe wie bei den Wörtern (LU-04):
+// A = in Schmiede/Training geübt (_ownVerbs), B = schon im Kampf dran (diese Form),
+// C = noch nie dran, höchstens eine Stufe über dem höchsten geübten Verb. In C wandert
+// der Stufen-Schwerpunkt bis Runde VERB_BOGEN_BIS von 1 auf 5 (Glocke; leichte Stufen
+// bleiben immer möglich, befüllte Sternbild-Verben bevorzugt).
+const _verbItem = (v) => ({ de: v.de, en: v.en, _presetId: IRREGULAR_PRESET_ID });
 function _pickVerb(which) {
   const suf = CF_SUF + (which === 'pp' ? '_pp' : '_past');
-  const own = _ownVerbs(which);
-  const share = Math.max(VERB_OWN_SHARE_MIN, VERB_OWN_SHARE_START - VERB_OWN_SHARE_PER_ROUND * Math.max(0, _ctx.round || 0));
-  let picked = null;
-  if (own.length && Math.random() < share) {
-    picked = _pickWeighted(_fresh(own, _recentV), (x) =>
-      _learned({ de: x.de, en: x.en, _presetId: IRREGULAR_PRESET_ID }, suf) ? CF_LEARNED_WEIGHT : 1);
+  const a = _ownVerbs(which);
+  const eigen = new Set(a.map((v) => v.en));
+  const deckel = a.reduce((m, v) => Math.max(m, v.tier || 1), 0) + 1;
+  const b = [], c = [];
+  for (const v of IRREGULAR_VERBS) {
+    if (eigen.has(v.en)) continue;
+    const st = _cfStat(_verbItem(v), suf);
+    if (st && (st.asked || 0) > 0) b.push(v);
+    else if ((v.tier || 1) <= deckel) c.push(v);
   }
-  if (!picked) {
+  const mix = _topfMix();
+  const list = _waehleTopf({ a, b, c }, mix);
+  let picked;
+  if (list === c) {
     const filled = new Set(_verbPool().map((v) => v.en));
-    const center = Math.min(5, VERB_TIER_START + VERB_TIER_PER_ROUND * Math.max(0, _ctx.round || 0));
-    picked = _pickWeighted(_fresh(IRREGULAR_VERBS, _recentV), (v) => {
+    const center = 1 + 4 * Math.min(1, (_runde() - 1) / Math.max(1, VERB_BOGEN_BIS - 1));
+    picked = _pickWeighted(_fresh(c, _recentV), (v) => {
       const d = (v.tier || 1) - center;
       // Mindestgewicht nur nach UNTEN: schon abgehakte Stufen bleiben als Auflockerung
       // immer möglich, während schwerere erst hochkommen, wenn der Schwerpunkt da ist.
       let w = Math.exp(-(d * d) / VERB_TIER_SPREAD);
       if (d < 0) w = Math.max(w, VERB_TIER_FLOOR);
       if (filled.has(v.en)) w *= VERB_FILLED_BONUS;
-      if (_learned({ de: v.de, en: v.en, _presetId: IRREGULAR_PRESET_ID }, suf)) w *= CF_LEARNED_WEIGHT;
       return w;
     });
+  } else {
+    picked = _pickWeighted(_fresh(list, _recentV), (v) => _weightOf(_verbItem(v), suf, mix.spaet));
   }
   _remember(_recentV, picked && picked.en);
   return picked;
@@ -806,7 +875,7 @@ function _startWave() {
   const { run, node } = _ctx;
   if (!run.fight) { _close(null); return; }
   const stock = _stock();
-  const pool = stock.own.concat(stock.preset);
+  const pool = stock.pool;
   const verbs = _verbPool();
 
   // Wellen-Typ wählen: 🌀 nur Verbformen (aber in drei Spielarten, _verbWaveType);
