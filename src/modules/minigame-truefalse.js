@@ -19,6 +19,8 @@ import { aufgabeKarte, sekText, steinHTML, passend, innenBreite } from './miniga
 
 const LOCK_OK_MS = 220;    // kurze Sperre nach richtig — verhindert Doppel-Tipp
 const LOCK_BAD_MS = 700;   // länger nach falsch: man soll das Paar noch sehen
+const LOCK_NEU_MS = 350;   // neues Paar nimmt kurz keine Tipps an — sonst zählt ein
+                           // schneller Doppeltipp blind fürs nächste Paar
 
 // Wort im Papier-Stein: lange Wörter werden kleiner statt über den Rand zu laufen
 // (wie die Lücken-Kacheln in 5.10) — 28 → 24 → 20 → 16 px. Platz hat ein Stein die
@@ -108,11 +110,11 @@ export function startTrueFalse({ host, pairs, timeLimitMs, onMiss, onRight, onRe
     locked = true;
     setTimeout(() => {
       if (done) return;
-      locked = false;
       _faerben(null);
       idx++;
-      if (idx >= pairs.length) _finish(true);
-      else _show();
+      if (idx >= pairs.length) { locked = false; _finish(true); return; }
+      _show();
+      setTimeout(() => { locked = false; }, LOCK_NEU_MS);
     }, delay);
   }
 
