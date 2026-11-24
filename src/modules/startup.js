@@ -33,7 +33,18 @@ export async function startupSequence() {
     if (!_startupComplete) return; // Startup-Fire ignorieren
     const prev = window.currentUser;
     window.currentUser = user;
-    if (prev && !user) handleLogout();           // Session abgelaufen oder Logout in anderem Tab
+    if (prev && !user) {
+      // Eigenes Abmelden über den Knopf: authLogout räumt selbst auf (mit Rückfrage).
+      if (window._abmeldenLaeuft) return;
+      // H6: Sitzung ohne Tipp beendet (abgelaufen, auf einem anderen Gerät oder in
+      // einem anderen Tab abgemeldet). Den lokalen Stand NICHT löschen — er gehört
+      // über es_stand_uid diesem Konto, die Merkliste geht beim nächsten Anmelden
+      // hoch, ein anderes Konto verwirft ihn (storage.js standFuerKonto).
+      // Neu laden statt aufräumen: der Start kennt alle Sonderfälle (Schnellmodus-
+      // Sicherung, Freundes-Ansicht) und landet ohne Sitzung auf der Anmeldung.
+      location.reload();
+      return;
+    }
     if (!prev && user) {
       // Steht der "Los geht's"-Gate offen, NICHT von hier aus weiterlaufen: das
       // SIGNED_IN-Event und authSubmit kommen praktisch gleichzeitig, und wer

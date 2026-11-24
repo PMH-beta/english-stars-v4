@@ -3,16 +3,19 @@
 
 const SK = 'english_stars_v3';
 const SK_OLD = 'english_stars_v2';
+// H7/B-13: wem der lokale Stand gehört (Nutzer-Id). Nur auf dem Gerät, nie in der Cloud.
+const OWNER_SK = 'es_stand_uid';
 
 /**
  * Speichert State-Object in localStorage und sessionStorage
  * @param {object} state
  */
-export function persist(state) {
+export function persist(state = window.SD) {
   // App-Tour: der Demo-Stand wird nie gespeichert (renderMenuDemo in ui.js).
   if (window._tourDemoAktiv || state?._tourDemo) return;
   if (state?._freundAnsicht) return;   // Fortschritt eines Freundes: nie als eigenen Stand speichern (K1)
   const json = JSON.stringify(state);
+  if (json === undefined) return;   // D-1: nie den Text „undefined“ ablegen
   try { localStorage.setItem(SK, json); } catch (e) {
     console.error('[storage] persist localStorage failed:', e);
   }
@@ -99,6 +102,29 @@ export function clearStorage() {
   try { localStorage.removeItem('es_sync_meta'); } catch(e) {}   // Legacy-Key
   try { localStorage.removeItem('es_sync_meta2'); } catch(e) {}
   try { localStorage.removeItem('es_schnell_backup'); } catch(e) {}
+  try { localStorage.removeItem(OWNER_SK); } catch(e) {}
+  try { sessionStorage.removeItem(SK); } catch(e) {}   // B-13: auch die Kopie im Tab
+}
+
+/**
+ * H7/B-13: Beim Anmelden prüfen, ob der lokale Stand (samt Merkliste und
+ * Schnellmodus-Sicherung) zu diesem Konto gehört. Gehört er einem anderen, wird
+ * er gelöscht, bevor ihn irgendetwas anzeigt oder hochlädt. Danach gilt das
+ * angemeldete Konto als Besitzer. Ein Stand ohne Besitzer (Gerät vor diesem
+ * Update) zählt als eigener, damit beim Update nichts verloren geht.
+ * @param {string} uid
+ * @returns {boolean} true, wenn ein fremder Stand verworfen wurde
+ */
+export function standFuerKonto(uid) {
+  if (!uid) return false;
+  let fremd = false;
+  try {
+    const besitzer = localStorage.getItem(OWNER_SK);
+    fremd = !!besitzer && besitzer !== uid;
+    if (fremd) clearStorage();
+    localStorage.setItem(OWNER_SK, uid);
+  } catch (e) {}
+  return fremd;
 }
 
 /**

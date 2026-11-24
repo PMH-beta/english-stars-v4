@@ -59,8 +59,18 @@ export async function signIn(email, password) {
 }
 
 export async function signOut() {
-  const { error } = await supabase.auth.signOut();
-  if (error) console.error('[auth] signOut:', error.message);
+  let error = null;
+  try { ({ error } = await supabase.auth.signOut()); } catch (e) { error = e; }
+  if (!error) return;
+  console.error('[auth] signOut:', error.message);
+  // B-14: Ohne Netz scheitert die Abmeldung beim Server, und Supabase lässt die
+  // Sitzung im Gerät liegen — nach dem Neuladen wäre das Kind wieder angemeldet.
+  // Dann die Sitzung hier selbst entfernen (gleicher Schlüssel wie cachedSessionUser).
+  try {
+    Object.keys(localStorage)
+      .filter((k) => /^sb-.+-auth-token(-code-verifier)?$/.test(k))
+      .forEach((k) => localStorage.removeItem(k));
+  } catch (e) {}
 }
 
 export async function resendConfirmation(email) {

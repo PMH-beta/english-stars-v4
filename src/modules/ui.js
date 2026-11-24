@@ -1,5 +1,5 @@
 // src/modules/ui.js
-import { persist, freshData, clearStorage } from './storage.js';
+import { persist, freshData, clearStorage, standFuerKonto } from './storage.js';
 import { effectivePct, statKeyFor, wortScore } from './stats.js';
 import { syncMirrorFromActiveDeck, deckProgress, presetProgressPct, renderDecks, renderModeSubBy, migrateStatKeys, migrateDeckModes, deckMode, activeDeckIdForMode, createDeck, deleteDeck, tourAufgeklappt, _modusZeile, renameDeck, talerGeholt } from './decks.js';
 import { getPresetCategories } from './vocab.js';
@@ -2616,9 +2616,23 @@ export async function authResend() {
   }
 }
 
+// H6 (Entscheidung 12.11.2026): Abmelden fragt immer nach. Liegt noch etwas in
+// der Merkliste, wird es vorher hochgeladen; klappt das nicht, warnt der Dialog.
 export async function authLogout() {
+  if (getPendingCount() > 0 && isCloudConfirmed() && navigator.onLine !== false) {
+    await Promise.race([flushPendingSync().catch(() => {}), new Promise((r) => setTimeout(r, 4000))]);
+  }
+  const offen = getPendingCount() > 0;
+  const ok = await window.esConfirm({
+    icon: offen ? '⚠️' : '🔑', title: 'Wirklich abmelden?',
+    body: offen ? 'Ohne Internet gehen nicht gespeicherte Änderungen verloren.' : '',
+    ok: 'Abmelden', cancel: 'Bleiben', cancelPrimary: true, danger: offen,
+  });
+  if (!ok) return;
   try { sessionStorage.setItem('force_account_picker', '1'); } catch(e) {}
-  await signOut();
+  // Das SIGNED_OUT dieses Abmeldens räumt hier auf, nicht im Listener (startup.js).
+  window._abmeldenLaeuft = true;
+  try { await signOut(); } finally { window._abmeldenLaeuft = false; }
   handleLogout();
 }
 
@@ -2728,8 +2742,24 @@ export async function cancelNewPassword() {
 // Balken, bis der Stand da ist; nach dem Tippen übernimmt handleLogin genau
 // dieses Ergebnis und geht direkt ins Menü.
 let _vorab = null;   // { uid, ergebnis: Promise<'ok'|'new'|'failed'> }
+// H7/B-13: gehört der lokale Stand einem anderen Konto, weg damit — bevor das
+// Menü-Gerüst ihn zeigt oder loadFromCloud seine Merkliste hochlädt.
+function _standPruefen(uid) {
+  if (!standFuerKonto(uid)) return;
+  console.warn('[Login] lokaler Stand gehörte einem anderen Konto — verworfen');
+  _schnellZuruecksetzen();
+  window.SD = freshData();
+  syncMirrorFromActiveDeck();
+}
+function _schnellZuruecksetzen() {
+  window.schnellByMode = { free: false, student: false, campaign: false };
+  window._schnellBackup = {};
+  window.isSchnellModus = false;
+  try { document.body.classList.remove('schnell-active'); } catch (e) {}
+}
 export function spielstandVorladen(user) {
   window.currentUser = user;
+  _standPruefen(user?.id);
   setCloudConfirmed(false);
   const ergebnis = loadFromCloud();
   ergebnis.catch(() => {});   // Fehler wertet handleLogin aus (try/catch dort)
@@ -2743,6 +2773,7 @@ export async function handleLogin(user) {
   const vorab = _vorab && _vorab.uid === user?.id ? _vorab : null;
   _vorab = null;
   window.currentUser = user;
+  _standPruefen(user?.id);
   if (!vorab) setCloudConfirmed(false);
   console.log('[handleLogin] CALLED with user:', user?.email, vorab ? '(vorab geladen)' : '');
   try {
@@ -3003,10 +3034,7 @@ export function handleLogout() {
   unsubscribeFriendRealtime();   // WebSocket schließen
   window.currentUser = null;
   // Schnell-Zustand zurücksetzen (SPA bleibt geladen) → kein Dark-Mode/AN nach Relogin.
-  window.schnellByMode = { free: false, student: false, campaign: false };
-  window._schnellBackup = {};
-  window.isSchnellModus = false;
-  try { document.body.classList.remove('schnell-active'); } catch (e) {}
+  _schnellZuruecksetzen();
   setCloudConfirmed(false);   // nächster Login muss den Cloud-Stand neu bestätigen
   clearStorage();             // entfernt auch es_sync_meta
   window.SD = freshData();
