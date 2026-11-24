@@ -114,11 +114,17 @@ export const CF_TOPF_MIX = [
 export const CF_BOGEN_FRUEH_C = 0.5;
 export const CF_BOGEN_SPAET_C = 0.10;
 export const CF_BOGEN_SPAET_W = 1.5;
-// Topf C (Wörter): leichte Sammlungen immer, mittlere ab Runde 4, schwere ab Runde 10.
+// Topf C (Wörter): neue Wörter kommen aus EINER Stufe (0 leicht · 1 mittel · 2 schwer ·
+// 3 B1/B2), die sich dem Kind anpasst (LU-06, 24.11.2026): von den letzten
+// CF_STUFE_FENSTER neuen Wörtern beim ersten Mal mind. CF_STUFE_HOCH richtig → Stufe
+// höher, höchstens CF_STUFE_RUNTER richtig → Stufe tiefer. Start = schwerste Vorlage,
+// die schon in einem eigenen Deck steht.
 // Höchstens CF_NEU_OFFEN angefangene, noch nicht gelernte neue Wörter gleichzeitig —
 // erst wenn eins sitzt, kommt ein weiteres neues dazu.
-export const CF_NEU_MITTEL_AB = 4;
-export const CF_NEU_SCHWER_AB = 10;
+export const CF_STUFE_FENSTER = 10;
+export const CF_STUFE_HOCH = 8;
+export const CF_STUFE_RUNTER = 4;
+export const CF_STUFE_MAX = 3;
 export const CF_NEU_OFFEN = 12;
 // Fälligkeit: Abstand bis zum nächsten Mal im Kampf, je Stufe (box). Richtig an einem
 // neuen Tag → eine Stufe höher, falsch → zurück auf Stufe 0 (1 Tag).

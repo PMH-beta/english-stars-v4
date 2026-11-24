@@ -314,6 +314,10 @@ function _campaignFrom(profile) {
       // Wortwahl im Kampf (LU-04): Tag+Stufe je Kampf-Wort und Tag des letzten Übens.
       cfZeit:     (c.cfZeit && typeof c.cfZeit === 'object' && !Array.isArray(c.cfZeit)) ? c.cfZeit : {},
       geuebt:     (c.geuebt && typeof c.geuebt === 'object' && !Array.isArray(c.geuebt)) ? c.geuebt : {},
+      // Stufe der neuen Kampf-Wörter (LU-06): { s: 0–3, r: '1011…' }; fehlt sie,
+      // rechnet campaign-fight.js sie aus den eigenen Decks neu.
+      cfStufe:    (c.cfStufe && Number.isInteger(c.cfStufe.s) && c.cfStufe.s >= 0 && c.cfStufe.s <= 3)
+                    ? { s: c.cfStufe.s, r: String(c.cfStufe.r || '').replace(/[^01]/g, '').slice(-10) } : undefined,
     };
   }
   return { claimed: [], talerSpent: 0, run: null, equipment: {}, bossWins: 0, round: 0, stats: {}, freeStart: false, carryPotions: null, runLen: 0 };

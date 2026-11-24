@@ -24,7 +24,7 @@
 // jsonb mit) → Reload mitten im Kampf verliert nichts; nur das aktuelle Wort der
 // Welle wird neu gezogen.
 
-import { scaledEnemy, roundTimeFactor, FORM_BONUS, TALISMAN_MULT, PERK_DOLCH_DODGE, STORM_BASE_MS, STORM_PER_LETTER_MS, STORM_MISS_DMG, WEAK_TIME_BONUS, WEAK_EMA, METEOR_FALL_MS, METEOR_COUNT, ECHO_TIME_MS, ECHO_CHOICES, TF_PAIRS, TF_TIME_MS, PERK_SPEER_BOSS, PERK_AXT_ELITE, PERK_HAMMER_MULT, PERK_BOGEN_FIGHT, POTION_HEAL, POTION_POWER, POTION_TIME_MS, POTION_TIME_WAVES, BOSS_WIN_TALER, BOSS_NOCHMAL_TALER, CF_MIN_ASKED, CF_MASTER, CF_NO_REPEAT, CF_SEEN_MIN, CF_LEARNED_WEIGHT, CF_TOPF_MIX, CF_BOGEN_FRUEH_C, CF_BOGEN_SPAET_C, CF_BOGEN_SPAET_W, CF_NEU_MITTEL_AB, CF_NEU_SCHWER_AB, CF_NEU_OFFEN, CF_ABSTAND, CF_W_FAELLIG, CF_W_NICHT_FAELLIG, CF_W_GEUEBT, CF_GEUEBT_TAGE, VERB_OWN_SEEN_MIN, VERB_BOGEN_BIS, VERB_TIER_SPREAD, VERB_TIER_FLOOR, VERB_FILLED_BONUS } from './campaign-balance.js';
+import { scaledEnemy, roundTimeFactor, FORM_BONUS, TALISMAN_MULT, PERK_DOLCH_DODGE, STORM_BASE_MS, STORM_PER_LETTER_MS, STORM_MISS_DMG, WEAK_TIME_BONUS, WEAK_EMA, METEOR_FALL_MS, METEOR_COUNT, ECHO_TIME_MS, ECHO_CHOICES, TF_PAIRS, TF_TIME_MS, PERK_SPEER_BOSS, PERK_AXT_ELITE, PERK_HAMMER_MULT, PERK_BOGEN_FIGHT, POTION_HEAL, POTION_POWER, POTION_TIME_MS, POTION_TIME_WAVES, BOSS_WIN_TALER, BOSS_NOCHMAL_TALER, CF_MIN_ASKED, CF_MASTER, CF_NO_REPEAT, CF_SEEN_MIN, CF_LEARNED_WEIGHT, CF_TOPF_MIX, CF_BOGEN_FRUEH_C, CF_BOGEN_SPAET_C, CF_BOGEN_SPAET_W, CF_STUFE_FENSTER, CF_STUFE_HOCH, CF_STUFE_RUNTER, CF_STUFE_MAX, CF_NEU_OFFEN, CF_ABSTAND, CF_W_FAELLIG, CF_W_NICHT_FAELLIG, CF_W_GEUEBT, CF_GEUEBT_TAGE, VERB_OWN_SEEN_MIN, VERB_BOGEN_BIS, VERB_TIER_SPREAD, VERB_TIER_FLOOR, VERB_FILLED_BONUS } from './campaign-balance.js';
 import { startLetterstorm, stormTarget } from './minigame-letterstorm.js';
 import { startMeteors } from './minigame-meteors.js';
 import { startEcho } from './minigame-echo.js';
@@ -129,6 +129,8 @@ function _statOf(item) {
 // (renderCampaign); solange nichts da ist, kämpft man nur mit den eigenen Wörtern.
 let _supply = null;
 const _DIFF_RANK = { leicht: 0, mittel: 1, schwer: 2 };
+// Stufe für die Anpassung (LU-06): B1/B2-Sammlungen (slug b1-/b2-) sind Stufe 3.
+const _stufeVon = (c) => (/^b[12]-/.test(c.slug || '') ? 3 : (_DIFF_RANK[c.difficulty] ?? 1));
 export async function loadPresetSupply() {
   if (_supply) return _supply;
   let cats = [];
@@ -136,13 +138,13 @@ export async function loadPresetSupply() {
   const out = [];
   const seen = new Set();
   const sorted = [...cats].sort((a, b) =>
-    ((_DIFF_RANK[a.difficulty] ?? 1) - (_DIFF_RANK[b.difficulty] ?? 1)) || ((a.sort_order || 0) - (b.sort_order || 0)));
+    (_stufeVon(a) - _stufeVon(b)) || ((a.sort_order || 0) - (b.sort_order || 0)));
   for (const c of sorted) {
     for (const w of (c.words || [])) {
       const key = (w.en || '').trim().toLowerCase();
       if (!w.de || !key || seen.has(key)) continue;
       seen.add(key);
-      out.push({ de: w.de, en: w.en, _presetId: c.id, _deck: null, _diff: c.difficulty || 'mittel' });
+      out.push({ de: w.de, en: w.en, _presetId: c.id, _deck: null, _stufe: _stufeVon(c) });
     }
   }
   if (out.length) _supply = out;   // leer = nicht cachen, nächster Versuch lädt neu
@@ -181,6 +183,7 @@ function _record(item, ok, suf) {
   const key = _cfKey(item, suf);
   if (!store[key]) store[key] = { asked: 0, correct: 0, wrong: 0, recent: '' };
   const s = store[key];
+  if (!suf && item._stufe != null && !(s.asked > 0)) _stufeBuchen(ok);   // LU-06: erste Begegnung
   s.asked += 1;
   if (ok) { s.correct += 1; zaehleRichtig(1); } else s.wrong += 1;   // LU-14 Wochenziel
   s.recent = ((s.recent || '') + (ok ? '1' : '0')).slice(-8);
@@ -232,8 +235,8 @@ function _zeitFaktor(item, suf) {
 // ── Drei Töpfe (LU-04) ───────────────────────────────────────────────────────
 // A = selbst angelegte Deck-Wörter, B = übernommene und geübte Vorlagen-Wörter,
 // C = Vorlagen aus Sammlungen, die in keinem Deck stehen (Nachschub). In C sind
-// leichte Sammlungen immer erlaubt, mittlere ab Runde CF_NEU_MITTEL_AB, schwere ab
-// CF_NEU_SCHWER_AB; schon angefangene C-Wörter bleiben unabhängig davon drin. Neue
+// neue Wörter nur aus der aktuellen Stufe (_stufe); ist sie aufgebraucht, aus der
+// nächsten darüber, sonst darunter. Schon angefangene C-Wörter bleiben drin. Neue
 // C-Wörter kommen nur, solange weniger als CF_NEU_OFFEN angefangen und nicht gelernt
 // sind. `pool` (A+B+angefangene C, bei Bedarf mit neuen C aufgefüllt) liefert die
 // Falschantworten und entscheidet, welche Wellenarten genug Wörter haben.
@@ -244,20 +247,50 @@ function _stock() {
   const inDeck = new Set();
   const decks = window.SD?.decks || {};
   for (const id in decks) for (const v of (decks[id].vocab || [])) if (v._presetId) inDeck.add(v._presetId);
-  const runde = _runde();
-  const erlaubt = (d) => d === 'leicht' || (d === 'schwer' ? runde >= CF_NEU_SCHWER_AB : runde >= CF_NEU_MITTEL_AB);
-  const begonnen = [], neu = [];
-  let offen = 0;
+  const begonnen = [], jeStufe = [];
+  let offen = 0, deckStufe = 0;
   for (const v of (_supply || [])) {
-    if (inDeck.has(v._presetId)) continue;
+    if (inDeck.has(v._presetId)) { deckStufe = Math.max(deckStufe, v._stufe); continue; }
     const st = _cfStat(v);
     if (st && (st.asked || 0) > 0) { begonnen.push(v); if (!_learned(v)) offen++; }
-    else if (erlaubt(v._diff)) neu.push(v);
+    else (jeStufe[v._stufe] ||= []).push(v);
+  }
+  const stufe = _supply?.length ? _stufe(deckStufe) : 0;   // ohne Vorlagen nichts festlegen
+  let neu = [];
+  for (const s of [stufe, stufe + 1, stufe + 2, stufe + 3, stufe - 1, stufe - 2, stufe - 3]) {
+    if (jeStufe[s]?.length) { neu = jeStufe[s]; break; }
   }
   const c = offen < CF_NEU_OFFEN ? begonnen.concat(neu) : begonnen;
   const pool = a.concat(b, begonnen);
   for (let i = 0; pool.length < 20 && i < neu.length; i++) pool.push(neu[i]);
   return { a, b, c, pool };
+}
+
+// ── Stufe der neuen Wörter (LU-06) ───────────────────────────────────────────
+// SD.campaign.cfStufe = { s: 0–3, r: '1011…' } — r = erste Antworten auf neue Wörter
+// (1 = richtig), höchstens CF_STUFE_FENSTER Zeichen. Fehlt s (Altstand, neues Konto),
+// startet die Stufe bei der schwersten Vorlage in einem eigenen Deck.
+function _stufe(deckStufe = 0) {
+  const c = window.SD?.campaign;
+  const st = c?.cfStufe;
+  if (st && Number.isInteger(st.s)) return Math.max(0, Math.min(CF_STUFE_MAX, st.s));
+  const s = Math.min(CF_STUFE_MAX, deckStufe);
+  if (c && typeof c === 'object') c.cfStufe = { s, r: '' };
+  return s;
+}
+function _stufeBuchen(ok) {
+  const c = window.SD?.campaign;
+  if (!c || typeof c !== 'object') return;
+  const s = _stufe();
+  let r = ((c.cfStufe?.r || '') + (ok ? '1' : '0')).slice(-CF_STUFE_FENSTER);
+  let neu = s;
+  if (r.length >= CF_STUFE_FENSTER) {
+    const richtig = r.split('').filter((x) => x === '1').length;
+    if (richtig >= CF_STUFE_HOCH && s < CF_STUFE_MAX) neu = s + 1;
+    else if (richtig <= CF_STUFE_RUNTER && s > 0) neu = s - 1;
+    if (neu !== s) r = '';
+  }
+  c.cfStufe = { s: neu, r };
 }
 
 // Anteile der Töpfe für die aktuelle Welle: nach Runde (CF_TOPF_MIX) und Spannungsbogen
