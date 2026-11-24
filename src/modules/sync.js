@@ -40,6 +40,20 @@ export function isCloudConfirmed() { return _cloudConfirmed; }
 let _knownSig = null;
 export function setKnownSig(sig) { if (sig) _knownSig = sig; }
 
+// S-3 (25.11.2026): Die eigenen Writes melden den updated_at ihrer Antwort. Ist
+// das je Tabelle einmal gegen die Signatur geprüft (der Trigger könnte die Zeit
+// auch erst NACH der Antwort setzen), spart der Flush danach die 5 Abfragen.
+// _eigenTs: größter gemeldeter Zeitstempel je Tabelle seit dem letzten Flush-Ende.
+// _eigenUnbekannt: ein Write kam ohne Zeitstempel zurück → Signatur wie bisher.
+const _eigenTs = {};
+let _eigenUnbekannt = false;
+const _tsGeprueft = new Set();
+function _merkeTs(tbl, rows) {
+  const t = _maxTs(rows);
+  if (!t) { _eigenUnbekannt = true; return; }
+  if (!_eigenTs[tbl] || t > _eigenTs[tbl]) _eigenTs[tbl] = t;
+}
+
 // Token-Resilienz: Vor REST-Calls sicherstellen, dass der Access-Token gültig ist.
 // getSession() liest nur den Cache (validiert NICHT serverseitig) → war das Gerät
 // länger im Hintergrund, ist der Token evtl. abgelaufen und autoRefresh (Timer)
@@ -367,8 +381,9 @@ export async function saveProfile(sd, userId) {
     .from('profiles')
     .update(payload)
     .eq('id', userId)
-    .select('id'));   // S-5: nur zum Erkennen von „0 Zeilen“ — nicht die ganze Zeile (bis 7 kB)
+    .select('id, updated_at'));   // S-5: nur zum Erkennen von „0 Zeilen“ — nicht die ganze Zeile (bis 7 kB); S-3: Zeitstempel
   if (error) throw new Error('[sync] saveProfile: ' + error.message);
+  _merkeTs('profiles', data);
   if (!data?.length) console.warn('[sync] saveProfile: 0 rows updated — Auth oder RLS?');
 }
 
@@ -399,17 +414,19 @@ export async function saveDeck(deck, userId) {
   console.log('[sync] saveDeck →', deck.id, '| vocab:', deck.vocab?.length ?? '?', 'words');   // S-6: nicht mehr die ganze Zeile samt Wortliste
 
   if (isUUID(deck.id)) {
-    const { error } = await fetchWithRetry(() => supabase
-      .from('decks').update(row).eq('id', deck.id).eq('user_id', userId));
+    const { data, error } = await fetchWithRetry(() => supabase
+      .from('decks').update(row).eq('id', deck.id).eq('user_id', userId).select('updated_at'));
     if (error) throw new Error('[sync] saveDeck update: ' + error.message);
+    _merkeTs('decks', data);   // S-3
     console.log('[sync] saveDeck update OK:', deck.id);
     return;
   }
 
   // Neues Deck: INSERT → Cloud gibt UUID zurück → lokal ersetzen
   const { data, error } = await fetchWithRetry(() => supabase
-    .from('decks').insert({ ...row, created_at: now }).select('id').single());
+    .from('decks').insert({ ...row, created_at: now }).select('id, updated_at').single());
   if (error) throw new Error('[sync] saveDeck insert: ' + error.message);
+  _merkeTs('decks', [data]);   // S-3
 
   const newId = data.id;
   if (window.SD?.decks[deck.id]) {
@@ -429,9 +446,10 @@ export async function saveDeck(deck, userId) {
 // ganze Zeile samt Wortliste hoch (23 Sammlungen = 23 volle Updates).
 export async function saveDeckSort(deckId, sortOrder, userId) {
   if (!isUUID(deckId)) return;
-  const { error } = await fetchWithRetry(() => supabase
-    .from('decks').update({ sort_order: sortOrder || 0 }).eq('id', deckId).eq('user_id', userId));
+  const { data, error } = await fetchWithRetry(() => supabase
+    .from('decks').update({ sort_order: sortOrder || 0 }).eq('id', deckId).eq('user_id', userId).select('updated_at'));
   if (error) throw new Error('[sync] saveDeckSort: ' + error.message);
+  _merkeTs('decks', data);   // S-3
 }
 
 export async function deleteCloudDeck(deckId, userId) {
@@ -484,10 +502,12 @@ export async function saveWordStats(deckCloudId, stats, userId) {
     wieder:   wiederFrom(s.wieder) ?? null,   // LU-15
   }));
   if (!rows.length) return;
-  const { error } = await fetchWithRetry(() => supabase
+  const { data, error } = await fetchWithRetry(() => supabase
     .from('word_stats')
-    .upsert(rows, { onConflict: 'user_id,deck_id,stat_key' }));
+    .upsert(rows, { onConflict: 'user_id,deck_id,stat_key' })
+    .select('updated_at'));   // S-3: je Zeile nur der Zeitstempel
   if (error) throw new Error('[sync] saveWordStats: ' + error.message);
+  _merkeTs('word_stats', data);
 }
 
 // S-2 (24.11.2026): preset_stats-Schlüssel, die dieses Gerät in der Cloud weiß —
@@ -514,10 +534,12 @@ export async function saveGlobalPresetStats(stats, userId) {
     wieder:     wiederFrom(s.wieder) ?? null,   // LU-15
   }));
   if (wordRows.length) {
-    const { error } = await fetchWithRetry(() => supabase
+    const { data, error } = await fetchWithRetry(() => supabase
       .from('preset_stats')
-      .upsert(wordRows, { onConflict: 'user_id,stat_key' }));
+      .upsert(wordRows, { onConflict: 'user_id,stat_key' })
+      .select('updated_at'));   // S-3
     if (error) throw new Error('[sync] saveGlobalPresetStats words: ' + error.message);
+    _merkeTs('preset_stats', data);
     wordRows.forEach((r) => _presetCloudKeys.add(r.stat_key));
   }
   // Cloud = SPIEGEL des lokalen Stands: Keys, die lokal nicht (mehr) existieren,
@@ -540,10 +562,12 @@ export async function saveGlobalPresetStats(stats, userId) {
     best_streak: cp.bestStreak || 0,
   }));
   if (catRows.length) {
-    const { error } = await fetchWithRetry(() => supabase
+    const { data, error } = await fetchWithRetry(() => supabase
       .from('preset_category_progress')
-      .upsert(catRows, { onConflict: 'user_id,preset_id' }));
+      .upsert(catRows, { onConflict: 'user_id,preset_id' })
+      .select('updated_at'));   // S-3
     if (error) throw new Error('[sync] saveGlobalPresetStats cats: ' + error.message);
+    _merkeTs('preset_category_progress', data);
   }
 }
 
@@ -729,8 +753,27 @@ async function _flushEinmal() {
 
   // Eigene Writes erfolgreich raus → bekannte Signatur nachziehen, damit der
   // Minuten-Check NICHT den eigenen Stand als „anderes Gerät" meldet.
+  // S-3: Sind alle geschriebenen Tabellen geprüft, reicht der Zeitstempel der
+  // Schreibantworten — sonst wie bisher die Signatur (und dabei prüfen).
   if (failed.length === 0) {
-    const s = await cloudSignature(userId);
+    const eigen = { ..._eigenTs };
+    const tabellen = Object.keys(eigen);
+    const unbekannt = _eigenUnbekannt;
+    tabellen.forEach((t) => { delete _eigenTs[t]; });
+    _eigenUnbekannt = false;
+    if (!tabellen.length && !unbekannt) return;   // nichts geschrieben (z.B. nur gelöscht)
+    if (!unbekannt && tabellen.every((t) => _tsGeprueft.has(t))) {
+      const t = _maxTs(tabellen.map((k) => ({ updated_at: eigen[k] })));
+      if (!_knownSig || Date.parse(t) > Date.parse(_knownSig)) _knownSig = t;
+      return;
+    }
+    const sig = await _signaturTabellen(userId);
+    if (!sig) return;
+    for (const t of tabellen) {
+      // Antwort-Zeit ≥ Cloud-Stand der Tabelle → die Antwort trägt den echten Wert.
+      if (sig[t] && Date.parse(eigen[t]) >= Date.parse(sig[t])) _tsGeprueft.add(t);
+    }
+    const s = _maxTs(Object.values(sig).filter(Boolean).map((v) => ({ updated_at: v })));
     if (s) _knownSig = s;
   }
 }
@@ -745,8 +788,8 @@ export function getPendingCount() {
 // ────────────────────────────────────────────────
 const SIG_TIMEOUT_MS = 4000;
 
-/** Größter updated_at über alle Bereiche des Users (billig, kurzer Timeout). */
-export async function cloudSignature(userId) {
+// Größter updated_at je Tabelle (null = Tabelle leer) oder null bei Fehler.
+async function _signaturTabellen(userId) {
   const top = (tbl) => supabase.from(tbl)
     .select('updated_at').eq('user_id', userId)
     .order('updated_at', { ascending: false }).limit(1);
@@ -757,14 +800,24 @@ export async function cloudSignature(userId) {
       top('decks'), top('word_stats'), top('preset_stats'), top('preset_category_progress'),
     ]), SIG_TIMEOUT_MS, 'cloudSignature');
     if (prof.error || decks.error || ws.error || ps.error || pcp.error) return null;
-    return _maxTs([
-      prof.data || null,
-      decks.data?.[0] || null, ws.data?.[0] || null, ps.data?.[0] || null, pcp.data?.[0] || null,
-    ].filter(Boolean));
+    return {
+      profiles:                 prof.data?.updated_at || null,
+      decks:                    decks.data?.[0]?.updated_at || null,
+      word_stats:               ws.data?.[0]?.updated_at || null,
+      preset_stats:             ps.data?.[0]?.updated_at || null,
+      preset_category_progress: pcp.data?.[0]?.updated_at || null,
+    };
   } catch (e) {
     console.warn('[sync] cloudSignature:', e?.message);
     return null;
   }
+}
+
+/** Größter updated_at über alle Bereiche des Users (billig, kurzer Timeout). */
+export async function cloudSignature(userId) {
+  const sig = await _signaturTabellen(userId);
+  if (!sig) return null;
+  return _maxTs(Object.values(sig).filter(Boolean).map((v) => ({ updated_at: v })));
 }
 
 /** True, wenn die Cloud NEUER ist als unser zuletzt bekannter Stand (= anderes Gerät schrieb). */
