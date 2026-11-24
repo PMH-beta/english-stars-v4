@@ -74,6 +74,9 @@ const PRECACHE = [
   './arena/A_kristall.png', './arena/A_vulkan.png', './arena/A_friedhof.png',
 ];
 
+// Deckel je Precache-Datei (SW-3): eine hängende Anfrage hielt install beliebig lange offen.
+const PRECACHE_TIMEOUT = 30000;
+
 self.addEventListener('install', e => {
   // cache:'reload' beim Precache → der neue SW holt die Shell frisch vom Netz,
   // nicht aus dem HTTP-Cache des Browsers. Sonst könnte er beim Install eine stale
@@ -82,17 +85,37 @@ self.addEventListener('install', e => {
   // Einzeln statt addAll(): addAll ist ATOMAR — eine einzige fehlende Datei hätte
   // den kompletten Precache verworfen, und das bisherige .catch(()=>{}) hat genau
   // das stillschweigend geschluckt. Jetzt fehlt im Zweifel eine Datei statt aller.
+  //
+  // SW-3 (24.11.2026): Brach das Netz mitten im Update ab, stand trotzdem ein neuer
+  // SW mit halbem Cache da, und activate() löschte den vollständigen alten → der
+  // nächste Offline-Start scheiterte an fehlenden Modulen. Jetzt: Netzfehler oder
+  // Zeitüberschreitung (nach einem zweiten Versuch) lassen die Installation
+  // scheitern — der alte SW bleibt samt Cache, der Browser versucht es beim
+  // nächsten Start erneut. Eine Datei, die der Server dauerhaft nicht hat (HTTP-
+  // Fehler), blockiert das Update dagegen nicht, sonst hinge die App ewig fest.
   e.waitUntil(caches.open(CACHE).then(async c => {
-    const results = await Promise.allSettled(PRECACHE.map(async u => {
+    const hole = async (u) => {
+      const ab = new AbortController();
+      const t = setTimeout(() => ab.abort(), PRECACHE_TIMEOUT);
       // 'no-cache' statt 'reload': beides fragt beim Server nach (keine stale Datei
       // im Precache), aber 'no-cache' erlaubt ein 304. Mit 'reload' lud der neue SW
       // bei JEDEM Versionssprung alle 42 Dateien komplett neu — obwohl die Seite sie
       // Sekunden vorher schon geholt hatte. Gemessen: jede Shell-Datei zweimal.
-      const r = await fetch(new Request(u, { cache: 'no-cache' }));
-      if (!r.ok) throw new Error(u + ' → HTTP ' + r.status);
-      return c.put(u, r);
+      try {
+        const r = await fetch(new Request(u, { cache: 'no-cache', signal: ab.signal }));
+        if (!r.ok) { const f = new Error(u + ' → HTTP ' + r.status); f.dauerhaft = true; throw f; }
+        await c.put(u, r);
+      } finally { clearTimeout(t); }
+    };
+    const results = await Promise.allSettled(PRECACHE.map(async u => {
+      try { await hole(u); }
+      catch (err) { if (err && err.dauerhaft) throw err; await hole(u); }   // ein zweiter Versuch
     }));
     const failed = results.filter(r => r.status === 'rejected');
+    const netz = failed.filter(f => !(f.reason && f.reason.dauerhaft));
+    if (netz.length) {
+      throw new Error('[SW] Precache abgebrochen (' + netz.length + '/' + PRECACHE.length + ' ohne Netz) — alter Stand bleibt');
+    }
     if (failed.length) {
       console.warn('[SW] Precache unvollständig (' + failed.length + '/' + PRECACHE.length + '):',
         failed.map(f => f.reason && f.reason.message));
