@@ -44,6 +44,7 @@ import { getConstellations, IRREGULAR_VERBS, IRREGULAR_PRESET_ID, verbsByEns } f
 import { uvFormPracticed } from './irregular-game.js';
 import { getPresetCategories } from './vocab.js';
 import { markDirty } from './sync.js';
+import { zaehleRichtig } from './lernwoche.js';
 
 // Titel in der Kopfleiste: Kachel in der Farbe der Knotenart + Wort (F.1, F.8, F.11).
 const _TITLE = {
@@ -181,7 +182,7 @@ function _record(item, ok, suf) {
   if (!store[key]) store[key] = { asked: 0, correct: 0, wrong: 0, recent: '' };
   const s = store[key];
   s.asked += 1;
-  if (ok) s.correct += 1; else s.wrong += 1;
+  if (ok) { s.correct += 1; zaehleRichtig(1); } else s.wrong += 1;   // LU-14 Wochenziel
   s.recent = ((s.recent || '') + (ok ? '1' : '0')).slice(-8);
   _merkeZeit(item, ok, suf);
   if (item._presetId) _ctx.cfPreset = true;

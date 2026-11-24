@@ -11,6 +11,7 @@ import { IRREGULAR_PRESET_ID, IRREGULAR_VERBS, formDistractors, UV_TRAIN_SUF } f
 import { iconHTML } from './pixel-icons.js';
 import { setGrundton } from './screen-shell.js';
 import { schnellSichern, schnellZurueck } from './schnell-stand.js';
+import { zaehleRichtig, wochenStand, wochenChipHTML, frischGeschafftAbholen } from './lernwoche.js';
 
 // Game state – all on window.* so Commit B functions (still in index.html) can read them as globals
 window.isSchnellModus = false;            // gespiegelter Zustand des AKTIVEN Modus
@@ -1346,6 +1347,7 @@ function _merkeAntwortFuerCloud(q) {
 function handleCorrect() {
   try{
     window.streak++;window.totalCorrect++;
+    zaehleRichtig(1);   // LU-14 Wochenziel
     if(window.streak>window.bestStreak) window.bestStreak=window.streak;
     const baseBonus=window.streak>=5?30:window.streak>=3?20:10;
     const bonus=window.isFreePlay?0:(window.isRetryPhase?Math.floor(baseBonus/2):baseBonus);
@@ -1664,6 +1666,13 @@ function commitProgress() {
   return commitDirty();
 }
 
+// LU-14: Stand des Wochenziels am Rundenende (Tour-Demo zählt nicht).
+function _endeWoche(){
+  const el=document.getElementById('end-woche');
+  if(!el) return;
+  el.innerHTML=window.SD&&!window.SD._tourDemo ? wochenChipHTML(wochenStand(), frischGeschafftAbholen()) : '';
+}
+
 function showEnd() {
   hideFeedback();saveProgress();
   if(window.isExamMode){
@@ -1701,6 +1710,7 @@ function showEnd() {
     { const rb=document.getElementById('end-restart-btn'); if(rb) rb.style.display=window.isProbetest?'none':''; }
     _endeZahlen(window.points, window.totalCorrect+'/'+totalQ, window.bestStreak, true);
     document.getElementById('end-hs-msg').innerHTML=newHS?_hsChip():'';
+    _endeWoche();
     // Bei der Pruefung steht die Note im Kreis statt eines Pokals (4.14).
     document.getElementById('end-emoji').innerHTML='<span class="p-pokal-note">'+grade+'</span>';
     document.getElementById('end-title').textContent=window.isUV?('Vollwandlung — '+gradeText(grade)):gradeText(grade);
@@ -1734,6 +1744,7 @@ function showEnd() {
   { const rb=document.getElementById('end-restart-btn'); if(rb) rb.style.display=''; }
   _endeZahlen(window.points, window.totalCorrect, window.bestStreak, false);
   document.getElementById('end-hs-msg').innerHTML=newHS?_hsChip():'';
+  _endeWoche();
   const erst=window._ersterDurchgang;
   const pct=erst ? erst.richtig/Math.max(1,erst.fragen) : window.totalCorrect/Math.max(1,window.questionIndex);
   // Pokal und Sterne als Pixelgrafik. Die Zahl der Sterne traegt die Aussage,

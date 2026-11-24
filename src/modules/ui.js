@@ -22,6 +22,7 @@ import { renderFriendsSection, refreshFriendBadge, friendProgress, subscribeFrie
 import { renderCampaign, renderCampaignDemo, updateTalerBadge, refreshClaimedTaler } from './campaign.js';
 import { tourStarten, tourLaeuft, tourZurueck, tourAbbrechen, TOUR_SCHRITTE } from './tour.js';
 import { itemTag, forgeTag, forgeGrauTag, PART_ANIM } from './world.js';
+import { wochenStand, wochenBannerHTML, wochenHinweisText, wochenHinweisAus, wochenHinweisWeg, wochenTageHTML, wochenBalkenHTML, lernTageFrom, frischGeschafftAbholen, WOCHE_TALER } from './lernwoche.js';
 
 // ────────────────────────────────────────────────
 //  AUTH UI STATE
@@ -1803,10 +1804,32 @@ export function showMenu() {
     }
   }
   refreshFriendBadge();         // roter Anfrage-Zähler über dem Profilkopf
+  renderWochenBanner();         // LU-14: Wochenziel im Banner + Erinnerung
+  if (frischGeschafftAbholen()) { try { window.esToast?.(`Wochenziel geschafft! +${WOCHE_TALER} Taler`); } catch (e) {} }
   // App-Tour (F-14): steht sie noch aus (neuer Spielstand), startet sie hier —
   // der Installier-Hinweis wartet dann bis zum nächsten Menü.
   if (window.SD.campaign?.tourSeen === false) { if (!tourLaeuft()) tourStarten('start'); }
   else installHinweisEinmal();  // 9.2: einmal beim dritten Start im Browser (iPhone/iPad)
+}
+
+// LU-14 Wochenziel im Menü: Zahl im Spielerbanner und die Erinnerung darunter
+// (Wunsch: „mein Wochenziel läuft ab“ — ab Donnerstag, solange es offen ist).
+export function renderWochenBanner() {
+  const st = wochenStand();
+  const el = document.getElementById('menu-woche');
+  if (el) el.innerHTML = wochenBannerHTML(st);
+  const h = document.getElementById('menu-woche-hinweis');
+  if (!h) return;
+  const text = window.SD?._tourDemo || wochenHinweisAus() ? '' : wochenHinweisText(st);
+  h.innerHTML = text
+    ? `<div class="lw-hinweis" role="button" tabindex="0" onclick="zeigeWochenkarte()">${iconHTML('calendar', 28)}`
+      + `<span class="lw-hinweis-text">${text}</span>`
+      + `<button type="button" class="lw-hinweis-zu" aria-label="Für heute ausblenden" onclick="event.stopPropagation();wochenHinweisSchliessen()">${iconHTML('close', 14)}</button></div>`
+    : '';
+}
+export function wochenHinweisSchliessen() {
+  wochenHinweisWeg();
+  renderWochenBanner();
 }
 
 // ────────────────────────────────────────────────
@@ -1997,6 +2020,7 @@ function _friendState(s) {
     activeDeckId: null,
     decks: s.decks || {},
     uvFills: Array.isArray(s.uvFills) ? s.uvFills : null,
+    lernTage: lernTageFrom(s.lernTage),   // LU-14 (bereinigt: nur Zahlen)
     categoryProgress: {
       vocab:       { played: 0, correct: 0, bestStreak: 0 },
       spelling:    { played: 0, correct: 0, bestStreak: 0 },
@@ -2054,7 +2078,8 @@ export async function showStats() {
   const catById = Object.fromEntries((categories || []).map(c => [c.id, c]));
 
   // Reihenfolge wie im Hauptmenü-Toggle: Kampagne · Vokabeln · Probetest · Unregelmäßige.
-  host.innerHTML = _fsAbschnitt('map', 'Kampagne', _campaignBlock())
+  host.innerHTML = _fsAbschnitt('calendar', 'Wochenziel', _wocheBlock())
+    + _fsAbschnitt('map', 'Kampagne', _campaignBlock())
     + _fsAbschnitt('book', 'Vokabeln', _activePresetsBlock(freeDecks, catById) + _customWordsBlock(freeDecks))
     + _fsAbschnitt('test', 'Probetest', _probetestBlock())
     + _fsAbschnitt('hammer', 'Unregelmäßige', _uvLernstandBlock() + _uvTrainStatsBlock());
@@ -2128,6 +2153,22 @@ function _vocabWordRows(words, ws, presetId) {
     an: ['_mc', '_sp', '_pr'].map((suf) => wortScore(ws, v, suf, presetId).mastered),
   }));
   return _fsWortListe(zeilen, 'lila', ['Wählen', 'Schreiben', 'Sprechen']);
+}
+
+// LU-14 Wochenziel: diese Woche und wie oft geschafft; in der Freund-Ansicht
+// darunter jeweils der eigene Wert („du …“). wochenStand bereinigt fremde Werte
+// zu Zahlen (lernTageFrom), es kommt also kein HTML aus dem Freundes-Konto durch.
+function _wocheBlock() {
+  const st = wochenStand(window.SD);
+  const ich = _ichZumVergleich();
+  const du = ich ? wochenStand(ich) : null;
+  const kachel = (icon, zahl, label, gold, duText) => `<div class="fs-kachel${gold ? ' is-gold' : ''}">`
+    + `<div class="fs-kachel-kopf">${iconHTML(icon, 28)}<span class="fs-kachel-zahl">${zahl}</span></div>`
+    + `<div class="fs-kachel-lbl">${label}</div>${duText ? `<div class="fs-du">${duText}</div>` : ''}</div>`;
+  return `<div class="fs-kacheln lw-kacheln">`
+    + kachel(st.ok ? 'check' : 'calendar', `${st.summe}/${st.ziel}`, 'Diese Woche', st.ok, du && `du ${du.summe}/${du.ziel}`)
+    + kachel('trophy', `${st.geschafftGesamt}×`, 'Geschafft', false, du && `du ${du.geschafftGesamt}×`)
+    + `</div><div class="fs-lauf lw-fs-woche">${wochenBalkenHTML(st)}${wochenTageHTML(st)}</div>`;
 }
 
 // Kampagne nach 8.3: Rekord-Karte, sechs Kennzahlen, aktueller Lauf.
@@ -2989,6 +3030,8 @@ function showMenuSkeleton(mode = window.SD?.activeMode || 'free') {
   if (nm) nm.innerHTML = 'Lädt<span data-ui="dots" style="display:inline-block;width:1.2em;text-align:left">…</span>';
   const tl = document.getElementById('menu-taler');       if (tl) tl.textContent = '–';
   const bs = document.getElementById('menu-bosses');      if (bs) bs.textContent = '–';
+  const wo = document.getElementById('menu-woche');       if (wo) wo.innerHTML = '';
+  const wh = document.getElementById('menu-woche-hinweis'); if (wh) wh.innerHTML = '';
   const av = document.getElementById('menu-avatar');      if (av) { av.innerHTML = ''; av.classList.add('is-leer'); }
   const ft = document.getElementById('menu-footer');      if (ft) ft.style.display = 'flex';
   const pt = document.getElementById('probetest-section');

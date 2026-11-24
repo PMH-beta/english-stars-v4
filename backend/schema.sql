@@ -398,7 +398,7 @@ BEGIN
   SELECT jsonb_build_object(
     'playerName',p.player_name,'avatar',p.avatar,'highscore',p.highscore,
     'totalPoints',p.total_points,'uvFills',p.uv_fills,
-    'campaign',p.campaign,'createdAt',p.created_at,
+    'campaign',p.campaign,'createdAt',p.created_at,'lernTage',p.lern_tage,
     'decks',COALESCE((SELECT jsonb_object_agg(d.id::text, jsonb_build_object(
         'id',d.id,'name',d.name,'vocab',d.vocab,'categoryProgress',d.category_progress,
         'presetCategories',d.preset_categories,'deckPath',d.deck_path,'mode',d.mode,
@@ -444,3 +444,11 @@ REVOKE ALL ON profiles, decks, word_stats, exams, preset_categories,
 -- auf Tabellen, die danach von derselben Rolle angelegt werden — bewusst nicht
 -- aktiviert, weil es auch Supabase-eigene Automatik betreffen kann:
 -- ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM anon;
+
+-- ─────────────────────────────────────────────
+-- LU-14 WOCHENZIEL (24.11.2026)
+-- ─────────────────────────────────────────────
+-- Richtige Antworten je Tag + geschaffte Wochen (SD.lernTage). Eigene Spalte statt
+-- campaign, damit eine spaetere Rangliste (LU-11) sie direkt lesen kann.
+-- get_friend_progress oben liefert sie als 'lernTage' mit.
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS lern_tage jsonb;

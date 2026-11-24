@@ -3,6 +3,7 @@
 import { supabase } from './supabase.js';
 import { persist } from './storage.js';
 import { echteDeckStats, echtePresetStats } from './schnell-stand.js';
+import { lernTageFrom, ZIEL_STANDARD } from './lernwoche.js';   // LU-14 (Kreis-Import: nur zur Laufzeit gelesen)
 
 // ────────────────────────────────────────────────
 //  UTILS
@@ -143,7 +144,7 @@ export async function cloudLoad(userId) {
 
 async function _cloudLoadOnce(userId, signal) {
   const [profileRes, decksRes, wordStatsRes, presetStatsRes, presetCatProgRes, probetestsRes] = await Promise.all([
-    fetchWithRetry(() => supabase.from('profiles').select('player_name, highscore, total_points, active_deck_id, active_mode, uv_active, uv_fills, avatar, campaign, updated_at').eq('id', userId).abortSignal(signal).maybeSingle()),
+    fetchWithRetry(() => supabase.from('profiles').select('player_name, highscore, total_points, active_deck_id, active_mode, uv_active, uv_fills, avatar, campaign, lern_tage, updated_at').eq('id', userId).abortSignal(signal).maybeSingle()),
     fetchWithRetry(() => supabase.from('decks').select('*').eq('user_id', userId).order('sort_order').order('created_at').abortSignal(signal)),
     // S-4: nur die gebrauchten Spalten (id/user_id waren ~45 % der Rohdaten).
     _selectAll(() => supabase.from('word_stats').select('deck_id, stat_key, asked, correct, wrong, recent, updated_at').eq('user_id', userId).order('deck_id').order('stat_key').abortSignal(signal)),
@@ -215,6 +216,7 @@ async function _cloudLoadOnce(userId, signal) {
       totalPoints:  profile.total_points || 0,
       activeMode:   profile.active_mode  || 'free',
       uvFills:      Array.isArray(profile.uv_fills) ? profile.uv_fills : null,
+      lernTage:     lernTageFrom(profile.lern_tage),
       activeDeckId: null,
       decks:        {},
       categoryProgress: { ...EMPTY_CAT },
@@ -267,6 +269,7 @@ async function _cloudLoadOnce(userId, signal) {
     activeMode:       profile.active_mode || 'free',
     uvFills:          Array.isArray(profile.uv_fills) ? profile.uv_fills : null,
     avatar:           (profile.avatar && typeof profile.avatar === 'object') ? profile.avatar : null,
+    lernTage:         lernTageFrom(profile.lern_tage),
     activeDeckId,
     decks,
     categoryProgress: { ...EMPTY_CAT },
@@ -338,6 +341,12 @@ export async function saveProfile(sd, userId) {
   // rekonstruiert _camp() beim Laden ohnehin.
   if (Array.isArray(sd.uvFills)) payload.uv_fills = sd.uvFills;
   if (sd.avatar && typeof sd.avatar === 'object') payload.avatar = sd.avatar;
+  // LU-14: Wochenziel nur schreiben, wenn es etwas zu sagen hat (frisches Gerät
+  // überschreibt so nie gefüllte Cloud-Tage).
+  const lt = sd.lernTage;
+  if (lt && typeof lt === 'object' && (Object.keys(lt.tage || {}).length || Object.keys(lt.wochen || {}).length || lt.ziel !== ZIEL_STANDARD)) {
+    payload.lern_tage = lernTageFrom(lt);
+  }
   const c = sd.campaign;
   const statsAny = !!c && !!c.stats && typeof c.stats === 'object'
     && Object.values(c.stats).some(v => Number(v) > 0);

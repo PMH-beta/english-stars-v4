@@ -4836,3 +4836,56 @@ body.tour-aktiv #menu-screen{ pointer-events:none; }
   font:800 12px var(--p-font); color:var(--p-ink);
 }
 .vm-lizenz{ display:block; margin-top:12px; text-align:center; font:700 11px var(--p-font); color:var(--p-text-2); }
+
+/* ── LU-14 Wochenziel (24.11.2026) ───────────────────────────────────────── */
+/* Banner: dritte Kennzahl neben Kronen und Taler; Tipp öffnet die Wochenkarte. */
+.lw-banner{ cursor:pointer; }
+.lw-banner:empty{ display:none !important; }
+/* Erinnerung unter dem Spielerbanner (ab Donnerstag, solange offen). */
+.lw-hinweis{
+  display:flex; align-items:center; gap:10px; margin-top:10px; cursor:pointer;
+  border:var(--p-rahmen); border-radius:var(--p-r-btn); background:var(--p-pfirsich);
+  padding:9px 8px 9px 11px; font:800 11.5px/1.4 var(--p-font); color:var(--p-ink);
+}
+.lw-hinweis > canvas, .lw-hinweis > img{ flex:none; }
+.lw-hinweis-text{ flex:1; min-width:0; }
+.lw-hinweis-zu{
+  flex:none; width:44px; height:44px; margin:-8px -4px -8px 0; padding:0;
+  border:0; background:none; display:flex; align-items:center; justify-content:center; cursor:pointer;
+}
+/* Wochenkarte (Dialog) */
+.lw-zahl{ font:800 13px var(--p-font); margin-top:10px; }
+.lw-zahl b{ font:900 26px var(--p-font); }
+.lw-balken{ margin-top:9px; height:12px; border:var(--p-rahmen); border-radius:8px; overflow:hidden; background:var(--p-spur); }
+.lw-balken i{ display:block; height:100%; background:var(--p-gold); }
+.lw-unter{ font:800 11px var(--p-font); color:var(--p-text-2); margin-top:7px; }
+.lw-tage{ display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:5px; margin-top:13px; }
+.lw-tag{ display:flex; flex-direction:column; align-items:center; gap:4px; }
+.lw-tag-k{
+  width:100%; max-width:36px; aspect-ratio:1; box-sizing:border-box;
+  border:var(--p-rahmen-leer); border-radius:var(--p-r-slot); background:var(--p-karte);
+  display:flex; align-items:center; justify-content:center;
+}
+.lw-tag.is-ja .lw-tag-k{ border:var(--p-rahmen); background:var(--p-ok); }
+.lw-tag.is-zukunft .lw-tag-k{ border:var(--p-rahmen-unverdient); background:var(--p-inaktiv); }
+.lw-tag-l{ font:800 10px var(--p-font); color:var(--p-text-2); }
+.lw-tag.is-heute .lw-tag-l{ color:var(--p-ink); font-weight:900; text-decoration:underline; text-underline-offset:3px; }
+.lw-legende{ display:flex; align-items:center; justify-content:center; gap:5px; font:800 10px var(--p-font); color:var(--p-text-2); margin-top:8px; }
+.lw-trenner{ border-top:var(--p-trenner); margin:14px 0 10px; }
+.lw-zeile{ display:flex; align-items:center; justify-content:space-between; gap:10px; font:800 12px var(--p-font); text-align:left; margin-top:6px; }
+.lw-zeile b{ font:900 15px var(--p-font); }
+.lw-ziele{ display:flex; gap:6px; }
+.lw-ziel{
+  min-width:48px; height:44px; padding:0 8px;
+  border:var(--p-rahmen); border-radius:var(--p-r-slot); background:var(--p-inaktiv);
+  font:900 13px var(--p-font); color:var(--p-ink); cursor:pointer;
+}
+.lw-ziel.is-an{ background:var(--p-ink); color:var(--p-gold); }
+.lw-klein{ font:700 10.5px var(--p-font); color:var(--p-text-2); text-align:left; margin-top:3px; min-height:1px; }
+.lw-klein:empty{ display:none; }
+/* Rundenende */
+#end-woche{ display:flex; justify-content:center; margin-top:8px; }
+#end-woche:empty{ display:none; }
+/* Fortschritt-Seite */
+.lw-kacheln{ grid-template-columns:repeat(2,minmax(0,1fr)); }
+.lw-fs-woche .lw-balken{ margin-top:0; }

@@ -11,6 +11,8 @@ import { charReiter, charOption, charSchritt, charFarbe } from './modules/avatar
 import { tourAnsehen } from './modules/tour.js';
 import { showScreen, saveName, showMenu, showProfile, editPlayerName, showCharacter, showCharacterOnboarding, finishCharacterOnboarding, closeCharacter, charSpeichern, charNameBearbeiten, charZurSchmiede, showStats, showFriendStats, closeFriendStats, confirmReset, showFeedback, hideFeedback, exportData, importData, showAuth, authToggleMode, authSubmit, authResend, authLogout, authGoogleSignIn, handleLogin, handleLogout, showPasswordReset, submitPasswordReset, showNewPasswordScreen, submitNewPassword, cancelNewPassword, setActiveMode, renderModeContent, openProbetestPicker, toggleProbetestHistory, deleteProbetestEntry, uvFlip, uvSlide, uvSetForm, uvInfo, uvWaffenInfo, uvOpenFill, uvTestForge, uvTestForgeRandom, toggleUvTraining, uvTrainOpenCreate, uvTrainDelete, uvTrainToggleDeck, uvTrainChooseForms, uvTrainReset, uvTrainOpenStats, uvTrainRename, onAppResume, resumeNachholen, checkForRemoteChange, softRefresh } from './modules/ui.js';
 import { pwaInstall } from './modules/pwa.js';
+import { zeigeWochenkarte } from './modules/lernwoche.js';
+import { renderWochenBanner, wochenHinweisSchliessen } from './modules/ui.js';
 import { startConstellationStar, startConstellationForm, startUvTraining, uvProgress, uvTeilMeldung } from './modules/irregular-game.js';
 import { openVocabManager, openPresetDeckStats, vmTab, renderVocabList, parsePastedText, onScanFile, scanBildWeg, scanZsLos, scanBildTipp, scanPlus, rvBildOeffnen, rvBildPlus, rvZurueck, showReview, renderReviewList, removeReviewItem, addReviewItem, confirmAddVocab, rvEingabe, rvGeaendert, rvRueckgaengig, renderPresetsTab, togglePresetCategory, vmBack, vmRenameActiveDeck, newDeckFlow, newDeckPreset, newDeckCustom, confirmAbortDraft } from './modules/vocab.js';
 import { onFriendSearchInput, onFriendSearchEnter, sendFriendRequest, respondFriendRequest, cancelFriendRequest, confirmRemoveFriend, openFriendStats, refreshFriendBadge, refreshFriendsLive } from './modules/friends.js';
@@ -166,6 +168,9 @@ window.charOption = charOption;
 window.charSchritt = charSchritt;
 window.charFarbe = charFarbe;
 window.showStats = showStats;
+window.zeigeWochenkarte = zeigeWochenkarte;   // LU-14
+window.renderWochenBanner = renderWochenBanner;
+window.wochenHinweisSchliessen = wochenHinweisSchliessen;
 window.confirmReset = confirmReset;
 window.showFeedback = showFeedback;
 window.hideFeedback = hideFeedback;
