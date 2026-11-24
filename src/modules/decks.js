@@ -486,6 +486,16 @@ function _endDrag() {
 // ────────────────────────────────────────────────
 //  DECK UI ACTIONS
 // ────────────────────────────────────────────────
+// B-01: Die Cloud hat einer neuen Sammlung ihre Id gegeben (sync.js). Aufgeklappte
+// Karte und gemerktes Deck je Modus mitziehen und neu zeichnen — sonst trug die
+// Karte noch die alte Id und der erste Tipp ging ins Leere.
+export function deckIdGetauscht(alt, neu) {
+  if (_expandedDeckId === alt) _expandedDeckId = neu;
+  const m = window.SD?.activeDeckByMode;
+  if (m) for (const k in m) if (m[k] === alt) m[k] = neu;
+  renderDecks();
+}
+
 export function toggleDeck(id) {
   _weichDecks(() => {
     _expandedDeckId = (_expandedDeckId === id) ? null : id;
@@ -527,7 +537,7 @@ export function openDeckStats(id) {
   const dn = document.getElementById('vm-deck-name');
   if (dn) dn.textContent = 'Statistik: ' + deck.name;
   const ba = document.getElementById('vm-back-area');
-  if (ba) ba.innerHTML = '<button class="p-back" onclick="vmBack()"><canvas data-icon="back" width="14" height="14" style="width:28px;height:28px;image-rendering:pixelated;flex:none"></canvas></button>';
+  if (ba) ba.innerHTML = '<button class="p-back" aria-label="Zurück" onclick="vmBack()"><canvas data-icon="back" width="14" height="14" style="width:28px;height:28px;image-rendering:pixelated;flex:none"></canvas></button>';
   const tabsEl = document.querySelector('.vm-tabs');
   if (tabsEl) tabsEl.innerHTML = '';
   const aa = document.getElementById('vm-action-area');

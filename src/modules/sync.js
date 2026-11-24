@@ -382,6 +382,7 @@ export async function saveDeck(deck, userId) {
     window.SD.decks[newId] = { ...window.SD.decks[deck.id], id: newId };
     delete window.SD.decks[deck.id];
     if (window.SD.activeDeckId === deck.id) window.SD.activeDeckId = newId;
+    try { window.deckIdGetauscht?.(deck.id, newId); } catch (e) {}   // B-01
     persist(window.SD);
     // Profile mit neuer active_deck_id aktualisieren
     if (window.SD.activeDeckId === newId) {

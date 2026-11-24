@@ -831,7 +831,7 @@ function renderQuestion(q) {
     // Aussprache nach 4.7–4.10: runder Mikrofon-Knopf (Ringe beim Zuhören),
     // Zustand darunter, Pegel als 9 Balken (echte Lautstärke, F-21), Kasten „Gehört".
     html+=`<div class="p-fragekarte">${head}${frage}
-      <div class="mic-rund-platz"><button class="mic-btn" id="mic-btn" onclick="startRecording()" data-ui="pulse" data-a="4">`
+      <div class="mic-rund-platz"><button class="mic-btn" id="mic-btn" aria-label="Sprechen" onclick="startRecording()" data-ui="pulse" data-a="4">`
       +`<span class="mic-ring mic-ring--1" data-ui="ring" data-a="9" data-d="0"></span>`
       +`<span class="mic-ring mic-ring--2" data-ui="ring" data-a="7" data-d="6"></span>${iconHTML('mic',56)}</button></div>
       <div class="mic-label" id="pronounce-tip">Tippen und sprechen</div>

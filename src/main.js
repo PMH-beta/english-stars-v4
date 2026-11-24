@@ -6,7 +6,7 @@ import { _initTTS, speakWord, speakWordOnce, ensureMicStream, releaseMicStream, 
 import { _trackUrl, _discoverTracks, _playNext, _initAudio, startMusic, startMusicSync, stopMusic, setMusicVolume, _setMusicBtns, toggleMusic, toggleVolPopup } from './modules/audio.js';
 import { effectivePct, isMastered } from './modules/stats.js';
 import { buildPool, toggleSchnell, syncSchnellForMode, startGame, confirmHome, goHomeSaving, nextQuestion, restartSame, checkMC, submitType, checkOrder, showSelfRateButtons, retryPronounce, evaluateWithClaude, setMicFinalStatus, _sfx, playSfx } from './modules/game.js';
-import { syncMirrorFromActiveDeck, activeDeck, switchDeck, createDeck, deleteDeck, renameDeck, deckProgress, renderDecks, toggleDeck, activateDeck, startGameWithDeck, newDeckPrompt, renameDeckPrompt, confirmDeleteDeck, resetDeckProgress, vmDeleteWord, vmEditWord, vmAddManual, vmAddEingabe, vmAddVerlassen, vmAddRueckgaengig, openDeckStats } from './modules/decks.js';
+import { syncMirrorFromActiveDeck, activeDeck, switchDeck, createDeck, deleteDeck, renameDeck, deckProgress, renderDecks, deckIdGetauscht, toggleDeck, activateDeck, startGameWithDeck, newDeckPrompt, renameDeckPrompt, confirmDeleteDeck, resetDeckProgress, vmDeleteWord, vmEditWord, vmAddManual, vmAddEingabe, vmAddVerlassen, vmAddRueckgaengig, openDeckStats } from './modules/decks.js';
 import { charReiter, charOption, charSchritt, charFarbe } from './modules/avatar.js';
 import { tourAnsehen } from './modules/tour.js';
 import { showScreen, saveName, showMenu, showProfile, editPlayerName, showCharacter, showCharacterOnboarding, finishCharacterOnboarding, closeCharacter, charSpeichern, charNameBearbeiten, charZurSchmiede, showStats, showFriendStats, closeFriendStats, confirmReset, showFeedback, hideFeedback, exportData, importData, showAuth, authToggleMode, authSubmit, authResend, authLogout, authGoogleSignIn, handleLogin, handleLogout, showPasswordReset, submitPasswordReset, showNewPasswordScreen, submitNewPassword, cancelNewPassword, setActiveMode, renderModeContent, openProbetestPicker, toggleProbetestHistory, deleteProbetestEntry, uvFlip, uvSlide, uvSetForm, uvInfo, uvWaffenInfo, uvOpenFill, uvTestForge, uvTestForgeRandom, toggleUvTraining, uvTrainOpenCreate, uvTrainDelete, uvTrainToggleDeck, uvTrainChooseForms, uvTrainReset, uvTrainOpenStats, uvTrainRename, onAppResume, checkForRemoteChange, softRefresh } from './modules/ui.js';
@@ -111,6 +111,7 @@ window.deleteDeck = deleteDeck;
 window.renameDeck = renameDeck;
 window.deckProgress = deckProgress;
 window.renderDecks = renderDecks;
+window.deckIdGetauscht = deckIdGetauscht;
 window.toggleDeck = toggleDeck;
 window.activateDeck = activateDeck;
 window.startGameWithDeck = startGameWithDeck;

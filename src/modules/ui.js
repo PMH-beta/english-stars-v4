@@ -852,7 +852,7 @@ export function uvTrainOpenStats(id) {
   const dn = document.getElementById('vm-deck-name');
   if (dn) dn.innerHTML = _uvTrainNameHtml(deck);
   const ba = document.getElementById('vm-back-area');
-  if (ba) ba.innerHTML = '<button class="p-back" onclick="showMenu()"><canvas data-icon="back" width="14" height="14" style="width:28px;height:28px;image-rendering:pixelated;flex:none"></canvas></button>';
+  if (ba) ba.innerHTML = '<button class="p-back" aria-label="Zurück" onclick="showMenu()"><canvas data-icon="back" width="14" height="14" style="width:28px;height:28px;image-rendering:pixelated;flex:none"></canvas></button>';
   const tabsEl = document.querySelector('.vm-tabs');
   if (tabsEl) tabsEl.innerHTML = '';
   const aa = document.getElementById('vm-action-area');
@@ -875,8 +875,8 @@ export function uvTrainOpenStats(id) {
   // (preset-row: Füll-Verlauf + % rechts, fertig = grün). % wie auf der Karte.
   const per = ['erkennen', 'schmieden', 'verzaubern'].map((d) => uvTrainProgress(deck, d));
   const total = per.reduce((s, p) => s + p.total, 0);
-  const mastered = per.reduce((s, p) => s + p.mastered, 0);
-  const pct = total ? Math.round(mastered / total * 100) : 0;
+  const score = per.reduce((s, p) => s + p.score, 0);   // B-12: Punkte wie die Karte
+  const pct = total ? Math.round(score / total * 100) : 0;
   // Übersichtskarte wie 5.5: Name, Verben · Formen, Prozent, Balken in Flieder.
   const tileHtml = `<div class="vm-gesamt">
     <div class="vm-gesamt-kopf">

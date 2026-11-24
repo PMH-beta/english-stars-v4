@@ -63,7 +63,7 @@ export function openVocabManager(deckId) {
   if (backArea) {
     // In einer neuen, noch nicht bestätigten Sammlung wirkt Zurück wie
     // „Abbrechen" (F-44, Fragment 3.2) — mit derselben Rückfrage.
-    backArea.innerHTML = '<button class="p-back" onclick="' + (window._draftDeck ? 'confirmAbortDraft()' : 'vmBack()')
+    backArea.innerHTML = '<button class="p-back" aria-label="Zurück" onclick="' + (window._draftDeck ? 'confirmAbortDraft()' : 'vmBack()')
       + '"><canvas data-icon="back" width="14" height="14" style="width:28px;height:28px;image-rendering:pixelated;flex:none"></canvas></button>';
   }
   if (window.SD?.activeMode === 'free' && (!deck.deckPath || deck.deckPath === 'none')) {
@@ -313,7 +313,7 @@ export async function openPresetDeckStats(deckId) {
   const dn = document.getElementById('vm-deck-name');
   if (dn) dn.textContent = 'Statistik: ' + deck.name;
   const ba = document.getElementById('vm-back-area');
-  if (ba) ba.innerHTML = '<button class="p-back" onclick="vmBack()"><canvas data-icon="back" width="14" height="14" style="width:28px;height:28px;image-rendering:pixelated;flex:none"></canvas></button>';
+  if (ba) ba.innerHTML = '<button class="p-back" aria-label="Zurück" onclick="vmBack()"><canvas data-icon="back" width="14" height="14" style="width:28px;height:28px;image-rendering:pixelated;flex:none"></canvas></button>';
   const tabsEl = document.querySelector('.vm-tabs');
   if (tabsEl) tabsEl.innerHTML = '';
   const aa = document.getElementById('vm-action-area');
@@ -1124,7 +1124,7 @@ let _presetCache = null;
 let _presetLoading = false;
 
 async function _loadPresetCategories() {
-  if (_presetCache !== null) return _presetCache; // null = noch nie geladen; [] = geladen aber leer
+  if (_presetCache !== null) return _presetCache; // null = noch nicht (erfolgreich) geladen
   if (_presetLoading) {
     while (_presetLoading) await new Promise(r => setTimeout(r, 80));
     return _presetCache || [];
@@ -1138,8 +1138,12 @@ async function _loadPresetCategories() {
       .order('sort_order');
     console.log('[presets] data:', JSON.stringify(data), 'error:', error);
     if (error) throw error;
-    _presetCache = data || [];
-    console.log('[presets] gecacht:', _presetCache.length, 'Kategorien');
+    // B-02: Eine leere Antwort (Netz wackelt, Tabelle kurz leer) nicht für die ganze
+    // Sitzung merken — der nächste Tab-Click fragt erneut.
+    _presetCache = data && data.length ? data : null;
+    console.log('[presets] gecacht:', (data || []).length, 'Kategorien');
+    _presetLoading = false;
+    return data || [];
   } catch(e) {
     console.warn('[presets] Laden fehlgeschlagen:', e.message);
     _presetCache = null; // Bei Fehler nicht cachen → nächster Tab-Click versucht es erneut
