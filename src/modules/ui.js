@@ -2024,6 +2024,14 @@ export async function showStats() {
   }
   const sh = document.getElementById('stats-hs'); if (sh) sh.textContent = _fsZahl(SD.highscore || 0);
   const sp = document.getElementById('stats-pts'); if (sp) sp.textContent = _fsZahl(SD.totalPoints || 0);
+  // LU-12: in der Freund-Ansicht unter jeder Zahl die eigene („du …“).
+  const ich = _ichZumVergleich();
+  [[sh, ich && ich.highscore], [sp, ich && ich.totalPoints]].forEach(([el, wert]) => {
+    const box = el && el.parentElement;
+    if (!box) return;
+    box.querySelector('.fs-du')?.remove();
+    if (ich) box.insertAdjacentHTML('beforeend', _fsDu(wert));
+  });
 
   const host = document.getElementById('profile-decks-summary');
   if (!host) return;
@@ -2057,6 +2065,14 @@ function _fsAbschnitt(icon, titel, inner) {
     + `<span class="fs-abschnitt-titel">${titel}</span><span class="fs-abschnitt-linie"></span></div>${inner}`;
 }
 function _fsKicker(text) { return `<div class="fs-kicker">${text}</div>`; }
+// LU-12: eigener Stand zum Vergleich — nur in der Freund-Ansicht (sonst null).
+function _ichZumVergleich() {
+  return (_statsFriendMode && _friendSDBackup && !_friendSDBackup._freundAnsicht) ? _friendSDBackup : null;
+}
+function _fsDu(wert, einheit = '') {
+  const n = Math.round(Number(wert));
+  return `<div class="fs-du">du ${_fsZahl(Number.isFinite(n) ? n : 0)}${einheit}</div>`;
+}
 
 // Fortschritt-Karte nach 8.3: Titel, Unterzeile, Prozent, Balken; fertig = Mint
 // mit „erledigt" und ohne Balken. Mit Liste aufklappbar (Pfeil wie 8.3, offen
@@ -2120,9 +2136,18 @@ function _campaignBlock() {
   // (Sicherheitsprüfung 14.10.2026: Schadcode lief sonst beim Betrachter).
   const zahl = (v) => { const n = Math.round(Number(v)); return Number.isFinite(n) ? n : 0; };
   const rekord = zahl(st.bestRun), rekordBosse = zahl(st.bestRunBosses);
-  const kachel = (icon, zahl, label, gold) => `<div class="fs-kachel${gold ? ' is-gold' : ''}">`
+  // LU-12: eigene Zahlen daneben (nur Freund-Ansicht), gleiche Rechnung wie oben.
+  const ichSD = _ichZumVergleich();
+  const ic = ichSD && ichSD.campaign && typeof ichSD.campaign === 'object' ? ichSD.campaign : (ichSD ? {} : null);
+  const ist = ic && ic.stats && typeof ic.stats === 'object' ? ic.stats : {};
+  const du = ic ? {
+    rekord: ist.bestRun || 0, bosse: ic.bossWins || 0,
+    taler: Math.max(0, (Array.isArray(ic.claimed) ? ic.claimed.length : 0) - (typeof ic.talerSpent === 'number' ? ic.talerSpent : 0)),
+    fight: ist.fight || 0, irregular: ist.irregular || 0, potions: ist.potions || 0, treasures: ist.treasures || 0,
+  } : null;
+  const kachel = (icon, zahl, label, gold, duWert) => `<div class="fs-kachel${gold ? ' is-gold' : ''}">`
     + `<div class="fs-kachel-kopf">${iconHTML(icon, 28)}<span class="fs-kachel-zahl">${_fsZahl(zahl)}</span></div>`
-    + `<div class="fs-kachel-lbl">${label}</div></div>`;
+    + `<div class="fs-kachel-lbl">${label}</div>${du ? _fsDu(duWert) : ''}</div>`;
   let lauf;
   const run = c.run;
   if (run && run.map) {
@@ -2148,12 +2173,12 @@ function _campaignBlock() {
   return `<div class="fs-rekord">
       <span class="fs-rekord-ic">${iconHTML('trophy', 42)}</span>
       <div class="fs-rekord-text"><div class="fs-rekord-kicker">Rekord · längster Lauf</div>
-        <div class="fs-rekord-wert">${_fsZahl(rekord)} ${rekord === 1 ? 'Reihe' : 'Reihen'}</div></div>
+        <div class="fs-rekord-wert">${_fsZahl(rekord)} ${rekord === 1 ? 'Reihe' : 'Reihen'}</div>${du ? _fsDu(du.rekord, du.rekord === 1 ? ' Reihe' : ' Reihen') : ''}</div>
       <span class="fs-rekord-chip">${iconHTML('crown', 14)}${rekordBosse} ${rekordBosse === 1 ? 'Boss' : 'Bosse'}</span>
     </div>
     <div class="fs-kacheln">
-      ${kachel('crown', bosses, 'Bosse', true)}${kachel('coin', taler, 'Taler', true)}${kachel('sword', st.fight || 0, 'Gegner')}
-      ${kachel('orb', st.irregular || 0, 'Unregelm.')}${kachel('potion', st.potions || 0, 'Tränke')}${kachel('gem', st.treasures || 0, 'Schätze')}
+      ${kachel('crown', bosses, 'Bosse', true, du && du.bosse)}${kachel('coin', taler, 'Taler', true, du && du.taler)}${kachel('sword', st.fight || 0, 'Gegner', false, du && du.fight)}
+      ${kachel('orb', st.irregular || 0, 'Unregelm.', false, du && du.irregular)}${kachel('potion', st.potions || 0, 'Tränke', false, du && du.potions)}${kachel('gem', st.treasures || 0, 'Schätze', false, du && du.treasures)}
     </div>
     <div class="fs-lauf">${lauf}
       <div class="fs-gescheitert">${iconHTML('skull', 14)}${_fsZahl(lost)} ${lost === 1 ? 'Lauf' : 'Läufe'} gescheitert</div>

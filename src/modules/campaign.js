@@ -836,9 +836,14 @@ function _mapHtml(run) {
   }
   // Die Karte liegt in einer eigenen Karte; die Legende „offen / später" ist weg
   // (Wunsch des Nutzers 09.10.2026) — offene Punkte leuchten ohnehin golden.
+  // LU-17: Rekord (längster Lauf, gleiche Zahl wie „Run-Länge“ und Fortschritt-Seite)
+  // rechts in der Kicker-Zeile, damit man sieht, was es zu schlagen gibt.
+  const rekord = _camp().stats.bestRun || 0;
+  const rekordHtml = rekord > 0
+    ? `<span class="camp-rekord">${iconHTML('trophy', 14)}Rekord ${rekord}</span>` : '';
   return `${header}
   <div class="p-karte" style="border-radius:24px;padding:15px 13px;margin-top:12px">
-    <div class="p-kicker" style="border:0;padding:0;margin-bottom:12px">Pfad wählen</div>
+    <div class="p-kicker" style="border:0;padding:0;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:8px"><span>Pfad wählen</span>${rekordHtml}</div>
     <div id="camp-map" style="position:relative;width:100%;height:${_MAP_H}px;">
       <svg id="camp-edges" style="position:absolute;inset:0;width:100%;height:100%;z-index:1;" viewBox="0 0 100 ${_MAP_H}" preserveAspectRatio="none"></svg>
       ${nodesHtml}
