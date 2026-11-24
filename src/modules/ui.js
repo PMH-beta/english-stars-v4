@@ -445,6 +445,10 @@ function _applyModeActiveDeck(mode) {
   syncMirrorFromActiveDeck();
 }
 
+// S-8 (24.11.2026): Jeder Reitertipp war ein Cloud-Speichern (ganzes Profil samt
+// campaign-JSON + 5 Signatur-Abfragen). Der Merker steht sofort (übersteht auch das
+// Schließen der App), hochgeladen wird gebündelt 3 s nach dem letzten Wechsel.
+let _modusSpeichern = null;
 export async function setActiveMode(mode) {
   const valid = ['free', 'student', 'campaign'];
   if (!valid.includes(mode)) mode = 'free';
@@ -452,7 +456,11 @@ export async function setActiveMode(mode) {
   _applyModeActiveDeck(mode);   // aktives Deck des Modus in den Spiegel
   persist(window.SD);
   renderModeContent(mode);   // sofort rendern (responsiv)
-  if (window.currentUser) { markDirty('profile'); await commitDirty(); }
+  if (window.currentUser) {
+    markDirty('profile');
+    clearTimeout(_modusSpeichern);
+    _modusSpeichern = setTimeout(() => { commitDirty(); }, 3000);
+  }
 }
 
 // ── Unregelmäßige: Trainingsplatz (oben, aufklappbar) + die Schmiede ──
