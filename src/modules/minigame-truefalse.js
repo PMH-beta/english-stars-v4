@@ -9,8 +9,10 @@
 //
 // Schnittstelle: startTrueFalse({host, pairs, timeLimitMs, onMiss, onRight, onResult}) →
 // {destroy, pause, resume}. pairs = [{de, en, ok}] in Spielreihenfolge (ok = das Paar
-// stimmt); onResult(success, timeLeftMs, offen) wird genau einmal gerufen (offen =
-// noch nicht beurteilte Paare), onMiss bei JEDEM Fehlurteil, onRight bei jedem richtigen.
+// stimmt); onResult(success, timeLeftMs, offen, offenGezeigt) wird genau einmal gerufen
+// (offen = noch nicht beurteilte Paare, offenGezeigt = Index des gezeigten, noch
+// unbeurteilten Paares oder -1), onMiss(i) bei JEDEM Fehlurteil, onRight(i) bei jedem richtigen
+// (i = Index des Paares in pairs).
 // pause()/resume() frieren die Restzeit exakt ein.
 
 import { playSfx } from './game.js';
@@ -102,7 +104,8 @@ export function startTrueFalse({ host, pairs, timeLimitMs, onMiss, onRight, onRe
     if (timer) clearInterval(timer);
     host.querySelector('#tf-no').disabled = true;
     host.querySelector('#tf-yes').disabled = true;
-    onResult(success, Math.max(0, endAt - Date.now()), pairs.length - urteil.filter((u) => u != null).length);
+    onResult(success, Math.max(0, endAt - Date.now()), pairs.length - urteil.filter((u) => u != null).length,
+      idx < pairs.length && urteil[idx] == null ? idx : -1);
   }
 
   // Nach der Rückmeldung zum nächsten Paar — oder fertig, wenn keins mehr kommt.
@@ -125,7 +128,7 @@ export function startTrueFalse({ host, pairs, timeLimitMs, onMiss, onRight, onRe
       urteil[idx] = true;
       _kaestchen();
       _faerben(true);
-      if (onRight) onRight();
+      if (onRight) onRight(idx);
       _next(LOCK_OK_MS);
       return;
     }
@@ -134,7 +137,7 @@ export function startTrueFalse({ host, pairs, timeLimitMs, onMiss, onRight, onRe
     _faerben(false);
     urteil[idx] = false;
     _kaestchen();
-    if (onMiss) onMiss();
+    if (onMiss) onMiss(idx);
     if (!done) _next(LOCK_BAD_MS);   // onMiss kann tödlich sein → Kampf schon vorbei
   }
 

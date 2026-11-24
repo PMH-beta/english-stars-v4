@@ -877,13 +877,12 @@ function _startWave() {
       });
     }
   } else if (type === 'truefalse') {
-    // „Stimmt das?": mehrere Paare in EINER Welle. Der Lernstand hängt wie bei jeder
-    // anderen Welle an genau einem Wort (dem ersten gezogenen) — die übrigen Paare
-    // kommen aus derselben gewichteten Ziehung und sind durch _fresh alle verschieden.
+    // „Stimmt das?": mehrere Paare in EINER Welle, alle aus derselben gewichteten
+    // Ziehung und durch _fresh verschieden. Der Lernstand hängt hier je Paar am
+    // eigenen Wort (K-5, _tfBuche) — nicht wie sonst an einem Wort der Welle.
     const items = [];
     for (let i = 0; i < TF_PAIRS; i++) { const it = _pickItem(stock); if (it) items.push(it); }
     if (!items.length) { _close(null); return; }
-    _ctx.cfItem = items[0];
     // Etwa halb/halb, aber nie alle gleich — sonst hat man die Welle nach zwei Paaren
     // durchschaut.
     const nOk = Math.floor(items.length / 2) + (Math.random() < 0.5 ? 0 : 1);
@@ -896,8 +895,10 @@ function _startWave() {
       return { de: it.de, en: wrong || right, ok: oks[i] || !wrong };
     });
     _ctx.tfPaare = pairs.length;
+    _ctx.tf = { items, pairs };
     _ctx.mg = startTrueFalse({ host, pairs, timeLimitMs: zeit(TF_TIME_MS),
-      onMiss: () => _tfSchlag(pairs.length), onRight: () => _tfTreffer(pairs.length), onResult: _onWave });
+      onMiss: (i) => { _tfBuche(i, false); _tfSchlag(pairs.length); },
+      onRight: (i) => { _tfBuche(i, true); _tfTreffer(pairs.length); }, onResult: _onWave });
   } else if (type === 'meteors') {
     const item = _ctx.cfItem = _pickItem(stock);
     const answer = _displayEn(item.en);
@@ -960,6 +961,18 @@ function _naechsterSchlag(ctx) {
   }, 0);
 }
 
+// Lernstand je Paar (K-5): ein richtiges Paar zeigt die echte Übersetzung — das
+// Urteil zählt dann als gewusst bzw. nicht gewusst. Ein falsches Paar zeigt sie
+// nicht: es richtig abzulehnen beweist das Wort nicht (keine Buchung), es für
+// richtig zu halten heißt aber, das Wort nicht sicher zu kennen.
+function _tfBuche(i, ok) {
+  const tf = _ctx?.tf;
+  const p = tf?.pairs[i];
+  if (!p) return;
+  if (p.ok) _record(tf.items[i], ok, null);
+  else if (!ok) _record(tf.items[i], false, null);
+}
+
 function _tfTreffer(teile) {
   const ctx = _ctx;
   if (!ctx) return;
@@ -1012,10 +1025,10 @@ function _tfSchlag(teile) {
 }
 
 // offen = bei Richtig/Falsch die Paare, die beim Zeitablauf noch nicht beurteilt waren.
-function _onWave(success, _rest, offen = 0) {
+function _onWave(success, _rest, offen = 0, gezeigt = -1) {
   if (!_ctx) return;
   // Laufen noch Schläge (Richtig/Falsch), erst danach auswerten.
-  if (_ctx.angriffe?.length) { _ctx.nachAngriffen = () => _onWave(success, _rest, offen); return; }
+  if (_ctx.angriffe?.length) { _ctx.nachAngriffen = () => _onWave(success, _rest, offen, gezeigt); return; }
   const { run, node, enemy, weapon, eff, save } = _ctx;
   const f = run.fight;
   if (!f) return;
@@ -1032,6 +1045,9 @@ function _onWave(success, _rest, offen = 0) {
   // Richtig/Falsch: Held und Gegner haben schon je Paar zugeschlagen (_tfTreffer,
   // _tfSchlag) — am Ende kommt kein weiterer Angriff, die nächste Welle beginnt.
   // Lief die Zeit erst nach dem letzten Urteil ab, ist nichts mehr offen.
+  // Richtig/Falsch bei Zeitablauf: das gerade gezeigte Paar war nicht rechtzeitig
+  // gewusst (K-5) — die noch nicht gezeigten bleiben ungebucht.
+  if (_ctx.waveType === 'truefalse' && !success && gezeigt >= 0) _tfBuche(gezeigt, false);
   if (_ctx.waveType === 'truefalse' && (success || !offen)) {
     f.wave++; save();
     setTimeout(() => { if (_ctx) _startWave(); }, 300);
