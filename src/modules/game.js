@@ -743,7 +743,10 @@ function showQuestion() {
     }
   }
   if(window.questionIndex>=window.questionPool.length){
-    if(!window.isUV&&!window.isFreePlay&&!window.isRetryPhase&&!window.isExamMode&&window.wrongQueue.length>0){
+    // V-1 (24.11.2026): auch die Schmiede (uvslot) wiederholt falsche Verben einmal am
+    // Rundenende — der Trainingsplatz nicht.
+    const nochmalErlaubt=!window.isUV||window.mode==='uvslot';
+    if(nochmalErlaubt&&!window.isFreePlay&&!window.isRetryPhase&&!window.isExamMode&&window.wrongQueue.length>0){
       window.isRetryPhase=true;
       // B-04: Lob/Sterne zählen den ersten Durchgang, „gespielt“ alle Fragen.
       window._ersterDurchgang={ fragen: window.questionIndex, richtig: window.totalCorrect };
