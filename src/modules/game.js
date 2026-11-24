@@ -88,6 +88,9 @@ function _spTo(w){
 }
 // Vergleich beim Tippen: steht „to" schon davor, zählt die Antwort mit und ohne.
 const spOhneTo=q=>s=>q&&q.vorsatz ? s.replace(/^to\s+/i,'') : s;
+// Tippen (4.5): Handy-Apostroph, doppelte Leerzeichen und Satzzeichen am Ende
+// (Punkt durch Doppel-Leerzeichen) zählen nicht als Fehler — beide Seiten gleich.
+const tippNorm=s=>s.replace(/[’‘´`]/g,"'").replace(/\s+/g,' ').trim().replace(/[.!?,;:]+$/,'').trim();
 // Rechtschreibung (F-71–F-75): drei Aufgaben je Wort — Buchstabe einsetzen,
 // Buchstaben sortieren, Wort schreiben. Gezogen wird zufällig, gleich oft, unter
 // den Aufgaben, die beim Wort noch offen sind; ist das Wort abgeschlossen, unter
@@ -248,7 +251,12 @@ function bRufen(item, which, lvl, suf){
     return {...base,question:_uvBadge('all')+_uvInstr('Sprich alle drei Formen')+_uvWord(item.de,true),answer:chain};
   }
   // leicht/mittel: nur das deutsche Wort, Zielform aus dem Kopf sprechen
-  return {...base,question:_uvHead(item.de,which,'Sprich die Form',''),answer:target};
+  // F-F: der Lautschlüssel hört „sing“ und „sang“ gleich — die anderen Formen
+  // desselben Verbs werden darum ausdrücklich abgelehnt.
+  const ziel=(mt.get(item)||'').split('/').map(s=>s.trim().toLowerCase());
+  const falsch=[item.en,item.forms.past,item.forms.participle].join('/').split('/')
+    .map(s=>s.trim().toLowerCase().replace(/^to\s+/,'')).filter(s=>s&&!ziel.includes(s));
+  return {...base,question:_uvHead(item.de,which,'Sprich die Form',''),answer:target,falsch};
 }
 
 // 🔨 Schmieden (Tippen, schreiben)
@@ -1043,8 +1051,8 @@ export function submitType() {
   // Knopf ausgrauen, sobald geprüft ist (wie beim Sortieren) — vorher sah er noch tippbar aus.
   const knopf=document.querySelector('#game-card .submit-btn'); if(knopf) knopf.disabled=true;
   const ohneTo=spOhneTo(window.currentQ);
-  const corrects=window.currentQ.answer.split('/').map(x=>ohneTo(x.trim().toLowerCase()));
-  const ok=corrects.includes(ohneTo(val.toLowerCase()));
+  const corrects=window.currentQ.answer.split('/').map(x=>ohneTo(tippNorm(x.toLowerCase())));
+  const ok=corrects.includes(ohneTo(tippNorm(val.toLowerCase())));
   inp.classList.add(ok?'correct':'wrong');
   // Wackeln wie die falsche Kachel in 4.3 (8 Takte, dann Ruhe).
   if(!ok){ inp.dataset.c='24'; inp.dataset.d='20'; inp.dataset.ui='shake'; }
@@ -1143,10 +1151,13 @@ export async function evaluateWithClaude(recognizedText, targetWord) {
        .replace(/(.)\1+/g,'$1');
     return s;
   }
+  const falsch=window.currentQ?.falsch||[];
   const ok=alts.some(a=>{
     const c=a.replace(/^to /,'').trim();
     if(c===target) return true;
     const tW=target.split(/\s+/), cW=c.split(/\s+/);
+    // F-F: andere Form desselben Verbs gehört (z. B. „sing“ für sang) → falsch.
+    if(falsch.length && !cW.includes(target) && cW.some(w=>falsch.includes(w))) return false;
     if(tW.length>1){
       const content=tW.filter(w=>w.length>2);
       if(content.length>0 && content.every(w=>c.includes(w))) return true;

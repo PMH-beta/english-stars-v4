@@ -771,7 +771,9 @@ function _regularPast(en) {
   return w + 'ed';
 }
 function _verbDistractors(v, which, n) {
-  const seen = new Set([_displayEn(which === 'past' ? v.past : v.pp).toLowerCase()]);
+  // Alle „/“-Schreibweisen sperren (burnt/burned …) — sonst steht die zweite richtige
+  // Form als Falschantwort da (K-3).
+  const seen = new Set(((which === 'past' ? v.past : v.pp) || '').split('/').map(s => s.trim().toLowerCase()));
   const out = [];
   const add = (form) => {
     const s = _displayEn(form);
