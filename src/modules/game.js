@@ -10,6 +10,7 @@ import { commitDirty } from './dialog.js';
 import { IRREGULAR_PRESET_ID, IRREGULAR_VERBS, formDistractors, UV_TRAIN_SUF } from './irregular-verbs.js';
 import { iconHTML } from './pixel-icons.js';
 import { setGrundton } from './screen-shell.js';
+import { schnellSichern, schnellZurueck } from './schnell-stand.js';
 
 // Game state – all on window.* so Commit B functions (still in index.html) can read them as globals
 window.isSchnellModus = false;            // gespiegelter Zustand des AKTIVEN Modus
@@ -596,20 +597,11 @@ export function toggleSchnell() {
   const btnId = mode==='student' ? 'student-schnell-toggle' : 'schnell-toggle';
 
   if(!window.schnellByMode[mode]){
-    // → AN (nur dieser Modus), erst nach der Rückfrage 2.10: echten Stand der
-    // Modus-Decks sichern + auf 0.
+    // → AN (nur dieser Modus), erst nach der Rückfrage 2.10: echte Vokabel-Stände
+    // der Modus-Wörter sichern + auf 0. Kampf, Schmiede, Training bleiben (K2).
     _schnellFragen().then((ja)=>{
       if(!ja) return;
-      const backup={decks:{},preset:null};
-      for(const [id,d] of _decksOfMode(sd, mode)){
-        backup.decks[id]=JSON.parse(JSON.stringify(d.wordStats||{}));
-        d.wordStats={};
-      }
-      if(mode==='free' && sd.globalPresetStats){
-        backup.preset=JSON.parse(JSON.stringify(sd.globalPresetStats.wordStats||{}));
-        sd.globalPresetStats.wordStats={};
-      }
-      window._schnellBackup[mode]=backup;
+      window._schnellBackup[mode]=schnellSichern(sd, mode);
       window.schnellByMode[mode]=true;
       window.isSchnellModus=true;
       _persistSchnellBackup();
@@ -627,9 +619,12 @@ export function toggleSchnell() {
         if(!ok) return;
         const b=window._schnellBackup[mode];
         if(b){
-          for(const [id,ws] of Object.entries(b.decks||{})){ if(sd.decks&&sd.decks[id]) sd.decks[id].wordStats=ws; }
-          if(b.preset&&sd.globalPresetStats) sd.globalPresetStats.wordStats=b.preset;
+          schnellZurueck(sd, mode, b);
           window._schnellBackup[mode]=null;
+          // K2: Cloud auf den echten Stand bringen (falls eine ältere App-Version
+          // Schnell-Stände hochgeladen hat).
+          for(const [id] of _decksOfMode(sd, mode)) markDirty('word_stats', id);
+          if(Object.keys(b.preset||{}).length) markDirty('global_preset');
         }
         window.schnellByMode[mode]=false;
         window.isSchnellModus=false;

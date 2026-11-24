@@ -2,6 +2,7 @@
 // Cloud-Sync: Read/Write zwischen Supabase und window.SD
 import { supabase } from './supabase.js';
 import { persist } from './storage.js';
+import { echteDeckStats, echtePresetStats } from './schnell-stand.js';
 
 // ────────────────────────────────────────────────
 //  UTILS
@@ -626,9 +627,10 @@ export async function flushPendingSync() {
         // deck nicht gefunden: wurde durch UUID-Rename bereits gespeichert → skip
       } else if (item.type === 'word_stats' && item.deckId) {
         const deck = sd.decks[item.deckId];
-        if (deck) await saveWordStats(deck.id, deck.wordStats, userId);
+        // K2: im Schnellmodus geht der echte Stand hoch, nicht die Schnell-Stände.
+        if (deck) await saveWordStats(deck.id, echteDeckStats(deck), userId);
       } else if (item.type === 'global_preset') {
-        await saveGlobalPresetStats(sd.globalPresetStats, userId);
+        await saveGlobalPresetStats(echtePresetStats(sd.globalPresetStats), userId);
       } else if (item.type === 'preset_delete' && item.keys?.length) {
         await deleteCloudPresetStats(item.keys, [], userId);
       } else if (item.type === 'word_stats_delete' && item.deckId) {
