@@ -158,8 +158,14 @@ window.confirmRemoveFriend = confirmRemoveFriend;
 window.startCampaignRun = startCampaignRun;
 window.campaignNode = campaignNode;
 window.campPotionInfo = campPotionInfo;
-window.talerTest = talerTest;   // Debug: Test-Taler in der Konsole (talerTest(50))
-window.talerDeckTest = talerDeckTest;   // Debug: Taler aus „fertigen" Deck-Übungsarten (talerDeckTest(4))
+// Test-Helfer nur am Rechner (localhost), nicht in der Live-App (W-4, 24.11.2026).
+const _testHelfer = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+if (_testHelfer) {
+  window.talerTest = talerTest;   // Debug: Test-Taler in der Konsole (talerTest(50))
+  window.talerDeckTest = talerDeckTest;   // Debug: Taler aus „fertigen" Deck-Übungsarten (talerDeckTest(4))
+  window.uvTestForge = uvTestForge;
+  window.uvTestForgeRandom = uvTestForgeRandom;   // Debug: Aufträge mit Zufalls-Teilfortschritt (uvTestForgeRandom(3))
+}
 window.openFriendStats = openFriendStats;
 window.refreshFriendBadge = refreshFriendBadge;
 window.charReiter = charReiter;
@@ -187,8 +193,6 @@ window.uvSetForm = uvSetForm;
 window.uvInfo = uvInfo;
 window.uvWaffenInfo = uvWaffenInfo;
 window.uvOpenFill = uvOpenFill;
-window.uvTestForge = uvTestForge;
-window.uvTestForgeRandom = uvTestForgeRandom;   // Debug: Aufträge mit Zufalls-Teilfortschritt (uvTestForgeRandom(3))
 window.toggleUvTraining = toggleUvTraining;
 window.uvTrainOpenCreate = uvTrainOpenCreate;
 window.uvTrainDelete = uvTrainDelete;
