@@ -685,9 +685,16 @@ export function renderCampaignDemo() {
 function _renderCampaignNow(host) {
   const c = _camp();
   // Sicherheitsnetz: Run mit 0 HP (z. B. Reload genau zwischen Tod und Aufräumen)
-  // gilt als beendet — Einsatz ist weg, Startansicht zeigen. Die Lauf-Länge geht
-  // dabei zurück auf 0, sonst zählte sie in den nächsten Lauf hinein.
-  if (c.run && c.run.hp <= 0) { c.run = null; c.runLen = 0; _saveCampaign(); }
+  // gilt als beendet — Einsatz ist weg, Startansicht zeigen. Gebucht wird wie im
+  // Todes-Zweig von _startFight (K-1/M6): Niederlage, Rekord, Runde und Lauf-Länge
+  // zurück — sonst begann der nächste Einsatz in der Runde des Todes.
+  if (c.run && c.run.hp <= 0) {
+    c.stats.runsLost++;
+    _finishMap(c, false);
+    c.round = 0;
+    c.run = null;
+    _saveCampaign();
+  }
   // Boss gefallen, aber „Zur Kampagne“ nie getippt (App vorher geschlossen): der Lauf
   // stand auf dem Boss-Punkt, der keinen Folgepunkt hat — nichts war mehr antippbar
   // (Hänger nach Runde 3, 09.10.2026). Gilt als Boss-Sieg.

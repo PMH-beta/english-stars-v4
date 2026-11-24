@@ -281,6 +281,11 @@ let _ctx = null;   // { run, node, enemy, weapon, save, onEnd, mg, round }
 // (interner Nicht-Fall, z. B. Wortpool beim Laden leer). stat(key) zählt einen
 // Kampagnen-Statistikwert hoch (die Zähler selbst liegen in campaign.js).
 export function openFight({ run, node, save, onEnd, round, stat }) {
+  // M1: Ein Doppeltipp auf den Knoten öffnete den Kampf ein zweites Mal — das erste
+  // Minispiel lief mit seinem Takt weiter (Geister-Zeitablauf). Steht der Kampf
+  // schon, bleibt es bei ihm; ein verwaister Rest ohne Overlay wird abgeräumt.
+  if (_ctx && _el('cf-overlay')) return;
+  if (_ctx) { try { _ctx.mg?.destroy(); } catch (e) {} _destroyPlayers(); _ctx = null; }
   const enemy = scaledEnemy(node.type, round);
   if (!run.fight || run.fight.nodeId !== node.id) {
     // headUsed/guardsUsed = Zähler; shield/power/timeBoost = aktive Trank-Effekte.
@@ -317,7 +322,7 @@ function _renderPotions() {
 }
 
 function _usePotion(i) {
-  if (!_ctx) return;
+  if (!_ctx || (_ctx.vorbei && _ctx.run.hp <= 0)) return;   // M5: nach „Lauf vorbei“ kein Trank mehr
   const { run, save } = _ctx;
   const f = run.fight;
   const key = (run.potions || [])[i];
