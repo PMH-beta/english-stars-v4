@@ -56,6 +56,9 @@ function _ohneUebergang(vorher) {
 }
 
 function _tick() {
+  // 5.2 (24.11.2026): Ohne ein einziges data-ui-Element gibt es nichts zu bewegen —
+  // dann nicht das ganze Dokument durchsuchen. Neu eingefügte fängt der Sofort-Start.
+  if (!_neu.size && !document.querySelector('[data-ui]')) return;
   const t = _t++;
   const vorher = _merke();
   _haupt.tick(t);
@@ -70,6 +73,11 @@ export function startUiTakt() {
   if (_timer) return;
   _haupt = createUiAnimator({ icon, idleFrames });
   _timer = setInterval(_tick, TAKT_MS);
+  // 5.2: Im Hintergrund steht der Takt (vorher weckte er das Handy weiter 1×/s).
+  document.addEventListener('visibilitychange', () => {
+    clearInterval(_timer);
+    _timer = document.hidden ? -1 : setInterval(_tick, TAKT_MS);
+  });
   new MutationObserver((muts) => {
     for (const m of muts) {
       if (m.type === 'attributes') { _sofort(m.target.parentElement); continue; }
