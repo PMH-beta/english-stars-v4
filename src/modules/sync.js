@@ -109,8 +109,12 @@ async function _selectAll(build) {
   }
 }
 
-const LOAD_TIMEOUT_MS = 5000;   // pro Versuch
-const LOAD_RETRIES    = 2;      // Versuche bevor 'failed'
+// D-5 (24.11.2026): Läuft ein Versuch ab, werden seine Anfragen abgebrochen, damit
+// sie dem nächsten Versuch nicht die Bandbreite nehmen. Der zweite Versuch bekommt
+// mehr Zeit (langsame Leitung, große Konten mit mehreren Seiten). Offline scheitern
+// die Anfragen sofort; meldet der Browser „offline“, bleibt es bei 5 s wie bisher.
+const LOAD_TIMEOUTS_MS = [5000, 12000];   // je Versuch
+const LOAD_RETRIES     = LOAD_TIMEOUTS_MS.length;   // Versuche bevor 'failed'
 
 /**
  * Lädt kompletten User-State aus der Cloud — mit Timeout + Retry.
@@ -123,7 +127,10 @@ export async function cloudLoad(userId) {
   let lastErr = null;
   for (let attempt = 1; attempt <= LOAD_RETRIES; attempt++) {
     try {
-      return await withTimeout(_cloudLoadOnce(userId), LOAD_TIMEOUT_MS, 'cloudLoad');
+      const ab = new AbortController();
+      try {
+        return await withTimeout(_cloudLoadOnce(userId, ab.signal), (navigator.onLine === false ? 5000 : LOAD_TIMEOUTS_MS[attempt - 1]), 'cloudLoad');
+      } finally { ab.abort(); }   // nach Erfolg ohne Wirkung, sonst bricht es die Reste ab
     } catch (e) {
       lastErr = e;
       console.warn(`[sync] cloudLoad Versuch ${attempt}/${LOAD_RETRIES} fehlgeschlagen:`, e?.message);
@@ -134,14 +141,14 @@ export async function cloudLoad(userId) {
   return { status: 'failed', error: lastErr?.message || 'unknown' };
 }
 
-async function _cloudLoadOnce(userId) {
+async function _cloudLoadOnce(userId, signal) {
   const [profileRes, decksRes, wordStatsRes, presetStatsRes, presetCatProgRes, probetestsRes] = await Promise.all([
-    fetchWithRetry(() => supabase.from('profiles').select('player_name, highscore, total_points, active_deck_id, active_mode, uv_active, uv_fills, avatar, campaign, updated_at').eq('id', userId).maybeSingle()),
-    fetchWithRetry(() => supabase.from('decks').select('*').eq('user_id', userId).order('sort_order').order('created_at')),
-    _selectAll(() => supabase.from('word_stats').select('*').eq('user_id', userId).order('deck_id').order('stat_key')),
-    _selectAll(() => supabase.from('preset_stats').select('*').eq('user_id', userId).order('stat_key')),
-    fetchWithRetry(() => supabase.from('preset_category_progress').select('*').eq('user_id', userId)),
-    fetchWithRetry(() => supabase.from('probetests').select('*').eq('user_id', userId).order('taken_at', { ascending: false }).limit(50)),
+    fetchWithRetry(() => supabase.from('profiles').select('player_name, highscore, total_points, active_deck_id, active_mode, uv_active, uv_fills, avatar, campaign, updated_at').eq('id', userId).abortSignal(signal).maybeSingle()),
+    fetchWithRetry(() => supabase.from('decks').select('*').eq('user_id', userId).order('sort_order').order('created_at').abortSignal(signal)),
+    _selectAll(() => supabase.from('word_stats').select('*').eq('user_id', userId).order('deck_id').order('stat_key').abortSignal(signal)),
+    _selectAll(() => supabase.from('preset_stats').select('*').eq('user_id', userId).order('stat_key').abortSignal(signal)),
+    fetchWithRetry(() => supabase.from('preset_category_progress').select('*').eq('user_id', userId).abortSignal(signal)),
+    fetchWithRetry(() => supabase.from('probetests').select('*').eq('user_id', userId).order('taken_at', { ascending: false }).limit(50).abortSignal(signal)),
   ]);
 
   // Probetest-Verlauf (non-fatal: fehlt die Tabelle noch, bleibt der Verlauf leer)
