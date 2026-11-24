@@ -3,7 +3,7 @@ import { persist, freshData, clearStorage, standFuerKonto } from './storage.js';
 import { effectivePct, statKeyFor, wortScore } from './stats.js';
 import { syncMirrorFromActiveDeck, deckProgress, presetProgressPct, renderDecks, renderModeSubBy, migrateStatKeys, migrateDeckModes, deckMode, activeDeckIdForMode, createDeck, deleteDeck, tourAufgeklappt, _modusZeile, renameDeck, talerGeholt } from './decks.js';
 import { getPresetCategories } from './vocab.js';
-import { releaseMicStream, stopVisualizer, voskStop, speakWord, aufnahmeBeenden } from './speech.js';
+import { releaseMicStream, stopVisualizer, voskStop, speakWord, aufnahmeBeenden, _shouldUseVosk } from './speech.js';
 import { signIn, signUp, signOut, resendConfirmation, requestPasswordReset, updatePassword, signInWithGoogle } from './auth.js';
 import { cloudLoad, cloudReset, saveDeck, saveWordStats, saveExam, markDirty, flushPendingSync, setCloudConfirmed, getPendingCount, setKnownSig, cloudChangedRemotely, queuePresetStatDelete, deleteProbetest, isUUID, isCloudConfirmed } from './sync.js';
 import { commitDirty } from './dialog.js';
@@ -2889,6 +2889,9 @@ function _finishLoginUI() {
   // über setTimeout, damit der erste Rendervorgang sicher durch ist.
   // Ist Vosk bei der ersten Aussprache-Übung noch nicht fertig, wartet
   // startVoskRecognition dort freundlich mit sichtbarem Status (siehe speech.js).
+  // L-1 (24.11.2026): nur, wo die Aussprache überhaupt über Vosk läuft — am PC
+  // (Web Speech) kostete das Vorladen 5,8 MB Parsen + 41 MB Modell für nichts.
+  if (!_shouldUseVosk()) return;
   setTimeout(() => {
     const kick = () => { try { window._voskLoad && window._voskLoad(); } catch(e) {} };
     if (typeof requestIdleCallback === 'function') requestIdleCallback(kick, { timeout: 20000 });
