@@ -1022,6 +1022,10 @@ function _onWave(success, _rest, offen = 0) {
   // fertig wurde, zählt dabei NICHT als gewusst (waveMiss) — sonst würde jedes Wort
   // als gelernt durchgewinkt, seit ein Fehler die Welle nicht mehr beendet.
   _record(_ctx.cfItem, success && !_ctx.waveMiss, _ctx.cfSuf);
+  // Verlorene Welle (LU-01): das Minispiel zeigt „Richtig wäre · …"; die nächste
+  // Welle wartet, bis der Chip mindestens LOESUNG_MS zu sehen war.
+  const loesungBis = Date.now() + LOESUNG_MS;
+  const naechsteWelle = (min) => setTimeout(() => { if (_ctx) _startWave(); }, Math.max(min, loesungBis - Date.now()));
   let wurf;   // Ausweich-Wurf, siehe unten
   // Richtig/Falsch: Held und Gegner haben schon je Paar zugeschlagen (_tfTreffer,
   // _tfSchlag) — am Ende kommt kein weiterer Angriff, die nächste Welle beginnt.
@@ -1081,14 +1085,16 @@ function _onWave(success, _rest, offen = 0) {
         if (!_ctx) return;
         if (run.hp <= 0) { save(); _endScreen(false); return; }
         f.wave++; save();
-        setTimeout(() => { if (_ctx) _startWave(); }, 300);
+        naechsteWelle(300);
       });
     return;
   }
   f.wave++;
   save();
-  setTimeout(() => { if (_ctx) _startWave(); }, 900);
+  naechsteWelle(900);
 }
+
+const LOESUNG_MS = 1500;   // so lange steht „Richtig wäre · …" mindestens (LU-01)
 
 // Konfetti beim Boss-Sieg (7.16): Pastell-Plättchen mit Kontur, die im Takt
 // fallen und sich drehen (data-ui="confetti", Übersicht 9.7). Liegt über allem

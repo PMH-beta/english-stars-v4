@@ -13,7 +13,7 @@
 
 import { playSfx } from './game.js';
 import { aufgabeKarte, frageDE, steinHTML, flammeHTML, abzeichenHTML, funkenHTML, passeAufgabe, passend } from './minigame-karte.js';
-import { richtigChip } from './minigame-letterstorm.js';
+import { richtigChip, loesungChip } from './minigame-letterstorm.js';
 
 // Gefallen wird im Takt des Bildschirms (requestAnimationFrame), nicht mehr in
 // 8-fps-Stufen: die Wörter sollen sich im Fallen gut lesen lassen (Wunsch des
@@ -80,6 +80,7 @@ export function startMeteors({ host, de, answer, choices, prompt, fallMs, onMiss
     else {
       const a = btns.find(b => b._answer);
       if (a && Date.now() >= endAt) { a.style.top = AUF + 'px'; _markiere(a, 'verpasst'); }
+      loesungChip(host, answer, true);
     }
     onResult(success, Math.max(0, endAt - Date.now()));
   }

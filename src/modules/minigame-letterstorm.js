@@ -42,6 +42,17 @@ export function richtigChip(host, wort) {
   feld.appendChild(d);
 }
 
+/** „✕ Richtig wäre · wall" nach verlorener Welle (LU-01) — rot wie jedes Falsch (E.1).
+ *  oben = am oberen Rand der Spielfläche (Meteoriten: unten liegt der verpasste Stein). */
+export function loesungChip(host, wort, oben = false) {
+  const feld = host.querySelector('.mg-flaeche');
+  if (!feld) return;
+  const d = document.createElement('div');
+  d.className = 'mg-richtig mg-richtig--falsch' + (oben ? ' mg-richtig--oben' : '');
+  d.innerHTML = `<span>${iconHTML('close', 14)}Richtig wäre · ${window.escHtml ? window.escHtml(wort) : wort}</span>`;
+  feld.appendChild(d);
+}
+
 // Zielwort fürs Tippen: erste /-Alternative, führendes „to " weg (wie submitType).
 export function stormTarget(en) {
   return (en || '').split('/')[0].trim().toLowerCase().replace(/^to /, '');
@@ -191,7 +202,7 @@ export function startLetterstorm({ host, de, en, prompt, timeLimitMs, guards = 0
       // „Richtig · Wort".
       host.querySelectorAll('.cf-slot').forEach(s => { s.classList.remove('cf-dran'); s.classList.add('cf-ok'); delete s.dataset.ui; s.style.transform = ''; });
       richtigChip(host, target);
-    }
+    } else loesungChip(host, target);
     onResult(success, Math.max(0, endAt - Date.now()));
   }
 

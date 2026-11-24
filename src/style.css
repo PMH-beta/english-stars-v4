@@ -2767,6 +2767,9 @@ button.p-chip{ cursor:pointer; }
   border:var(--p-rahmen); border-radius:11px; background:var(--p-richtig);
   padding:6px 14px; font:900 16px/1.2 var(--p-font); color:var(--p-ink);
 }
+/* „Richtig wäre · wall" nach verlorener Welle (LU-01) — rot wie jedes Falsch (E.1). */
+.mg-richtig--falsch > span{ background:var(--p-falsch-stark); }
+.mg-richtig--oben{ top:22px; bottom:auto; }
 
 /* ── Pixel-Steine (Update 1, F.1–F.11) ──
    Tintenrand + Fläche mit gestuften Ecken, Licht oben, Schatten unten, zwei

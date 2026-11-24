@@ -13,7 +13,7 @@
 
 import { playSfx } from './game.js';
 import { speakWord } from './speech.js';
-import { ensureStormStyle, setDrift, richtigChip } from './minigame-letterstorm.js';
+import { ensureStormStyle, setDrift, richtigChip, loesungChip } from './minigame-letterstorm.js';
 import { iconHTML } from './pixel-icons.js';
 import { aufgabeKarte, frageHoeren, sekText, blasenBalken, abzeichenHTML, passeAufgabe, passend } from './minigame-karte.js';
 
@@ -42,6 +42,7 @@ export function startEcho({ host, answer, speakText, choices, verb, timeLimitMs,
     done = true;
     if (timer) clearInterval(timer);
     if (success) richtigChip(host, answer);
+    else loesungChip(host, answer);
     onResult(success, Math.max(0, endAt - Date.now()));
   }
 
