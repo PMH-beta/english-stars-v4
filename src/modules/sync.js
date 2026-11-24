@@ -603,8 +603,28 @@ export function hasPendingProfile() {
   return readPending().some(p => p.type === 'profile');
 }
 
-/** Schreibt alle pending Änderungen in die Cloud. Fehlgeschlagene bleiben in der Queue. */
-export async function flushPendingSync() {
+/**
+ * Schreibt alle pending Änderungen in die Cloud. Fehlgeschlagene bleiben in der Queue.
+ * D-3 (24.11.2026): nie zwei Läufe gleichzeitig. Ein Aufruf während eines Laufs
+ * bekommt dessen Promise und löst genau einen Nachlauf aus (für Merker, die
+ * inzwischen dazukamen). Wer wartet, wartet damit auch auf den Nachlauf.
+ */
+let _flushLauf = null, _flushNochmal = false;
+// Ein hängender Upload darf die Sperre nicht ewig halten: je Eintrag höchstens
+// 30 s, danach gilt er als gescheitert und bleibt in der Merkliste. Ein neues
+// Deck wird nie ein zweites Mal angelegt, solange das erste Anlegen noch läuft.
+const FLUSH_EINTRAG_MS = 30000;
+const _deckAnlegen = new Set();
+export function flushPendingSync() {
+  if (_flushLauf) { _flushNochmal = true; return _flushLauf; }
+  _flushLauf = (async () => {
+    try { do { _flushNochmal = false; await _flushEinmal(); } while (_flushNochmal); }
+    finally { _flushLauf = null; }
+  })();
+  return _flushLauf;
+}
+
+async function _flushEinmal() {
   if (!window.currentUser) return;
   // Empty-Write-Schutz: kein Replay, bevor der Cloud-Stand bestätigt ist.
   if (!_cloudConfirmed) { console.warn('[sync] flushPendingSync übersprungen — Cloud-Stand noch nicht bestätigt'); return; }
@@ -618,12 +638,16 @@ export async function flushPendingSync() {
   const failed = [];
 
   for (const item of pending) {
-    try {
+    try { await withTimeout((async () => {
       if (item.type === 'profile') {
         await saveProfile(sd, userId);
       } else if (item.type === 'deck' && item.deckId) {
         const deck = sd.decks[item.deckId];
-        if (deck) await saveDeck(deck, userId);
+        if (deck && !isUUID(deck.id)) {
+          if (_deckAnlegen.has(deck.id)) throw new Error('Anlegen läuft noch');
+          _deckAnlegen.add(deck.id);
+          try { await saveDeck(deck, userId); } finally { _deckAnlegen.delete(deck.id); }
+        } else if (deck) await saveDeck(deck, userId);
         // deck nicht gefunden: wurde durch UUID-Rename bereits gespeichert → skip
       } else if (item.type === 'word_stats' && item.deckId) {
         const deck = sd.decks[item.deckId];
@@ -637,13 +661,16 @@ export async function flushPendingSync() {
         await deleteCloudWordStats(item.deckId, userId);   // Trainings-Deck zurückgesetzt
       }
       // 'exam': wird direkt in saveExam() gespeichert, nicht via Queue
-    } catch(e) {
+    })(), FLUSH_EINTRAG_MS, 'flush ' + item.type); } catch(e) {
       console.error('[sync] flush failed:', item.type, e.message);
       failed.push(item);
     }
   }
 
-  writePending(failed);
+  // D-3: nur die abgearbeiteten Einträge entfernen. Was während des Laufs neu
+  // gemerkt oder geändert wurde (neuer ts, mehr keys), bleibt stehen.
+  const erledigt = new Set(pending.filter((i) => !failed.includes(i)).map((i) => JSON.stringify(i)));
+  writePending(readPending().filter((p) => !erledigt.has(JSON.stringify(p))));
 
   // Eigene Writes erfolgreich raus → bekannte Signatur nachziehen, damit der
   // Minuten-Check NICHT den eigenen Stand als „anderes Gerät" meldet.
