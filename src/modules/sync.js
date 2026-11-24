@@ -145,8 +145,9 @@ async function _cloudLoadOnce(userId, signal) {
   const [profileRes, decksRes, wordStatsRes, presetStatsRes, presetCatProgRes, probetestsRes] = await Promise.all([
     fetchWithRetry(() => supabase.from('profiles').select('player_name, highscore, total_points, active_deck_id, active_mode, uv_active, uv_fills, avatar, campaign, updated_at').eq('id', userId).abortSignal(signal).maybeSingle()),
     fetchWithRetry(() => supabase.from('decks').select('*').eq('user_id', userId).order('sort_order').order('created_at').abortSignal(signal)),
-    _selectAll(() => supabase.from('word_stats').select('*').eq('user_id', userId).order('deck_id').order('stat_key').abortSignal(signal)),
-    _selectAll(() => supabase.from('preset_stats').select('*').eq('user_id', userId).order('stat_key').abortSignal(signal)),
+    // S-4: nur die gebrauchten Spalten (id/user_id waren ~45 % der Rohdaten).
+    _selectAll(() => supabase.from('word_stats').select('deck_id, stat_key, asked, correct, wrong, recent, updated_at').eq('user_id', userId).order('deck_id').order('stat_key').abortSignal(signal)),
+    _selectAll(() => supabase.from('preset_stats').select('stat_key, asked, correct, wrong, recent, updated_at').eq('user_id', userId).order('stat_key').abortSignal(signal)),
     fetchWithRetry(() => supabase.from('preset_category_progress').select('*').eq('user_id', userId).abortSignal(signal)),
     fetchWithRetry(() => supabase.from('probetests').select('*').eq('user_id', userId).order('taken_at', { ascending: false }).limit(50).abortSignal(signal)),
   ]);
@@ -348,7 +349,7 @@ export async function saveProfile(sd, userId) {
     .from('profiles')
     .update(payload)
     .eq('id', userId)
-    .select());
+    .select('id'));   // S-5: nur zum Erkennen von „0 Zeilen“ — nicht die ganze Zeile (bis 7 kB)
   if (error) throw new Error('[sync] saveProfile: ' + error.message);
   if (!data?.length) console.warn('[sync] saveProfile: 0 rows updated — Auth oder RLS?');
 }
