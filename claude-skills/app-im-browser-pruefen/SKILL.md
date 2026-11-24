@@ -8,6 +8,8 @@ description: English Stars selbst im Browser prüfen (Handy-Format, ohne echte D
 Der Playwright-MCP (`mcp__playwright__*`) ist lokal für dieses Projekt eingerichtet:
 headless Chrome, 412×915 (Handy), Profil nur im Speicher (`--isolated`),
 **`*.supabase.co` ist gesperrt** — keine Anfrage erreicht die echte Datenbank.
+Ausnahme: der Realtime-**WebSocket** (`wss://…/realtime`) geht durch; der Server lehnt das
+unsignierte Test-Token ab (`JwtSignatureError` in der Konsole). Darum nie ein echtes Token verwenden.
 Screenshots landen im `--output-dir` des MCP (`claude mcp get playwright`).
 Fehlt der MCP: zuerst `claude-skills/EINRICHTEN.md` abarbeiten; notfalls das Verfahren aus der
 Memory `reference_headless_screenshots` (CDP + Fetch-Interception) nehmen.
