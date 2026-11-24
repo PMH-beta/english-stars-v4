@@ -8,6 +8,10 @@ export const HP_MAX = 60;
 // STAKE_COST/freeStart in campaign.js).
 export const BOSS_WIN_TALER = 1;
 
+// LU-08 (24.11.2026): Nach einer Niederlage am Boss einmal weiterkämpfen — volle
+// Leben, der Boss behält seinen Stand. Teurer als ein neuer Einsatz (2).
+export const BOSS_NOCHMAL_TALER = 3;
+
 // Gegner je Knotentyp. Wellen sind UNBEGRENZT — der Kampf endet erst bei Gegner-HP 0
 // (Sieg) oder Spieler-HP 0 (Tod). hp steuert also die Kampflänge, dmg = Spieler-HP-
 // Verlust pro verlorener Welle. Seit 09.10.2026 (F-79) 30 % weniger Leben (vorher

@@ -18,7 +18,7 @@ import { persist } from './storage.js';
 import { markDirty } from './sync.js';
 import { commitDirty } from './dialog.js';
 import { iconHTML } from './pixel-icons.js';
-import { HP_MAX, REST_HEAL, BOSS_WIN_TALER, scaledEnemy, roundTimeFactor, STORM_BASE_MS } from './campaign-balance.js';
+import { HP_MAX, REST_HEAL, BOSS_WIN_TALER, BOSS_NOCHMAL_TALER, scaledEnemy, roundTimeFactor, STORM_BASE_MS } from './campaign-balance.js';
 import { enemyCombatSheet, SpritePlayer } from './pixel-anim.js';
 import { pickEnemyKey, enemyBattleSVG } from './enemies.js';
 import { openFight, fightPoolReady, verbsReady, loadPresetSupply } from './campaign-fight.js';
@@ -454,12 +454,13 @@ export function campaignNode(id) {
 
 // Zurückgehen im Kampf (F-78 neu gefasst, F-84/F-85, Wunsch des Nutzers 09.10.2026):
 // alles von vorn — neue Karte, Runde 1 (Gegner wie zu Beginn), volle Leben,
-// Lauf-Länge 0. Der Einsatz bleibt (der neue Lauf startet gleich gratis), die Tränke
-// wandern mit, als verlorener Lauf zählt es nicht. Zum Heilen lohnt es sich so nie.
+// Lauf-Länge 0. Der Einsatz bleibt (der neue Lauf startet gleich gratis), als
+// verlorener Lauf zählt es nicht. Seit LU-09 (24.11.2026) verfallen dabei ALLE Tränke
+// wie beim Tod — sonst ersetzte Zurückgehen fast immer den Tod. Taler bleiben.
 function _vonVorn(c) {
   _finishMap(c, false);
   c.round = 0;
-  c.carryPotions = c.run.potions || [];
+  c.carryPotions = [];
   c.run = null;
   c.freeStart = true;
   startCampaignRun();
@@ -484,16 +485,29 @@ function _bossSieg(c) {
 // Kampf am Knoten öffnen. onEnd regelt die Run-Folgen: Boss-Sieg oder Tod beendet den
 // Run, 'retreat' fängt von vorn an (_vonVorn); null ist nur der interne
 // Nicht-Fall (z. B. Wortpool beim Laden leer).
-function _startFight(node) {
+function _startFight(node, enemyKey) {
   const c = _camp();
   openFight({
     run: c.run,
     node,
+    enemyKey,
     save: _saveCampaign,
     round: campRound(),
     stat: (key) => { if (CAMP_STAT_KEYS.includes(key)) c.stats[key]++; },
-    onEnd: (result) => {
+    kannNochmal: () => talerAvailable() >= BOSS_NOCHMAL_TALER,
+    onEnd: (result, key) => {
       if (result === 'retreat') { if (c.run) _vonVorn(c); else renderCampaign(); return; }
+      // LU-08: Taler bezahlen, volle Leben, gleicher Boss mit seinem Stand — einmal je Kampf.
+      if (result === 'nochmal' && c.run?.fight && talerAvailable() >= BOSS_NOCHMAL_TALER) {
+        c.talerSpent += BOSS_NOCHMAL_TALER;
+        c.run.hp = c.run.hpMax;
+        c.run.fight.nochmal = 1;
+        _saveCampaign();
+        updateTalerBadge();
+        _startFight(node, key);
+        return;
+      }
+      if (result === 'nochmal') result = 'death';
       // Schon verbucht (_renderCampaignNow hat den Boss-Sieg nachgeholt): nur zeichnen.
       if (!c.run) { renderCampaign(); return; }
       if (result === 'victory' && node.type === 'boss') _bossSieg(c);

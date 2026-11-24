@@ -24,7 +24,7 @@
 // jsonb mit) → Reload mitten im Kampf verliert nichts; nur das aktuelle Wort der
 // Welle wird neu gezogen.
 
-import { scaledEnemy, roundTimeFactor, FORM_BONUS, TALISMAN_MULT, PERK_DOLCH_DODGE, STORM_BASE_MS, STORM_PER_LETTER_MS, STORM_MISS_DMG, WEAK_TIME_BONUS, WEAK_EMA, METEOR_FALL_MS, METEOR_COUNT, ECHO_TIME_MS, ECHO_CHOICES, TF_PAIRS, TF_TIME_MS, PERK_SPEER_BOSS, PERK_AXT_ELITE, PERK_HAMMER_MULT, PERK_BOGEN_FIGHT, POTION_HEAL, POTION_POWER, POTION_TIME_MS, POTION_TIME_WAVES, BOSS_WIN_TALER, CF_MIN_ASKED, CF_MASTER, CF_NO_REPEAT, CF_SEEN_MIN, CF_LEARNED_WEIGHT, CF_TOPF_MIX, CF_BOGEN_FRUEH_C, CF_BOGEN_SPAET_C, CF_BOGEN_SPAET_W, CF_NEU_MITTEL_AB, CF_NEU_SCHWER_AB, CF_NEU_OFFEN, CF_ABSTAND, CF_W_FAELLIG, CF_W_NICHT_FAELLIG, CF_W_GEUEBT, CF_GEUEBT_TAGE, VERB_OWN_SEEN_MIN, VERB_BOGEN_BIS, VERB_TIER_SPREAD, VERB_TIER_FLOOR, VERB_FILLED_BONUS } from './campaign-balance.js';
+import { scaledEnemy, roundTimeFactor, FORM_BONUS, TALISMAN_MULT, PERK_DOLCH_DODGE, STORM_BASE_MS, STORM_PER_LETTER_MS, STORM_MISS_DMG, WEAK_TIME_BONUS, WEAK_EMA, METEOR_FALL_MS, METEOR_COUNT, ECHO_TIME_MS, ECHO_CHOICES, TF_PAIRS, TF_TIME_MS, PERK_SPEER_BOSS, PERK_AXT_ELITE, PERK_HAMMER_MULT, PERK_BOGEN_FIGHT, POTION_HEAL, POTION_POWER, POTION_TIME_MS, POTION_TIME_WAVES, BOSS_WIN_TALER, BOSS_NOCHMAL_TALER, CF_MIN_ASKED, CF_MASTER, CF_NO_REPEAT, CF_SEEN_MIN, CF_LEARNED_WEIGHT, CF_TOPF_MIX, CF_BOGEN_FRUEH_C, CF_BOGEN_SPAET_C, CF_BOGEN_SPAET_W, CF_NEU_MITTEL_AB, CF_NEU_SCHWER_AB, CF_NEU_OFFEN, CF_ABSTAND, CF_W_FAELLIG, CF_W_NICHT_FAELLIG, CF_W_GEUEBT, CF_GEUEBT_TAGE, VERB_OWN_SEEN_MIN, VERB_BOGEN_BIS, VERB_TIER_SPREAD, VERB_TIER_FLOOR, VERB_FILLED_BONUS } from './campaign-balance.js';
 import { startLetterstorm, stormTarget } from './minigame-letterstorm.js';
 import { startMeteors } from './minigame-meteors.js';
 import { startEcho } from './minigame-echo.js';
@@ -343,7 +343,9 @@ let _ctx = null;   // { run, node, enemy, weapon, save, onEnd, mg, round }
 // onEnd(result): 'victory' | 'death' | 'retreat' (X-Knopf: alles von vorn, F-78/F-84) | null
 // (interner Nicht-Fall, z. B. Wortpool beim Laden leer). stat(key) zählt einen
 // Kampagnen-Statistikwert hoch (die Zähler selbst liegen in campaign.js).
-export function openFight({ run, node, save, onEnd, round, stat }) {
+// LU-08: 'nochmal' = am Boss verloren und für Taler weitergekämpft; kannNochmal()
+// sagt, ob genug Taler da sind; enemyKey hält dabei denselben Boss.
+export function openFight({ run, node, save, onEnd, round, stat, kannNochmal, enemyKey: festKey }) {
   // M1: Ein Doppeltipp auf den Knoten öffnete den Kampf ein zweites Mal — das erste
   // Minispiel lief mit seinem Takt weiter (Geister-Zeitablauf). Steht der Kampf
   // schon, bleibt es bei ihm; ein verwaister Rest ohne Overlay wird abgeräumt.
@@ -360,11 +362,11 @@ export function openFight({ run, node, save, onEnd, round, stat }) {
   // enemyKey = welcher der 36 Gegner auftritt. Bleibt für den ganzen Kampf gleich,
   // liegt aber bewusst NUR hier und nicht im Spielstand — wie bisher wird beim
   // Fortsetzen eines Kampfes neu gewürfelt.
-  const enemyKey = pickEnemyKey(node.type);
+  const enemyKey = festKey || pickEnemyKey(node.type);
   // Kampf-Blaetter EINMAL beim Laden bauen (Handoff-Regel 6) - ein Helden-Blatt
   // kostet rund 110 ms, beim ersten Angriff waere das ein sichtbarer Haenger.
   const heroCfg = { ...ensureAvatar(window.SD), gear: gearFor(equippedGearMap()) };
-  _ctx = { run, node, enemy, enemyKey, heroCfg,
+  _ctx = { run, node, enemy, enemyKey, heroCfg, kannNochmal,
     heroSheet: heroCombatSheet(heroCfg), enemySheet: enemyCombatSheet(enemyKey),
     players: null, layer: null,
     weapon: equippedWeapon(), eff: equipEffects(), save, onEnd, stat, mg: null, round, cfPreset: false, cfDecks: new Set() };
@@ -510,7 +512,7 @@ function _renderOverlay() {
   _buildPlayers();
   _el('cf-flee').onclick = () => {
     // Zurückgehen (F-78/F-84/F-85, Wunsch des Nutzers 09.10.2026): alles von vorn,
-    // Taler und Tränke bleiben — die Folgen regelt campaign.js (onEnd 'retreat').
+    // Taler bleiben, Tränke verfallen (LU-09) — die Folgen regelt campaign.js (onEnd 'retreat').
     // Vorher fragen; die Welle pausiert währenddessen, der Hintergrund ist unscharf
     // (style.css). Der sichere Weg (Weiterkämpfen) ist der hervorgehobene Knopf.
     if (_ctx?.mg?.pause) _ctx.mg.pause();
@@ -522,7 +524,7 @@ function _renderOverlay() {
     d.innerHTML = `<div class="p-dlg-karte cf-weg-karte">
         <div class="cf-ende-emblem" style="background:var(--p-inaktiv)">${iconHTML('back', 42)}</div>
         <div class="cf-weg-titel">Zurückgehen?</div>
-        <div class="cf-weg-text">Dann fängst du ganz von vorne an: neue Karte, Runde 1. Deine Taler und Tränke behältst du.</div>
+        <div class="cf-weg-text">Dann fängst du ganz von vorne an: neue Karte, Runde 1. Deine Tränke sind weg, deine Taler behältst du.</div>
         <div class="cf-weg-knoepfe">
           <button class="cf-weg-btn" data-weg="1">Zurückgehen</button>
           <button class="cf-weg-btn cf-weg-btn--bleib" data-weg="0">Weiterkämpfen</button>
@@ -1260,6 +1262,8 @@ function _endScreen(victory) {
       <div class="cf-ende-text">Der Weg ist frei — wähle den nächsten Knoten auf der Karte.</div>
       <button id="cf-endbtn" class="cf-ende-btn" style="margin-top:18px">Weiter</button>`;
   } else {
+    // LU-08: am Boss einmal für Taler weiterkämpfen (volle Leben, Boss behält seinen Stand).
+    const nochmal = boss && _ctx.run.fight && !_ctx.run.fight.nochmal && !!_ctx.kannNochmal?.();
     inhalt = `<div class="cf-ende-emblem" style="background:var(--p-inaktiv)">${iconHTML('skull', 42)}</div>
       <div class="cf-ende-titel">Lauf vorbei</div>
       <div class="cf-ende-liste">
@@ -1267,23 +1271,31 @@ function _endScreen(victory) {
         <div class="cf-ende-zeile cf-ende-zeile--weg">${iconHTML('coinOff', 14)}Einsatz von ${STAKE_COST} Talern ist weg</div>
         <div class="cf-ende-zeile">${iconHTML('flag', 14)}Nächster Lauf beginnt bei Runde 1</div>
       </div>
-      <button id="cf-endbtn" class="cf-ende-btn">Weiter</button>`;
+      ${nochmal
+        ? `<div class="cf-weg-knoepfe">
+            <button id="cf-nochmal" class="cf-weg-btn">${iconHTML('coin', 14)}&nbsp;Nochmal · ${BOSS_NOCHMAL_TALER} Taler</button>
+            <button id="cf-endbtn" class="cf-weg-btn cf-weg-btn--bleib">Weiter</button>
+          </div>`
+        : `<button id="cf-endbtn" class="cf-ende-btn">Weiter</button>`}`;
   }
   if (stage) stage.innerHTML = `<div class="cf-ende"><div class="cf-ende-karte">${inhalt}</div></div>`;
   const flee = _el('cf-flee');
   if (flee) flee.style.display = 'none';
   const btn = _el('cf-endbtn');
   if (btn) btn.onclick = () => _close(victory ? 'victory' : 'death');
+  const noch = _el('cf-nochmal');
+  if (noch) noch.onclick = () => _close('nochmal');
 }
 
 function _close(result) {
   if (_ctx?.mg) _ctx.mg.destroy();
   _destroyPlayers();
   const onEnd = _ctx?.onEnd;
+  const enemyKey = _ctx?.enemyKey;
   _markCfDirty();
   _ctx = null;
   _removeOverlay();
-  if (onEnd) onEnd(result);
+  if (onEnd) onEnd(result, enemyKey);
 }
 
 function _removeOverlay() {
