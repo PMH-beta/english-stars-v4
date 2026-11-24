@@ -2555,6 +2555,33 @@ button.p-chip{ cursor:pointer; }
 .rest-held{position:absolute;left:calc(50% - 141px);top:14px;width:108px;height:174px;z-index:3}
 .rest-feuer{position:absolute;left:calc(50% + 13px);top:78px;z-index:3}
 
+/* ── Lagerfeuer: Wahl + Feuerprobe (LU-03) ─────────────────────────────────── */
+.rest-wahl{
+  display:flex;align-items:center;gap:12px;width:100%;margin-top:12px;padding:10px 12px;
+  border:var(--p-rahmen);border-radius:18px;background:#fff;text-align:left;cursor:pointer;
+  font-family:var(--p-font);color:var(--p-ink);
+}
+.rest-wahl-icon{
+  flex:none;display:flex;align-items:center;justify-content:center;width:52px;height:52px;
+  border:var(--p-rahmen);border-radius:14px;
+}
+.rest-wahl-text{display:flex;flex-direction:column;gap:2px;min-width:0}
+.rest-wahl-text b{font:900 15px var(--p-font)}
+.rest-wahl-text small{font:700 11px/1.35 var(--p-font);color:var(--p-text-akzent)}
+.funken-punkte{display:flex;gap:6px;justify-content:center;margin-top:14px}
+.funken-punkte i{width:14px;height:14px;border:2px solid var(--p-ink);border-radius:4px;background:#fff}
+.funken-punkte i.ja{background:var(--p-gold)}
+.funken-punkte i.nein{background:var(--p-rosa)}
+.funken-lage{position:absolute;inset:0;z-index:6;pointer-events:none}
+.funken-linie{
+  position:absolute;left:24px;right:24px;height:6px;margin-top:-3px;
+  border:2px solid var(--p-ink);border-radius:3px;background:var(--p-gold);
+}
+.funke{position:absolute;left:0;top:0;line-height:0}
+.funke canvas{image-rendering:pixelated}
+.camp-kicker-re{display:inline-flex;align-items:center;gap:10px}
+.rest-ergebnis-kopf{display:flex;align-items:center;justify-content:space-between;gap:12px}
+
 /* ══ Kampf-Figuren (Phase 6) ══════════════════════════════════════════════════
    Held, Gegner und Gefährte laufen über SpritePlayer; die alten CSS-Animationen
    (cfHeroAttack, cfIdle*, .poof, .cheer, .down) greifen nicht mehr — sie hingen

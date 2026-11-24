@@ -45,6 +45,7 @@ import { uvFormPracticed } from './irregular-game.js';
 import { getPresetCategories } from './vocab.js';
 import { markDirty } from './sync.js';
 import { zaehleRichtig } from './lernwoche.js';
+import { feuerBonus } from './campaign-feuer.js';
 
 // Titel in der Kopfleiste: Kachel in der Farbe der Knotenart + Wort (F.1, F.8, F.11).
 const _TITLE = {
@@ -384,7 +385,10 @@ export function openFight({ run, node, save, onEnd, round, stat, kannNochmal, en
   // schon, bleibt es bei ihm; ein verwaister Rest ohne Overlay wird abgeräumt.
   if (_ctx && _el('cf-overlay')) return;
   if (_ctx) { try { _ctx.mg?.destroy(); } catch (e) {} _destroyPlayers(); _ctx = null; }
-  const enemy = scaledEnemy(node.type, round);
+  // LU-03: Schutz aus der Feuerprobe senkt den Schaden des Gegners (mind. 1) — bis zum Boss.
+  const feuer = feuerBonus(run);
+  const enemy0 = scaledEnemy(node.type, round);
+  const enemy = feuer.schutz ? { ...enemy0, dmg: Math.max(1, enemy0.dmg - feuer.schutz) } : enemy0;
   if (!run.fight || run.fight.nodeId !== node.id) {
     // headUsed/guardsUsed = Zähler; shield/power/timeBoost = aktive Trank-Effekte.
     run.fight = { nodeId: node.id, type: node.type, enemyHp: enemy.hp, enemyHpMax: enemy.hp, wave: 1, headUsed: 0, guardsUsed: 0, shield: false, power: 0, timeBoost: 0 };
@@ -523,7 +527,7 @@ function _renderOverlay() {
           <div class="cf-leiste-balken"><i id="cf-phpbar" style="width:${run.hp / run.hpMax * 100}%"></i></div>
           <div class="cf-leiste-fuss">
             <div id="cf-potions" class="cf-traenke"></div>
-            <span class="cf-waffe" title="${esc(weapon.name)}">${iconHTML('sword', 14)}${weapon.dmg}</span>
+            <span class="cf-waffe" title="${esc(weapon.name)}">${iconHTML('sword', 14)}${weapon.dmg + feuerBonus(run).staerke}</span>
           </div>
         </div>
         <div class="cf-leiste-seite cf-leiste-seite--feind">
@@ -946,7 +950,7 @@ function _startWave() {
   // pro KAMPF im Buchstabensturm.
   const eff = _ctx.eff;
   const f = run.fight;
-  let tBonus = eff.timeBonusMs || 0;
+  let tBonus = (eff.timeBonusMs || 0) + feuerBonus(run).zeitMs;   // LU-03: Zeit aus der Feuerprobe
   if (f.timeBoost > 0) { tBonus += POTION_TIME_MS; f.timeBoost--; }
   // Grundzeit schrumpft je Runde (F-102), die Boni bleiben voll.
   const tf = roundTimeFactor(_ctx.round);
@@ -1034,7 +1038,8 @@ function _heroDmg(teile = 1) {
   const { run, node, weapon, eff } = _ctx;
   const f = run.fight;
   const bonus = _ctx.waveForm && weapon.which === _ctx.waveForm ? FORM_BONUS : 0;
-  let dmg = weapon.dmg + bonus + (f.power || 0);
+  const feuer = feuerBonus(run).staerke;   // LU-03: Stärke aus der Feuerprobe
+  let dmg = weapon.dmg + bonus + (f.power || 0) + feuer;
   if (weapon.type === 'speer' && node.type === 'boss') dmg += PERK_SPEER_BOSS;
   if (weapon.type === 'axt' && node.type === 'irregular') dmg += PERK_AXT_ELITE;
   if (weapon.type === 'bogen' && node.type === 'fight') dmg += PERK_BOGEN_FIGHT;
@@ -1043,7 +1048,7 @@ function _heroDmg(teile = 1) {
   const tali = node.type === 'irregular' && eff.talisman;
   if (tali) dmg = Math.round(dmg * (eff.talismanMult || TALISMAN_MULT));   // Sonnen-Talisman stärker (F-100)
   if (teile > 1) dmg = Math.ceil(dmg / teile);
-  return { dmg, html: '−' + dmg + (bonus ? iconHTML('star', 14) : '') + (hammer ? iconHTML('hammer', 14) : '') + (tali ? iconHTML('orb', 14) : '') };
+  return { dmg, html: '−' + dmg + (bonus ? iconHTML('star', 14) : '') + (hammer ? iconHTML('hammer', 14) : '') + (tali ? iconHTML('orb', 14) : '') + (feuer ? iconHTML('flame', 14) : '') };
 }
 
 // Richtig/Falsch (F-66, F-68): jedes Paar ist ein eigener, kleinerer Schlag — der

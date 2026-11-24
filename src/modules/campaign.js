@@ -18,7 +18,9 @@ import { persist } from './storage.js';
 import { markDirty } from './sync.js';
 import { commitDirty } from './dialog.js';
 import { iconHTML } from './pixel-icons.js';
-import { HP_MAX, REST_HEAL, BOSS_WIN_TALER, BOSS_NOCHMAL_TALER, scaledEnemy, roundTimeFactor, STORM_BASE_MS } from './campaign-balance.js';
+import { startFunkenTakt, feuerWuerfeln, feuerChip, FEUER_ARTEN } from './campaign-feuer.js';
+import { playSfx } from './game.js';
+import { HP_MAX, REST_HEAL, FEUER_REIHEN, FUNKEN_ANZAHL, FUNKEN_ZIEL, BOSS_WIN_TALER, BOSS_NOCHMAL_TALER, scaledEnemy, roundTimeFactor, STORM_BASE_MS } from './campaign-balance.js';
 import { enemyCombatSheet, SpritePlayer } from './pixel-anim.js';
 import { pickEnemyKey, enemyBattleSVG } from './enemies.js';
 import { openFight, fightPoolReady, verbsReady, loadPresetSupply } from './campaign-fight.js';
@@ -262,33 +264,17 @@ function _removeRest() {
   document.getElementById('camp-rest')?.remove();
 }
 
-function _renderRest(run, before) {
+// Rahmen des Rastplatzes: Kulisse, Etikett, Bühne mit Figur und Feuer; `inhalt`
+// kommt in die Mitte (#rest-mitte) und wird dort je Schritt ausgetauscht.
+function _restRahmen(inhalt) {
   _removeRest();
-  const gewinn = run.hp - before;
-  const pctVor = Math.max(0, Math.min(100, before / run.hpMax * 100));
-  const pctZu = Math.max(0, Math.min(100 - pctVor, gewinn / run.hpMax * 100));
   const ov = document.createElement('div');
   ov.id = 'camp-rest';
   ov.className = 'rest-ov p-ton-mint';
   ov.innerHTML = `
     <div class="cf-scenery">${arenaTag('abend')}</div>
     <div class="rest-kopf"><span class="rest-titel">${_flackern(iconHTML('campfire', 14))}Rastplatz</span></div>
-    <div class="rest-mitte">
-      <div class="rest-karte">
-        <div class="rest-h1">Ausgeruht</div>
-        <div class="rest-tx">Das Feuer wärmt. Du sammelst Kraft für den Weg zum Boss.</div>
-        <div class="rest-zeile">
-          <span class="rest-lbl">Leben</span>
-          <span class="rest-zahl">${before} → ${run.hp}/${run.hpMax}</span>
-        </div>
-        <div class="rest-bar">
-          <i class="rest-bar-alt" style="width:${pctVor}%"></i>
-          <i class="rest-bar-neu" style="left:${pctVor}%;width:${pctZu}%"></i>
-        </div>
-        <div class="rest-plus"><span class="rest-chip">${iconHTML('heart', 14).replace('<canvas ', '<canvas data-ui="beat" data-c="12" ')}+${gewinn} Leben</span></div>
-        <button class="rest-weiter" id="rest-weiter">Weiter</button>
-      </div>
-    </div>
+    <div class="rest-mitte" id="rest-mitte">${inhalt}</div>
     <div class="rest-buehne">
       <div class="rest-held" id="rest-held"></div>
       <div class="rest-feuer" id="rest-feuer">${campfireTag(0, 2)}</div>
@@ -302,7 +288,112 @@ function _renderRest(run, before) {
     const el = document.getElementById('rest-feuer');
     if (el) el.innerHTML = campfireTag(bild, 2); else _removeRest();
   }, 1000 / CAMPFIRE_FPS);
+  return ov;
+}
+function _restWeiter() {
   document.getElementById('rest-weiter')?.addEventListener('click', () => { _removeRest(); renderCampaign(); });
+}
+
+function _heilKarte(run, before) {
+  const gewinn = run.hp - before;
+  const pctVor = Math.max(0, Math.min(100, before / run.hpMax * 100));
+  const pctZu = Math.max(0, Math.min(100 - pctVor, gewinn / run.hpMax * 100));
+  return `
+      <div class="rest-karte">
+        <div class="rest-h1">Ausgeruht</div>
+        <div class="rest-tx">Das Feuer wärmt. Du sammelst Kraft für den Weg zum Boss.</div>
+        <div class="rest-zeile">
+          <span class="rest-lbl">Leben</span>
+          <span class="rest-zahl">${before} → ${run.hp}/${run.hpMax}</span>
+        </div>
+        <div class="rest-bar">
+          <i class="rest-bar-alt" style="width:${pctVor}%"></i>
+          <i class="rest-bar-neu" style="left:${pctVor}%;width:${pctZu}%"></i>
+        </div>
+        <div class="rest-plus"><span class="rest-chip">${iconHTML('heart', 14).replace('<canvas ', '<canvas data-ui="beat" data-c="12" ')}+${gewinn} Leben</span></div>
+        <button class="rest-weiter" id="rest-weiter">Weiter</button>
+      </div>`;
+}
+
+// LU-03: am Lagerfeuer wählen — Ausruhen (wie bisher) oder Feuerprobe. Der Knoten
+// gilt erst mit der Wahl als besucht; wer die Feuerprobe beginnt, hat die Rast
+// verbraucht (sonst ließe sie sich durch Neuladen beliebig wiederholen).
+function _renderRestWahl(id) {
+  const c = _camp();
+  const run = c.run;
+  if (!run) return;
+  const ov = _restRahmen(`
+      <div class="rest-karte">
+        <div class="rest-h1">Am Lagerfeuer</div>
+        <div class="rest-tx">Ruh dich aus – oder wage die Feuerprobe.</div>
+        <button class="rest-wahl" id="rest-ausruhen">
+          <span class="rest-wahl-icon" style="background:var(--p-rosa)">${iconHTML('heart', 28)}</span>
+          <span class="rest-wahl-text"><b>Ausruhen</b><small>+${REST_HEAL} Leben</small></span>
+        </button>
+        <button class="rest-wahl" id="rest-probe">
+          <span class="rest-wahl-icon" style="background:var(--p-pfirsich)">${iconHTML('flame', 28)}</span>
+          <span class="rest-wahl-text"><b>Feuerprobe</b><small>Triff ${FUNKEN_ZIEL} von ${FUNKEN_ANZAHL} Funken: Stärke, Schutz oder Zeit bis zum Boss</small></span>
+        </button>
+      </div>`);
+  const besuchen = () => {
+    run.pos = id;
+    if (!run.visited.includes(id)) run.visited.push(id);
+  };
+  ov.querySelector('#rest-ausruhen')?.addEventListener('click', () => {
+    besuchen();
+    const before = run.hp;
+    run.hp = Math.min(run.hpMax, run.hp + REST_HEAL);
+    _saveCampaign();
+    renderCampaign();
+    _restRahmen(_heilKarte(run, before));
+    _restWeiter();
+  });
+  ov.querySelector('#rest-probe')?.addEventListener('click', () => {
+    besuchen();
+    _saveCampaign();
+    renderCampaign();
+    _feuerprobe(_restRahmen(`
+      <div class="rest-karte">
+        <div class="rest-h1">Feuerprobe</div>
+        <div class="rest-tx">Tippe, wenn ein Funke die goldene Linie kreuzt. ${FUNKEN_ZIEL} von ${FUNKEN_ANZAHL} Treffern – dann stärkt dich das Feuer bis zum Boss.</div>
+        <div class="funken-punkte" id="funken-punkte">${'<i></i>'.repeat(FUNKEN_ANZAHL)}</div>
+        <button class="rest-weiter" id="funken-los">Los!</button>
+      </div>`), run);
+  });
+}
+
+function _feuerprobe(ov, run) {
+  const los = ov.querySelector('#funken-los');
+  los?.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    los.style.visibility = 'hidden';   // Platz bleibt, damit die Linie nicht springt
+    const punkte = ov.querySelectorAll('#funken-punkte i');
+    startFunkenTakt(ov, {
+      onWertung: (i, ok) => { if (punkte[i]) punkte[i].className = ok ? 'ja' : 'nein'; },
+      onEnde: (treffer) => {
+        if (!ov.isConnected) return;
+        const geschafft = treffer >= FUNKEN_ZIEL;
+        if (geschafft) {
+          run.feuer = feuerWuerfeln((_camp().round || 0) + 1);
+          _saveCampaign();
+          renderCampaign();
+          try { playSfx('streak'); } catch (e) {}
+        }
+        const mitte = ov.querySelector('#rest-mitte');
+        if (mitte) mitte.innerHTML = `
+      <div class="rest-karte">
+        <div class="rest-ergebnis-kopf">
+          <div class="rest-h1">${geschafft ? 'Bestanden!' : 'Verglüht'}</div>
+          ${geschafft ? `<span class="rest-wahl-icon" style="background:var(--p-gold)">${iconHTML(FEUER_ARTEN[run.feuer.art].icon, 28)}</span>` : ''}
+        </div>
+        <div class="rest-tx">${treffer} von ${FUNKEN_ANZAHL} Funken getroffen. ${geschafft ? 'Das Feuer stärkt dich bis zum Boss.' : 'Diesmal stärkt dich das Feuer nicht.'}</div>
+        ${geschafft ? `<div class="rest-plus">${feuerChip(run.feuer)}</div>` : ''}
+        <button class="rest-weiter" id="rest-weiter">Weiter</button>
+      </div>`;
+        _restWeiter();
+      },
+    });
+  });
 }
 
 // ── Kartengenerierung (prozedural, DAG von unten nach oben) ──
@@ -350,11 +441,14 @@ function generateMap() {
   // 🌀-Knoten nur, wenn das Kind Sternbild-Verben befüllt hat (SD.uvFills) —
   // sonst gäbe es Verb-Kämpfe ohne Wortmaterial.
   const hasVerbs = verbsReady();
+  // LU-03: genau eine ganze Reihe Lagerfeuer kurz vor dem Boss — jeder Weg kommt
+  // an genau einem vorbei.
+  const feuerReihe = FEUER_REIHEN[Math.floor(Math.random() * FEUER_REIHEN.length)];
   const nodes = {};
   for (let r = 0; r < ROWS; r++) {
     for (const col in grid[r]) {
       const n = grid[r][col];
-      if (n.type !== 'boss') n.type = _typeForRow(r, hasVerbs);
+      if (n.type !== 'boss') n.type = r === feuerReihe ? 'rest' : _typeForRow(r, hasVerbs);
       nodes[n.id] = n;
     }
   }
@@ -363,11 +457,12 @@ function generateMap() {
 
 function _typeForRow(r, hasVerbs) {
   if (r <= 1) return 'fight';                       // erste Reihen sanft (nur Übung)
+  // Lagerfeuer setzt generateMap als eigene Reihe (LU-03); ihr früherer Zufallsanteil
+  // ist jetzt Kampf, Schatz und Verbkampf behalten ihren Anteil.
   const roll = Math.random();
-  const restW = r >= ROWS - 4 ? 0.22 : 0.12;        // Rast häufiger kurz vor dem Boss
-  if (roll < 0.50) return 'fight';
-  if (roll < 0.72) return hasVerbs ? 'irregular' : 'fight';
-  if (roll < 0.72 + restW) return 'rest';
+  const schatzAb = r >= ROWS - 4 ? 0.94 : 0.84;
+  if (roll < 0.22) return hasVerbs ? 'irregular' : 'fight';
+  if (roll < schatzAb) return 'fight';
   return 'treasure';
 }
 
@@ -419,18 +514,13 @@ export function campaignNode(id) {
     _startFight(node);
     return;
   }
-  run.pos = id;
-  if (!run.visited.includes(id)) run.visited.push(id);
   if (node.type === 'rest') {
-    // 🔥 Rastplatz: ausruhen (+HP, gedeckelt). Die Heilung ist unverändert —
-    // seit Screen 6.7 sieht man sie nur, statt sie im Vorbeigehen zu bekommen.
-    const before = run.hp;
-    run.hp = Math.min(run.hpMax, run.hp + REST_HEAL);
-    _saveCampaign();
-    renderCampaign();
-    _renderRest(run, before);
+    // LU-03: erst wählen (Ausruhen oder Feuerprobe) — besucht ist der Knoten mit der Wahl.
+    _renderRestWahl(id);
     return;
   }
+  run.pos = id;
+  if (!run.visited.includes(id)) run.visited.push(id);
   if (node.type === 'treasure') {
     // 💎 Schatz: kein Kampf — Wahl aus 3 Tränken (💍 Ringe geben mehr Auswahl).
     // Tränke gehören zum Run und sind im Kampf spielbar.
@@ -853,11 +943,12 @@ function _mapHtml(run) {
   // LU-17: Rekord (längster Lauf, gleiche Zahl wie „Run-Länge“ und Fortschritt-Seite)
   // rechts in der Kicker-Zeile, damit man sieht, was es zu schlagen gibt.
   const rekord = _camp().stats.bestRun || 0;
+  // LU-03: Bonus der Feuerprobe (bis zum Boss) steht links neben dem Rekord.
   const rekordHtml = rekord > 0
     ? `<span class="camp-rekord">${iconHTML('trophy', 14)}Rekord ${rekord}</span>` : '';
   return `${header}
   <div class="p-karte" style="border-radius:24px;padding:15px 13px;margin-top:12px">
-    <div class="p-kicker" style="border:0;padding:0;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:8px"><span>Pfad wählen</span>${rekordHtml}</div>
+    <div class="p-kicker" style="border:0;padding:0;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:8px"><span>Pfad wählen</span><span class="camp-kicker-re">${feuerChip(run.feuer, 'camp-rekord camp-feuer')}${rekordHtml}</span></div>
     <div id="camp-map" style="position:relative;width:100%;height:${_MAP_H}px;">
       <svg id="camp-edges" style="position:absolute;inset:0;width:100%;height:100%;z-index:1;" viewBox="0 0 100 ${_MAP_H}" preserveAspectRatio="none"></svg>
       ${nodesHtml}

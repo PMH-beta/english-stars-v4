@@ -60,6 +60,22 @@ export const FORM_BONUS = 2;
 // 🔥 Rastplatz: Heilung (auf hpMax gedeckelt).
 export const REST_HEAL = 15;
 
+// 🔥 Lagerfeuer (LU-03, 24.11.2026): genau EINE Reihe Lagerfeuer je Karte (jeder Weg
+// kommt an genau einem vorbei), zufällig eine der Reihen FEUER_REIHEN (0 = Start,
+// 12 = Boss). Dort wählt das Kind: Ausruhen (REST_HEAL) oder Feuerprobe (Funken-Takt).
+// Feuerprobe: mind. FUNKEN_ZIEL von FUNKEN_ANZAHL Funken im Fenster getroffen →
+// zufällig Stärke, Schutz oder Zeit bis zum Ende der Karte (inkl. Boss); Höhe
+// FEUER_BONUS × FEUER_MULT (×2 ab Runde 4, ×3 ab Runde 8). Misslungen = nichts.
+export const FEUER_REIHEN = [8, 9, 10];
+export const FUNKEN_ANZAHL = 10;
+export const FUNKEN_ZIEL = 8;
+export const FUNKEN_STEIG_MS = 1500;     // vom Feuer bis zur goldenen Linie
+export const FUNKEN_FENSTER_MS = 140;    // ± um die Linie zählt als Treffer
+// Abstand der Funken (ms nach dem Start): gleichmäßiger Takt mit zwei schnellen Doppeln.
+export const FUNKEN_TAKT = [0, 750, 1500, 2250, 2625, 3000, 3750, 4500, 5250, 5625];
+export const FEUER_BONUS = { staerke: 1, schutz: 2, zeitMs: 1000 };
+export function feuerMult(runde) { return runde >= 8 ? 3 : runde >= 4 ? 2 : 1; }
+
 // Buchstabensturm (Minispiel).
 export const STORM_BASE_MS = 20000;        // Grundzeit
 export const STORM_PER_LETTER_MS = 2000;   // +2 s je Buchstabe ab dem 6.
