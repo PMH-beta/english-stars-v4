@@ -474,12 +474,16 @@ function _endDrag() {
   const container = document.getElementById(_activeDecksContainerId());
   container.classList.remove('is-sortieren');
   const newOrder = [...container.querySelectorAll('.p-sammlung')].map(c => c.dataset.deckId).filter(Boolean);
-  newOrder.forEach((id, i) => { if (window.SD.decks[id]) window.SD.decks[id].sortOrder = (i + 1) * 10; });
+  const geaendert = [];   // S-7: nur Sammlungen, deren Platz sich wirklich geändert hat
+  newOrder.forEach((id, i) => {
+    const d = window.SD.decks[id];
+    if (d && d.sortOrder !== (i + 1) * 10) { d.sortOrder = (i + 1) * 10; geaendert.push(id); }
+  });
   document.body.style.userSelect = '';
   document.body.style.webkitUserSelect = '';
   _dragState = null;
   window.persist();
-  if (window.currentUser) { newOrder.forEach(id => markDirty('deck', id)); commitDirty(); }
+  if (window.currentUser && geaendert.length) { geaendert.forEach(id => markDirty('deck_sort', id)); commitDirty(); }
   renderDecks();
 }
 

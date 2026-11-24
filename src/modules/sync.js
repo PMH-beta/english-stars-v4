@@ -407,6 +407,15 @@ export async function saveDeck(deck, userId) {
   }
 }
 
+// S-7 (24.11.2026): Sortieren ändert nur sort_order — vorher ging je Sammlung die
+// ganze Zeile samt Wortliste hoch (23 Sammlungen = 23 volle Updates).
+export async function saveDeckSort(deckId, sortOrder, userId) {
+  if (!isUUID(deckId)) return;
+  const { error } = await fetchWithRetry(() => supabase
+    .from('decks').update({ sort_order: sortOrder || 0 }).eq('id', deckId).eq('user_id', userId));
+  if (error) throw new Error('[sync] saveDeckSort: ' + error.message);
+}
+
 export async function deleteCloudDeck(deckId, userId) {
   if (!isUUID(deckId)) return;
   const { error } = await supabase
@@ -668,6 +677,13 @@ async function _flushEinmal() {
           try { await saveDeck(deck, userId); } finally { _deckAnlegen.delete(deck.id); }
         } else if (deck) await saveDeck(deck, userId);
         // deck nicht gefunden: wurde durch UUID-Rename bereits gespeichert → skip
+      } else if (item.type === 'deck_sort' && item.deckId) {
+        // S-7: Steht die ganze Sammlung ohnehin an, nimmt sie sort_order mit. Eine
+        // noch nicht angelegte Sammlung bekommt ihn beim Anlegen.
+        const deck = sd.decks[item.deckId];
+        if (deck && isUUID(deck.id) && !pending.some(p => p.type === 'deck' && p.deckId === item.deckId)) {
+          await saveDeckSort(deck.id, deck.sortOrder, userId);
+        }
       } else if (item.type === 'word_stats' && item.deckId) {
         const deck = sd.decks[item.deckId];
         // K2: im Schnellmodus geht der echte Stand hoch, nicht die Schnell-Stände.
