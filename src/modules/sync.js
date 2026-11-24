@@ -3,7 +3,8 @@
 import { supabase } from './supabase.js';
 import { persist } from './storage.js';
 import { echteDeckStats, echtePresetStats } from './schnell-stand.js';
-import { lernTageFrom, ZIEL_STANDARD } from './lernwoche.js';   // LU-14 (Kreis-Import: nur zur Laufzeit gelesen)
+import { lernTageFrom, ZIEL_STANDARD } from './lernwoche.js';
+import { wiederFrom } from './stats.js';   // LU-15   // LU-14 (Kreis-Import: nur zur Laufzeit gelesen)
 
 // ────────────────────────────────────────────────
 //  UTILS
@@ -147,8 +148,8 @@ async function _cloudLoadOnce(userId, signal) {
     fetchWithRetry(() => supabase.from('profiles').select('player_name, highscore, total_points, active_deck_id, active_mode, uv_active, uv_fills, avatar, campaign, lern_tage, updated_at').eq('id', userId).abortSignal(signal).maybeSingle()),
     fetchWithRetry(() => supabase.from('decks').select('*').eq('user_id', userId).order('sort_order').order('created_at').abortSignal(signal)),
     // S-4: nur die gebrauchten Spalten (id/user_id waren ~45 % der Rohdaten).
-    _selectAll(() => supabase.from('word_stats').select('deck_id, stat_key, asked, correct, wrong, recent, updated_at').eq('user_id', userId).order('deck_id').order('stat_key').abortSignal(signal)),
-    _selectAll(() => supabase.from('preset_stats').select('stat_key, asked, correct, wrong, recent, updated_at').eq('user_id', userId).order('stat_key').abortSignal(signal)),
+    _selectAll(() => supabase.from('word_stats').select('deck_id, stat_key, asked, correct, wrong, recent, wieder, updated_at').eq('user_id', userId).order('deck_id').order('stat_key').abortSignal(signal)),
+    _selectAll(() => supabase.from('preset_stats').select('stat_key, asked, correct, wrong, recent, wieder, updated_at').eq('user_id', userId).order('stat_key').abortSignal(signal)),
     fetchWithRetry(() => supabase.from('preset_category_progress').select('*').eq('user_id', userId).abortSignal(signal)),
     fetchWithRetry(() => supabase.from('probetests').select('*').eq('user_id', userId).order('taken_at', { ascending: false }).limit(50).abortSignal(signal)),
   ]);
@@ -182,6 +183,8 @@ async function _cloudLoadOnce(userId, signal) {
       wrong:   Number(ps.wrong)   || 0,
       recent:  ps.recent || '',
     };
+    const w = wiederFrom(ps.wieder);   // LU-15
+    if (w !== undefined) globalPresetStats.wordStats[ps.stat_key].wieder = w;
   }
   if (presetCatProgRes.error) console.error('[cloudLoad] preset_category_progress:', presetCatProgRes.error.message);
   for (const pcp of (presetCatProgRes.data || [])) {
@@ -257,6 +260,8 @@ async function _cloudLoadOnce(userId, signal) {
       wrong:   Number(ws.wrong)   || 0,
       recent:  ws.recent || '',
     };
+    const w = wiederFrom(ws.wieder);   // LU-15
+    if (w !== undefined) decks[ws.deck_id].wordStats[ws.stat_key].wieder = w;
   }
 
   const activeDeckId = profile.active_deck_id || decksRes.data[0]?.id || null;
@@ -472,6 +477,7 @@ export async function saveWordStats(deckCloudId, stats, userId) {
     correct:  s.correct || 0,
     wrong:    s.wrong   || 0,
     recent:   s.recent  || '',
+    wieder:   wiederFrom(s.wieder) ?? null,   // LU-15
   }));
   if (!rows.length) return;
   const { error } = await fetchWithRetry(() => supabase
@@ -501,6 +507,7 @@ export async function saveGlobalPresetStats(stats, userId) {
     correct:    s.correct || 0,
     wrong:      s.wrong   || 0,
     recent:     s.recent  || '',
+    wieder:     wiederFrom(s.wieder) ?? null,   // LU-15
   }));
   if (wordRows.length) {
     const { error } = await fetchWithRetry(() => supabase

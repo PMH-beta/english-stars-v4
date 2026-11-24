@@ -130,6 +130,32 @@ export function statBasis(statKey) {
   const j = statKey.indexOf('_', i);
   return j < 0 ? statKey : statKey.slice(0, j);
 }
+// ── Wiederholen gemeisterter Wörter (LU-15) ──
+// Ein gemeistertes Wort kommt nach WIEDER_TAGE[stufe] Tagen still in den normalen
+// Runden seines Decks wieder (keine eigene Runde, keine neue Anzeige). Richtig beim
+// Wiederholen = nächste Stufe (danach bleibt es bei 28 Tagen), falsch = zurück auf 7.
+// stat.wieder = tag*8 + stufe (Spalte word_stats/preset_stats.wieder). Rechtschreibung
+// hängt am _sp-Stand des Worts (die drei Teile zählen als ein Wort).
+export const WIEDER_TAGE = [7, 14, 28];
+export function wiederAnker(statKey) {
+  return /_sp_(lu|so)$/.test(statKey || '') ? statKey.slice(0, -3) : statKey;
+}
+export function wiederFaellig(s, heute = heuteTag()) {
+  if (!s || !Number.isFinite(s.wieder)) return false;
+  const stufe = Math.min(s.wieder % 8, WIEDER_TAGE.length - 1);
+  return heute >= Math.floor(s.wieder / 8) + WIEDER_TAGE[stufe];
+}
+export function wiederNachAntwort(s, ok, heute = heuteTag()) {
+  if (!s) return;
+  const stufe = Number.isFinite(s.wieder) ? s.wieder % 8 : 0;
+  s.wieder = heute * 8 + (ok ? Math.min(stufe + 1, WIEDER_TAGE.length - 1) : 0);
+}
+/** Wert aus der Cloud bereinigen: ganze Zahl ≥ 0 oder nichts. */
+export function wiederFrom(v) {
+  const n = Number(v);
+  return v !== null && v !== undefined && Number.isInteger(n) && n >= 0 ? n : undefined;
+}
+
 // Normales Üben (Vokabeln, Schmiede, Training) merkt sich den Tag je Wort, damit der
 // Kampf frisch Geübtes bevorzugen kann. Nur die letzten Tage werden gebraucht —
 // Älteres fliegt beim Schreiben raus.

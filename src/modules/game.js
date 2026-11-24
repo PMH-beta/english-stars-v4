@@ -1,6 +1,6 @@
 // src/modules/game.js
 import { QPERROUND, EXAM_QUESTIONS, calcGrade, gradeText, UV_LVL, UV_MASTERY_MIN_ATTEMPTS, MASTERY_THRESHOLD } from './config.js';
-import { effectivePct, isMastered, statKeyFor, getVocabStat, SP_TEILE, spWort, spKurz, spellingStand, wortScore, presetStatStore, merkeGeuebt } from './stats.js';
+import { effectivePct, isMastered, statKeyFor, getVocabStat, SP_TEILE, spWort, spKurz, spellingStand, wortScore, presetStatStore, merkeGeuebt, heuteTag, wiederAnker, wiederFaellig, wiederNachAntwort } from './stats.js';
 import { activeDeck, syncMirrorFromActiveDeck } from './decks.js';
 import { showScreen, showMenu, hideFeedback, showFeedback, TP_DISZ } from './ui.js';
 import { ensureMicStream, releaseMicStream, voskStop, stopVisualizer, speakWord, speakWordOnce, startVoskRecognition, startRecording, _shouldUseVosk, warmAudio, warmIosMic, micZustand, gehoert, aufnahmeBeenden } from './speech.js';
@@ -523,8 +523,23 @@ export function buildPool(m) {
   if(window._skipMasteryFilter||window.isExamMode) return shuffle(qs).slice(0, limit);
   // Reihenfolge der Ziehung bleibt erhalten (gewichtet) — erst die Auswahl mischen.
   // Alles gemeistert → leer: startGame bietet dann die Runde ohne Wertung an (F-B).
-  const filtered=qs.filter(q=>!_rundeFertig(q));
+  const heute=heuteTag();
+  const filtered=qs.filter(q=>!_rundeFertig(q) || _wiederDran(q, heute));
   return shuffle(filtered.slice(0, limit));
+}
+
+// LU-15: Gemeistertes Wort wieder dran? Nur normale Vokabel-Runden (nicht Schmiede).
+// Ohne Zeitstempel (gemeistert vor LU-15 oder gerade erst) startet die Uhr heute —
+// hochgeladen wird er mit den Wortständen am Rundenende.
+function _wiederDran(q, heute){
+  if(window.isUV) return false;
+  const store=q._presetId ? presetStatStore(q._presetId) : window.SD?.wordStats;
+  const s=store?.[wiederAnker(q.statKey)];
+  if(!s) return false;
+  if(!Number.isFinite(s.wieder)){ s.wieder=heute*8; return false; }
+  if(!wiederFaellig(s, heute)) return false;
+  q._wieder=true;
+  return true;
 }
 
 // ── Schnell-Modus (pro Modus, bleibt erhalten) ──
@@ -1318,6 +1333,8 @@ function recordStat(q, ok) {
   if(ok) s.correct+=inc; else s.wrong+=inc;
   if(!s.recent) s.recent='';
   s.recent=(s.recent+(ok?'1':'0')).slice(-8);
+  // LU-15: nur die erste Antwort auf ein fälliges Wort zählt (nicht die Nachhol-Phase).
+  if(q._wieder){ q._wieder=false; wiederNachAntwort(store[wiederAnker(q.statKey)], ok); }
   merkeGeuebt(q.statKey);   // LU-04: Kampf bevorzugt frisch Geübtes
   try{persist();}catch(e){}
   _merkeAntwortFuerCloud(q);

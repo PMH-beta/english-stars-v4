@@ -452,3 +452,7 @@ REVOKE ALL ON profiles, decks, word_stats, exams, preset_categories,
 -- campaign, damit eine spaetere Rangliste (LU-11) sie direkt lesen kann.
 -- get_friend_progress oben liefert sie als 'lernTage' mit.
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS lern_tage jsonb;
+-- LU-15 (24.11.2026): Wiederholen gemeisterter Woerter in den normalen Runden.
+-- wieder = tag*8 + stufe (Tage seit 1970, Ortszeit); Abstand 7/14/28 Tage.
+ALTER TABLE public.word_stats   ADD COLUMN IF NOT EXISTS wieder integer;
+ALTER TABLE public.preset_stats ADD COLUMN IF NOT EXISTS wieder integer;
