@@ -15,9 +15,12 @@ let _friendsCache = [];
 
 // ── RPC-Wrapper ──
 export async function searchUsers(q) {
-  const { data, error } = await supabase.rpc('search_users', { q });
-  if (error) { console.warn('[friends] search:', error.message); return []; }
-  return data || [];
+  // B-07: Fehler (offline) → null, damit die Liste nicht „Niemand gefunden“ sagt.
+  try {
+    const { data, error } = await supabase.rpc('search_users', { q });
+    if (error) { console.warn('[friends] search:', error.message); return null; }
+    return data || [];
+  } catch (e) { console.warn('[friends] search:', e.message); return null; }
 }
 async function listFriends() {
   const { data, error } = await supabase.rpc('list_friends');
@@ -249,6 +252,10 @@ export function onFriendSearchEnter() {
 function _renderSearchResults(rows, q) {
   const results = document.getElementById('friend-search-results');
   if (!results) return;
+  if (!rows) {
+    results.innerHTML = '<div class="fr-leer">Keine Verbindung – versuch es später nochmal.</div>';
+    return;
+  }
   if (!rows.length) {
     results.innerHTML = `<div class="fr-leer">Niemand mit „${esc(q)}“ gefunden</div>`;
     return;

@@ -484,7 +484,7 @@ export function renderEquipmentPanel() {
         ${_teilBild(it, bildS)}${worn && worn.id === it.id ? '<span class="pf-teil-an">angelegt</span>' : ''}
       </button>`).join('');
     for (let i = allOfSlot.length; i < capacity; i++) inv += `<div class="pf-teil is-leer" title="Leerer Platz — schmiede etwas in der Schmiede"></div>`;
-    const emptyHint = allOfSlot.length ? '' : `<div class="pf-leer">Noch kein ${meta.name}-Teil geschmiedet — wähle in der Schmiede beim Befüllen ein passendes Objekt und übe seine Verben, dann taucht es hier auf.</div>`;
+    const emptyHint = allOfSlot.length ? '' : `<div class="pf-leer">Noch nichts für dieses Feld geschmiedet — wähle in der Schmiede beim Befüllen ein passendes Objekt und übe seine Verben, dann taucht es hier auf.</div>`;
     // Unter der Tasche ist immer Platz für die Teil-Karte reserviert (auch ohne
     // angewähltes Teil), damit beim Wechsel nichts nachrückt.
     bagHtml = `<div class="pf-auswahl">

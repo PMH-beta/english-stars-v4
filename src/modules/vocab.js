@@ -424,17 +424,24 @@ export function parsePastedText() {
   if (!text) { window.esAlert({ icon: '⚠️', title: 'Kein Text', body: 'Bitte erst Text einfügen.' }); return; }
   window._reviewItems = []; _lastOCRText = text;
   bilderVerwerfen();   // eingefügter Text ersetzt eine Liste aus Bildern
-  const items = parseVocabFromOCR(text);
+  // B-10: Im Text-Reiter trennen auch „ - “, „,“ „;“ „=“ „:“ EN und DE — nur in Zeilen
+  // ohne Tab oder 2+ Leerzeichen (der Scan bleibt beim bisherigen Parser).
+  const zeilen = text.split('\n').map(z => z.trim()).filter(Boolean)
+    .map(z => (/\t|\s{2,}/.test(z) ? z
+      : /\s[-–—]\s/.test(z) ? z.replace(/\s[-–—]\s/, '\t') : z.replace(/\s*[,;=:]\s*/, '\t')));
+  const items = parseVocabFromOCR(zeilen.join('\n'));
+  const unerkannt = zeilen.filter(z => !parseVocabFromOCR(z).length).length;
   const existing = new Set(window.VOCAB.map(v => v.en.toLowerCase()));
   window._reviewItems = items.filter(i => i.de && i.en).map((i, idx) => ({
     id: idx, de: i.de.trim(), en: i.en.trim(),
     isDuplicate: existing.has(i.en.toLowerCase())
   }));
   if (window._reviewItems.length === 0) {
-    window.esAlert({ icon: '🤔', title: 'Nichts erkannt', body: 'Keine Vokabeln im Text erkannt. Format: pro Zeile ein Vokabelpaar, getrennt durch 2+ Leerzeichen oder Tab.\n\nBeispiel:\ncafeteria   Cafeteria\nplace   Platz' });
+    window.esAlert({ icon: '🤔', title: 'Nichts erkannt', body: 'Keine Vokabeln im Text erkannt. Format: pro Zeile ein Vokabelpaar, getrennt durch 2+ Leerzeichen, Tab, Komma, „=“ oder „:“.\n\nBeispiel:\ncafeteria   Cafeteria\nplace, Platz' });
     return;
   }
   showReview();
+  if (unerkannt) window.esToast?.(unerkannt === 1 ? '1 Zeile nicht erkannt' : `${unerkannt} Zeilen nicht erkannt`);
 }
 
 // ── Scan mit 1 bis 5 Bildern ─────────────────────────────────────────────────

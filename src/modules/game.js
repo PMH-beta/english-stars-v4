@@ -7,7 +7,7 @@ import { ensureMicStream, releaseMicStream, voskStop, stopVisualizer, speakWord,
 import { persist } from './storage.js';
 import { markDirty, saveExam, saveProbetest } from './sync.js';
 import { commitDirty } from './dialog.js';
-import { IRREGULAR_PRESET_ID, formDistractors, UV_TRAIN_SUF } from './irregular-verbs.js';
+import { IRREGULAR_PRESET_ID, IRREGULAR_VERBS, formDistractors, UV_TRAIN_SUF } from './irregular-verbs.js';
 import { iconHTML } from './pixel-icons.js';
 import { setGrundton } from './screen-shell.js';
 
@@ -177,6 +177,10 @@ function _uvInstr(t){ return `<div class="q-instr uv-instr">${t}</div>`; }
 function _uvWord(de,mitInstr){
   return `<div class="question-text${mitInstr?' mit-instr':''}"><span class="q-lang">DE</span>${window.escHtml(de)}</div>`;
 }
+// V-3: Deutsche Verben mit mehreren englischen Verben (schlagen = strike/beat)
+// bekommen im Aufgabenkopf die englische Grundform dazu: „schlagen (strike)“.
+const _uvDeDoppelt = (() => { const n = {}; IRREGULAR_VERBS.forEach(v => { n[v.de] = (n[v.de] || 0) + 1; }); return n; })();
+function _uvDe(item){ return _uvDeDoppelt[item.de] > 1 ? `${item.de} (${item.en})` : item.de; }
 // Aufgaben-Zusatz (Buchstabenlücke, falsche Form …) unter dem Wort.
 function _uvTask(t){ return `<div class="uv-aufgabe">${t}</div>`; }
 // UV-Fragekopf in fester Reihenfolge: Form-Plakette → (Anweisung) → deutsches Wort
@@ -227,7 +231,7 @@ function bErkennen(item, which, lvl, suf){
   // Schritt (bUV) mit eigenem Suffix — darum hier keine zufällige Beimischung mehr.
   const mt=_verbMeta(which); const target=_firstForm(mt.get(item)); const inf=_firstForm(item.en);
   const base={type:'mc',badge:'vocab',statKey:statKeyFor(item.de,item.en,suf||mt.suf.mc,item._presetId||null),_presetId:item._presetId||null,
-    question:_uvHead(item.de,which,'',''),answer:target};
+    question:_uvHead(_uvDe(item),which,'',''),answer:target};
   if(lvl===3){ // schwer: nur echte Formen anderer Verben
     return {...base,choices:shuffle([target,..._otherForms(item,which,3,target)])};
   }
@@ -255,7 +259,7 @@ function bRufen(item, which, lvl, suf){
   });
   if(lvl===3){ // schwer: ganze Reihe sprechen
     const chain=`${inf} ${_firstForm(item.forms.past)} ${_firstForm(item.forms.participle)}`;
-    return {...base,question:_uvBadge('all')+_uvInstr('Sprich alle drei Formen')+_uvWord(item.de,true),answer:chain,gleich};
+    return {...base,question:_uvBadge('all')+_uvInstr('Sprich alle drei Formen')+_uvWord(_uvDe(item),true),answer:chain,gleich};
   }
   // leicht/mittel: nur das deutsche Wort, Zielform aus dem Kopf sprechen
   // F-F: der Lautschlüssel hört „sing“ und „sang“ gleich — die anderen Formen
@@ -263,7 +267,7 @@ function bRufen(item, which, lvl, suf){
   const ziel=(mt.get(item)||'').split('/').map(s=>s.trim().toLowerCase());
   const falsch=[item.en,item.forms.past,item.forms.participle].join('/').split('/')
     .map(s=>s.trim().toLowerCase().replace(/^to\s+/,'')).filter(s=>s&&!ziel.includes(s));
-  return {...base,question:_uvHead(item.de,which,'Sprich die Form',''),answer:target,falsch,gleich};
+  return {...base,question:_uvHead(_uvDe(item),which,'Sprich die Form',''),answer:target,falsch,gleich};
 }
 
 // 🔨 Schmieden (Tippen, schreiben)
@@ -274,14 +278,14 @@ function bSchmieden(item, which, lvl, suf){
   if(lvl===1){ // leicht: nur den EINEN fehlenden Buchstaben ergänzen
     const g=_gapLetter(target);
     // speak = das GANZE Wort (TTS soll nicht nur den einen Buchstaben vorlesen).
-    return {...base,gap:true,speak:target,question:_uvHead(item.de,which,'Welcher Buchstabe fehlt?',g.display),answer:g.letter};
+    return {...base,gap:true,speak:target,question:_uvHead(_uvDe(item),which,'Welcher Buchstabe fehlt?',g.display),answer:g.letter};
   }
   if(lvl===2){ // mittel: falsche Form korrigieren
     const wrong=(formDistractors(item,which)[0])||target;
-    return {...base,ph:mt.label+' tippen…',question:_uvHead(item.de,which,'Diese Form ist falsch — verbessere sie','')+_uvFalsch(wrong),answer:full};
+    return {...base,ph:mt.label+' tippen…',question:_uvHead(_uvDe(item),which,'Diese Form ist falsch — verbessere sie','')+_uvFalsch(wrong),answer:full};
   }
   // schwer: frei tippen — nur das deutsche Wort als Vorgabe
-  return {...base,ph:mt.label+' tippen…',question:_uvHead(item.de,which,mt.label+' bilden',''),answer:full};
+  return {...base,ph:mt.label+' tippen…',question:_uvHead(_uvDe(item),which,mt.label+' bilden',''),answer:full};
 }
 
 // Mischt ein Array so, dass die Reihenfolge möglichst nicht schon der Lösung
@@ -302,7 +306,7 @@ function bErkennenOrder(item, which, suf){
   return {
     type:'order', orderKind:'forms', badge:'vocab', _presetId:item._presetId||null,
     statKey:statKeyFor(item.de,item.en,suf||_verbMeta(which).suf.mc,item._presetId||null),
-    question:_uvBadge('all')+_uvInstr('Zieh die Formen in die richtige Reihenfolge')+_uvWord(item.de,true),
+    question:_uvBadge('all')+_uvInstr('Zieh die Formen in die richtige Reihenfolge')+_uvWord(_uvDe(item),true),
     slotLabels:['Present','Simple Past','Past Participle'],
     solution:sol, tiles:_scramble(sol),
     answer:`${present} · ${past} · ${pp}`,
@@ -317,7 +321,7 @@ function bSchmiedenOrder(item, which, suf){
   return {
     type:'order', orderKind:'letters', badge:'spelling', _presetId:item._presetId||null,
     statKey:statKeyFor(item.de,item.en,suf||mt.suf.sp,item._presetId||null),
-    question:_uvHead(item.de,which,'Leg die Buchstaben in die richtige Reihenfolge'),
+    question:_uvHead(_uvDe(item),which,'Leg die Buchstaben in die richtige Reihenfolge'),
     slotLabels:letters.map(()=>''), solution:letters, tiles:_scramble(letters),
     answer:full,
   };
@@ -349,7 +353,7 @@ function bSchmiedenGap(item, which, suf){
   return {type:'type',badge:'spelling',gap:true,speak:target,hint:'',_presetId:item._presetId||null,
     gapWord:g.word, gapIdx:g.idx,
     statKey:statKeyFor(item.de,item.en,suf,item._presetId||null),
-    question:_uvHead(item.de,which,'Welcher Buchstabe fehlt?',''),answer:g.letter};
+    question:_uvHead(_uvDe(item),which,'Welcher Buchstabe fehlt?',''),answer:g.letter};
 }
 
 // 🔨 Schmieden · ganzes Wort tippen (nur deutsches Wort als Vorgabe).
@@ -357,7 +361,7 @@ function bSchmiedenType(item, which, suf){
   const mt=_verbMeta(which); const full=mt.get(item);
   return {type:'type',badge:'spelling',hint:'',ph:mt.label+' tippen…',_presetId:item._presetId||null,
     statKey:statKeyFor(item.de,item.en,suf,item._presetId||null),
-    question:_uvHead(item.de,which,mt.label+' bilden',''),answer:full};
+    question:_uvHead(_uvDe(item),which,mt.label+' bilden',''),answer:full};
 }
 
 // Eine Schmiede-Frage für eine Disziplin — Aufgabentyp je Frage ZUFÄLLIG.
@@ -1089,8 +1093,12 @@ export function submitType() {
   ok?handleCorrect():handleWrong();
 }
 
-export function showSelfRateButtons() {
+const SELBST_TEXT='Die Spracherkennung war sich nicht sicher — du entscheidest selbst.';
+export function showSelfRateButtons(grund) {
   if(window.answered || window.currentQ?.type!=='pronounce') return;
+  // Ohne Mikrofon hat keine Erkennung stattgefunden — eigener Satz (B-05, 24.11.).
+  const selbst=document.querySelector('#feedback .feedback-selbst');
+  if(selbst) selbst.textContent = grund==='ohne-mikro' ? 'Ohne Mikrofon entscheidest du selbst.' : SELBST_TEXT;
   const card=document.getElementById('game-card');
   if(!card) return;
   const old=document.getElementById('self-rate-wrap');
