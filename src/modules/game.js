@@ -1319,6 +1319,27 @@ function recordStat(q, ok) {
   s.recent=(s.recent+(ok?'1':'0')).slice(-8);
   merkeGeuebt(q.statKey);   // LU-04: Kampf bevorzugt frisch Geübtes
   try{persist();}catch(e){}
+  _merkeAntwortFuerCloud(q);
+}
+
+// D-2 (24.11.2026): Jede gewertete Antwort steht sofort lokal (persist), aber erst
+// das Rundenende meldete sie für die Cloud an. Wurde die App mitten in der Runde
+// weggewischt, gewann beim nächsten Start die Cloud und die Antworten waren weg.
+// Jetzt steht der Merker sofort; der Flush beim Verstecken bzw. vor dem nächsten
+// Laden schiebt die Wortstände hoch. Punkte und Rundenzähler bleiben am Rundenende.
+function _merkeAntwortFuerCloud(q) {
+  if(!window.currentUser||window.isProbetest) return;
+  try{
+    if(window.isUV){
+      markDirty('global_preset');
+      if(window._uvTrain) markDirty('word_stats', window._uvTrain.deckId);
+      return;
+    }
+    const deck=activeDeck();
+    if(!deck) return;
+    if(q._presetId) markDirty('global_preset');
+    else markDirty('word_stats', deck.id);
+  }catch(e){}
 }
 
 // ── Correct / Wrong ──
