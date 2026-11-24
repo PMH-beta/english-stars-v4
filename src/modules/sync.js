@@ -378,7 +378,7 @@ export async function saveDeck(deck, userId) {
     // Writes unberührt, falls die Spalte (Migration) noch fehlt.
     ...(deck.mode === 'training' ? { uv_forms: deck.uvForms || null } : {}),
   };
-  console.log('[sync] saveDeck →', deck.id, '| vocab:', deck.vocab?.length ?? '?', 'words | row:', row);
+  console.log('[sync] saveDeck →', deck.id, '| vocab:', deck.vocab?.length ?? '?', 'words');   // S-6: nicht mehr die ganze Zeile samt Wortliste
 
   if (isUUID(deck.id)) {
     const { error } = await fetchWithRetry(() => supabase

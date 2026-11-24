@@ -1129,31 +1129,47 @@ export async function confirmAddVocab() {
 // ════════════════════════════════════════════════
 let _presetCache = null;
 let _presetLoading = false;
+// S-6 (24.11.2026): Die Vorlagen lebten nur im Arbeitsspeicher — offline blieben
+// Vorlagen-Reiter, Fortschritt und der Wort-Nachschub im Kampf leer. Jetzt liegt die
+// zuletzt geladene Liste (≈ 40 kB, öffentliche Daten) auch lokal. Kommt sie von
+// dort, fragt die App höchstens einmal je Minute erneut beim Server nach.
+const PRESET_LS = 'es_presets_v1';
+let _presetAusKopie = 0;   // Zeitpunkt, seit dem die lokale Kopie gilt (0 = Server)
+
+function _presetKopieLesen() {
+  try { const d = JSON.parse(localStorage.getItem(PRESET_LS) || 'null'); return Array.isArray(d) && d.length ? d : null; }
+  catch (e) { return null; }
+}
 
 async function _loadPresetCategories() {
-  if (_presetCache !== null) return _presetCache; // null = noch nicht (erfolgreich) geladen
+  // null = noch nicht (erfolgreich) geladen
+  if (_presetCache !== null && (!_presetAusKopie || Date.now() - _presetAusKopie < 60000)) return _presetCache;
   if (_presetLoading) {
     while (_presetLoading) await new Promise(r => setTimeout(r, 80));
     return _presetCache || [];
   }
   _presetLoading = true;
   try {
-    console.log('[presets] Lade Kategorien aus Supabase...');
     const { data, error } = await supabase
       .from('preset_categories')
       .select('id, name, slug, sort_order, words, difficulty')
       .order('sort_order');
-    console.log('[presets] data:', JSON.stringify(data), 'error:', error);
     if (error) throw error;
     // B-02: Eine leere Antwort (Netz wackelt, Tabelle kurz leer) nicht für die ganze
     // Sitzung merken — der nächste Tab-Click fragt erneut.
-    _presetCache = data && data.length ? data : null;
-    console.log('[presets] gecacht:', (data || []).length, 'Kategorien');
-    _presetLoading = false;
-    return data || [];
+    if (data && data.length) {
+      _presetCache = data; _presetAusKopie = 0;
+      try { localStorage.setItem(PRESET_LS, JSON.stringify(data)); } catch (e) {}
+      console.log('[presets] geladen:', data.length, 'Kategorien');
+      _presetLoading = false;
+      return data;
+    }
+    throw new Error('leere Antwort');
   } catch(e) {
-    console.warn('[presets] Laden fehlgeschlagen:', e.message);
-    _presetCache = null; // Bei Fehler nicht cachen → nächster Tab-Click versucht es erneut
+    // Bei Fehler: lokale Kopie (sonst leer) — der nächste Aufruf fragt wieder an.
+    const kopie = _presetKopieLesen();
+    _presetCache = kopie; _presetAusKopie = kopie ? Date.now() : 0;
+    console.warn('[presets] Laden fehlgeschlagen:', e.message, kopie ? '→ lokale Kopie (' + kopie.length + ')' : '');
   }
   _presetLoading = false;
   return _presetCache || [];
