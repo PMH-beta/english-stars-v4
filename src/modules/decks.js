@@ -165,10 +165,18 @@ export function presetProgressPct(deck, presetId) {
 // „x/y gemeistert" mit dem Taler-Chip. Der Chip wechselt bei 100 % von
 // grau-gestrichelt auf gold-durchgezogen — das ist der sichtbare Lohn.
 // Auch für die Trainings-Decks im Reiter Formen (ui.js, seit 15.10.2026).
-export function _modusZeile(name, mod, klasse, onclick) {
+// Ist der Taler für deckId|art schon gebucht? Gebucht wird einmal und dauerhaft
+// (campaign.claimed) — der Chip richtet sich danach, nicht nach dem schwankenden
+// Live-Stand (F-C): sonst wird er nach einem Fehler wieder grau „+1 Taler", obwohl
+// es keinen zweiten gibt.
+export function talerGeholt(key) {
+  return (window.SD?.campaign?.claimed || []).includes(key);
+}
+
+export function _modusZeile(name, mod, klasse, onclick, geholt = false) {
   const total = mod.total || 0;
   const pct = total > 0 ? Math.min(100, Math.round((mod.score / total) * 100)) : 0;
-  const verdient = total > 0 && mod.mastered === total;
+  const verdient = geholt || (total > 0 && mod.mastered === total);
   const chip = verdient
     ? `<span class="p-chip p-chip--gold p-chip--icon" style="flex:none">${iconHTML('coin', 14)}+1 Taler</span>`
     : `<span class="p-chip p-chip--unverdient p-chip--icon" style="flex:none">${iconHTML('coinOff', 14)}+1 Taler</span>`;
@@ -256,8 +264,8 @@ export function renderDecks(mode) {
     const deck = SD.decks[id];
     const p = deckProgress(deck);
     // Freigespielte Taler dieses Decks (MC/Schreiben/Sprechen je 100 %).
-    const talerEarned = [p.perMode.vocab, p.perMode.spelling, p.perMode.pronounce]
-      .filter(m => m.total > 0 && m.mastered === m.total).length;
+    const talerEarned = [[p.perMode.vocab, 'mc'], [p.perMode.spelling, 'sp'], [p.perMode.pronounce, 'pr']]
+      .filter(([m, k]) => talerGeholt(id + '|' + k) || (m.total > 0 && m.mastered === m.total)).length;
     const isActive = id === SD.activeDeckId;
     const isExpanded = id === _expandedDeckId;
     const dt = new Date(deck.createdAt);
@@ -286,9 +294,9 @@ export function renderDecks(mode) {
       <div class="p-balken"><i style="width:${p.overallPct}%"></i></div>
       ${isExpanded ? `
       <div class="p-modi">
-        ${_modusZeile('Vokabeln', p.perMode.vocab, 'vokabeln', `startGameWithDeck('${id}','vocab')`)}
-        ${_modusZeile('Rechtschreibung', p.perMode.spelling, 'rechtschreibung', `startGameWithDeck('${id}','spelling')`)}
-        ${_modusZeile('Aussprache', p.perMode.pronounce, 'aussprache', `startGameWithDeck('${id}','pronounce')`)}
+        ${_modusZeile('Vokabeln', p.perMode.vocab, 'vokabeln', `startGameWithDeck('${id}','vocab')`, talerGeholt(id + '|mc'))}
+        ${_modusZeile('Rechtschreibung', p.perMode.spelling, 'rechtschreibung', `startGameWithDeck('${id}','spelling')`, talerGeholt(id + '|sp'))}
+        ${_modusZeile('Aussprache', p.perMode.pronounce, 'aussprache', `startGameWithDeck('${id}','pronounce')`, talerGeholt(id + '|pr'))}
         ${deck.deckPath !== 'preset' ? `<button class="p-moduszeile p-moduszeile--verwalten" onclick="openVocabManager('${id}')">
           <span class="p-moduszeile-name" style="display:block">Vokabeln verwalten</span>
           <span class="p-zeilensub" style="display:block;font-size:10px;margin-top:1px;color:var(--p-text-3)">Hinzufügen, scannen, löschen</span>

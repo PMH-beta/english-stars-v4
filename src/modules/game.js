@@ -1,5 +1,5 @@
 // src/modules/game.js
-import { QPERROUND, EXAM_QUESTIONS, calcGrade, gradeText, UV_LVL } from './config.js';
+import { QPERROUND, EXAM_QUESTIONS, calcGrade, gradeText, UV_LVL, UV_MASTERY_MIN_ATTEMPTS, MASTERY_THRESHOLD } from './config.js';
 import { effectivePct, isMastered, statKeyFor, getVocabStat, SP_TEILE, spWort, spKurz, spellingStand, wortScore, presetStatStore } from './stats.js';
 import { activeDeck, syncMirrorFromActiveDeck } from './decks.js';
 import { showScreen, showMenu, hideFeedback, showFeedback, TP_DISZ } from './ui.js';
@@ -246,9 +246,16 @@ function bErkennen(item, which, lvl, suf){
 function bRufen(item, which, lvl, suf){
   const mt=_verbMeta(which); const target=_firstForm(mt.get(item)); const inf=_firstForm(item.en);
   const base={type:'pronounce',badge:'pronounce',statKey:statKeyFor(item.de,item.en,suf||mt.suf.pr,item._presetId||null),_presetId:item._presetId||null,hint:''};
+  // F-G: Doppelformen („burnt/burned", „was/were") — gesprochen zählt jede; geprüft
+  // wird gegen die erste, die anderen gelten als gleichwertig (evaluateWithClaude).
+  const gleich={};
+  [item.en,item.forms.past,item.forms.participle].forEach(f=>{
+    const t=(f||'').split('/').map(x=>x.trim().toLowerCase().replace(/^to\s+/,'')).filter(Boolean);
+    if(t.length>1) gleich[t[0]]=t.slice(1);
+  });
   if(lvl===3){ // schwer: ganze Reihe sprechen
     const chain=`${inf} ${_firstForm(item.forms.past)} ${_firstForm(item.forms.participle)}`;
-    return {...base,question:_uvBadge('all')+_uvInstr('Sprich alle drei Formen')+_uvWord(item.de,true),answer:chain};
+    return {...base,question:_uvBadge('all')+_uvInstr('Sprich alle drei Formen')+_uvWord(item.de,true),answer:chain,gleich};
   }
   // leicht/mittel: nur das deutsche Wort, Zielform aus dem Kopf sprechen
   // F-F: der Lautschlüssel hört „sing“ und „sang“ gleich — die anderen Formen
@@ -256,7 +263,7 @@ function bRufen(item, which, lvl, suf){
   const ziel=(mt.get(item)||'').split('/').map(s=>s.trim().toLowerCase());
   const falsch=[item.en,item.forms.past,item.forms.participle].join('/').split('/')
     .map(s=>s.trim().toLowerCase().replace(/^to\s+/,'')).filter(s=>s&&!ziel.includes(s));
-  return {...base,question:_uvHead(item.de,which,'Sprich die Form',''),answer:target,falsch};
+  return {...base,question:_uvHead(item.de,which,'Sprich die Form',''),answer:target,falsch,gleich};
 }
 
 // 🔨 Schmieden (Tippen, schreiben)
@@ -442,7 +449,7 @@ function buildUVPool(m, limit){
       forms.forEach(w=>all.push(bDisc(v,w,disc,sufs[w])));
     });
     const getS=q=>presetStatStore(IRREGULAR_PRESET_ID)?.[q.statKey];   // Stand des Trainings-Decks
-    return weightedPickUnique(all, getS, limit);
+    return weightedPickUnique(all, getS, _ziehung(limit));
   }
   // Slot-Runde (EIN Teil einer Waffe): window._uvStar = {which, slot, discipline, suf}.
   // Eine Runde übt GENAU diese Disziplin auf dem Teil-Suffix; der Aufgabentyp wird
@@ -452,9 +459,27 @@ function buildUVPool(m, limit){
     const {which, discipline, suf}=window._uvStar;
     window.VOCAB.forEach(v=>{ if(v.forms) all.push(bDisc(v, which, discipline, suf)); });
     const getS=q=>window.SD?.globalPresetStats?.wordStats?.[q.statKey];
-    return weightedPickUnique(all, getS, limit);
+    return weightedPickUnique(all, getS, _ziehung(limit));
   }
   return [];   // anderen UV-Modus gibt es nicht mehr
+}
+
+// Wie viele Wörter gewichtet gezogen werden (F-A): läuft danach der Gemeistert-Filter,
+// ALLE in gewichteter Reihenfolge — sonst zieht eine große, fast fertige Sammlung
+// erst 10 aus allen und filtert dann fast alle wieder weg; die offenen kämen kaum dran.
+function _ziehung(limit){
+  return window._skipMasteryFilter||window.isExamMode ? limit : Infinity;
+}
+// Gemeistert für den Runden-Filter. Schmiede-Teil (uvslot): dieselbe Schwelle, mit der
+// das Teil leuchtet (V-2, irregular-game.js _uvMastered) — sonst würde ein Verb, das
+// schon als fertig gilt, weiter abgefragt.
+function _rundeFertig(q){
+  if(q._spFertig!==undefined) return q._spFertig;
+  if(window.isUV && window.mode==='uvslot'){
+    const s=window.SD?.globalPresetStats?.wordStats?.[q.statKey];
+    return !!s && Math.floor(s.asked||0)>=UV_MASTERY_MIN_ATTEMPTS && effectivePct(s)>=MASTERY_THRESHOLD;
+  }
+  return isMastered(q);
 }
 
 export function buildPool(m) {
@@ -462,19 +487,20 @@ export function buildPool(m) {
   let qs=[];
   const examLimit=window.isExamMode ? Math.min(EXAM_QUESTIONS, vocab.length*3) : QPERROUND;
   const limit=window.isSchnellModus&&!window.isExamMode ? vocab.length : examLimit;
+  const zieh=_ziehung(limit);
   if(window.isUV){
     qs=buildUVPool(m, limit);
   } else {
   if(m==='vocab'){
-    weightedPickUnique(vocab, v=>getVocabStat(v,'_mc'), limit).forEach(v=>qs.push(bVocabMC(v)));
+    weightedPickUnique(vocab, v=>getVocabStat(v,'_mc'), zieh).forEach(v=>qs.push(bVocabMC(v)));
   }
   if(m==='spelling'){
     // Probetest prüft weiter nur das Schreiben (F-75), sonst die drei Aufgaben.
     if(window.isExamMode) weightedPickUnique(vocab, v=>getVocabStat(v,'_sp'), limit).forEach(v=>qs.push(bVocabType(v)));
-    else weightedPickUnique(vocab, _spGewicht, limit).forEach(v=>qs.push(bVocabSpelling(v)));
+    else weightedPickUnique(vocab, _spGewicht, zieh).forEach(v=>qs.push(bVocabSpelling(v)));
   }
   if(m==='pronounce'){
-    weightedPickUnique(vocab, v=>getVocabStat(v,'_pr'), limit).forEach(v=>qs.push(bVocabPronounce(v)));
+    weightedPickUnique(vocab, v=>getVocabStat(v,'_pr'), zieh).forEach(v=>qs.push(bVocabPronounce(v)));
   }
   if(m==='mixed_vocab'){
     if(window.isSchnellModus&&!window.isExamMode){
@@ -489,9 +515,10 @@ export function buildPool(m) {
   }
   }
   if(window._skipMasteryFilter||window.isExamMode) return shuffle(qs).slice(0, limit);
-  const filtered=qs.filter(q=>q._spFertig!==undefined ? !q._spFertig : !isMastered(q));
-  if(filtered.length===0) return qs.slice(0, limit);
-  return shuffle(filtered).slice(0, limit);
+  // Reihenfolge der Ziehung bleibt erhalten (gewichtet) — erst die Auswahl mischen.
+  // Alles gemeistert → leer: startGame bietet dann die Runde ohne Wertung an (F-B).
+  const filtered=qs.filter(q=>!_rundeFertig(q));
+  return shuffle(filtered.slice(0, limit));
 }
 
 // ── Schnell-Modus (pro Modus, bleibt erhalten) ──
@@ -1126,9 +1153,22 @@ function selfRate(ok) {
   else handleWrong();
 }
 
+// Gleich klingende Wörter, die die Spracherkennung statt der Verbform schreibt (F-G):
+// „eight" für ate, „blue" für blew … Nur Wörter, die kein anderes Verb der Liste sind.
+const GLEICH_KLANG={
+  ate:['eight'],won:['one'],blew:['blue'],rode:['road','rowed'],threw:['through'],wore:['war'],
+  thrown:['throne'],seen:['scene'],rose:['rows'],made:['maid'],sent:['cent','scent'],caught:['court'],
+  saw:['sore'],read:['red','reed'],flew:['flu'],knew:['new'],heard:['herd'],grown:['groan'],
+  sewn:['sown'],taught:['taut'],sought:['sort'],been:['bean'],
+  see:['sea'],know:['no'],write:['right'],buy:['by','bye'],hear:['here'],meet:['meat'],
+  steal:['steel'],wear:['where'],bear:['bare'],break:['brake'],sew:['so'],
+};
+
 export async function evaluateWithClaude(recognizedText, targetWord) {
-  const target=targetWord.toLowerCase().replace(/^to /,'').trim();
   const alts=recognizedText.split('|').map(a=>a.trim()).filter(a=>a);
+  // F-H: „go/walk" — jede Variante ist ein eigenes Ziel.
+  const targets=targetWord.toLowerCase().split('/').map(t=>t.replace(/^to /,'').trim()).filter(Boolean);
+  const gleich=window.currentQ?.gleich||{};
   function lev(a,b){
     const m=a.length,n=b.length;
     if(!m) return n; if(!n) return m;
@@ -1152,10 +1192,15 @@ export async function evaluateWithClaude(recognizedText, targetWord) {
     return s;
   }
   const falsch=window.currentQ?.falsch||[];
-  const ok=alts.some(a=>{
-    const c=a.replace(/^to /,'').trim();
+  const pruefe=(a,target)=>{
+    const tW=target.split(/\s+/);
+    // Gleich klingendes Wort / Doppelform auf das Zielwort zurückführen (F-G).
+    const cW=a.replace(/^to /,'').trim().split(/\s+/).map(w=>{
+      const t=tW.find(t=>(GLEICH_KLANG[t]||[]).includes(w)||(gleich[t]||[]).includes(w));
+      return t||w;
+    });
+    const c=cW.join(' ');
     if(c===target) return true;
-    const tW=target.split(/\s+/), cW=c.split(/\s+/);
     // F-F: andere Form desselben Verbs gehört (z. B. „sing“ für sang) → falsch.
     if(falsch.length && !cW.includes(target) && cW.some(w=>falsch.includes(w))) return false;
     if(tW.length>1){
@@ -1186,7 +1231,8 @@ export async function evaluateWithClaude(recognizedText, targetWord) {
       if(1-(lev(cP,tP)/Math.max(tP.length,cP.length))>=0.85) return true;
     }
     return false;
-  });
+  };
+  const ok=targets.some(t=>alts.some(a=>pruefe(a,t)));
   if(window.answered || window.currentQ?.type!=='pronounce') return;
   // Erster Fehlversuch (F-48, Fragment 4.10): noch nicht werten — das Kind
   // bekommt „Nochmal versuchen", gewertet wird erst der zweite Versuch.
@@ -1591,8 +1637,8 @@ function showEnd() {
   if(window.isExamMode){
     const totalQ=window.questionPool.length;
     const pct=window.totalCorrect/Math.max(1,totalQ);
-    const grade=calcGrade(pct);
     const percent=Math.round(pct*100);
+    const grade=calcGrade(percent/100);   // Note aus der angezeigten Zahl (F-E): „67 %" ist eine 3
     // Vollwandlung (UV) hat KEIN Deck: nicht in deck.lastExam/exams schreiben.
     // saveProgress() (oben) hat den UV-Stand bereits markiert (global_preset).
     // UV (Gestaltwandler) kennt keinen Prüfungs-/Boss-Modus mehr — Prüfungen sind

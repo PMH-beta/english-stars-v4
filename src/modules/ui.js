@@ -1,7 +1,7 @@
 // src/modules/ui.js
 import { persist, freshData, clearStorage } from './storage.js';
 import { effectivePct, statKeyFor, wortScore } from './stats.js';
-import { syncMirrorFromActiveDeck, deckProgress, presetProgressPct, renderDecks, renderModeSubBy, migrateStatKeys, migrateDeckModes, deckMode, activeDeckIdForMode, createDeck, deleteDeck, tourAufgeklappt, _modusZeile, renameDeck } from './decks.js';
+import { syncMirrorFromActiveDeck, deckProgress, presetProgressPct, renderDecks, renderModeSubBy, migrateStatKeys, migrateDeckModes, deckMode, activeDeckIdForMode, createDeck, deleteDeck, tourAufgeklappt, _modusZeile, renameDeck, talerGeholt } from './decks.js';
 import { getPresetCategories } from './vocab.js';
 import { releaseMicStream, stopVisualizer, voskStop, speakWord, aufnahmeBeenden } from './speech.js';
 import { signIn, signUp, signOut, resendConfirmation, requestPasswordReset, updatePassword, signInWithGoogle } from './auth.js';
@@ -543,8 +543,10 @@ function _trainDeckCardHtml(deck) {
   const pct = total ? Math.round(score / total * 100) : 0;
   // Taler wie bei Vokabel-Decks: 1 pro Disziplin, sobald sie 100 % erreicht (bleibt
   // ganz-oder-gar-nicht — Taler gibt's erst bei voller Meisterung, wie in der Kampagne).
-  const talerEarned = per.filter((p) => p.total > 0 && p.mastered === p.total).length;
   const id = deck.id;
+  const tk = { erkennen: 'er', schmieden: 'sc', verzaubern: 'vz' };   // Taler-Schlüssel deckId|er … (F-C)
+  const talerEarned = ['erkennen', 'schmieden', 'verzaubern']
+    .filter((d, i) => talerGeholt(id + '|' + tk[d]) || (per[i].total > 0 && per[i].mastered === per[i].total)).length;
   const open = id === _uvTrainExpandedId;
   const formsChips = deck.uvForms === 'open'
     ? `<div class="uv-form-choice">
@@ -560,7 +562,7 @@ function _trainDeckCardHtml(deck) {
   const talerChip = talerEarned === 3
     ? `<span class="p-chip p-chip--gold p-chip--icon">${iconHTML('coin', 14)}3/3 Taler</span>`
     : `<span class="p-chip p-chip--unverdient p-chip--icon">${iconHTML('coinOff', 14)}${talerEarned}/3 Taler</span>`;
-  const zeile = (disc, klasse, p) => _modusZeile(TP_DISZ[disc].name, p, klasse, `startUvTraining('${id}','${disc}')`);
+  const zeile = (disc, klasse, p) => _modusZeile(TP_DISZ[disc].name, p, klasse, `startUvTraining('${id}','${disc}')`, talerGeholt(id + '|' + tk[disc]));
   return `<div class="p-sammlung tp-deck${open ? ' is-offen' : ''}" data-deck-id="${window.escHtml(id)}">
     <div class="p-sammlung-kopf tp-deck-kopf" onclick="uvTrainToggleDeck('${id}')">
       <div class="p-wachs">
