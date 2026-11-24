@@ -240,6 +240,7 @@ function _topOverlay() {
     // Laden nur display:none gesetzt, nicht entfernt wird) — sonst „schluckt"
     // der erste Back dieses tote Overlay statt das Schließen-Popup zu öffnen.
     if (s && s.display === 'none') continue;
+    if (el.dataset && el.dataset.zurueck) return el;   // T2: Fenster mit eigener Zurück-Regel
     if (el.classList && (el.classList.contains('es-overlay') || el.classList.contains('p-dlg-grund'))) return el;
     if (s && s.position === 'fixed' && s.zIndex === '9999') return el;
   }
@@ -254,6 +255,19 @@ function _onBackNavPop() {
   try {
     // 1) Modal zuerst: oberstes Overlay schließen.
     const ov = _topOverlay();
+    // T2 (24.11.2026): Fenster mit eigener Zurück-Regel (data-zurueck). „bleibt" =
+    // offen bis zur Wahl (Schatz, Rastplatz, „Keine Verbindung"); sonst der Knopf,
+    // den Zurück tippt (Kampf: ✕ → „Zurückgehen?"). Ist er nicht sichtbar
+    // (Kampf-Ende), bleibt das Fenster.
+    const regel = ov && ov.dataset && ov.dataset.zurueck;
+    if (regel) {
+      if (regel !== 'bleibt') {
+        const knopf = ov.querySelector(regel);
+        if (knopf && knopf.getClientRects().length) { try { knopf.click(); } catch(e) {} }
+      }
+      _ensureGuard();
+      return;
+    }
     if (ov) {
       try { ov.remove(); } catch(e) {}
       // Sonderfall Spiel-Dialog: zweiter Zurück am „Zurück zum Menü?"-Popup nimmt
@@ -293,6 +307,15 @@ function _onBackNavPop() {
     if (_currentScreen === 'scan-screen' && window._draftDeck) {
       try { (window.confirmAbortDraft || function(){})(); } catch(e) {}
       _ensureGuard();
+      return;
+    }
+    // 2c) T2 (24.11.2026): Screen mit sichtbarem Zurück-Pfeil (.p-back) → genau
+    //     der (Prüfliste → Scan, Vorlagen-Sperre, Freund → Profil …). Führt er
+    //     nicht ins Menü (Rückfrage, anderer Screen) → Wächter sichern.
+    const pfeil = _currentScreen !== 'menu-screen' && document.getElementById(_currentScreen)?.querySelector('.p-back');
+    if (pfeil && pfeil.getClientRects().length) {
+      try { pfeil.click(); } catch(e) {}
+      if (_currentScreen !== 'menu-screen') _ensureGuard();
       return;
     }
     // 3) Sonst nicht im Menü (und kein Pre-Login-Screen) → Menü. VERLASSEN → KEIN
@@ -640,6 +663,7 @@ export function uvTrainOpenCreate() {
   const isLocked = (en, track) => claimed[track].has(en);
   const overlay = document.createElement('div');
   overlay.className = 'uv-fill-overlay';
+  overlay.dataset.zurueck = '.uv-fill-cancel';   // T2: Zurück = Abbrechen
   document.body.appendChild(overlay);
   const close = () => overlay.remove();
   overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
@@ -1283,6 +1307,7 @@ export function uvOpenFill(objType) {
   const N = CONSTELLATION_SIZE;
   const overlay = document.createElement('div');
   overlay.className = 'uv-fill-overlay';
+  overlay.dataset.zurueck = '.uv-fill-cancel';   // T2: Zurück = Abbrechen
   document.body.appendChild(overlay);
   const close = () => overlay.remove();
   overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
@@ -2946,7 +2971,7 @@ function _showConnectionRetry(user) {
   window.esConfirm({
     icon: '📡', title: 'Keine Verbindung',
     body: 'Dein Fortschritt konnte nicht geladen werden. Bitte prüfe deine Internetverbindung.',
-    ok: 'Erneut versuchen', cancel: 'Abmelden',
+    ok: 'Erneut versuchen', cancel: 'Abmelden', zurueck: 'bleibt',   // M11: Zurück schließt nicht
   }).then(retry => { if (retry) handleLogin(user); else authLogout(); });
 }
 

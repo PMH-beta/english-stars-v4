@@ -495,6 +495,7 @@ function _renderOverlay() {
   const f = run.fight;
   const ov = document.createElement('div');
   ov.id = 'cf-overlay';
+  ov.dataset.zurueck = '#cf-flee';   // T2/H5: Geräte-Zurück = ✕ („Zurückgehen?")
   ov.className = 'p-sperrt';   // Hintergrund scrollt nicht mit (main.js)
   ov.style.cssText = 'position:fixed;inset:0;z-index:8000;background:#bfe6ff;display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;';
   // Aufbau nach den Fragmenten F.1–F.11 (Update 1): Kulisse als Hintergrund,

@@ -270,6 +270,7 @@ function _restRahmen(inhalt) {
   _removeRest();
   const ov = document.createElement('div');
   ov.id = 'camp-rest';
+  ov.dataset.zurueck = 'bleibt';   // T2/H5: Rastplatz bleibt offen bis zur Wahl
   ov.className = 'rest-ov p-ton-mint';
   ov.innerHTML = `
     <div class="cf-scenery">${arenaTag('abend')}</div>

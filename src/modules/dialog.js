@@ -31,6 +31,7 @@ const DLG_ICON = {
 function _scaffold(opts) {
   const overlay = document.createElement('div');
   overlay.className = CLS_BACKDROP;
+  if (opts.zurueck) overlay.dataset.zurueck = opts.zurueck;   // T2: Regel fürs Geräte-Zurück (ui.js)
   const card = document.createElement('div');
   card.className = CLS_CARD;
   if (opts.icon) {

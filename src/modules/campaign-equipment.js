@@ -240,6 +240,7 @@ export function openPotionChoice({ onPick }) {
   // so nicht gleich den falschen.
   const ov = document.createElement('div');
   ov.className = 'p-dlg-grund p-schatz-grund';
+  ov.dataset.zurueck = 'bleibt';   // T2/M10: Schatz bleibt offen, bis ein Trank genommen ist
   ov.innerHTML = `<div class="p-dlg-karte p-schatz-karte">
     <div class="p-schatz-emblem">${iconHTML('box', 42)}</div>
     <div class="p-schatz-titel">Schatz gefunden!</div>

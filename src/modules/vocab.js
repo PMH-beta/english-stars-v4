@@ -1115,7 +1115,8 @@ export async function confirmAddVocab() {
     persist();
     if (window.currentUser) { markDirty('deck', deck.id); commitDirty(); }
   }
-  window.esAlert({ icon: '✅', title: 'Hinzugefügt', body: `${toAdd.length} neue Vokabel${toAdd.length === 1 ? '' : 'n'} zur Lernliste hinzugefügt!` }).then(() => {
+  // T2/H3: Geräte-Zurück = OK (sonst fehlte der Folgeschritt).
+  window.esAlert({ icon: '✅', title: 'Hinzugefügt', body: `${toAdd.length} neue Vokabel${toAdd.length === 1 ? '' : 'n'} zur Lernliste hinzugefügt!`, zurueck: '.p-dlg-btn' }).then(() => {
     window._reviewItems = [];
     openVocabManager();
     // In den Reiter Liste (10.11.2026): dort stehen die neuen Wörter und im Entwurf
