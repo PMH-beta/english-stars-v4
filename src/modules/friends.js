@@ -8,6 +8,7 @@
 import { supabase } from './supabase.js';
 import { renderAvatarInto } from './avatar.js';
 import { iconHTML } from './pixel-icons.js';
+import { wochenStand } from './lernwoche.js';
 
 const esc = (s) => (window.escHtml ? window.escHtml(s) : (s || ''));
 let _searchTimer = null;
@@ -154,6 +155,7 @@ export async function renderFriendsSection() {
       onkeydown="if(event.key==='Enter'){event.preventDefault();onFriendSearchEnter();}"></label>
     <div id="friend-search-results" class="fr-liste" style="display:none;"></div>
     <div id="friend-list" class="fr-liste"><div class="fr-hinweis">Freunde werden geladen…</div></div>
+    <div id="friend-woche" style="display:none;"></div>
     <div id="friend-requests" style="display:none;"></div>
     <div id="friend-outgoing" style="display:none;"></div>`;
   // Drei Listen, drei parallele Abfragen — das Badge kommt aus dem Ergebnis der
@@ -192,6 +194,34 @@ async function _loadFriends() {
     _symbolKnopf('trash', `confirmRemoveFriend('${f.id}')`, 'Freund entfernen'),
     true)).join('');
   friends.forEach(f => _drawAvatar('fl', f.id, f.avatar));
+  _renderWoche(friends);
+}
+
+// LU-11: Wochen-Rangliste — nur Freunde und man selbst, gewertet nach richtigen
+// Antworten dieser Woche (Mo–So, setzt sich montags von selbst zurück). Die Zahl
+// rechnet wochenStand aus lern_tage (list_friends liefert sie mit); fremde Daten
+// laufen dort durch lernTageFrom, es landen nur Zahlen im HTML.
+function _renderWoche(friends) {
+  const box = document.getElementById('friend-woche');
+  if (!box) return;
+  const sd = window.SD || {};
+  const ich = window.currentUser?.id || 'ich';
+  const leute = [{ id: ich, name: sd.playerName || 'Du', avatar: sd.avatar, n: wochenStand(sd).summe, ich: true }]
+    .concat(friends.map(f => ({ id: f.id, name: f.player_name, avatar: f.avatar, n: wochenStand({ lernTage: f.lern_tage }).summe })))
+    .sort((a, b) => b.n - a.n || (a.ich ? -1 : b.ich ? 1 : 0));
+  let platz = 0, vorher = null;
+  box.style.display = '';
+  box.innerHTML = `<div class="fr-kicker">Diese Woche · richtige Antworten</div><div class="fr-liste">`
+    + leute.map((p, i) => {
+      if (p.n !== vorher) { platz = i + 1; vorher = p.n; }
+      return `<div class="fr-zeile fr-rang${p.ich ? ' is-ich' : ''}">
+        <span class="fr-platz">${platz}</span>
+        <div class="fr-bild"><div id="rw-av-${esc(String(p.id))}" class="fr-bust"></div></div>
+        <div class="fr-text"><div class="fr-name">${esc(p.name)}</div>${p.ich ? '<div class="fr-sub">du</div>' : ''}</div>
+        <span class="fr-marke${platz === 1 && p.n > 0 ? ' fr-marke--gold' : ''}">${Number(p.n) || 0}</span>
+      </div>`;
+    }).join('') + '</div>';
+  leute.forEach(p => _drawAvatar('rw', esc(String(p.id)), p.avatar));
 }
 
 // Von mir gesendete, noch offene Anfragen. Eigene Liste, nicht klickbar (kein Profil einsehbar

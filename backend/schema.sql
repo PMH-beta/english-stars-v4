@@ -318,9 +318,10 @@ $$;
 CREATE OR REPLACE FUNCTION public.list_friends()
 RETURNS jsonb
 LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
-  SELECT COALESCE(jsonb_agg(jsonb_build_object('id', fid, 'player_name', nm, 'avatar', av) ORDER BY nm), '[]'::jsonb)
+  SELECT COALESCE(jsonb_agg(jsonb_build_object('id', fid, 'player_name', nm, 'avatar', av, 'lern_tage', lt) ORDER BY nm), '[]'::jsonb)
   FROM (
-    SELECT p.id AS fid, p.player_name AS nm, p.avatar AS av
+    -- LU-11: lern_tage für die Wochen-Rangliste (nur Freunde, wie get_friend_progress)
+    SELECT p.id AS fid, p.player_name AS nm, p.avatar AS av, p.lern_tage AS lt
     FROM friendships f
     JOIN profiles p ON p.id = CASE WHEN f.requester_id=auth.uid() THEN f.addressee_id ELSE f.requester_id END
     WHERE f.status='accepted' AND auth.uid() IN (f.requester_id,f.addressee_id)
