@@ -1283,7 +1283,8 @@ html.popup-offen, html.popup-offen body{ overflow:hidden; overscroll-behavior:no
 .p-feld:focus{ outline:2px solid var(--p-ink); outline-offset:2px; background:var(--p-karte-hell); }
 .p-btn:focus-visible,
 .p-tab:focus-visible,
-.p-back:focus-visible{ outline:2px solid var(--p-ink); outline-offset:2px; }
+.p-back:focus-visible,
+.vm-vl-zeile:focus-visible{ outline:2px solid var(--p-ink); outline-offset:2px; }
 
 /* ── Bühne: Screens ohne Blatt ───────────────────────────────────────────── */
 /* Start, Registrieren, Passwort-Kette und Namenseingabe tragen kein Blatt,

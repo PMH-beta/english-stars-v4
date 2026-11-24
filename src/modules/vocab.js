@@ -1274,15 +1274,18 @@ export async function renderPresetsTab() {
     const barPct = isOn ? ownPct : (isClaimed ? _claimedBarPct(cat) : 0);
 
     const kls = 'vm-vl-zeile' + (isOn ? ' is-an' : '') + (greyOut ? ' is-grau' : '') + (isClickableCard ? ' is-klickbar' : '');
-    const rowClick = isClickableCard ? `onclick="togglePresetCategory('${cat.id}')"` : '';
+    // B-03: klickbare Karten sind auch per Tastatur (Tab, Enter/Leertaste) erreichbar.
+    const rowClick = isClickableCard
+      ? `onclick="togglePresetCategory('${cat.id}')" role="button" tabindex="0" aria-pressed="${isOn}" aria-label="${window.escHtml(cat.name)}, ${wordCount} Wörter, ${isOn ? 'an' : 'aus'}" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window._vlFokus='${cat.id}';togglePresetCategory('${cat.id}')}"`
+      : (greyOut ? `aria-disabled="true"` : '');
     // AUS ist nur Anzeige — getippt wird die ganze Karte (wie bisher).
     const btnHtml = isOn
-      ? `<button class="vm-vl-schalter is-an" ${locked ? 'disabled' : `onclick="event.stopPropagation();togglePresetCategory('${cat.id}')"`}>${iconHTML('check', 14)}AN</button>`
+      ? `<button class="vm-vl-schalter is-an" ${locked ? 'disabled' : `tabindex="-1" onclick="event.stopPropagation();togglePresetCategory('${cat.id}')"`}>${iconHTML('check', 14)}AN</button>`
       : '<span class="vm-vl-schalter">AUS</span>';
     const balken = (isOn || barPct > 0)
       ? `<div class="p-balken p-balken--mittel vm-vl-balken"><i style="width:${barPct}%"></i></div>` : '';
 
-    return `<div class="${kls}" ${rowClick}>
+    return `<div class="${kls}" data-vl="${cat.id}" ${rowClick}>
       <div class="vm-vl-reihe">
         <div class="vm-vl-wort">
           <div class="vm-vl-name">${window.escHtml(cat.name)}</div>
@@ -1294,6 +1297,11 @@ export async function renderPresetsTab() {
       ${balken}
     </div>`;
   }).join('') + '</div>';
+  // B-03: Nach Umschalten per Tastatur bleibt der Fokus auf derselben Zeile.
+  if (window._vlFokus) {
+    pane.querySelector(`[data-vl="${window._vlFokus}"][tabindex="0"]`)?.focus();
+    window._vlFokus = null;
+  }
 }
 
 export function togglePresetCategory(categoryId) {
