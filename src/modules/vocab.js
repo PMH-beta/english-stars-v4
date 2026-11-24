@@ -677,6 +677,9 @@ async function startScan() {
     _scanTeileAuffrischen();
     document.querySelectorAll('#scan-zuschnitt button').forEach(k => k.disabled = false);
   }
+  // H4: Hat das Kind den Scan inzwischen verlassen (Zurück, Menü, Spiel), öffnet
+  // sich die Prüfliste nicht mehr über dem fremden Screen.
+  if (document.getElementById('scan-screen')?.style.display === 'none') return;
   if (window._reviewItems.length) { status.innerHTML = ''; showReview(); return; }
   // Gar keine Wörter: Hinweis wie bisher, mit Rohtext des letzten Bildes.
   if (!letzterRoh || letzterRoh.trim().length < 5) {

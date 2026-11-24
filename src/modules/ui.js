@@ -2844,9 +2844,13 @@ function _showConnectionRetry(user) {
 // Resume: war die App > 2 Min im Hintergrund (Timing in main.js), beim Zurückkommen
 // hart neu laden — nur auf Menü-Ebene (nie im Spiel/Scan/Edit). Skeleton während Load.
 let _resumeInFlight = false;
+// H1: Kampf, Rast, Schatz, Verben-Auswahl und Dialoge liegen als Overlay ÜBER dem
+// Menü — dann darf der Stand nicht unter der Hand getauscht werden (der Kampf
+// schriebe weiter ins alte run-Objekt). main.js setzt html.popup-offen dafür.
+function _overlayOffen() { return document.documentElement.classList.contains('popup-offen'); }
 export async function onAppResume() {
   if (!window.currentUser || _loginInFlight || _resumeInFlight) return;
-  if (_currentScreen !== 'menu-screen') return;
+  if (_currentScreen !== 'menu-screen' || _overlayOffen()) return;
   _resumeInFlight = true;
   try {
     showMenuSkeleton();
@@ -2871,7 +2875,7 @@ export async function softRefresh() {
   if (_statsFriendMode) return 'skipped';   // Freund-Ansicht zeigt fremde Daten
   // Nur die Übersichts-Screens: in Spiel/Scan/Charakter würde ein Datentausch
   // unter der Hand einen laufenden Entwurf bzw. eine Runde zerreißen.
-  if (!['menu-screen', 'profile-screen', 'stats-screen'].includes(_currentScreen)) return 'skipped';
+  if (!['menu-screen', 'profile-screen', 'stats-screen'].includes(_currentScreen) || _overlayOffen()) return 'skipped';
   _softRefreshInFlight = true;
   try {
     const r = await loadFromCloud();
@@ -2940,10 +2944,10 @@ function showMenuSkeleton(mode = window.SD?.activeMode || 'free') {
 let _reloadPromptOpen = false;
 export async function checkForRemoteChange() {
   if (!window.currentUser || _loginInFlight || _resumeInFlight || _reloadPromptOpen) return;
-  if (document.hidden || _currentScreen !== 'menu-screen') return;
+  if (document.hidden || _currentScreen !== 'menu-screen' || _overlayOffen()) return;
   let changed = false;
   try { changed = await cloudChangedRemotely(window.currentUser.id); } catch (e) {}
-  if (!changed || _currentScreen !== 'menu-screen' || _reloadPromptOpen) return;
+  if (!changed || _currentScreen !== 'menu-screen' || _overlayOffen() || _reloadPromptOpen) return;
   _reloadPromptOpen = true;
   window.esAlert({
     icon: '🔄', title: 'Neuer Stand',
