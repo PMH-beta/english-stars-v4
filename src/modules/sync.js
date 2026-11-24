@@ -199,6 +199,10 @@ async function _cloudLoadOnce(userId, signal) {
     ...(presetStatsRes.data || []),
     ...(presetCatProgRes.data || []),
   ].filter(Boolean));
+  // S-2: Diese Schlüssel kennt das Gerät jetzt aus der Cloud (Spiegel-Abgleich).
+  // Scheiterte nur die preset_stats-Abfrage, kennt es keine — dann wird nichts
+  // gespiegelt (vorher: lokal leer → beim nächsten Rundenende ALLES gelöscht).
+  _presetCloudKeys = new Set(presetStatsRes.error ? [] : Object.keys(globalPresetStats.wordStats));
 
   if (!decksRes.data?.length) {
     // No decks yet. If profile has a name this is a returning user (e.g. after cloud reset).
@@ -423,6 +427,7 @@ export async function deleteCloudPresetStats(statKeys, presetIds, userId) {
     const { data, error } = await supabase
       .from('preset_stats').delete().eq('user_id', userId).in('stat_key', statKeys).select();
     if (error) throw new Error('[sync] deleteCloudPresetStats: ' + error.message);
+    statKeys.forEach((k) => _presetCloudKeys.delete(k));
     console.log('[sync] deleteCloudPresetStats OK:', data?.length ?? 0, 'von', statKeys.length, 'Keys gelöscht');
   }
   if (presetIds.length) {
@@ -456,6 +461,13 @@ export async function saveWordStats(deckCloudId, stats, userId) {
   if (error) throw new Error('[sync] saveWordStats: ' + error.message);
 }
 
+// S-2 (24.11.2026): preset_stats-Schlüssel, die dieses Gerät in der Cloud weiß —
+// aus dem letzten harten Laden plus allem, was es seitdem selbst hochgeladen hat.
+// Vorher holte JEDES Rundenende alle Schlüssel des Kontos (bis 1000+ Zeilen) und
+// löschte, was lokal fehlte — auch Stände, die ein anderes Gerät inzwischen neu
+// angelegt hatte. Jetzt wird nur gespiegelt, was dieses Gerät kennt.
+let _presetCloudKeys = new Set();
+
 /**
  * Batch-Upsert der globalen Vorlage-Stats (preset_stats + preset_category_progress).
  * Analog zu saveWordStats — schreibt SD.globalPresetStats in die Cloud.
@@ -476,21 +488,19 @@ export async function saveGlobalPresetStats(stats, userId) {
       .from('preset_stats')
       .upsert(wordRows, { onConflict: 'user_id,stat_key' }));
     if (error) throw new Error('[sync] saveGlobalPresetStats words: ' + error.message);
+    wordRows.forEach((r) => _presetCloudKeys.add(r.stat_key));
   }
   // Cloud = SPIEGEL des lokalen Stands: Keys, die lokal nicht (mehr) existieren,
   // auch in der Cloud entfernen. Ein Upsert allein lässt lokal gelöschte Stände
   // (eingeschmolzene Schmiede-Aufträge, uvTestForge-Reste, fehlgeschlagene
   // Delete-Aufrufe) ewig in der Cloud liegen — die Freund-Ansicht liest NUR die
   // Cloud und zeigt sonst längst gelöschten Fortschritt als „fertig".
-  const { data: cloudKeys, error: keyErr } = await _selectAll(() => supabase
-    .from('preset_stats').select('stat_key').eq('user_id', userId).order('stat_key'));
-  if (!keyErr && Array.isArray(cloudKeys)) {
-    const localKeys = new Set(Object.keys(stats.wordStats || {}));
-    const extra = cloudKeys.map(r => r.stat_key).filter(k => !localKeys.has(k));
-    if (extra.length) {
-      await deleteCloudPresetStats(extra, [], userId);
-      console.log('[sync] saveGlobalPresetStats: Spiegel-Delete', extra.length, 'verwaiste Cloud-Keys');
-    }
+  // S-2: nur unter den Schlüsseln, die dieses Gerät kennt (ohne Abfrage).
+  const localKeys = new Set(Object.keys(stats.wordStats || {}));
+  const extra = [..._presetCloudKeys].filter(k => !localKeys.has(k));
+  if (extra.length) {
+    await deleteCloudPresetStats(extra, [], userId);
+    console.log('[sync] saveGlobalPresetStats: Spiegel-Delete', extra.length, 'verwaiste Cloud-Keys');
   }
   const catRows = Object.entries(stats.categoryProgress || {}).map(([presetId, cp]) => ({
     user_id:     userId,
@@ -550,6 +560,7 @@ export async function cloudReset(userId) {
   const { error: psErr } = await supabase
     .from('preset_stats').delete().eq('user_id', userId);
   if (psErr) console.error('[sync] cloudReset preset_stats:', psErr.message);
+  else _presetCloudKeys = new Set();
   const { error: pcpErr } = await supabase
     .from('preset_category_progress').delete().eq('user_id', userId);
   if (pcpErr) console.error('[sync] cloudReset preset_category_progress:', pcpErr.message);
