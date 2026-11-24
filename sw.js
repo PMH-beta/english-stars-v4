@@ -131,6 +131,27 @@ const VENDOR_RE = /\/vendor\//;
 // totes oder zähes Netz kostet nie mehr als das. Vorher gab es KEINEN Timeout —
 // offline hing jeder einzelne Request am Netzwerk-Stack, bei 30+ Dateien pro Start.
 const NET_TIMEOUT = 2500;
+// SW-1: Kam die Seite aus dem Netz, warten ihre Dateien bis zu diesem Deckel aufs Netz.
+const NET_TIMEOUT_NETZ = 15000;
+
+// ── Stand je Start (SW-1) ──
+// Vorher lief jede Datei einzeln gegen den 2,5-s-Deckel: Nach einem Update kamen
+// kleine Dateien neu aus dem Netz, große alt aus dem Cache — ein Mischzustand, der
+// den Modulgraphen brechen kann (Ladescreen bleibt stehen). Jetzt entscheidet die
+// Seite (Navigation) für ihren ganzen Start: kam sie aus dem Netz, kommen auch ihre
+// Dateien aus dem Netz; kam sie aus dem Cache, kommen auch ihre Dateien aus dem Cache.
+// Schlüssel: clientId der Seite. Unbekannte Clients (Worker, SW zwischendurch neu
+// gestartet) bekommen das bisherige Verhalten.
+const _seitenStand = new Map();   // clientId → { quelle: 'netz' | 'cache', t }
+function _standMerken(clientId, quelle) {
+  if (!clientId) return;
+  const jetzt = Date.now();
+  for (const [k, v] of _seitenStand) if (jetzt - v.t > 10 * 60 * 1000) _seitenStand.delete(k);
+  _seitenStand.set(clientId, { quelle, t: jetzt });
+}
+function _mitDeckel(p, ms) {
+  return Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('sw-timeout')), ms))]);
+}
 
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
@@ -160,7 +181,7 @@ self.addEventListener('fetch', e => {
   const networkFirst = sameOrigin && !CACHE_FIRST_RE.test(url.pathname) && !VENDOR_RE.test(url.pathname) && !STATIC_RE.test(url.pathname);
 
   if (networkFirst) {
-    e.respondWith(appCodeResponse(e.request));
+    e.respondWith(appCodeResponse(e));
     return;
   }
 
@@ -195,8 +216,11 @@ async function staticResponse(request, cacheName) {
  * 'reload' lud JEDE Datei bei JEDEM Start komplett neu: 30+ Volldownloads pro
  * App-Start, auf Mobilfunk der Hauptgrund für die lange Startzeit.
  */
-async function appCodeResponse(request) {
+async function appCodeResponse(e) {
+  const request = e.request;
   const cache = await caches.open(CACHE);
+  const seite = request.mode === 'navigate';
+  const quelle = seite ? null : (_seitenStand.get(e.clientId) || {}).quelle;
 
   // Läuft unabhängig vom Timeout weiter und aktualisiert den Cache, auch wenn wir
   // unten schon aus dem Cache geantwortet haben → der nächste Start ist dann frisch.
@@ -206,26 +230,49 @@ async function appCodeResponse(request) {
   });
   net.catch(()=>{});   // keine unhandled rejection, wenn der Timeout zuerst greift
 
-  try {
-    const r = await Promise.race([
-      net,
-      new Promise((_, rej) => setTimeout(() => rej(new Error('sw-timeout')), NET_TIMEOUT)),
-    ]);
-    if (r && r.ok) return r;
-    // 404/500: ein brauchbarer Cache-Eintrag ist besser als eine Fehlerseite
-    const fallback = await cache.match(request);
-    return fallback || r;
-  } catch(e) {
+  // Seite kam aus dem Cache → ihre Dateien auch (gleicher Stand). Das Netz oben
+  // frischt im Hintergrund auf, der nächste Start ist dann aktuell.
+  if (quelle === 'cache') {
     const cached = await cache.match(request);
     if (cached) return cached;
-    // Navigation ohne passenden Eintrag → App-Shell ausliefern.
-    // (Vorher stand hier `r || caches.match(...) || caches.match(...)` — caches.match
-    // liefert ein PROMISE, das ist immer truthy, der letzte Zweig war toter Code und
-    // im Fehlerfall ging `undefined` an respondWith → Ladefehler statt Fallback.)
-    if (request.mode === 'navigate') {
-      const shell = (await cache.match('./index.html')) || (await cache.match('./'));
-      if (shell) return shell;
-    }
-    return Response.error();
+    return net.catch(() => Response.error());   // nicht im Cache: aufs Netz warten (SW-2)
   }
+
+  let r = null, zeitUm = false;
+  try {
+    r = await _mitDeckel(net, quelle === 'netz' ? NET_TIMEOUT_NETZ : NET_TIMEOUT);
+  } catch (err) {
+    zeitUm = !!err && err.message === 'sw-timeout';
+  }
+  if (r && r.ok) {
+    if (seite) _standMerken(e.resultingClientId, 'netz');
+    return r;
+  }
+  if (r) {
+    // 404/500: ein brauchbarer Cache-Eintrag ist besser als eine Fehlerseite
+    const fallback = await cache.match(request);
+    if (fallback && seite) _standMerken(e.resultingClientId, 'cache');
+    return fallback || r;
+  }
+  // Netz gescheitert oder Zeit um.
+  let cached = await cache.match(request);
+  // Navigation ohne passenden Eintrag → App-Shell ausliefern.
+  // (Vorher stand hier `r || caches.match(...) || caches.match(...)` — caches.match
+  // liefert ein PROMISE, das ist immer truthy, der letzte Zweig war toter Code und
+  // im Fehlerfall ging `undefined` an respondWith → Ladefehler statt Fallback.)
+  if (!cached && seite) cached = (await cache.match('./index.html')) || (await cache.match('./'));
+  if (cached) {
+    if (seite) _standMerken(e.resultingClientId, 'cache');
+    return cached;
+  }
+  // SW-2: Nur die Zeit ist um und es gibt keinen Cache-Eintrag (z. B. ein neues Modul
+  // im ersten Start nach einem Update) → weiter aufs Netz warten statt Fehler.
+  if (zeitUm) {
+    try {
+      const spaet = await net;
+      if (seite && spaet && spaet.ok) _standMerken(e.resultingClientId, 'netz');
+      return spaet;
+    } catch (err) {}
+  }
+  return Response.error();
 }
