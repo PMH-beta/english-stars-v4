@@ -311,6 +311,19 @@
     <button class="pf-tour-knopf" onclick="pwaInstall()">Installieren</button>
   </div>
 
+  <!-- TON (SW-5, 25.11.2026): drei Regler je Gerät, 0 = aus. Gesamt regelt auch
+       Effekte und Schläge. Werte und Anzeige: audio.js (es_ton_*). -->
+  <div class="pf-tour pf-ton">
+    <div class="pf-ton-kopf">
+      <div class="pf-tour-kachel pf-ton-kachel"><canvas data-icon="music" width="14" height="14" style="width:28px;height:28px;image-rendering:pixelated;flex:none"></canvas></div>
+      <div class="p-wachs"><div class="pf-tour-titel">Ton</div><div class="pf-tour-sub">Musik und Geräusche</div></div>
+    </div>
+    <label class="pf-ton-zeile"><span class="pf-ton-name">Gesamt</span><span class="pf-ton-balken"><span class="pf-ton-spur"><span class="pf-ton-fuell"></span></span><input type="range" min="0" max="100" step="5" data-ton="gesamt" aria-label="Gesamt"></span><span class="pf-ton-wert"></span></label>
+    <label class="pf-ton-zeile"><span class="pf-ton-name">Musik Menü</span><span class="pf-ton-balken"><span class="pf-ton-spur"><span class="pf-ton-fuell"></span></span><input type="range" min="0" max="100" step="5" data-ton="menue" aria-label="Musik Menü"></span><span class="pf-ton-wert"></span></label>
+    <label class="pf-ton-zeile"><span class="pf-ton-name">Musik Kampf</span><span class="pf-ton-balken"><span class="pf-ton-spur"><span class="pf-ton-fuell"></span></span><input type="range" min="0" max="100" step="5" data-ton="kampf" aria-label="Musik Kampf"></span><span class="pf-ton-wert"></span></label>
+    <a class="vm-lizenz pf-ton-lizenz" href="music/LIZENZEN.txt" target="_blank" rel="noopener">Musik: Rolemusic, Andrey Avkhimovich, Sirkoto51 (CC BY), HydroGene u. a. (CC0) – Lizenzen</a>
+  </div>
+
   <!-- CLOUD-KONTO — gefüllt durch showProfile() -->
   <div id="prof-cloud-section" class="pf-cloud"></div>
   </div>
@@ -576,14 +589,7 @@
 </div>
 
 <div class="confetti-wrap" id="confetti-wrap"></div>
-<!-- Globaler Musik-Button (sichtbar im Menü/Stats, im Spiel ist eigener Button in der Score-Bar) -->
-<button class="music-btn-global" id="music-btn-global" style="display:none" onclick="toggleMusic()" title="Musik an/aus"><canvas data-icon="music" width="14" height="14" style="width:28px;height:28px;image-rendering:pixelated;flex:none"></canvas></button>
-<!-- PWA Install-Button (nur sichtbar wenn Browser PWA-Install anbietet) -->
-<button class="music-vol-btn" id="music-vol-btn" style="display:none" onclick="toggleVolPopup()" title="Lautstärke"><canvas data-icon="speaker" width="14" height="14" style="width:14px;height:14px;image-rendering:pixelated;flex:none"></canvas></button>
-<div class="music-vol-wrap" id="music-vol-wrap">
-  <span id="music-vol-lbl">50%</span>
-  <input type="range" min="0" max="100" value="50" id="music-vol-slider" oninput="setMusicVolume(this.value/100)" />
-</div>
+<!-- Musik-Knöpfe entfallen seit SW-5 (25.11.2026): Lautstärke im Profil, Bereich „Ton“. -->
 <div id="version-badge" style="display:none;position:fixed;bottom:4px;left:50%;transform:translateX(-50%);font-size:.65rem;color:#bbb;font-weight:700;z-index:1000;pointer-events:none;"></div>
 
 <!-- Tesseract (OCR) und Vosk (Offline-Spracherkennung) werden NICHT mehr hier

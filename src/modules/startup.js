@@ -1,7 +1,7 @@
 // src/modules/startup.js
 import { _initTTS, warmTTS } from './speech.js';
 import { _sfx, primeSfx } from './game.js';
-import { _discoverTracks, _initAudio, _trackUrl, startMusicSync, _setMusicBtns } from './audio.js';
+import { startMusicSync, musikVorladen } from './audio.js';
 import { showScreen, showMenu, handleLogin, handleLogout, showNewPasswordScreen, spielstandVorladen } from './ui.js';
 import { supabase, cachedSessionUser } from './supabase.js';
 import { onAuthChange } from './auth.js';
@@ -135,11 +135,8 @@ export function showStartGate(user) {
     try { if (navigator.audioSession) navigator.audioSession.type = 'play-and-record'; } catch(e) {}
     // SFX sofort in der Geste entsperren (sonst Sounds erst nach 1-2 Runden).
     try { primeSfx(); } catch(e) {}
-    try {
-      let musicPref = '1';
-      try { const v = localStorage.getItem('es_music'); if (v !== null) musicPref = v; } catch(e) {}
-      if (musicPref === '1' && !window._musicOn) { startMusicSync(); _setMusicBtns(true); }
-    } catch(e) { console.warn('[startup] Music unlock failed:', e); }
+    // Musik (SW-5): spielt nur, wenn die Regler im Profil über 0 stehen.
+    try { startMusicSync(); } catch(e) { console.warn('[startup] Music unlock failed:', e); }
     // TTS-Warmup in der Geste anstoßen, aber nicht abwarten: es kostet bis zu 3,5 s
     // (bis 1,5 s Stimmen-Poll + bis 2 s Warmup). Bis im Spiel das erste Wort fällt,
     // ist es längst fertig — speakWord geht ohnehin über _withVoices, das notfalls
@@ -156,16 +153,9 @@ async function bootWork() {
   try { _sfx(); } catch(e) {}
 
   setProgress(25, 'Musik wird vorbereitet…');
-  // Nicht abwarten: _discoverTracks() fragt (auf github.io) api.github.com an.
-  _discoverTracks().then(() => {
-    if (window._musicTracks.length > 0) {
-      const a = _initAudio();
-      // preload 'metadata' statt 'auto': 'auto' zieht den KOMPLETTEN Track — beim
-      // ersten sind das 10,9 MB und damit der größte Einzelposten des Kaltstarts.
-      // Beim Abspielen streamt er ohnehin ab dem ersten Puffer.
-      if (!a.src) { a.src = _trackUrl(window._musicTracks[0]); a.preload = 'metadata'; }
-    }
-  }).catch(e => console.warn('[Startup] Musik:', e));
+  // Menümusik (2,5 MB) im Hintergrund ganz holen, nicht abwarten. Ist sie bis zum
+  // Start-Knopf da, spielt sie aus dem Speicher, sonst gestreamt.
+  try { musikVorladen(); } catch(e) { console.warn('[Startup] Musik:', e); }
 
   setProgress(40, 'Mikrofon wird vorbereitet…');
   try {

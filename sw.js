@@ -25,10 +25,10 @@ const STATIC_RE = /\/(models|music|arena)\/|\/vendor\/vosk\.js$|\/vendor\/ort-/;
 // jede der 30+ Moduldateien vorher zufällig schon einmal online geladen worden war.
 // Neue Module hier ergänzen. Nicht gelistete Dateien landen weiterhin nach dem
 // ersten erfolgreichen Laden im Cache, sind aber eben nicht garantiert da.
-// BEWUSST NICHT hier: vendor/vosk.js (5,6 MB), models/ (41 MB), music/*.mp3 — die
+// BEWUSST NICHT hier: vendor/vosk.js (5,6 MB), models/ (41 MB), music/*.mp3 (ganz geladen von audio.js) — die
 // würden bei jedem Versionssprung neu gezogen. Sie kommen cache-first bei Bedarf.
 const PRECACHE = [
-  './', './index.html', './manifest.json', './tracks.json',
+  './', './index.html', './manifest.json',
   './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png', './icons/favicon-32.png',
   './vondu-logo.svg', './vondu-wordmark.svg',
   './src/style.css', './src/main.js',

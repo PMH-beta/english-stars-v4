@@ -12,6 +12,7 @@ import { iconHTML } from './pixel-icons.js';
 import { setGrundton } from './screen-shell.js';
 import { schnellSichern, schnellZurueck } from './schnell-stand.js';
 import { zaehleRichtig, wochenStand, wochenChipHTML, frischGeschafftAbholen } from './lernwoche.js';
+import { tonWert, SCHLAEGE } from './audio.js';
 
 // Game state – all on window.* so Commit B functions (still in index.html) can read them as globals
 window.isSchnellModus = false;            // gespiegelter Zustand des AKTIVEN Modus
@@ -1488,10 +1489,12 @@ export function primeSfx() {
 }
 export function playSfx(type) {
   const ctx=_sfx(); if(!ctx) return;
+  const gesamt=tonWert('gesamt');   // Regler „Gesamt“ im Profil (SW-5), 0 = aus
+  if(gesamt<=0) return;
   if(ctx.state==='suspended') ctx.resume();
   const t=ctx.currentTime;
   const out=ctx.createGain();
-  out.gain.value=1.0;
+  out.gain.value=gesamt;
   out.connect(ctx.destination);
   if(type==='click'){
     const o=ctx.createOscillator(); const g=ctx.createGain();
@@ -1528,6 +1531,34 @@ export function playSfx(type) {
       o.connect(g); g.connect(out); o.start(s); o.stop(s+.32);
     });
   }
+}
+
+// Schlag-Töne im Kampf (SW-5): 'schlag' = Held trifft, 'treffer' = Held wird getroffen.
+// Einmal laden und dekodieren (schlaegeVorladen beim Öffnen des Kampfs), dann nur
+// noch abspielen — so liegt der Ton genau auf dem Einschlag.
+const _schlagBuf={}, _schlagLaden={};
+export function schlaegeVorladen() {
+  const ctx=_sfx(); if(!ctx) return;
+  for(const [art,url] of Object.entries(SCHLAEGE)){
+    if(_schlagBuf[art]||_schlagLaden[art]) continue;
+    _schlagLaden[art]=fetch(url).then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.arrayBuffer(); })
+      .then(b=>new Promise((ok,nein)=>ctx.decodeAudioData(b,ok,nein)))
+      .then(buf=>{ _schlagBuf[art]=buf; })
+      .catch(e=>{ console.warn('[Schlag]',art,e?.message); delete _schlagLaden[art]; });
+  }
+}
+export function playSchlag(art) {
+  const ctx=_sfx(); const buf=_schlagBuf[art];
+  if(!ctx) return;
+  if(!buf){ schlaegeVorladen(); return; }
+  const gesamt=tonWert('gesamt');
+  if(gesamt<=0) return;
+  try{
+    if(ctx.state==='suspended') ctx.resume();
+    const src=ctx.createBufferSource(); const g=ctx.createGain();
+    src.buffer=buf; g.gain.value=gesamt;
+    src.connect(g); g.connect(ctx.destination); src.start();
+  }catch(e){}
 }
 
 // ── Progress + End ──

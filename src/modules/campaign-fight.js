@@ -38,7 +38,8 @@ import { arenaTag, arenaForRound } from './world.js';
 import { ensureAvatar } from './avatar.js';
 import { heroCombatSheet, enemyCombatSheet, SpritePlayer, ProjectileLayer } from './pixel-anim.js';
 import { gearFor, createPetPlayer, petKind, petColorHex } from './hero.js';
-import { playSfx } from './game.js';
+import { playSfx, playSchlag, schlaegeVorladen } from './game.js';
+import { musikOrt } from './audio.js';
 import { effectivePct, statKeyFor, heuteTag, kurzSchluessel, statBasis, geuebtTag } from './stats.js';
 import { getConstellations, IRREGULAR_VERBS, IRREGULAR_PRESET_ID, verbsByEns } from './irregular-verbs.js';
 import { uvFormPracticed } from './irregular-game.js';
@@ -410,6 +411,9 @@ export function openFight({ run, node, save, onEnd, round, stat, kannNochmal, en
     players: null, layer: null,
     weapon: equippedWeapon(), eff: equipEffects(), save, onEnd, stat, mg: null, round, cfPreset: false, cfDecks: new Set() };
   _renderOverlay();
+  // SW-5: Kampfmusik der Arena (der Boss hat ein eigenes Stück), Schläge vorladen.
+  musikOrt(node.type === 'boss' ? 'boss' : arenaForRound(round));
+  schlaegeVorladen();
   _startWave();
 }
 
@@ -714,7 +718,7 @@ function _strike(wer, dmgText, color, treffer, danach) {
   const held = wer === 'hero';
   const ziel = held ? 'cf-enemy' : 'cf-hero';
   if (!p || !p.hero) {   // ohne Figuren (Notnagel): Schaden sofort, ohne Animation
-    treffer(); _damagePop(ziel, dmgText, color); if (danach) danach();
+    treffer(); _damagePop(ziel, dmgText, color); playSchlag(held ? 'schlag' : 'treffer'); if (danach) danach();
     return;
   }
   const angreifer = held ? p.hero : p.feind;
@@ -722,6 +726,7 @@ function _strike(wer, dmgText, color, treffer, danach) {
   const onHit = () => {
     treffer();
     _damagePop(ziel, dmgText, color);
+    playSchlag(held ? 'schlag' : 'treffer');
     _impactBurst(ziel, color);
     getroffen?.play('hurt');
     if (!held) p.pet?.play('hurt');   // der Gefaehrte zuckt mit
@@ -1345,6 +1350,9 @@ function _close(result) {
   _markCfDirty();
   _ctx = null;
   _removeOverlay();
+  // Zurück zur Menümusik. Öffnet onEnd gleich den nächsten Kampf („Nochmal“),
+  // gilt dessen Ort (musikOrt fasst kurz hintereinander zusammen).
+  musikOrt('menue');
   if (onEnd) onEnd(result, enemyKey);
 }
 

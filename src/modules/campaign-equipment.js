@@ -540,7 +540,7 @@ export function renderEquipmentPanel() {
 }
 
 // Nach dem Antippen eines Fachs Tasche und Teil-Karte (mit „Anlegen“/„Ablegen“)
-// ganz ins Bild holen, frei vom schwebenden Musikknopf — höchstens so weit, dass
+// ganz ins Bild holen — höchstens so weit, dass
 // die Puppe oben im Bild bleibt (Wunsch des Nutzers 14.10.2026: die Karte lag
 // unter dem Bildschirmrand bzw. unter dem Musikknopf).
 function _tascheInsBild() {
@@ -548,11 +548,7 @@ function _tascheInsBild() {
   const puppe = host && host.querySelector('.pf-puppe');
   const ziel = host && host.querySelector('.pf-auswahl');   // mit dem reservierten Platz für die Karte
   if (!puppe || !ziel) return;
-  let frei = window.innerHeight - 12;
-  for (const id of ['music-btn-global', 'music-vol-btn']) {
-    const r = document.getElementById(id)?.getBoundingClientRect();   // fest positioniert: offsetParent ist immer null
-    if (r && r.height > 0) frei = Math.min(frei, r.top - 12);
-  }
+  const frei = window.innerHeight - 12;   // Musikknopf gibt es seit SW-5 nicht mehr
   const kb = ziel.getBoundingClientRect();
   // Unterkante des Anlegen/Ablegen-Knopfs — ohne Karte dort, wo er im reservierten
   // Platz säße (10 Abstand + halbe Karte 50 + halber Knopf 22). So rollt das erste

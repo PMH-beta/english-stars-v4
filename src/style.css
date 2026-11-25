@@ -230,77 +230,7 @@ h1{
   background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 14px;
   margin-bottom:8px;box-shadow:0 3px 10px rgba(88,60,150,.08);
 }
-/* Music button */
-.music-btn{
-  font-family:'Nunito',system-ui,sans-serif;font-size:1rem;padding:7px 12px;background:#fff;color:#666;
-  border:none;border-radius:50px;cursor:pointer;box-shadow:0 3px 0 #ccc;transition:all .15s;
-}
-.music-btn:hover{transform:translateY(-1px);}
-.music-btn.on{background:linear-gradient(135deg,#FFD700,#FFA500);color:#fff;box-shadow:0 3px 0 #c4860d;}
-/* Globaler schwebender Musik-Button (Menü/Stats) */
-.music-btn-global{
-  position:fixed;bottom:16px;right:16px;z-index:500;
-  font-family:'Nunito',system-ui,sans-serif;font-size:1.3rem;
-  background:#fff;color:#666;border:none;border-radius:50%;
-  cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.18);
-  width:52px;height:52px;display:flex;align-items:center;justify-content:center;
-  transition:all .2s ease;
-}
-.music-btn-global:hover,.music-btn-global:active{transform:scale(1.06);}
-.music-btn-global.on{
-  background:linear-gradient(135deg,#FFD700,#FFA500);color:#fff;
-  box-shadow:0 4px 14px rgba(255,165,0,.5);
-  animation:musicPulse 2.5s ease-in-out infinite;
-}
-@keyframes musicPulse{
-  0%,100%{box-shadow:0 4px 14px rgba(255,165,0,.5);}
-  50%{box-shadow:0 4px 18px rgba(255,165,0,.8);}
-}
-/* Lautstärke-Slider als Popup nach oben über dem Music-Button */
-.music-vol-wrap{
-  position:fixed;bottom:78px;right:16px;z-index:499;
-  display:none;
-  flex-direction:column;align-items:center;gap:6px;
-  background:#fff;border-radius:18px;padding:10px 8px 8px;
-  box-shadow:0 4px 14px rgba(0,0,0,.18);
-  font-family:'Nunito',system-ui,sans-serif;font-size:.7rem;color:#666;
-  transform-origin:bottom right;
-  animation:volPop .2s ease;
-}
-.music-vol-wrap.open{display:flex;}
-@keyframes volPop{
-  from{opacity:0;transform:scale(.7) translateY(10px);}
-  to{opacity:1;transform:scale(1) translateY(0);}
-}
-/* Vertikaler Slider */
-.music-vol-wrap input[type=range]{
-  -webkit-appearance:slider-vertical;
-  appearance:slider-vertical;
-  writing-mode:vertical-lr;
-  direction:rtl;
-  width:30px;height:120px;cursor:pointer;
-}
-body.in-game .music-vol-wrap.open{display:none;}
-/* Musik- und Lautstärke-Knopf gibt es seit 10.11.2026 nur im Hauptmenü (ui.js showScreen). */
-
-/* Mobile (Touch-Geräte): Lautstärke-Regler komplett aus - User regelt am Gerät */
-@media (pointer:coarse), (max-width:599px){
-  .music-vol-btn,.music-vol-wrap,
-  body.in-game .music-vol-btn,
-  body.in-game .music-vol-wrap,
-  body.in-game .music-vol-wrap.open{display:none !important;}
-}
-.music-vol-btn{
-  position:fixed;bottom:76px;right:24px;z-index:498;
-  font-family:'Nunito',system-ui,sans-serif;font-size:.9rem;
-  background:#fff;color:#666;border:none;border-radius:50%;
-  cursor:pointer;box-shadow:0 3px 10px rgba(0,0,0,.15);
-  width:36px;height:36px;display:flex;align-items:center;justify-content:center;
-  transition:all .15s ease;
-}
-.music-vol-btn.active{background:#ffe9c2;}
-/* Popup Position anpassen wenn beide Buttons da sind */
-.music-vol-wrap{bottom:120px;right:16px;}
+/* Musik-Knöpfe und Lautstärke-Popup entfallen seit SW-5 (25.11.2026): Profil, Bereich „Ton“. */
 /* PWA Install-Knopf - oben links (klein, dezent) */
 
 /* Modus-Gesamtfortschritt UNTER der Aufgabe */
@@ -1415,15 +1345,6 @@ html.popup-offen, html.popup-offen body{ overflow:hidden; overscroll-behavior:no
 body.p-app #version-badge{
   font:800 10px var(--p-font); letter-spacing:var(--p-ls-kicker);
   color:var(--p-text-akzent); bottom:calc(6px + env(safe-area-inset-bottom,0px));
-}
-body.p-app .music-btn-global{
-  background:var(--p-karte); border:var(--p-rahmen); box-shadow:none; color:var(--p-ink);
-  bottom:calc(16px + env(safe-area-inset-bottom,0px));
-}
-body.p-app .music-btn-global.on{ background:var(--p-gold); }
-body.p-app .music-vol-btn{
-  background:var(--p-karte); border:var(--p-rahmen); box-shadow:none; color:var(--p-ink);
-  bottom:calc(76px + env(safe-area-inset-bottom,0px));
 }
 
 /* ── Anmelden ↔ Registrieren ─────────────────────────────────────────────── */
@@ -3846,14 +3767,6 @@ button.p-chip{ cursor:pointer; }
 .forge-words summary::after{ font-size:9px; transition:none; }
 
 /* ══ ÜBERALL nach Fragment 9.3–9.6 (Phase 7, Bereich 9) ═════════════════════ */
-/* Musik (9.5): Kreis 52 + Rahmen, aus Papier, an Flieder, immer die Note. */
-body.p-app .music-btn-global{
-  width:56px; height:56px; right:16px; bottom:calc(24px + env(safe-area-inset-bottom,0px));
-  border:var(--p-rahmen); background:var(--p-karte); box-shadow:none; animation:none; transition:none;
-}
-body.p-app .music-btn-global.on{ background:var(--p-lila); box-shadow:none; animation:none; }
-body.p-app .music-btn-global:hover, body.p-app .music-btn-global:active{ transform:none; }
-body.p-app .music-vol-btn{ bottom:calc(88px + env(safe-area-inset-bottom,0px)); }
 /* Speichern: statt der Papier-Pille (9.4) nur drei kleine wippende Punkte ganz oben
    rechts im Grundton (Wunsch des Nutzers 09.10.2026). */
 #es-saving-bar.p-band{
@@ -4695,9 +4608,7 @@ div.ce-kachel{ cursor:default; }
 @keyframes tourPulse{0%{box-shadow:0 0 0 0 rgba(255,138,61,.6)}100%{box-shadow:0 0 0 12px rgba(255,138,61,0)}}
 @keyframes tvNudge{0%,49%{transform:translateX(0)}50%,100%{transform:translateX(2px)}}
 body.tour-aktiv #friend-badge,
-body.tour-aktiv #version-badge,
-body.tour-aktiv .music-btn-global,
-body.tour-aktiv .music-vol-btn{ display:none !important; }
+body.tour-aktiv #version-badge{ display:none !important; }
 /* Platz zum Nachrücken, falls das markierte Element auf kleinen Handys unter der Box läge. */
 body.tour-aktiv #menu-screen .p-blatt{ padding-bottom:60vh; }
 /* Das Menü darunter ist nur Kulisse (zusätzlich zu inert, für ältere Browser). */
@@ -4813,6 +4724,29 @@ body.tour-aktiv #menu-screen{ pointer-events:none; }
   border:var(--p-rahmen); border-radius:14px; background:var(--p-karte-hell);
   display:flex; align-items:center; font:800 12px var(--p-font); color:var(--p-ink);
 }
+
+/* Profil, Bereich „Ton“ (SW-5, 25.11.2026): Karte wie die App-Tour, darin drei
+   Regler. Balken wie Fragment 9.5 (10 px, Rahmen 2 px, Spur --p-feld, Füllung
+   Flieder); das echte Regler-Element liegt unsichtbar darüber und ist 32 px hoch,
+   damit es sich mit dem Finger gut greifen lässt. */
+.pf-ton{ flex-direction:column; align-items:stretch; gap:6px; padding-bottom:10px; }
+.pf-ton-kopf{ display:flex; align-items:center; gap:12px; margin-bottom:4px; }
+.pf-ton-kachel{ background:var(--p-lila); }
+.pf-ton-zeile{ display:flex; align-items:center; gap:10px; min-height:32px; }
+.pf-ton-name{ flex:none; width:86px; font:800 12px var(--p-font); color:var(--p-ink); }
+.pf-ton-balken{
+  position:relative; flex:1; min-width:0; height:10px; box-sizing:content-box;
+  border:var(--p-rahmen); border-radius:var(--p-r-balken); background:var(--p-feld);
+}
+.pf-ton-spur{ position:absolute; inset:0; overflow:hidden; border-radius:4px; }
+.pf-ton-fuell{ display:block; height:100%; width:0; background:var(--p-lila); }
+.pf-ton-balken input{
+  position:absolute; left:-2px; right:-2px; top:50%; height:32px; margin:0; transform:translateY(-50%);
+  width:calc(100% + 4px); opacity:0; cursor:pointer; touch-action:pan-y;
+}
+.pf-ton-balken:has(input:focus-visible){ outline:2px solid var(--p-ink); outline-offset:3px; }
+.pf-ton-wert{ flex:none; width:38px; text-align:right; font:800 12px var(--p-font); color:var(--p-text-2); font-variant-numeric:tabular-nums; }
+.pf-ton-lizenz{ margin-top:4px; }
 
 /* ── UI-Animationen weich statt in Stufen ──
    Wunsch des Nutzers (08.10.2026), erst im Kampf, jetzt überall: ui-anim.js

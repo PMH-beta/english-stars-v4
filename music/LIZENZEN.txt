@@ -1,0 +1,34 @@
+English Stars · Musik und Geräusche
+====================================
+
+Alle Stücke stehen unter einer Creative-Commons-Lizenz. Für die App wurden sie
+verkleinert (MP3, Musik 96 kbit/s Stereo, Geräusche 64 kbit/s Mono), in der Lautheit
+angeglichen (ca. -16 LUFS) und ohne Metadaten gespeichert. Sonst unverändert.
+
+Datei            Ort              Titel · Urheber · Lizenz · Quelle
+---------------  ---------------  -----------------------------------------------------------
+menue-1.mp3      Menü             „Leafless Quince Tree“ · Rolemusic
+                                  CC BY 3.0 · https://www.jamendo.com/track/1150774
+wiese-1.mp3      Kampf: Wiese     „8-bit Brisk Music Loop“ · EVRetro
+                                  CC0 1.0 · https://freesound.org/people/EVRetro/sounds/583613
+abend-1.mp3      Kampf: Abend     „Saw Adventure“ · Andrey Avkhimovich
+                                  CC BY 3.0 · https://www.jamendo.com/track/773628
+kerker-1.mp3     Kampf: Kerker    „8-bit Music for GameDev – 02. Perilous Dungeon“ · HydroGene
+                                  CC0 1.0 · https://commons.wikimedia.org/w/index.php?curid=145242030
+kristall-1.mp3   Kampf: Kristall  „8-bit Music for GameDev – 04. Mechanical Complex“ · HydroGene
+                                  CC0 1.0 · https://commons.wikimedia.org/w/index.php?curid=145242085
+vulkan-1.mp3     Kampf: Vulkan    „8-bit Music for GameDev – 03. Boss Battle“ · HydroGene
+                                  CC0 1.0 · https://commons.wikimedia.org/w/index.php?curid=145242052
+friedhof-1.mp3   Kampf: Friedhof  „BlockTheme01“ · toxicityspb
+                                  CC0 1.0 · https://freesound.org/people/toxicityspb/sounds/493572
+boss-1.mp3       Kampf: Boss      „Boss Battle Loop #2“ · Sirkoto51
+                                  CC BY 4.0 · https://freesound.org/people/Sirkoto51/sounds/367504
+schlag-1.mp3     Held trifft      „Sword Slash 1“ · smokebomb99
+                                  CC0 1.0 · https://freesound.org/people/smokebomb99/sounds/147288
+treffer-1.mp3    Held getroffen   „Hurt_C_04“ · cabled_mess
+                                  CC0 1.0 · https://freesound.org/people/cabled_mess/sounds/350922
+
+Lizenztexte
+  CC BY 3.0  https://creativecommons.org/licenses/by/3.0/
+  CC BY 4.0  https://creativecommons.org/licenses/by/4.0/
+  CC0 1.0    https://creativecommons.org/publicdomain/zero/1.0/

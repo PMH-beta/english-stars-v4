@@ -3,7 +3,7 @@
 import { APP_VERSION, isIOS, isStandalone } from './modules/config.js';
 import { persist, loadData, freshData } from './modules/storage.js';
 import { _initTTS, speakWord, speakWordOnce, ensureMicStream, releaseMicStream, startVisualizer, stopVisualizer, voskStart, voskStop, _shouldUseVosk, startRecording, startVoskRecognition } from './modules/speech.js';
-import { _trackUrl, _discoverTracks, _playNext, _initAudio, startMusic, startMusicSync, stopMusic, setMusicVolume, _setMusicBtns, toggleMusic, toggleVolPopup } from './modules/audio.js';
+import { startMusicSync } from './modules/audio.js';
 import { effectivePct, isMastered } from './modules/stats.js';
 import { buildPool, toggleSchnell, syncSchnellForMode, startGame, confirmHome, goHomeSaving, nextQuestion, restartSame, checkMC, submitType, checkOrder, showSelfRateButtons, retryPronounce, evaluateWithClaude, setMicFinalStatus, _sfx, playSfx } from './modules/game.js';
 import { syncMirrorFromActiveDeck, activeDeck, switchDeck, createDeck, deleteDeck, renameDeck, deckProgress, renderDecks, deckIdGetauscht, toggleDeck, activateDeck, startGameWithDeck, newDeckPrompt, renameDeckPrompt, confirmDeleteDeck, resetDeckProgress, vmDeleteWord, vmEditWord, vmAddManual, vmAddEingabe, vmAddVerlassen, vmAddRueckgaengig, openDeckStats } from './modules/decks.js';
@@ -255,17 +255,7 @@ window.newDeckPreset = newDeckPreset;
 window.newDeckCustom = newDeckCustom;
 
 // Musik via window für Legacy-Code
-window._trackUrl = _trackUrl;
-window._discoverTracks = _discoverTracks;
-window._playNext = _playNext;
-window._initAudio = _initAudio;
-window.startMusic = startMusic;
 window.startMusicSync = startMusicSync;
-window.stopMusic = stopMusic;
-window.setMusicVolume = setMusicVolume;
-window._setMusicBtns = _setMusicBtns;
-window.toggleMusic = toggleMusic;
-window.toggleVolPopup = toggleVolPopup;
 
 // Offline-Queue bei Wiederverbindung leeren
 window.addEventListener('online', () => { if (window.currentUser) flushPendingSync().catch(() => {}); });
@@ -612,7 +602,7 @@ try { screen.orientation?.lock?.('portrait').catch(() => {}); } catch (e) {}
   // Vorlesen liegen im Übungs-Screen). data-sofort nimmt weitere Knöpfe aus.
   const NACH_MS = 90;
   const SOFORT = '#cf-overlay, #game-screen, input, select, textarea, label, [data-sofort], '
-    + '[onclick*="toggleMusic"], [onclick*="pwaInstall"], [onclick*="scan-file"], .p-ih-btn--ok';
+    + '[onclick*="pwaInstall"], [onclick*="scan-file"], .p-ih-btn--ok';
   const restZeit = () => (letzter && performance.now() - letzter.at < 1500)
     ? Math.max(0, letzter.at + MIN_MS + NACH_MS - performance.now()) : 0;
   // Für Gesten ohne click-Event (Deck-Karten reagieren auf touchend).

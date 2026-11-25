@@ -1,97 +1,110 @@
 // src/modules/audio.js
-// Hintergrundmusik (MP3-Playlist, läuft endlos) + Volume-Popup
-// Shared state liegt auf window damit Legacy-Code in index.html direkt darauf zugreifen kann.
+// Musik je Ort und Lautstärke (SW-5, Wunsch des Nutzers 24.11.2026).
+// - Menü und alle Screens außerhalb des Kampfs: ruhige Menümusik.
+// - Kampf: ein eigenes Stück je Arena, der Boss ein eigenes. Beim Wechsel blendet
+//   die Musik kurz aus und wieder ein (je 250 ms).
+// - Drei Regler im Profil (Bereich „Ton“), je Gerät in localStorage:
+//   es_ton_gesamt (regelt auch Effekte und Schläge), es_ton_menue, es_ton_kampf.
+//   0 heißt aus. Die alten Musik-Knöpfe im Hauptmenü gibt es nicht mehr.
+// - Ein Stück wird einmal GANZ geladen (fetch → Blob → Objekt-URL): kein 206 mehr,
+//   der Service Worker legt die Datei vollständig ab, offline läuft sie weiter.
+// - Lautstärke über Web Audio (GainNode am AudioContext der Effekte): iOS ignoriert
+//   audio.volume. Ohne Web Audio regelt audio.volume.
+// Herkunft und Lizenzen: music/LIZENZEN.txt.
 
-import { iconHTML } from './pixel-icons.js';
-
-window._musicTracks = [];
-window._musicAudio = null;
-window._musicIdx = 0;
-window._musicOn = false;
-window._musicVolume = 0.50;
-window._musicErrorRetries = 0;
+import { _sfx } from './game.js';
 
 const MUSIC_BASE = 'music/';
+// Neues Stück = neue Nummer im Dateinamen: der Musik-Cache des Service Workers
+// (STATIC_CACHE) überlebt Deploys und gäbe sonst die alte Datei weiter heraus.
+const MUSIK = {
+  menue: 'menue-1.mp3',
+  wiese: 'wiese-1.mp3', abend: 'abend-1.mp3', kerker: 'kerker-1.mp3',
+  kristall: 'kristall-1.mp3', vulkan: 'vulkan-1.mp3', friedhof: 'friedhof-1.mp3',
+  boss: 'boss-1.mp3',
+};
+// Schlag-Töne im Kampf (spielt game.js über Web Audio ab).
+export const SCHLAEGE = { schlag: MUSIC_BASE + 'schlag-1.mp3', treffer: MUSIC_BASE + 'treffer-1.mp3' };
 
-export function _trackUrl(name) { return MUSIC_BASE + encodeURIComponent(name); }
+window._musicAudio = null;
+window._musicOn = false;   // true = Musik soll gerade laufen (nach der ersten Geste, Regler über 0)
 
-export async function _discoverTracks() {
-  if (window._musicTracks.length > 0) return window._musicTracks;
-
-  function decodeHtmlEntities(s) {
-    return s
-      .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-      .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&#x27;/g, "'")
-      .replace(/&nbsp;/g, ' ');
-  }
-
-  // Versuch 1: GitHub API für github.io-Hosting.
-  // Offline übersprungen und online gedeckelt: der Aufruf ging vorher ungetimeoutet
-  // raus (und ist bei 60 Requests/Stunde pro IP auch noch rate-limited). Versuch 3
-  // (tracks.json) liegt same-origin im Repo und funktioniert aus dem Cache heraus.
-  try {
-    const host = location.hostname;
-    if (host.endsWith('.github.io') && navigator.onLine !== false) {
-      const user = host.split('.')[0];
-      const pathParts = location.pathname.split('/').filter(Boolean);
-      const repo = pathParts[0] || 'english-stars';
-      const apiUrl = `https://api.github.com/repos/${user}/${repo}/contents/music`;
-      const _ctl = new AbortController();
-      const _t = setTimeout(() => _ctl.abort(), 2500);
-      const r = await fetch(apiUrl, { signal: _ctl.signal }).finally(() => clearTimeout(_t));
-      if (r.ok) {
-        const files = await r.json();
-        const mp3s = files.filter(f => f.type === 'file' && /\.mp3$/i.test(f.name)).map(f => f.name);
-        if (mp3s.length > 0) {
-          window._musicTracks = mp3s;
-          console.log('[Music] GitHub API: ' + mp3s.length + ' Tracks:', mp3s);
-          return window._musicTracks;
-        }
-      }
-    }
-  } catch(e) { console.warn('[Music] GitHub-API:', e.message); }
-
-  // Versuch 2: Directory-Listing (lokale Python-Server)
-  try {
-    const r = await fetch('./' + MUSIC_BASE, { method: 'GET', cache: 'no-store' });
-    if (r.ok) {
-      const txt = await r.text();
-      const matches = [...txt.matchAll(/href="([^"]+\.mp3)"/gi)];
-      const found = matches.map(m => {
-        let n = m[1];
-        try { n = decodeURIComponent(n); } catch(e) {}
-        return decodeHtmlEntities(n);
-      }).filter(n => n && !n.includes('/') && !n.startsWith('?'));
-      if (found.length > 0) {
-        window._musicTracks = Array.from(new Set(found));
-        console.log('[Music] Listing: ' + window._musicTracks.length + ' Tracks:', window._musicTracks);
-        return window._musicTracks;
-      }
-    }
-  } catch(e) { console.warn('[Music] Listing:', e.message); }
-
-  // Versuch 3: tracks.json (optional vom User gepflegt)
-  try {
-    const r = await fetch('./tracks.json', { cache: 'no-store' });
-    if (r.ok) {
-      const list = await r.json();
-      if (Array.isArray(list) && list.length > 0) {
-        window._musicTracks = list;
-        console.log('[Music] tracks.json: ' + list.length + ' Tracks:', list);
-        return window._musicTracks;
-      }
-    }
-  } catch(e) {}
-
-  console.warn('[Music] Keine MP3-Dateien gefunden. Lege MP3s in das Repository und sie werden automatisch erkannt.');
-  return window._musicTracks;
+// ── Lautstärke ──────────────────────────────────────────────────────────────
+const TON_KEYS = { gesamt: 'es_ton_gesamt', menue: 'es_ton_menue', kampf: 'es_ton_kampf' };
+let _ton = null;
+function _zahl(v) { const n = parseFloat(v); return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : null; }
+function _ls(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function _ladeTon() {
+  if (_ton) return _ton;
+  // Startwerte aus den alten Schaltern, damit sich beim Umstieg nichts ändert:
+  // es_music = '0' war „Musik aus“, es_music_vol die Lautstärke (Handys fest 30 %,
+  // dort war der Regler ausgeblendet). Die Effekte liefen immer voll.
+  const mobil = matchMedia('(pointer:coarse)').matches || innerWidth < 600;
+  let alt = mobil ? 0.3 : (_zahl(_ls('es_music_vol')) ?? 0.5);
+  if (_ls('es_music') === '0') alt = 0;
+  _ton = {
+    gesamt: _zahl(_ls(TON_KEYS.gesamt)) ?? 1,
+    menue: _zahl(_ls(TON_KEYS.menue)) ?? alt,
+    kampf: _zahl(_ls(TON_KEYS.kampf)) ?? alt,
+  };
+  return _ton;
 }
 
-export function _playNext() {
-  if (!window._musicOn || window._musicTracks.length === 0) return;
-  window._musicIdx = (window._musicIdx + 1) % window._musicTracks.length;
-  window._musicAudio.src = _trackUrl(window._musicTracks[window._musicIdx]);
-  window._musicAudio.play().catch(() => {});
+/** Reglerwert 0…1 ('gesamt' | 'menue' | 'kampf'). */
+export function tonWert(art) { return _ladeTon()[art] ?? 1; }
+
+export function setTon(art, v) {
+  if (!(art in TON_KEYS)) return;
+  const n = _zahl(v);
+  if (n === null) return;
+  _ladeTon()[art] = n;
+  try { localStorage.setItem(TON_KEYS[art], String(n)); } catch (e) {}
+  _tonUiZeigen();
+  _anwenden();
+}
+
+// ── Element und Laden ───────────────────────────────────────────────────────
+function _element() {
+  if (window._musicAudio) return window._musicAudio;
+  const a = new Audio();
+  a.loop = true;
+  a.preload = 'auto';
+  a.setAttribute('playsinline', '');
+  // Lockscreen-Medienanzeige nach jedem play() unterdrücken — der Browser setzt
+  // MediaSession bei Wiedergabe neu, daher hier wiederholt zurücksetzen.
+  a.addEventListener('playing', _suppressMediaSession);
+  // Jeder Start (auch der von speech.js nach dem Mikrofon) weckt den AudioContext,
+  // sonst liefe die Musik über die Gain-Kette stumm.
+  a.addEventListener('play', _ctxWecken);
+  _suppressMediaSession();
+  window._musicAudio = a;
+  return a;
+}
+
+// Gain-Kette: Element → Gain → Lautsprecher. Nur einmal je Element möglich, in der
+// ersten Geste (startMusicSync), wenn der AudioContext frei ist.
+let _gain = null, _vol = 0;
+function _verbinden(a) {
+  if (_gain) return;
+  try {
+    const ctx = _sfx();
+    if (!ctx) return;
+    const g = ctx.createGain();
+    g.gain.value = _vol;
+    ctx.createMediaElementSource(a).connect(g);
+    g.connect(ctx.destination);
+    _gain = g;
+    a.volume = 1;
+  } catch (e) { console.warn('[Musik] Web Audio:', e?.message); }
+}
+function _ctxWecken() {
+  if (!_gain) return;
+  try { const ctx = _sfx(); if (ctx && ctx.state !== 'running') ctx.resume(); } catch (e) {}
+}
+function _setVol(a, v) {
+  _vol = v;
+  if (_gain) _gain.gain.value = v;
+  else try { a.volume = v; } catch (e) {}
 }
 
 function _suppressMediaSession() {
@@ -99,182 +112,197 @@ function _suppressMediaSession() {
   try {
     navigator.mediaSession.metadata = null;
     navigator.mediaSession.playbackState = 'none';
-    ['play','pause','stop','seekbackward','seekforward','previoustrack','nexttrack'].forEach(a => {
-      try { navigator.mediaSession.setActionHandler(a, null); } catch(e) {}
+    ['play', 'pause', 'stop', 'seekbackward', 'seekforward', 'previoustrack', 'nexttrack'].forEach((x) => {
+      try { navigator.mediaSession.setActionHandler(x, null); } catch (e) {}
     });
-  } catch(e) {}
+  } catch (e) {}
 }
 
-export function _initAudio() {
-  if (window._musicAudio) return window._musicAudio;
-  try { const v = localStorage.getItem('es_music_vol'); if (v) window._musicVolume = parseFloat(v); } catch(e) {}
-  window._musicAudio = new Audio();
-  window._musicAudio.crossOrigin = 'anonymous';
-  window._musicAudio.preload = 'auto';
-  window._musicAudio.setAttribute('playsinline', '');
-  window._musicAudio.volume = window._musicVolume;
-  window._musicAudio.addEventListener('ended', () => {
-    window._musicErrorRetries = 0;
-    _playNext();
-  });
-  window._musicAudio.addEventListener('error', () => {
-    if (!window._musicOn) return;
-    window._musicErrorRetries++;
-    if (window._musicErrorRetries >= window._musicTracks.length) {
-      console.warn('Alle MP3-Dateien fehlerhaft.');
-      return;
-    }
-    setTimeout(() => _playNext(), 300);
-  });
-  // Lockscreen-Medienanzeige nach jedem play() unterdrücken — Browser setzt
-  // MediaSession bei Wiedergabe neu, daher hier wiederholt zurücksetzen.
-  window._musicAudio.addEventListener('playing', () => {
-    window._musicErrorRetries = 0;
-    _suppressMediaSession();
-  });
-  _suppressMediaSession();
-  return window._musicAudio;
+// datei → Promise<Objekt-URL | null>; _fertig hält die schon geladenen (synchron
+// abrufbar für den Start in der Geste). Höchstens 3 Stücke im Speicher, das
+// Menüstück bleibt immer.
+const _laden = new Map();
+const _fertig = new Map();
+function _blobUrl(datei) {
+  if (_laden.has(datei)) return _laden.get(datei);
+  const p = fetch(MUSIC_BASE + datei)
+    .then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.blob(); })
+    .then((b) => {
+      const url = URL.createObjectURL(b);
+      _fertig.set(datei, url);
+      _aufraeumen(datei);
+      return url;
+    })
+    .catch((e) => { console.warn('[Musik]', datei, e?.message); _laden.delete(datei); return null; });
+  _laden.set(datei, p);
+  return p;
+}
+function _aufraeumen(neu) {
+  for (const [k, url] of _fertig) {
+    if (_fertig.size <= 3) break;
+    if (k === MUSIK.menue || k === neu || k === _datei) continue;
+    URL.revokeObjectURL(url);
+    _fertig.delete(k);
+    _laden.delete(k);
+  }
 }
 
-export async function startMusic() {
-  if (window._musicTracks.length === 0) {
-    await _discoverTracks();
-  }
-  if (window._musicTracks.length === 0) {
-    console.warn('Keine MP3-Dateien gefunden');
-    return false;
-  }
-  window._musicOn = true;
-  window._musicErrorRetries = 0;
-  const a = _initAudio();
-  if (!a.src) a.src = _trackUrl(window._musicTracks[window._musicIdx]);
+/** Menümusik schon beim Laden der App holen (startup.js, vor dem Start-Knopf). */
+export function musikVorladen() {
+  if (tonWert('menue') > 0 && tonWert('gesamt') > 0) _blobUrl(MUSIK.menue);
+}
+
+// ── Ort und Wechsel ─────────────────────────────────────────────────────────
+let _ort = 'menue';
+let _datei = null;          // Stück, das im Element liegt
+let _gestartet = false;     // erste Geste war da (Browser-Regel)
+let _nr = 0;                // jeder Wechsel bekommt eine Nummer; ältere brechen ab
+let _ortTimer = null;
+let _menuePos = 0;          // zurück aus dem Kampf: Menümusik läuft dort weiter
+
+function _zielVol() {
+  const t = _ladeTon();
+  return t.gesamt * (_ort === 'menue' ? t.menue : t.kampf);
+}
+
+/**
+ * Wo spielt die Musik? 'menue', eine Arena (wiese, abend, kerker, kristall, vulkan,
+ * friedhof) oder 'boss'. Mehrere Aufrufe kurz hintereinander zählen als einer
+ * (Kampf zu und gleich der nächste auf).
+ */
+export function musikOrt(ort) {
+  _ort = MUSIK[ort] ? ort : 'menue';
+  clearTimeout(_ortTimer);
+  _ortTimer = setTimeout(_anwenden, 30);
+}
+
+// Blende: setzt die Lautstärke in kleinen Schritten. Eine neue Blende beendet die
+// laufende (deren Promise löst dann sofort auf).
+let _blendeTimer = null, _blendeFertig = null;
+function _blende(a, ziel, ms = 250) {
+  clearInterval(_blendeTimer);
+  if (_blendeFertig) _blendeFertig();
+  return new Promise((fertig) => {
+    _blendeFertig = fertig;
+    const von = _vol, t0 = performance.now();
+    if (Math.abs(von - ziel) < 0.01 || a.paused) { _setVol(a, ziel); _blendeFertig = null; fertig(); return; }
+    _blendeTimer = setInterval(() => {
+      const k = Math.min(1, (performance.now() - t0) / ms);
+      _setVol(a, von + (ziel - von) * k);
+      if (k >= 1) { clearInterval(_blendeTimer); _blendeFertig = null; fertig(); }
+    }, 25);
+  });
+}
+
+function _spielen(a) {
   try {
     const p = a.play();
-    if (p) p.catch(() => { window._musicOn = false; });
-  } catch(e) { window._musicOn = false; }
-  return true;
+    if (p) p.catch((err) => console.warn('[Musik] play:', err?.message));
+  } catch (e) {}
 }
 
-export function startMusicSync() {
-  window._musicOn = true;
-  window._musicErrorRetries = 0;
-  const a = _initAudio();
-  if (window._musicTracks.length > 0) {
-    if (!a.src || a.error) {
-      a.src = _trackUrl(window._musicTracks[window._musicIdx % window._musicTracks.length]);
-    }
-    try {
-      const p = a.play();
-      if (p) p.catch(err => { console.warn('[Music] play failed:', err); });
-    } catch(e) { console.warn('[Music] play exception:', e); }
-  } else {
-    _discoverTracks().then(() => {
-      if (!window._musicOn) return;
-      if (window._musicTracks.length === 0) {
-        console.warn('[Music] Keine Tracks gefunden');
-        window._musicOn = false; _setMusicBtns(false);
-        return;
-      }
-      a.src = _trackUrl(window._musicTracks[0]);
-      const p = a.play();
-      if (p) p.catch(err => console.warn('[Music] late play failed:', err));
-    }).catch(e => console.warn('[Music] discover failed:', e));
+async function _anwenden() {
+  if (!_gestartet) return;
+  const nr = ++_nr;
+  const a = _element();
+  const ziel = _zielVol();
+  const datei = MUSIK[_ort];
+  if (ziel <= 0) {
+    window._musicOn = false;
+    await _blende(a, 0);
+    if (nr === _nr) a.pause();
+    return;
   }
+  window._musicOn = true;
+  if (datei === _datei) {
+    if (a.paused && !document.hidden) { _setVol(a, 0); _spielen(a); }
+    _blende(a, ziel);
+    return;
+  }
+  // Anderes Stück: laden (parallel zum Ausblenden), wechseln, einblenden.
+  const urlP = _blobUrl(datei);
+  await _blende(a, 0);
+  if (nr !== _nr) return;
+  const url = await urlP;
+  if (nr !== _nr) return;
+  if (_datei === MUSIK.menue) _menuePos = a.currentTime || 0;
+  if (!url) { a.pause(); return; }   // offline und noch nie geladen: Stille statt Fehler
+  _datei = datei;
+  a.src = url;
+  if (datei === MUSIK.menue && _menuePos > 0) {
+    const pos = _menuePos;
+    a.addEventListener('loadedmetadata', () => { try { a.currentTime = pos; } catch (e) {} }, { once: true });
+  }
+  _setVol(a, 0);
+  if (!document.hidden) _spielen(a);
+  _blende(a, ziel);
 }
 
-export function stopMusic() {
-  window._musicOn = false;
-  if (window._musicAudio) window._musicAudio.pause();
+/**
+ * In der ersten Geste (Start-Knopf, startup.js) aufrufen: Browser erlauben Ton erst
+ * danach, iOS nur für ein Element, das in der Geste play() bekam.
+ */
+export function startMusicSync() {
+  if (_gestartet) return;
+  _gestartet = true;
+  const a = _element();
+  _verbinden(a);
+  const ziel = _zielVol();
+  const datei = MUSIK[_ort];
+  if (ziel > 0 && !_datei) {
+    // Liegt das Stück schon ganz vor: Blob. Sonst sofort gestreamt starten (die
+    // Datei wird parallel ganz geladen und vom SW abgelegt — beim nächsten Start Blob).
+    _datei = datei;
+    a.src = _fertig.get(datei) || (MUSIC_BASE + datei);
+    if (!_fertig.has(datei)) _blobUrl(datei);
+    _setVol(a, ziel);
+    window._musicOn = true;
+    _spielen(a);
+    return;
+  }
+  _anwenden();
 }
 
-export function setMusicVolume(v) {
-  window._musicVolume = Math.max(0, Math.min(1, parseFloat(v)));
-  if (window._musicAudio) window._musicAudio.volume = window._musicVolume;
-  try { localStorage.setItem('es_music_vol', String(window._musicVolume)); } catch(e) {}
-  const lbl = document.getElementById('music-vol-lbl');
-  if (lbl) lbl.textContent = Math.round(window._musicVolume * 100) + '%';
-}
+// Hintergrund → pausieren, zurück → weiter, wenn die Musik laufen soll.
+document.addEventListener('visibilitychange', () => {
+  const a = window._musicAudio;
+  if (!a) return;
+  if (document.hidden) a.pause();
+  else if (window._musicOn) _spielen(a);
+});
 
-export function _setMusicBtns(on) {
-  [document.getElementById('music-btn'), document.getElementById('music-btn-global')].forEach(btn => {
-    if (!btn) return;
-    // Wie 9.5: immer die Note; an = Flieder-Fläche (Klasse on), aus = Papier.
-    btn.innerHTML = iconHTML('music', 28);
-    btn.classList.toggle('on', !!on);
-    btn.title = on ? 'Musik ausschalten' : 'Musik einschalten';
+// ── Profil, Bereich „Ton“ ───────────────────────────────────────────────────
+function _tonUiZeigen() {
+  document.querySelectorAll('input[data-ton]').forEach((inp) => {
+    const v = Math.round(tonWert(inp.dataset.ton) * 100);
+    if (document.activeElement !== inp) inp.value = String(v);
+    const zeile = inp.closest('.pf-ton-zeile');
+    const fuell = zeile?.querySelector('.pf-ton-fuell');
+    if (fuell) fuell.style.width = v + '%';
+    const wert = zeile?.querySelector('.pf-ton-wert');
+    if (wert) wert.textContent = v === 0 ? 'Aus' : v + ' %';
+    inp.setAttribute('aria-valuetext', v === 0 ? 'Aus' : v + ' Prozent');
   });
 }
-
-export function toggleMusic() {
-  if (window._musicOn) {
-    stopMusic(); _setMusicBtns(false);
-    try { localStorage.setItem('es_music', '0'); } catch(e) {}
-  } else {
-    startMusicSync();
-    _setMusicBtns(true);
-    try { localStorage.setItem('es_music', '1'); } catch(e) {}
-  }
-}
-
-let _volPopupTimer = null;
-export function toggleVolPopup() {
-  const w = document.getElementById('music-vol-wrap');
-  const b = document.getElementById('music-vol-btn');
-  if (!w) return;
-  const isOpen = w.classList.toggle('open');
-  if (b) b.classList.toggle('active', isOpen);
-  if (_volPopupTimer) { clearTimeout(_volPopupTimer); _volPopupTimer = null; }
-  if (isOpen) {
-    _volPopupTimer = setTimeout(() => {
-      w.classList.remove('open');
-      if (b) b.classList.remove('active');
-    }, 4000);
-    const sl = document.getElementById('music-vol-slider');
-    if (sl) {
-      sl.oninput = function() {
-        setMusicVolume(this.value / 100);
-        if (_volPopupTimer) clearTimeout(_volPopupTimer);
-        _volPopupTimer = setTimeout(() => {
-          w.classList.remove('open');
-          if (b) b.classList.remove('active');
-        }, 4000);
-      };
-    }
-  }
-}
-
-// Hintergrund → pausieren. Rückkehr → an der GESPEICHERTEN bewussten Einstellung
-// (es_music) orientieren, NICHT am flüchtigen "lief gerade"-Zustand (das war der
-// alte Bug). War Musik bewusst an und diese Session bereits per Geste entsperrt
-// (_musicOn), läuft sie wieder; war sie aus, bleibt sie aus.
-document.addEventListener('visibilitychange', () => {
-  if (!window._musicAudio) return;
-  if (document.hidden) {
-    if (window._musicOn) window._musicAudio.pause();
-  } else {
-    let pref = '1';
-    try { const v = localStorage.getItem('es_music'); if (v !== null) pref = v; } catch(e) {}
-    if (pref === '1' && window._musicOn) window._musicAudio.play().catch(() => {});
-  }
+document.addEventListener('input', (e) => {
+  const inp = e.target.closest?.('input[data-ton]');
+  if (inp) setTon(inp.dataset.ton, inp.value / 100);
 });
 
-window.addEventListener('DOMContentLoaded', () => {
-  const isMobile = matchMedia('(pointer:coarse)').matches || innerWidth < 600;
-  try {
-    if (isMobile) {
-      window._musicVolume = 0.30;
-    } else {
-      const v = localStorage.getItem('es_music_vol');
-      if (v) window._musicVolume = parseFloat(v);
-    }
-    const sl = document.getElementById('music-vol-slider');
-    const lbl = document.getElementById('music-vol-lbl');
-    if (sl) sl.value = Math.round(window._musicVolume * 100);
-    if (lbl) lbl.textContent = Math.round(window._musicVolume * 100) + '%';
-  } catch(e) {}
-  let pref = '1';
-  try { const v = localStorage.getItem('es_music'); if (v !== null) pref = v; } catch(e) {}
-  if (pref !== '1') { _setMusicBtns(false); return; }
-  _setMusicBtns(true);
-  _discoverTracks().catch(() => {});
-});
+// Alte Musikdateien (bis v4.0.582, zusammen 33 MB) aus dem Musik-Cache räumen,
+// falls ein Gerät sie dort abgelegt hat. Nur Dateien unter music/, die nicht mehr
+// zur App gehören.
+function _alteMusikRaeumen() {
+  if (!('caches' in window)) return;
+  const jetzt = new Set([...Object.values(MUSIK), ...Object.values(SCHLAEGE).map((p) => p.slice(MUSIC_BASE.length))]);
+  caches.open('english-stars-static-v1').then((c) => c.keys().then((keys) => {
+    keys.forEach((req) => {
+      const m = new URL(req.url).pathname.match(/\/music\/([^/]+)$/);
+      if (m && !jetzt.has(decodeURIComponent(m[1]))) c.delete(req);
+    });
+  })).catch(() => {});
+}
+
+function _init() { _tonUiZeigen(); setTimeout(_alteMusikRaeumen, 5000); }
+if (document.readyState === 'loading') window.addEventListener('DOMContentLoaded', _init);
+else _init();
