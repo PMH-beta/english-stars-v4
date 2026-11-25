@@ -215,8 +215,6 @@
           <div class="p-banner-stats">
             <span title="Besiegte Bosse"><canvas data-icon="crown" width="14" height="14" style="width:14px;height:14px;image-rendering:pixelated;flex:none"></canvas><span id="menu-bosses">0</span></span>
             <span title="Taler"><canvas data-icon="coin" width="14" height="14" style="width:14px;height:14px;image-rendering:pixelated;flex:none"></canvas><span id="menu-taler">0</span></span>
-            <!-- LU-14 Wochenziel: Tipp öffnet die Wochenkarte (lernwoche.js) -->
-            <span title="Wochenziel" id="menu-woche" class="lw-banner" role="button" tabindex="0" onclick="event.stopPropagation();zeigeWochenkarte()"></span>
           </div>
         </div>
       </div>
@@ -226,7 +224,7 @@
         <button class="p-fortschritt" onclick="event.stopPropagation();showStats()"><canvas data-icon="trophy" width="14" height="14" style="width:14px;height:14px;image-rendering:pixelated;flex:none"></canvas>Fortschritt</button>
       </div>
     </div>
-    <!-- LU-14: Erinnerung ans Wochenziel (ab Donnerstag, solange offen) -->
+    <!-- LU-14: Wochenziel als feste Leiste; Tipp öffnet die Wochenkarte -->
     <div id="menu-woche-hinweis"></div>
 
     <!-- Drei Tabs. Jeder traegt seinen eigenen Grundton; der aktive faerbt den

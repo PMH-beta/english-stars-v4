@@ -1,16 +1,19 @@
 // src/modules/lernwoche.js
 // LU-14 Wochenziel (24.11.2026, Entscheidungen des Nutzers):
 // - Gezählt werden richtige Antworten überall (Runde, Probetest, Schmiede, Kampf).
-// - Wochenziel = Summe Mo–So; das Kind wählt 60 / 100 / 150 (Standard 100).
+// - Wochenziel = Summe einer Woche; das Kind wählt 60 / 100 / 150 (Standard 100).
 //   Eine Änderung gilt ab der nächsten Woche, sobald in dieser schon gezählt wurde.
+// - 25.11.2026 (Nutzer): Eine Woche beginnt mit dem ersten richtigen Wort und dauert
+//   7 Tage. Danach beginnt die nächste erst wieder mit dem nächsten Wort. Alte Stände
+//   (Wochen ab Montag) passen ohne Umbau: ihr Schlüssel ist einfach ihr Starttag.
 // - Ein Tag gilt ab 20 richtigen als „gearbeitet“ (Häkchen in der Wochenkarte).
 // - Wochenziel geschafft → einmal 2 Taler je Woche. Keine Serie über Wochen.
-// - Freunde sehen „diese Woche“ und „Wochenziel x-mal geschafft“.
+// - Freunde sehen „diese Woche“ und „Wochenziel x-mal geschafft“ (jeder seine eigene Woche).
 //
 // Speicher: SD.lernTage → eigene Spalte profiles.lern_tage (jsonb).
 //   ziel:   Wahl des Kindes (60/100/150)
 //   tage:   { 'JJJJ-MM-TT': richtige }  — nur die letzten 14 Tage
-//   wochen: { 'JJJJ-MM-TT' (Montag): { z: Ziel der Woche, ok: 1 wenn geschafft } }
+//   wochen: { 'JJJJ-MM-TT' (Starttag): { z: Ziel der Woche, ok: 1 wenn geschafft } }
 import { markDirty } from './sync.js';
 import { persist } from './storage.js';
 import { commitDirty } from './dialog.js';
@@ -28,11 +31,8 @@ function _tagKey(d) {
   const m = d.getMonth() + 1, t = d.getDate();
   return d.getFullYear() + '-' + (m < 10 ? '0' : '') + m + '-' + (t < 10 ? '0' : '') + t;
 }
-function _montag(d) {
-  const m = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  m.setDate(m.getDate() - ((m.getDay() + 6) % 7));
-  return m;
-}
+const _ausKey = (k) => { const [j, m, t] = k.split('-').map(Number); return new Date(j, m - 1, t); };
+const _vorTagen = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() - n);
 const _istTagKey = (k) => /^\d{4}-\d\d-\d\d$/.test(k);
 const _zahl = (v) => { const n = Math.floor(Number(v)); return Number.isFinite(n) && n > 0 ? n : 0; };
 const _zielOk = (z) => WOCHEN_ZIELE.includes(Number(z)) ? Number(z) : ZIEL_STANDARD;
@@ -65,34 +65,52 @@ function _lt(sd) {
   return lt;
 }
 
-// Stand der Woche, in der `jetzt` liegt — für Banner, Wochenkarte, Rundenende und
-// die Freund-Ansicht (dort mit seinem Stand).
+// Laufende Woche = Starttag, dessen 7 Tage heute einschließen. Gibt es (nach
+// Spielen auf zwei Geräten) zwei solche Starts, zählt der frühere. null = gerade
+// läuft keine Woche, die nächste beginnt mit dem nächsten richtigen Wort.
+function _laufendeWoche(lt, jetzt) {
+  const heute = _tagKey(jetzt), von = _tagKey(_vorTagen(jetzt, 6));
+  const keys = Object.keys(lt.wochen).filter((k) => k >= von && k <= heute).sort();
+  return keys.length ? keys[0] : null;
+}
+
+// Stand der laufenden Woche — für Menüleiste, Wochenkarte, Rundenende und die
+// Freund-Ansicht (dort mit seinem Stand). Läuft keine, zeigt er die 7 Tage ab heute.
 export function wochenStand(sd = window.SD, jetzt = new Date()) {
   const lt = lernTageFrom(sd && sd.lernTage);
-  const mo = _montag(jetzt), moKey = _tagKey(mo), heuteKey = _tagKey(jetzt);
-  const w = lt.wochen[moKey];
+  const heuteKey = _tagKey(jetzt);
+  const startKey = _laufendeWoche(lt, jetzt);
+  const w = startKey ? lt.wochen[startKey] : null;
+  const start = startKey ? _ausKey(startKey) : _vorTagen(jetzt, 0);
   const ziel = w ? w.z : lt.ziel;
   const tage = [];
   let summe = 0, heuteIdx = 0;
   for (let i = 0; i < 7; i++) {
-    const d = new Date(mo); d.setDate(mo.getDate() + i);
-    const k = _tagKey(d), n = lt.tage[k] || 0;
+    const d = new Date(start); d.setDate(start.getDate() + i);
+    const k = _tagKey(d), n = w ? (lt.tage[k] || 0) : 0;
     if (k === heuteKey) heuteIdx = i;
     summe += n;
-    tage.push({ kurz: WOCHENTAGE[i], n, gearbeitet: n >= TAG_SCHWELLE, heute: k === heuteKey, zukunft: k > heuteKey });
+    tage.push({ kurz: WOCHENTAGE[(d.getDay() + 6) % 7], n, gearbeitet: n >= TAG_SCHWELLE, heute: k === heuteKey, zukunft: k > heuteKey });
   }
   const geschafftGesamt = Object.values(lt.wochen).filter((x) => x.ok).length;
-  // LU-16: Vorwoche (die Tage reichen 14 Tage zurück, also immer ganz da).
-  const vorMo = new Date(mo); vorMo.setDate(mo.getDate() - 7);
-  let letzte = 0, letzteDaten = !!lt.wochen[_tagKey(vorMo)];
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(vorMo); d.setDate(vorMo.getDate() + i);
-    const n = lt.tage[_tagKey(d)];
-    if (n) { letzte += n; letzteDaten = true; }
+  // LU-16: die Woche davor. Nur zeigen, wenn ihre Tage noch ganz gespeichert sind
+  // (14 Tage); lag eine längere Pause dazwischen, sind sie schon weg.
+  const vorKey = Object.keys(lt.wochen).filter((k) => k < (startKey || heuteKey)).sort().pop() || null;
+  let letzte = 0, letzteDaten = false;
+  if (vorKey && vorKey >= _tagKey(_vorTagen(jetzt, TAGE_HALTEN))) {
+    letzteDaten = true;
+    const vs = _ausKey(vorKey);
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(vs); d.setDate(vs.getDate() + i);
+      const k = _tagKey(d);
+      if (startKey && k >= startKey) break;
+      letzte += lt.tage[k] || 0;
+    }
   }
-  const vw = lt.wochen[_tagKey(vorMo)];
+  const vw = vorKey ? lt.wochen[vorKey] : null;
   return {
     letzte, letzteDaten, letzteOk: !!(vw && vw.ok),
+    laeuft: !!w,                             // false = startet mit dem nächsten Wort
     summe, ziel, ok: !!(w && w.ok) || summe >= ziel,
     fehlt: Math.max(0, ziel - summe),
     restTage: 7 - heuteIdx,                  // inkl. heute (So = 1)
@@ -118,9 +136,9 @@ export function zaehleRichtig(n = 1) {
   const grenze = new Date(jetzt); grenze.setDate(grenze.getDate() - TAGE_HALTEN);
   const grenzKey = _tagKey(grenze);
   for (const k in lt.tage) if (k < grenzKey) delete lt.tage[k];
-  const moKey = _tagKey(_montag(jetzt));
-  if (!lt.wochen[moKey]) lt.wochen[moKey] = { z: lt.ziel };
-  const w = lt.wochen[moKey];
+  let startKey = _laufendeWoche(lt, jetzt);
+  if (!startKey) { startKey = heute; lt.wochen[startKey] = { z: lt.ziel }; }   // neue Woche ab jetzt
+  const w = lt.wochen[startKey];
   let neu = false;
   if (!w.ok && wochenStand(sd, jetzt).summe >= w.z) {
     w.ok = 1;
@@ -153,27 +171,26 @@ export function setzeWochenZiel(z) {
 const _fmt = (n) => String(n);
 const _richtige = (n) => n === 1 ? 'eine richtige Antwort' : n + ' richtige Antworten';
 
-// Spielerbanner: „64/100“ bzw. Haken, wenn geschafft.
-export function wochenBannerHTML(st = wochenStand()) {
-  return iconHTML(st.ok ? 'check' : 'calendar', 14) + `<span>${st.ok ? 'Woche' : _fmt(st.summe) + '/' + _fmt(st.ziel)}</span>`;
-}
-
-// Erinnerung im Menü (Wunsch: „mein Wochenziel läuft ab“): ab Donnerstag, solange
-// das Ziel offen ist. ✕ blendet sie für den Rest des Tages aus.
-const HINWEIS_WEG = 'es_woche_hinweis_weg';
+// Feste Leiste im Menü unter dem Spielerbanner (25.11.2026, Nutzer): immer da,
+// Tipp öffnet die Wochenkarte. Ab dem 4. Tag der Woche (Wunsch: „mein Wochenziel
+// läuft ab“) steht dort die Erinnerung, solange das Ziel offen ist.
 export function wochenHinweisText(st = wochenStand()) {
-  if (st.ok || st.restTage > 4) return '';
+  if (!st.laeuft || st.ok || st.restTage > 4) return '';
   if (st.restTage === 1) return `Heute ist der letzte Tag: noch ${_richtige(st.fehlt)} bis zu deinem Wochenziel!`;
   return `Noch ${st.restTage} Tage: ${st.summe} von ${st.ziel} richtig. Mach gern weiter!`;
 }
-export function wochenHinweisWeg() {
-  try { localStorage.setItem(HINWEIS_WEG, _tagKey(new Date())); } catch (e) {}
-}
-export function wochenHinweisAus() {
-  try { return localStorage.getItem(HINWEIS_WEG) === _tagKey(new Date()); } catch (e) { return false; }
+export function wochenLeisteHTML(st = wochenStand()) {
+  const erinnerung = wochenHinweisText(st);
+  const text = st.ok ? 'Wochenziel geschafft!'
+    : !st.laeuft ? 'Wochenziel: Deine Woche startet mit dem nächsten richtigen Wort.'
+    : erinnerung || `Wochenziel: ${_fmt(st.summe)} von ${_fmt(st.ziel)} richtig`;
+  return `<div class="lw-hinweis lw-leiste${erinnerung ? ' is-erinnerung' : ''}" role="button" tabindex="0" aria-label="Wochenziel öffnen"`
+    + ` onclick="zeigeWochenkarte()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();zeigeWochenkarte();}">`
+    + iconHTML(st.ok ? 'check' : 'calendar', 28)
+    + `<span class="lw-hinweis-text">${text}${st.laeuft ? wochenBalkenHTML(st) : ''}</span></div>`;
 }
 
-// Sieben Tagesfelder Mo–So (Wochenkarte, Fortschritt-Seite).
+// Sieben Tagesfelder ab dem Starttag der Woche (Wochenkarte, Fortschritt-Seite).
 // mitZahl (LU-16, Fortschritt): unter jedem Tag die richtigen Antworten des Tages.
 export function wochenTageHTML(st, mitZahl = false) {
   return `<div class="lw-tage">` + st.tage.map((t) => {
@@ -209,6 +226,7 @@ export function zeigeWochenkarte() {
   overlay.className = 'p-dlg-grund';
   const unter = st.ok
     ? `Geschafft! Die ${WOCHE_TALER} Taler hast du schon bekommen.`
+    : !st.laeuft ? 'Deine Woche startet mit dem nächsten richtigen Wort und dauert 7 Tage.'
     : `Noch ${_richtige(st.fehlt)} · ${st.restTage === 1 ? 'heute letzter Tag' : 'noch ' + st.restTage + ' Tage'}`;
   const zielKnoepfe = WOCHEN_ZIELE.map((z) =>
     `<button type="button" class="lw-ziel${z === st.zielNaechste ? ' is-an' : ''}" data-ziel="${z}">${z}</button>`).join('');

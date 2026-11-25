@@ -22,7 +22,7 @@ import { renderFriendsSection, refreshFriendBadge, friendProgress, subscribeFrie
 import { renderCampaign, renderCampaignDemo, updateTalerBadge, refreshClaimedTaler } from './campaign.js';
 import { tourStarten, tourLaeuft, tourZurueck, tourAbbrechen, TOUR_SCHRITTE } from './tour.js';
 import { itemTag, forgeTag, forgeGrauTag, PART_ANIM } from './world.js';
-import { wochenStand, wochenBannerHTML, wochenHinweisText, wochenHinweisAus, wochenHinweisWeg, wochenTageHTML, wochenBalkenHTML, wochenLetzteHTML, lernTageFrom, frischGeschafftAbholen, WOCHE_TALER } from './lernwoche.js';
+import { wochenStand, wochenLeisteHTML, wochenTageHTML, wochenBalkenHTML, wochenLetzteHTML, lernTageFrom, frischGeschafftAbholen, WOCHE_TALER } from './lernwoche.js';
 
 // ────────────────────────────────────────────────
 //  AUTH UI STATE
@@ -1829,21 +1829,9 @@ export function showMenu() {
 // LU-14 Wochenziel im Menü: Zahl im Spielerbanner und die Erinnerung darunter
 // (Wunsch: „mein Wochenziel läuft ab“ — ab Donnerstag, solange es offen ist).
 export function renderWochenBanner() {
-  const st = wochenStand();
-  const el = document.getElementById('menu-woche');
-  if (el) el.innerHTML = wochenBannerHTML(st);
+  // 25.11.2026: feste Leiste unter dem Spielerbanner (lernwoche.js), Tipp öffnet die Wochenkarte.
   const h = document.getElementById('menu-woche-hinweis');
-  if (!h) return;
-  const text = window.SD?._tourDemo || wochenHinweisAus() ? '' : wochenHinweisText(st);
-  h.innerHTML = text
-    ? `<div class="lw-hinweis" role="button" tabindex="0" onclick="zeigeWochenkarte()">${iconHTML('calendar', 28)}`
-      + `<span class="lw-hinweis-text">${text}</span>`
-      + `<button type="button" class="lw-hinweis-zu" aria-label="Für heute ausblenden" onclick="event.stopPropagation();wochenHinweisSchliessen()">${iconHTML('close', 14)}</button></div>`
-    : '';
-}
-export function wochenHinweisSchliessen() {
-  wochenHinweisWeg();
-  renderWochenBanner();
+  if (h) h.innerHTML = window.SD && !window.SD._tourDemo ? wochenLeisteHTML(wochenStand()) : '';
 }
 
 // ────────────────────────────────────────────────
@@ -3044,7 +3032,6 @@ function showMenuSkeleton(mode = window.SD?.activeMode || 'free') {
   if (nm) nm.innerHTML = 'Lädt<span data-ui="dots" style="display:inline-block;width:1.2em;text-align:left">…</span>';
   const tl = document.getElementById('menu-taler');       if (tl) tl.textContent = '–';
   const bs = document.getElementById('menu-bosses');      if (bs) bs.textContent = '–';
-  const wo = document.getElementById('menu-woche');       if (wo) wo.innerHTML = '';
   const wh = document.getElementById('menu-woche-hinweis'); if (wh) wh.innerHTML = '';
   const av = document.getElementById('menu-avatar');      if (av) { av.innerHTML = ''; av.classList.add('is-leer'); }
   const ft = document.getElementById('menu-footer');      if (ft) ft.style.display = 'flex';
